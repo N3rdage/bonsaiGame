@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_math_3d",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_math_3d",
+  "parent":{
+    "name":"BonsaiGame",
+    "path":"BonsaiGame.yyp",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}

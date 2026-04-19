@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_growth",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_growth",
+  "parent":{
+    "name":"BonsaiGame",
+    "path":"BonsaiGame.yyp",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
