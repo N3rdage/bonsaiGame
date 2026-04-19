@@ -5,8 +5,8 @@
   "isDnD":false,
   "name":"scr_inventory",
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Player",
+    "path":"folders/_Shared/Player.yy",
   },
   "resourceType":"GMScript",
   "resourceVersion":"2.0",

@@ -5,8 +5,8 @@
   "isDnD":false,
   "name":"scr_species_data",
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Bonsai",
+    "path":"folders/_Shared/Bonsai.yy",
   },
   "resourceType":"GMScript",
   "resourceVersion":"2.0",

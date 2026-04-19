@@ -8,8 +8,8 @@
   "name":"obj_workbench",
   "overriddenProperties":[],
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Shed",
+    "path":"folders/Shed.yy",
   },
   "parentObjectId":{
     "name":"obj_interactable",
