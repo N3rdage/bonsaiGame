@@ -3,6 +3,8 @@
 // This is a crude starting point — trees will look rough until the
 // bending math is replaced with proper parallel-transport frames.
 
+#macro BONSAI_DISPLAY_SCALE 4   // 1 sim cm renders as 4 "viewer units"
+
 function build_tree_mesh(_tree) {
     var _vbuff = vertex_create_buffer();
     vertex_begin(_vbuff, global.vformat_3d);
@@ -19,8 +21,8 @@ function build_tree_mesh(_tree) {
 
 function build_trunk(_vbuff, _tree) {
     var _trunk = _tree.trunk;
-    var _height_m    = _trunk.height_cm / 100;
-    var _base_radius = (_trunk.girth_mm / 1000) / 2;
+	var _height_m    = (_trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
+    var _base_radius = ((_trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE;
     
     var _segments_tall  = max(8, floor(_height_m * 20));
     var _segments_round = 10;
@@ -59,14 +61,14 @@ function build_trunk(_vbuff, _tree) {
 }
 
 function build_branch(_vbuff, _tree, _branch) {
-    var _trunk_h_m = _tree.trunk.height_cm / 100;
+	var _trunk_h_m = (_tree.trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
     var _t = _branch.origin_y / _tree.trunk.height_cm;
     _t = clamp(_t, 0, 1);
     var _origin_z = _t * _trunk_h_m;
     
-    var _trunk_r = lerp(
-        (_tree.trunk.girth_mm / 1000) / 2,
-        (_tree.trunk.girth_mm / 1000) / 2 * (1 - _tree.trunk.taper),
+	var _trunk_r = lerp(
+        ((_tree.trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE,
+        ((_tree.trunk.girth_mm / 1000) / 2) * (1 - _tree.trunk.taper) * BONSAI_DISPLAY_SCALE,
         _t
     );
     var _ox = dcos(_branch.angle) * _trunk_r;
@@ -74,7 +76,7 @@ function build_branch(_vbuff, _tree, _branch) {
     var _origin = vec3(_ox, _oy, _origin_z);
     
     var _dir_angle = _branch.angle + _branch.bend;
-    var _length_m  = _branch.length / 100;
+    var _length_m  = (_branch.length / 100) * BONSAI_DISPLAY_SCALE;
     var _segs = 6;
     
     var _bark_col = make_color_rgb(110, 75, 50);
@@ -87,8 +89,9 @@ function build_branch(_vbuff, _tree, _branch) {
             _origin.y + dsin(_dir_angle) * _length_m * _ft,
             _origin.z + _length_m * _ft * 0.25
         );
-        var _r = lerp(_branch.girth / 1000, (_branch.girth / 1000) * 0.2, _ft);
-        _r = max(_r, 0.0005);
+        var _r = lerp((_branch.girth / 1000) * BONSAI_DISPLAY_SCALE,
+                      (_branch.girth / 1000) * 0.2 * BONSAI_DISPLAY_SCALE, _ft);
+        _r = max(_r, 0.005);
         
         var _ring = build_ring(_pt, _r, 6);
         if (_prev_ring != undefined) {
@@ -146,13 +149,15 @@ function add_vertex(_vbuff, _p, _col, _u, _v) {
 }
 
 function add_foliage_cluster(_vbuff, _center, _col, _density) {
-    var _count = floor(3 + _density * 4);
-    var _size  = 0.04 + _density * 0.03;
+    var _count = floor(4 + _density * 6);
+    // Leaf size should scale with the tree's display scale but stay small
+    var _size  = (0.008 + _density * 0.006) * BONSAI_DISPLAY_SCALE;
+    var _spread = 0.025 * BONSAI_DISPLAY_SCALE;
     
     for (var i = 0; i < _count; i++) {
-        var _ox = random_range(-0.03, 0.03);
-        var _oy = random_range(-0.03, 0.03);
-        var _oz = random_range(-0.02, 0.02);
+        var _ox = random_range(-_spread, _spread);
+        var _oy = random_range(-_spread, _spread);
+        var _oz = random_range(-_spread * 0.5, _spread * 0.5);
         var _c  = vec3(_center.x + _ox, _center.y + _oy, _center.z + _oz);
         
         _add_quad_xz(_vbuff, _c, _size, _col);

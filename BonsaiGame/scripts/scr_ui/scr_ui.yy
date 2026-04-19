@@ -5,8 +5,8 @@
   "isDnD":false,
   "name":"scr_ui",
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Misc",
+    "path":"folders/_Shared/Misc.yy",
   },
   "resourceType":"GMScript",
   "resourceVersion":"2.0",

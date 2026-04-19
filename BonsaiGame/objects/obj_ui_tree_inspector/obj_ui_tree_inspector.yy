@@ -8,8 +8,8 @@
   "name":"obj_ui_tree_inspector",
   "overriddenProperties":[],
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Bonsai",
+    "path":"folders/_Shared/Bonsai.yy",
   },
   "parentObjectId":{
     "name":"obj_ui_panel",

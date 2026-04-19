@@ -36,9 +36,9 @@ function tree_daily_tick(_tree, _isolated = false) {
             branches[i].girth  += 0.01 * _growth_mult;
         }
         
-        if (random(1) < 0.02 * _growth_mult && array_length(branches) < 15) {
-            _spawn_branch_naturally(self);
-        }
+		if (random(1) < 0.1 * _growth_mult && array_length(branches) < 15) {
+		    _spawn_branch_naturally(self);
+		}
         
         foliage_density = clamp(foliage_density + 0.01 * _growth_mult, 0, 1);
         mesh_dirty = true;
@@ -68,7 +68,9 @@ function water_tree(_tree) {
 }
 
 function skip_tree_time(_tree, _days) {
-    if (!inventory_remove("fertilizer", _days)) {
+    // Cost scales sub-linearly — bulk skips are efficient
+    var _cost = max(1, ceil(_days * 0.5));
+    if (!inventory_remove("fertilizer", _cost)) {
         return false;
     }
     for (var i = 0; i < _days; i++) {
