@@ -4,7 +4,7 @@ event_inherited();
 // Subclass overrides
 panel_title = "Bonsai Inspector";
 panel_w     = 600;
-panel_h     = 500;
+panel_h     = 560;
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
@@ -82,20 +82,24 @@ draw_content = function() {
     }
     
     // Action buttons
+// Action buttons
     var _bx = panel_x + 20;
-    var _by = panel_y + panel_h - 100;
-    var _bw = 120;
     var _bh = 36;
     var _gap = 10;
+    var _footer_h = 28;
+    // Two rows of buttons plus footer, working up from the panel bottom
+    var _by = panel_y + panel_h - (_bh * 2 + _gap + _footer_h + 20);
+    var _bw = 120;
     
     if (ui_button(_bx, _by, _bw, _bh, "Water")) {
         water_tree(tree);
     }
     
-    var _can_skip = inventory_has("fertilizer", 7);
-    if (ui_button(_bx + (_bw + _gap), _by, _bw, _bh, "Skip 7 Days", _can_skip)) {
-        skip_tree_time(tree, 7);
-    }
+	var _skip_cost = max(1, ceil(7 * 0.5));   // mirrors the formula in scr_growth
+	var _can_skip = inventory_has("fertilizer", _skip_cost);
+	if (ui_button(_bx + (_bw + _gap), _by, _bw, _bh, "Skip 7d (" + string(_skip_cost) + "f)", _can_skip)) {
+	    skip_tree_time(tree, 7);
+	}
     
     var _has_branches = _branch_count > 0;
     if (ui_button(_bx + (_bw + _gap) * 2, _by, _bw, _bh, "Clip", _has_branches)) {
@@ -108,10 +112,19 @@ draw_content = function() {
             selected_branch = max(0, array_length(tree.branches) - 1);
         }
     }
+
+	// Second row: mode buttons
+    var _by2 = _by + _bh + _gap;
     
-    // Footer info
+    if (ui_button(_bx, _by2, _bw, _bh, "Inspect 3D")) {
+        // Close this panel first, then open the viewer
+        instance_destroy();
+        enter_3d_viewer(tree);
+    }
+	
+    // Footer info (below the button rows)
     draw_set_color(make_color_rgb(150, 150, 150));
-    draw_text(_bx, panel_y + panel_h - 40,
+    draw_text(_bx, _by + (_bh + _gap) * 2 + 8,
         "Fertilizer: " + string(inventory_count("fertilizer"))
         + "  |  Day: " + string(global.game_day));
 };

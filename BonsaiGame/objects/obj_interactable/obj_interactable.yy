@@ -8,8 +8,8 @@
   "name":"obj_interactable",
   "overriddenProperties":[],
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Misc",
+    "path":"folders/_Shared/Misc.yy",
   },
   "parentObjectId":null,
   "persistent":false,

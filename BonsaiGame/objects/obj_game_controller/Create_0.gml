@@ -15,9 +15,13 @@ init_vertex_format();
 // Sample tree for testing
 var _sample = new BonsaiTree("juniper", "seed");
 _sample.name = "Starter";
-_sample.add_branch(-1, 1.0, 30,  2.5);
-_sample.add_branch(-1, 1.5, 210, 2.0);
-_sample.add_branch(-1, 2.0, 120, 1.8);
+_sample.trunk.height_cm = 25;
+_sample.trunk.girth_mm  = 18;
+_sample.add_branch(-1, 8,  30,  12);
+_sample.add_branch(-1, 14, 210, 11);
+_sample.add_branch(-1, 18, 120, 10);
+_sample.add_branch(-1, 22, 60,   9);
+_sample.location = "shed";
 array_push(global.all_trees, _sample);
 
 show_debug_message("Game controller initialized. Day " + string(global.game_day));

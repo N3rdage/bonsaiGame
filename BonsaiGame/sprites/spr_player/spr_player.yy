@@ -25,8 +25,8 @@
   "nineSlice":null,
   "origin":4,
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Player",
+    "path":"folders/_Shared/Player.yy",
   },
   "preMultiplyAlpha":false,
   "resourceType":"GMSprite",
