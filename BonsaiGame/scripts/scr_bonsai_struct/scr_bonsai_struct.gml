@@ -10,7 +10,7 @@ function BonsaiTree(_species_key, _origin) constructor {
     
     // Lifecycle
     age_days         = 0;
-    vitality           = 100;
+    vitality         = 100;
     vigor            = 50;
     water_level      = 50;
     last_watered_day = 0;
@@ -27,8 +27,11 @@ function BonsaiTree(_species_key, _origin) constructor {
         movement:   [],
     };
     
-    branches = [];
-    foliage_density = 0.3;
+	branches = [];
+	foliage_density = 0.3;
+
+	// Cuttings come with a small existing structure; seeds start bare.
+	// We do this after construction so `add_branch` works correctly.
     
     // Training history
     wires_applied  = [];
@@ -53,7 +56,7 @@ function BonsaiTree(_species_key, _origin) constructor {
             origin_y:  _y_cm,
             angle:     _angle_deg,
             length:    _length_cm,
-            girth:     _length_cm * 0.1,
+            girth:     max(2, _length_cm * 0.3),
             wired:     false,
             bend:      0,
         };
@@ -77,5 +80,18 @@ function BonsaiTree(_species_key, _origin) constructor {
             mesh_dirty = false;
         }
         return mesh_cache;
+    }
+	
+	// Initialize morphology based on origin
+    if (_origin == "cutting") {
+        trunk.height_cm = 8;
+        trunk.girth_mm  = 4;
+        add_branch(-1, 3, 45,  3);
+        add_branch(-1, 5, 225, 2.5);
+        foliage_density = 0.25;
+    } else if (_origin == "seed") {
+        trunk.height_cm = 2;
+        trunk.girth_mm  = 1.5;
+        foliage_density = 0.1;
     }
 }

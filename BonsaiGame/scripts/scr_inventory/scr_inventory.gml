@@ -6,7 +6,7 @@ function init_inventory() {
         clay:             5,
         pot:              2,
         wire:             10,
-        fertilizer:       20,
+        fertilizer:       50,
         seed_juniper:     1,
         seed_maple:       1,
         cutting_juniper:  0,

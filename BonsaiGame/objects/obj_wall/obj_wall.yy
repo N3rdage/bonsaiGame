@@ -6,8 +6,8 @@
   "name":"obj_wall",
   "overriddenProperties":[],
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Buildings",
+    "path":"folders/_Shared/Buildings.yy",
   },
   "parentObjectId":null,
   "persistent":false,

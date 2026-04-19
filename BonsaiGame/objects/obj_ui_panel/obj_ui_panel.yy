@@ -10,8 +10,8 @@
   "name":"obj_ui_panel",
   "overriddenProperties":[],
   "parent":{
-    "name":"BonsaiGame",
-    "path":"BonsaiGame.yyp",
+    "name":"Misc",
+    "path":"folders/_Shared/Misc.yy",
   },
   "parentObjectId":null,
   "persistent":false,
