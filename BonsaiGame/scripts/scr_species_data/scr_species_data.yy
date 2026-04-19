@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_species_data",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_species_data",
+  "parent":{
+    "name":"BonsaiGame",
+    "path":"BonsaiGame.yyp",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
