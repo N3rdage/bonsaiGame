@@ -1,0 +1,35 @@
+name: Bug report
+description: Something's broken or behaving unexpectedly.
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe what you saw vs. what you expected.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: If relevant — what you did leading up to the issue.
+      placeholder: |
+        1. Open the project in GameMaker
+        2. Press Run
+        3. Walk to the planting table and press E
+        4. …
+
+  - type: input
+    id: gm-version
+    attributes:
+      label: GameMaker version
+      description: Help → About in the IDE.
+      placeholder: "2024.14.4.222"
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      placeholder: "Windows 11"
