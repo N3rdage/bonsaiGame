@@ -4,9 +4,9 @@ This doc captures the audit, decisions, and pre-flip work for making this repo p
 
 ## TL;DR
 
-The repo is in good shape. Security audit is clean (zero leaks across full history). Only two content edits genuinely need to land before flipping (`files.zip` delete, two memory-file edits). A handful of nice-to-haves — README reframing, a CI workflow, issue templates — are optional and documented as decision points below.
+The repo is in good shape. Security audit is clean (zero leaks across full history). Pre-flip hygiene landed as a single PR: content edits, a hybrid README header, a gitleaks CI workflow, issue + PR templates, and a `TODO.md`. All decisions below are recorded as a permanent record of what was picked and why.
 
-Recommended path: one bundled PR for the required edits + a meta-forward README rewrite, then flip, then a follow-up PR for CI and any templates.
+> **Status:** pre-flip hygiene complete; awaiting the GitHub Settings walkthrough and the visibility flip.
 
 ## What's already clean
 
@@ -33,7 +33,7 @@ These land in the pre-flip PR:
 | `.claude-memory/user_drew.md` | Replace `"the tech stack here is different from his other projects — don't assume .NET/Azure/Blazor context"` with `"the tech stack here is different from his other projects"` |
 | `.claude-memory/project_blog.md` | Remove the parenthetical `(` ``N3rdage`` `)` from the rule; rule becomes `"no email, employer, location, exact GitHub handle, or other identifiers"` |
 
-### 2. Open decision — `feedback_todo_tracking.md` BookTracker reference
+### 2. Decision — `feedback_todo_tracking.md` BookTracker reference
 
 Line 22 reads: *"Format (inherited from BookTracker, adapt if Drew wants different)"*.
 
@@ -45,7 +45,9 @@ BookTracker is the product name of your other public repo (the-library). It's no
 
 **Suggested default: A.** It's honest, and you've already linked the-library repo publicly.
 
-### 3. Open decision — README framing
+**Picked: A** — left as-is, with a markdown link to the-library added for usefulness.
+
+### 3. Decision — README framing
 
 The current README is **product-forward**: here's the game, here are the controls, here's how to play. Given your answers in Step 1 (this is an experiment / methodology showcase, sibling to the-library with a different collaboration style), there's a case for **meta-forward** framing: lead with the unusual thing (AI-paired game dev in GameMaker, how it went, what's here to learn from) and let the gameplay details follow.
 
@@ -55,7 +57,9 @@ The current README is **product-forward**: here's the game, here are the control
 
 **Suggested default: C.** Matches your stated purpose without a full rewrite. Cheap, preserves the gameplay-forward content you already have.
 
-### 4. Open decision — CI workflow for secret scanning
+**Picked: C** — "About this repo" section added above the gameplay content, with links to the-library and the blog.
+
+### 4. Decision — CI workflow for secret scanning
 
 No `.github/workflows/` directory yet. Once public, any PR (internal or external) could accidentally introduce a leak.
 
@@ -64,7 +68,9 @@ No `.github/workflows/` directory yet. Once public, any PR (internal or external
 
 **Suggested default: A.** Low cost, real safety net, and it's the kind of thing that's easier to add now than retrofit.
 
-### 5. Open decision — Issue / PR templates
+**Picked: A** — `.github/workflows/gitleaks.yml` added; runs on PR + push to main.
+
+### 5. Decision — Issue / PR templates
 
 You chose stance (b) — suggestions-welcome-via-issues, no external PRs.
 
@@ -74,7 +80,9 @@ You chose stance (b) — suggestions-welcome-via-issues, no external PRs.
 
 **Suggested default: C** for the first PR, with a note to revisit if you see a lot of low-quality issues.
 
-### 6. Open decision — Branch protection for solo dev
+**Picked: A** — both issue templates and PR template added, partly to test-drive the PR template with internal PRs before it ever sees an external one.
+
+### 6. Decision — Branch protection for solo dev
 
 You're solo for now. Two viable configurations:
 
@@ -84,26 +92,30 @@ You're solo for now. Two viable configurations:
 
 **Suggested default: B.** Keeps your existing rhythm, protects main from accidental history rewrites, and matches the workflow you've been running this whole project.
 
-### 7. Open decision — `GOING-PUBLIC.md` itself, post-flip
+**Picked: B** — to be configured in Settings post-flip. Option C remains available if a collaborator joins.
+
+### 7. Decision — `GOING-PUBLIC.md` itself, post-flip
 
 - **(A) Delete after the flip** as a temporary planning doc.
 - **(B) Keep as a record** of what was decided and why. Useful for future-you and anyone curious about the going-public process.
 
 **Suggested default: B.** It documents decisions cheaply. Rename to `docs/going-public-retro.md` or leave at root — your call.
 
+**Picked: B** — kept at repo root as a permanent record. The repo is intended as an open history that might help future-Drew or others.
+
 ## Pre-flip checklist
 
-Assuming the suggested defaults (swap to your picks where you differ):
+All landed in this PR except the final scan, which runs before the PR is opened:
 
-- [ ] Delete `files.zip`
-- [ ] Edit `.claude-memory/user_drew.md` — drop `.NET/Azure/Blazor` specifics
-- [ ] Edit `.claude-memory/project_blog.md` — drop `N3rdage` parenthetical
-- [ ] (Decision 2) Leave `feedback_todo_tracking.md` BookTracker reference
-- [ ] (Decision 3) Add "About this repo" header to README
-- [ ] (Decision 4) Add `.github/workflows/gitleaks.yml`
-- [ ] (Decision 5) No templates for now
-- [ ] Create `TODO.md` at repo root with going-public follow-ups
-- [ ] Re-run gitleaks as final sanity check
+- [x] Delete `files.zip`
+- [x] Edit `.claude-memory/user_drew.md` — drop `.NET/Azure/Blazor` specifics
+- [x] Edit `.claude-memory/project_blog.md` — drop `N3rdage` parenthetical
+- [x] Leave `feedback_todo_tracking.md` BookTracker reference; add link to the-library
+- [x] Add "About this repo" header to README
+- [x] Add `.github/workflows/gitleaks.yml`
+- [x] Add issue templates + PR template
+- [x] Create `TODO.md` at repo root with going-public follow-ups
+- [x] Re-run gitleaks as final sanity check
 
 ## Post-flip actions
 
@@ -121,6 +133,38 @@ Assuming the suggested defaults (swap to your picks where you differ):
 - [ ] Update / create `TODO.md` with any deferred items (e.g., CI if you picked B on decision 4)
 - [ ] (Decision 7) Keep or delete this doc
 
-## What I need from you
+## GitHub Settings walkthrough (for the flip itself)
 
-Pick A/B/C on decisions 2–7 above (or "defaults"), and I'll land the pre-flip PR.
+You'll click these. In order:
+
+**Branch protection** (Settings → Rules → Rulesets → New ruleset):
+- Target: `main`
+- Bypass list: include Drew
+- Require a pull request before merging (no approvals required)
+- Block force pushes
+- Block deletions
+- (Optional) Require status checks to pass — add the `Gitleaks` workflow once the CI has run at least once so it appears in the selector
+
+**Actions** (Settings → Actions → General):
+- Fork pull request workflows → "Require approval for all outside collaborators" (since PRs from externals aren't expected)
+- Workflow permissions → "Read repository contents and packages permissions" (not Read+Write)
+
+**Code security** — post-flip, verify these appear and enable:
+- Secret scanning (auto-on)
+- Push protection (auto-on)
+- Private vulnerability reporting — opt in
+- CodeQL — opt in with default config
+- Dependabot alerts + security updates — opt in
+
+**Features** (Settings → General):
+- Issues: on
+- Discussions: off (revisit later if useful)
+- Wiki: off
+- Projects: off
+
+**Pull request merge options** (Settings → General):
+- Allow merge commits (matches existing history)
+- Automatically delete head branches: on
+- Always suggest updating PR branches: on
+
+**The flip itself:** Settings → General → Danger Zone → Change visibility → Public. GitHub asks you to type the repo name to confirm.
