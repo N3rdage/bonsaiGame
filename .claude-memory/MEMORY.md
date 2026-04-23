@@ -9,3 +9,7 @@
 - [TODO tracking](feedback_todo_tracking.md) — TODO.md at repo root is source of truth; create on first use; "sync TODOs" reconciles memory + code + TODO.md.
 - [Memory changes get their own commits](feedback_memory_commits.md) — .claude-memory/ is in the repo; don't stage memory files in feature commits, flag them separately.
 - [BonsaiGame dev blog](project_blog.md) — Claude writes a first-person dev blog at `blog/`; when Drew says "let's work on the blog", propose 3 candidate angles before drafting.
+- [A/B/C options beat silent defaults](feedback_ab_options.md) — for decisions with multiple defensible paths, present 2-3 lettered options with pros/cons and a suggested default; don't silently pick.
+- [GitHub push/PR hand-off](feedback_github_push.md) — never push branches or open PRs; commit locally, tell Drew "push the changes and create a PR," wait for merge confirmation.
+- [Delete merged branches](feedback_delete_merged_branch.md) — after merge verification, `git checkout main && git pull && git branch -d <branch>`.
+- [Verify merge on remote](feedback_verify_merge.md) — when Drew says "merged," first step is `git fetch` + check origin SHA, not a pull/delete. Claims are not ground truth.
