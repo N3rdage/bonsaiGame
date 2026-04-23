@@ -22,7 +22,7 @@ Not on a schedule and not per-PR. Write when something memorable happens or at a
 
 ## Strict lines
 
-- **No personal details** beyond first name "Drew." No email, employer, location, exact GitHub handle (`N3rdage`), or other identifiers. When in doubt, check before including.
+- **No personal details** beyond first name "Drew." No email, employer, location, GitHub handle, or other identifiers. When in doubt, check before including.
 - **No secrets** — tokens, credentials, internal URLs, etc.
 - **No cross-project references.** Don't name or imply Drew's other projects.
 
