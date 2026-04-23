@@ -4,7 +4,7 @@ description: All TODOs go in TODO.md at the repo root. Code TODOs mirror there. 
 type: feedback
 originSessionId: ea7bf55b-43b2-4736-8b01-70a80594d6b6
 ---
-All TODO items go in `TODO.md` at the repo root — this is the master list. (It may not exist yet in BonsaiGame — create it the first time a TODO is added.)
+All TODO items go in `TODO.md` at the repo root — this is the master list.
 
 When Drew asks to add a TODO, add it to `TODO.md`. If it has a specific code location, also add a `// TODO` comment in the GML for local context.
 
@@ -19,4 +19,4 @@ Reconcile all three — add anything missing to `TODO.md`, flag any stale entrie
 
 **How to apply:** New TODOs always go to `TODO.md` first. Keep code-level `// TODO` comments for local context but treat `TODO.md` as the source of truth when enumerating outstanding work.
 
-**Format (inherited from BookTracker, adapt if Drew wants different):** Single priority-ordered table, not categorical bullet lists. Columns: `# / Category / Name / Description / Size`. Shipped items move to a separate bottom table with an added `Actual` column so estimate-vs-actual is legible. When shipping, cut-and-paste to the Shipped table and fill in `Actual`.
+**Format (inherited from BookTracker — Drew's other project at [github.com/N3rdage/the-library](https://github.com/N3rdage/the-library); adapt if Drew wants different):** Single priority-ordered table, not categorical bullet lists. Columns: `# / Category / Name / Description / Size`. Shipped items move to a separate bottom table with an added `Actual` column so estimate-vs-actual is legible. When shipping, cut-and-paste to the Shipped table and fill in `Actual`.

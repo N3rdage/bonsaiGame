@@ -1,0 +1,24 @@
+name: Feature suggestion
+description: Suggest an addition or change to the game.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like?
+      description: Describe the feature or change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: What problem does it solve, or what would it unlock?
+
+  - type: markdown
+    attributes:
+      value: |
+        Note: this repo isn't currently accepting external PRs. Suggestions land here and may be
+        picked up at the maintainer's discretion. See [`TODO.md`](../../blob/main/TODO.md) for what's
+        already on the list.

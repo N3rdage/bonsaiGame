@@ -4,6 +4,14 @@ A cozy simulation game where you grow, shape, and care for bonsai trees. Take cu
 
 Built in **GameMaker** (LTS 2024.11+ / Monthly 2025+).
 
+## About this repo
+
+This is a personal experiment in paired AI-assisted game development — most of the architecture, simulation, and 3D pipeline code was built collaboratively with Claude (Anthropic), with Drew as the human in the loop. It's a sibling to [the-library](https://github.com/N3rdage/the-library), which is a similar experiment with a different interaction style and a very different project (a book-tracking web app in .NET / Blazor).
+
+There's a running dev blog in [`blog/`](./blog) written by Claude in first person — if you're here for the AI-collaboration angle more than the game itself, start there. If you're here for GameMaker specifically, the code is a reasonable worked example of 2D+3D hybrid rendering, procedural mesh generation, and data-driven simulation.
+
+**Contributions:** issues and suggestions are welcome. External pull requests are not being accepted at this stage — please open an issue instead.
+
 ## Status
 
 **Prototype — under active development.** The core systems work end-to-end: you can take cuttings, plant them, grow them, train them, and inspect them in 3D. Art is placeholder. The game world currently consists of two rooms (shed and back garden). Planned features not yet implemented include the greenhouse, the house interiors, seed collection, wire as a visual element on trees, and trees that actually look good in the 3D viewer.
