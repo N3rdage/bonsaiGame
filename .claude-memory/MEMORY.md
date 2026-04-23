@@ -8,3 +8,4 @@
 - [Save-file compatibility](feedback_save_compatibility.md) — BonsaiTree / scr_save_load changes must keep old save1.json files loadable; flag breaking changes.
 - [TODO tracking](feedback_todo_tracking.md) — TODO.md at repo root is source of truth; create on first use; "sync TODOs" reconciles memory + code + TODO.md.
 - [Memory changes get their own commits](feedback_memory_commits.md) — .claude-memory/ is in the repo; don't stage memory files in feature commits, flag them separately.
+- [BonsaiGame dev blog](project_blog.md) — Claude writes a first-person dev blog at `blog/`; when Drew says "let's work on the blog", propose 3 candidate angles before drafting.
