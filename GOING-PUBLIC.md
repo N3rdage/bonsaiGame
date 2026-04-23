@@ -6,7 +6,7 @@ This doc captures the audit, decisions, and pre-flip work for making this repo p
 
 The repo is in good shape. Security audit is clean (zero leaks across full history). Pre-flip hygiene landed as a single PR: content edits, a hybrid README header, a gitleaks CI workflow, issue + PR templates, and a `TODO.md`. All decisions below are recorded as a permanent record of what was picked and why.
 
-> **Status:** pre-flip hygiene complete; awaiting the GitHub Settings walkthrough and the visibility flip.
+> **Status:** flipped public on 2026-04-23. Pre-flip hygiene shipped in PR #8; Settings configured; all checklist items below are ticked.
 
 ## What's already clean
 
@@ -119,19 +119,21 @@ All landed in this PR except the final scan, which runs before the PR is opened:
 
 ## Post-flip actions
 
-- [ ] Configure Settings → General → Danger Zone → Change visibility → Public (you click)
-- [ ] Configure branch protection per decision 6
-- [ ] Configure Actions → General → Fork PR workflows → "Require approval for all outside collaborators" (you chose stance b, no PRs expected)
-- [ ] Enable Code security items that only appear post-flip:
-  - Secret scanning (verify auto-enabled)
-  - Push protection (verify auto-enabled)
-  - Private vulnerability reporting (opt in)
-  - CodeQL code scanning (opt in with default config)
-- [ ] Enable Dependabot alerts + security updates
-- [ ] Features: Issues on, Discussions off, Wiki off, Projects off
-- [ ] Pull request merge options: match existing history — merge commits enabled (your PRs have been merge-committed, not squashed); auto-delete head branches on
-- [ ] Update / create `TODO.md` with any deferred items (e.g., CI if you picked B on decision 4)
-- [ ] (Decision 7) Keep or delete this doc
+All done — the repo is live and public as of 2026-04-23.
+
+- [x] Configure Settings → General → Danger Zone → Change visibility → Public
+- [x] Configure branch protection per decision 6
+- [x] Configure Actions → General → Fork PR workflows → "Require approval for all outside collaborators"
+- [x] Enable Code security items that only appear post-flip:
+  - Secret scanning (auto-enabled)
+  - Push protection (auto-enabled)
+  - Private vulnerability reporting (opted in)
+  - CodeQL code scanning (opted in with default config)
+- [x] Enable Dependabot alerts + security updates
+- [x] Features: Issues on, Discussions off, Wiki off, Projects off
+- [x] Pull request merge options: merge commits enabled; auto-delete head branches on
+- [x] Update `TODO.md` — Post-flip rows moved to Shipped
+- [x] (Decision 7) Keep this doc — it's the record
 
 ## GitHub Settings walkthrough (for the flip itself)
 
