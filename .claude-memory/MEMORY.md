@@ -1,0 +1,10 @@
+- [Drew — collaboration style](user_drew.md) — terse, trusts defaults, single-PR-per-feature, propose-then-execute.
+- [User shell environment](user_shell.md) — Windows; commands for Drew use PowerShell syntax (Claude's Bash tool itself runs in bash).
+- [Prefer single-line shell commands](feedback_command_formatting.md) — no backtick continuations; copy-paste mangles them.
+- ["plan:" prefix](feedback_plan_prefix.md) — propose with defaults + open questions and wait; don't execute.
+- [Auto-commit locally](feedback_commit_locally.md) — stage and commit with a descriptive message before handing off.
+- [Keep ARCHITECTURE.md updated](feedback_architecture_doc.md) — update on structural changes (objects, scripts, rooms, key invariants).
+- [Feature planning conventions](feedback_planning_conventions.md) — plan first, PR breakdown for medium+, flag 5+ file changes as complex.
+- [Save-file compatibility](feedback_save_compatibility.md) — BonsaiTree / scr_save_load changes must keep old save1.json files loadable; flag breaking changes.
+- [TODO tracking](feedback_todo_tracking.md) — TODO.md at repo root is source of truth; create on first use; "sync TODOs" reconciles memory + code + TODO.md.
+- [Memory changes get their own commits](feedback_memory_commits.md) — .claude-memory/ is in the repo; don't stage memory files in feature commits, flag them separately.
