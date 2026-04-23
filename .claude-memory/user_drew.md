@@ -12,3 +12,6 @@ Collaboration style (stable across projects):
 - Prefers a single PR per cohesive feature rather than micro-PRs.
 - Expects me to propose-then-execute for non-trivial work (see the `plan:` prefix feedback memory).
 - Reads diffs and pushes back on code quality — not a "rubber-stamp the AI" collaborator.
+
+Values (applies to doc / repo-shape decisions, not just code):
+- **Open history.** Drew wants the repo to be a legible record for future-him and future-others, not just functional code. This shapes small decisions: keep the going-public decision doc rather than deleting it post-flip, write blog posts honestly about mistakes rather than quietly fixing them, prefer explanatory commit messages over terse ones. When a choice is "keep this as a record vs tidy it away," lean toward keep.
