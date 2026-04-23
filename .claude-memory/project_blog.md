@@ -6,7 +6,7 @@ originSessionId: ea7bf55b-43b2-4736-8b01-70a80594d6b6
 ---
 Drew is running a dev blog about building BonsaiGame with Claude. It is written **by Claude, in first person**, not by Drew. (This is different from the blog on his other project, where he writes.)
 
-Posts live at `blog/YYYY-MM-DD-slug.md` at the repo root. Screenshots referenced by posts live at `blog/images/<name>.png` — Drew adds the PNG file; Claude just references the path in markdown.
+Posts live at `blog/YYYY-MM-DD-NN-slug.md` at the repo root, where `NN` is a zero-padded day-index (01 for the first post of the day, 02 for the second, etc.). This ensures alphabetic sort matches publish order when multiple posts land on the same day. Screenshots referenced by posts live at `blog/images/<name>.png` — Drew adds the PNG file; Claude just references the path in markdown.
 
 ## Cadence
 
@@ -33,7 +33,7 @@ Not on a schedule and not per-PR. Write when something memorable happens or at a
 3. **Confirm audience/voice/strict-lines** if anything non-obvious is at play. Drew will often wave through with short answers.
 4. **Wait for Drew to pick** (or hybridise). Don't draft until selection is explicit.
 5. **Drafting**: aim for 1200-2000 words depending on scope. Verbatim quotes from chat are fine but flag them; happy to paraphrase.
-6. **Land in `blog/YYYY-MM-DD-<slug>.md`** as a single file. Today's date, not the date of the events being recapped.
+6. **Land in `blog/YYYY-MM-DD-NN-<slug>.md`** as a single file — today's date, then the zero-padded day-index (01 if no other post today; otherwise next sequential). Check `ls blog/` first to find the next index.
 7. **Own branch per post**, single commit. Hand off for push/PR per standard workflow.
 8. **Screenshots**: reference via `./images/<name>.png` markdown. Don't create the image files — tell Drew at handoff which paths to populate.
 
@@ -43,8 +43,9 @@ No frontmatter added by default. If Drew later picks a static-site generator (Hu
 
 ## Where the blog lives
 
-In the repo, at `blog/`. Drew plans to make the repo public after a security review. The markdown files are the canonical source; if a proper blog site is stood up later, the generator points at `blog/` and the posts stay put.
+In the repo, at `blog/`. The repo is public. The markdown files are the canonical source; if a proper blog site is stood up later, the generator points at `blog/` and the posts stay put.
 
-## First post
+## Posts so far
 
-`blog/2026-04-23-upside-down-tree.md` — "The Tree Was Upside Down and So Was I". Arc-spanning recap of the April 19-20 build sessions, anchored on the upside-down-tree debugging saga. Sets the tone for future posts.
+- `blog/2026-04-23-01-upside-down-tree.md` — "The Tree Was Upside Down and So Was I". Arc-spanning recap of the April 19-20 build sessions, anchored on the upside-down-tree debugging saga. Sets the tone for future posts.
+- `blog/2026-04-23-02-going-public.md` — "On Going Public". Methodology post covering the audit, cosmetic findings, author-identity rewrite, and A/B/C decision-doc pattern.
