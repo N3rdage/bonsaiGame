@@ -102,6 +102,10 @@ function build_branch(_vbuff, _tree, _branch) {
         _prev_ring = _ring;
     }
 
+    if (_branch.wired) {
+        add_wire_coil(_vbuff, _tree, _branch);
+    }
+
     var _t_origin = clamp(_branch.origin_y / _tree.trunk.height_cm, 0, 1);
     if (_t_origin > 0.3) {
         var _tip = branch_point(_tree, _branch, 1);
@@ -109,6 +113,129 @@ function build_branch(_vbuff, _tree, _branch) {
         var _seed = _tree.id * 1000 + _branch.id;
         add_foliage_cluster(_vbuff, _tip, _species.leaf_color, _tree.foliage_density, _seed);
     }
+}
+
+// Wire coil around a wired branch. Copper-coloured helix, oriented rings
+// perpendicular to the local helix tangent (not the branch axis — the helix
+// pitch is tight enough that branch-axis rings would visibly skew). Pitch and
+// thickness scale with branch girth and bend severity, mirroring real bonsai
+// wire-gauge selection (gauge ratio 0.33–0.5 of branch diameter, denser pitch
+// for thicker wire).
+function add_wire_coil(_vbuff, _tree, _branch) {
+    var _wire_col = make_color_rgb(180, 110, 50);
+
+    // Thickness: scales with branch girth and bend magnitude
+    var _branch_r_base = (_branch.girth / 1000) * BONSAI_DISPLAY_SCALE;
+    var _bend_factor   = clamp(abs(_branch.bend) / 60, 0, 1);
+    var _wire_r        = max(0.002, _branch_r_base * lerp(0.15, 0.30, _bend_factor));
+
+    // Pitch: ~3 wire-diameters per turn ("comfortable wrap" spacing — visible
+    // gap between turns, looks like hand-applied training wire). Real-bonsai
+    // max-contact wrap is 1.5×, but at our render contrast that ends up reading
+    // as a tightly-compressed spring. Thicker wire → fewer, wider turns.
+    var _pitch        = 3 * (2 * _wire_r);
+    var _length_world = (_branch.length / 100) * BONSAI_DISPLAY_SCALE;
+    var _turns        = max(1, _length_world / _pitch);
+
+    // Branch forward unit vector (matches the z-arc factor in branch_point)
+    var _dir_angle = _branch.angle + _branch.bend;
+    var _fx = dcos(_dir_angle);
+    var _fy = dsin(_dir_angle);
+    var _fz = 0.25;
+    var _flen = sqrt(_fx*_fx + _fy*_fy + _fz*_fz);
+    _fx /= _flen; _fy /= _flen; _fz /= _flen;
+
+    // Local frame perpendicular to forward (right and up basis)
+    var _rx, _ry, _rz, _ux, _uy, _uz;
+    if (abs(_fz) < 0.95) {
+        _rx = _fy; _ry = -_fx; _rz = 0;
+        var _rl = sqrt(_rx*_rx + _ry*_ry);
+        _rx /= _rl; _ry /= _rl;
+    } else {
+        _rx = 0; _ry = 1; _rz = 0;  // fallback for near-vertical branches
+    }
+    _ux = _ry * _fz - _rz * _fy;
+    _uy = _rz * _fx - _rx * _fz;
+    _uz = _rx * _fy - _ry * _fx;
+
+    // Helix sampling
+    var _segs_per_turn = 8;
+    var _segs          = max(20, ceil(_turns * _segs_per_turn));
+    var _ring_segs     = 6;
+
+    // Tangent magnitudes for the helix (used to derive ring normals)
+    var _axial_speed       = _length_world;
+    var _radial_speed_base = _turns * 2 * pi;   // radians per unit s
+
+    var _prev_ring = undefined;
+    for (var i = 0; i <= _segs; i++) {
+        var _s     = i / _segs;
+        var _theta = _s * _turns * 360;
+        var _ca    = dcos(_theta);
+        var _sa    = dsin(_theta);
+
+        var _axis_pt = branch_point(_tree, _branch, _s);
+
+        // Branch radius tapers; wire offset rides on it
+        var _branch_r_here = lerp(_branch_r_base, _branch_r_base * 0.2, _s);
+        var _offset        = _branch_r_here + _wire_r;
+
+        var _centre = vec3(
+            _axis_pt.x + (_ca * _rx + _sa * _ux) * _offset,
+            _axis_pt.y + (_ca * _ry + _sa * _uy) * _offset,
+            _axis_pt.z + (_ca * _rz + _sa * _uz) * _offset
+        );
+
+        // Helix tangent = axial component (along forward) + radial component
+        // (around the branch). Magnitudes are length per unit s. Normalise
+        // because build_oriented_ring expects a unit normal.
+        var _radial_mag = _offset * _radial_speed_base;
+        var _tan_x = _fx * _axial_speed + (-_sa * _rx + _ca * _ux) * _radial_mag;
+        var _tan_y = _fy * _axial_speed + (-_sa * _ry + _ca * _uy) * _radial_mag;
+        var _tan_z = _fz * _axial_speed + (-_sa * _rz + _ca * _uz) * _radial_mag;
+        var _tlen  = sqrt(_tan_x*_tan_x + _tan_y*_tan_y + _tan_z*_tan_z);
+        _tan_x /= _tlen; _tan_y /= _tlen; _tan_z /= _tlen;
+
+        var _ring = build_oriented_ring(_centre, _wire_r, _ring_segs, _tan_x, _tan_y, _tan_z);
+        if (_prev_ring != undefined) {
+            stitch_rings(_vbuff, _prev_ring, _ring, _wire_col);
+        }
+        _prev_ring = _ring;
+    }
+}
+
+// Ring of `_segments` vertices around `_centre`, in the plane perpendicular to
+// the unit vector (_nx, _ny, _nz). Used by tubes whose axis isn't aligned
+// with z (e.g. the wire helix). The reference axis switches when the normal
+// is nearly parallel to z to avoid the cross-product collapsing.
+function build_oriented_ring(_centre, _radius, _segments, _nx, _ny, _nz) {
+    var _ref_x, _ref_y, _ref_z;
+    if (abs(_nz) < 0.95) { _ref_x = 0; _ref_y = 0; _ref_z = 1; }
+    else                 { _ref_x = 1; _ref_y = 0; _ref_z = 0; }
+
+    var _ux = _ref_y * _nz - _ref_z * _ny;
+    var _uy = _ref_z * _nx - _ref_x * _nz;
+    var _uz = _ref_x * _ny - _ref_y * _nx;
+    var _ulen = sqrt(_ux*_ux + _uy*_uy + _uz*_uz);
+    if (_ulen < 0.0001) _ulen = 1;
+    _ux /= _ulen; _uy /= _ulen; _uz /= _ulen;
+
+    var _vx = _ny * _uz - _nz * _uy;
+    var _vy = _nz * _ux - _nx * _uz;
+    var _vz = _nx * _uy - _ny * _ux;
+
+    var _ring = array_create(_segments);
+    for (var i = 0; i < _segments; i++) {
+        var _a  = (i / _segments) * 360;
+        var _ca = dcos(_a);
+        var _sa = dsin(_a);
+        _ring[i] = vec3(
+            _centre.x + (_ca * _ux + _sa * _vx) * _radius,
+            _centre.y + (_ca * _uy + _sa * _vy) * _radius,
+            _centre.z + (_ca * _uz + _sa * _vz) * _radius
+        );
+    }
+    return _ring;
 }
 
 function build_ring(_center, _radius, _segments) {
