@@ -60,52 +60,51 @@ function build_trunk(_vbuff, _tree) {
     }
 }
 
-function build_branch(_vbuff, _tree, _branch) {
-	var _trunk_h_m = (_tree.trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
-    var _t = _branch.origin_y / _tree.trunk.height_cm;
-    _t = clamp(_t, 0, 1);
-    var _origin_z = _t * _trunk_h_m;
-    
-	var _trunk_r = lerp(
-        ((_tree.trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE,
-        ((_tree.trunk.girth_mm / 1000) / 2) * (1 - _tree.trunk.taper) * BONSAI_DISPLAY_SCALE,
-        _t
-    );
+// Shared by build_branch and the 3D viewer's hotspot code.
+// t_along: 0 = trunk-surface origin, 1 = branch tip.
+function branch_point(_tree, _branch, _t_along) {
+    var _trunk = _tree.trunk;
+    var _t = clamp(_branch.origin_y / _trunk.height_cm, 0, 1);
+    var _origin_z = _t * (_trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
+
+    var _base_r  = ((_trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE;
+    var _trunk_r = lerp(_base_r, _base_r * (1 - _trunk.taper), _t);
+
     var _ox = dcos(_branch.angle) * _trunk_r;
     var _oy = dsin(_branch.angle) * _trunk_r;
-    var _origin = vec3(_ox, _oy, _origin_z);
-    
+
     var _dir_angle = _branch.angle + _branch.bend;
     var _length_m  = (_branch.length / 100) * BONSAI_DISPLAY_SCALE;
+
+    return vec3(
+        _ox + dcos(_dir_angle) * _length_m * _t_along,
+        _oy + dsin(_dir_angle) * _length_m * _t_along,
+        _origin_z + _length_m * _t_along * 0.25
+    );
+}
+
+function build_branch(_vbuff, _tree, _branch) {
     var _segs = 6;
-    
     var _bark_col = make_color_rgb(110, 75, 50);
     var _prev_ring = undefined;
-    
+
     for (var i = 0; i <= _segs; i++) {
         var _ft = i / _segs;
-        var _pt = vec3(
-            _origin.x + dcos(_dir_angle) * _length_m * _ft,
-            _origin.y + dsin(_dir_angle) * _length_m * _ft,
-            _origin.z + _length_m * _ft * 0.25
-        );
+        var _pt = branch_point(_tree, _branch, _ft);
         var _r = lerp((_branch.girth / 1000) * BONSAI_DISPLAY_SCALE,
                       (_branch.girth / 1000) * 0.2 * BONSAI_DISPLAY_SCALE, _ft);
         _r = max(_r, 0.005);
-        
+
         var _ring = build_ring(_pt, _r, 6);
         if (_prev_ring != undefined) {
             stitch_rings(_vbuff, _prev_ring, _ring, _bark_col);
         }
         _prev_ring = _ring;
     }
-    
-    if (_t > 0.3) {
-        var _tip = vec3(
-            _origin.x + dcos(_dir_angle) * _length_m,
-            _origin.y + dsin(_dir_angle) * _length_m,
-            _origin.z + _length_m * 0.25
-        );
+
+    var _t_origin = clamp(_branch.origin_y / _tree.trunk.height_cm, 0, 1);
+    if (_t_origin > 0.3) {
+        var _tip = branch_point(_tree, _branch, 1);
         var _species = _tree.get_species();
         add_foliage_cluster(_vbuff, _tip, _species.leaf_color, _tree.foliage_density);
     }
