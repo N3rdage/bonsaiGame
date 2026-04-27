@@ -168,7 +168,7 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
    - Draw event: draw the pedestal, draw the tree mesh via `vertex_submit`
    - Draw End event: disable z-buffer, restore identity world matrix
    - Draw GUI event: draw the toolbar, tree info, and (if in clip/prune/wire mode) branch hotspot circles
-3. Hotspots: for each branch, compute a world-space midpoint, project to screen space with `project_3d_to_screen`, render a circle with the branch id. On click, call the current mode's operation (`clip_branch`, `prune_branch`, `apply_wire`). The operation marks the mesh dirty; next frame's `get_mesh` rebuilds it
+3. Hotspots: for each branch, compute a world-space midpoint via the shared `branch_point(tree, branch, t)` helper, project to screen space with `project_3d_to_screen`, render a circle with the branch id. On click, call the current mode's operation (`clip_branch`, `prune_branch`, `apply_wire`, or `remove_wire`). Wire mode splits its hotspots by `branch.wired`: blue circles apply, amber circles remove (via a confirmation modal). The operation marks the mesh dirty; next frame's `get_mesh` rebuilds it
 4. Exit: call `exit_3d_viewer()`, which calls `room_goto(global.viewer_return_room)` with the saved player return coordinates
 
 ### Saving and loading
@@ -204,7 +204,6 @@ Because `obj_tree_sprite` is tied to a room, and trees are tied to a `location` 
 - **Trunk bending** is a crude lateral shift rather than proper parallel-transport frame rotation. Trees with wired trunks look wobbly rather than curved. Needs rewriting with Frenet frames or similar.
 - **Foliage is untextured cross-billboards.** They work but look cubic. Needs a leaf texture with alpha.
 - **Wire is not visually represented** on the tree — wired branches bend but don't show a visible wire.
-- **Wire removal has no UI.** Wires stay applied indefinitely. Eventually needs a "remove wire" action on each wired branch.
 - **Pacing is tuned aggressively toward active play.** Branch spawn rate is 10% per day weighted by vitality. Real bonsai is slower. This is a game, not a simulator.
 - **Only junipers are playable.** Maple and pine can't be grown from cuttings (realistic) and seeds aren't implemented yet.
 - **Only two rooms** exist. The house interiors and greenhouse are placeholder or absent.
