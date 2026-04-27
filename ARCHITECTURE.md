@@ -35,7 +35,7 @@ scripts/
   scr_training           — Wire, clip, prune, trunk bend operations
   scr_save_load          — JSON save/load of whole game state
   scr_math_3d            — Vector helpers, 3D vertex format, screen projection
-  scr_bonsai_mesh        — Builds vertex buffers from tree morphology
+  scr_bonsai_mesh        — Builds vertex buffers from tree morphology, including visible copper-wire coils on wired branches
   scr_ui                 — Button and bar drawing helpers
   scr_viewer             — Enter/exit the 3D viewer room
 
@@ -203,7 +203,6 @@ Because `obj_tree_sprite` is tied to a room, and trees are tied to a `location` 
 
 - **Trunk bending** is a crude lateral shift rather than proper parallel-transport frame rotation. Trees with wired trunks look wobbly rather than curved. Needs rewriting with Frenet frames or similar.
 - **Foliage is untextured cross-billboards.** They work but look cubic. Needs a leaf texture with alpha.
-- **Wire is not visually represented** on the tree — wired branches bend but don't show a visible wire.
 - **Pacing is tuned aggressively toward active play.** Branch spawn rate is 10% per day weighted by vitality. Real bonsai is slower. This is a game, not a simulator.
 - **Only junipers are playable.** Maple and pine can't be grown from cuttings (realistic) and seeds aren't implemented yet.
 - **Only two rooms** exist. The house interiors and greenhouse are placeholder or absent.
