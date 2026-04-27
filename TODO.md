@@ -1,17 +1,30 @@
 # TODO
 
-Priority-ordered. Security items always at top; then ascending size.
+Priority-ordered toward "playable." Security items always at top.
+
+**Sizes are reference only.** Anything bigger than **M** needs splitting before or during planning; anything bigger than **S** is a candidate for splitting.
 
 ## Active
 
 | # | Category | Name | Description | Size |
 |---|---|---|---|---|
-| 1 | Game | Wire removal UI | Wires stay applied indefinitely; add an action to remove them (see `feedback_save_compatibility` for save-format impact). | M |
-| 2 | Game | Visible wire on wired branches in 3D viewer | Currently wires bend branches invisibly. | M |
-| 3 | Game | Foliage texture with alpha | Currently cross-billboard solid quads — looks cubic. | M |
-| 4 | Game | Proper trunk-bending math | Current lateral shift is wobbly; needs Frenet / parallel-transport frames. | L |
-| 5 | Game | Seeds | Seed collection + planting (maple / pine only propagate from seed). | L |
-| 6 | Game | Greenhouse room + building system | Grid-based wall/shelf placement. | L |
+| 1 | Mechanics | Wire removal UI | Wires stay applied indefinitely; add an action to remove them. Sim already supports "set permanently after 56d" vs spring-back; just needs the UI hook. (See `feedback_save_compatibility` for save-format impact.) | M |
+| 2 | Polish | Visible wire on wired branches in 3D viewer | Render coiled wire mesh on wired branches, scaling with branch girth. Mesh-only change — sim doesn't move. Pairs with #1. | M |
+| 3 | UX | Inventory + tree-naming UI | Player can see their inventory (clay, pots, fertilizer, wire, cuttings/seeds) and rename trees. `BonsaiTree.name` field already exists with no UI to set it. | M |
+| 4 | Mechanics | Tree styles & training goals | Player picks a target style per tree (formal upright, slanting, cascade, broom, etc.). Drives aesthetic-scoring criteria in #5 and gives the player direction. Split candidates: style data model, per-tree style-assignment UI, style-specific scoring rubric. | L |
+| 5 | Mechanics | Aesthetic scoring + display/sell loop | Score tree quality from morphology (taper, branch placement, foliage balance, style conformance). Display trees indoors for passive payoff, or sell at the shop for a one-shot reward. The "why" for the entire sim. Needs splitting into: scoring math, display mechanic, sell mechanic. | XL |
+| 6 | Mechanics | Shop & money sink | Shop selling seeds, pots, fertilizer, wire, rare species, tools. Closes the economy loop with #5. Split candidates: shop UI, shop content/balancing. | L |
+| 7 | UX | Tutorial / onboarding | Guide a new player through the first ~10 minutes: take a cutting, plant, water, skip a week, train, inspect 3D. Mentor character / scripted notebook / guided objectives — design TBD. | M |
+| 8 | UX | Title screen + settings + save slots | Game currently launches straight into the shed with one fixed save. Add title screen, save-slot picker, settings (volume, fullscreen, etc.). Split candidates: title + settings, multi-save support. | M |
+| 9 | Mechanics | Seasons + deeper care sim | Seasons (spring/summer/autumn/winter) affect growth and water decay; some operations become season-gated (e.g. no repotting in winter). Includes the repotting mechanic itself plus pot size / soil affecting vigor. Split candidates: season clock + visuals, repotting, pot/soil effects, season-gated operations. | XL |
+| 10 | Mechanics | Seeds | Seed collection + planting (maple / pine only propagate from seed). Tree starts as a 2cm sprout. | L |
+| 11 | Content | More species playable | Beyond juniper-from-cuttings: maple and pine via seeds (post-#10), plus per-species care quirks (e.g. pine candling) and mesh tweaks (leaf shape, bark colour). | L |
+| 12 | Content | House interiors | Indoor rooms (lounge, study, hallway) for displaying finished trees. Display areas / shelves connect to the display loop in #5. | L |
+| 13 | Content | Greenhouse room + building system | Grid-based wall/shelf placement so the player can lay out their greenhouse interior. Split candidates: empty greenhouse room, item placement system, item catalogue. | L |
+| 14 | Polish | Audio pass | Currently silent. SFX (water, snip, footsteps, UI clicks) + ambient music per room. Split candidates: SFX layer, music layer, mixer/settings hook. | L |
+| 15 | Polish | Foliage texture with alpha | Currently cross-billboard solid quads — looks cubic. Replace with a leaf texture with alpha cutoff. | M |
+| 16 | Polish | Proper trunk-bending math | Current lateral shift is wobbly; needs Frenet / parallel-transport frames so wired trunks curve naturally instead of leaning. | L |
+| 17 | Polish | Art pass | Replace placeholder sprites and 3D textures with cohesive art. Last item — only when systems are stable. Likely split per-asset-type or per-room. | XL |
 
 ## Shipped
 
