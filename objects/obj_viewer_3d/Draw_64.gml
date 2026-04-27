@@ -61,22 +61,12 @@ if (viewer_mode == "wire") {
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
 
-    // Wired toggle
-    if (show_wired_hotspots) {
-        draw_set_color(make_color_rgb(100, 140, 80));
-        draw_rectangle(_ftx - 2, _fty - 2, _ftx + _ftw + 2, _fty + _fth + 2, false);
-    }
-    if (ui_button(_ftx, _fty, _ftw, _fth, "Wired", _interactive)) {
+    if (ui_toggle(_ftx, _fty, _ftw, _fth, "Wired", show_wired_hotspots, _interactive)) {
         show_wired_hotspots = !show_wired_hotspots;
     }
 
-    // Unwired toggle
     var _ftx2 = _ftx + _ftw + _ftgap;
-    if (show_unwired_hotspots) {
-        draw_set_color(make_color_rgb(100, 140, 80));
-        draw_rectangle(_ftx2 - 2, _fty - 2, _ftx2 + _ftw + 2, _fty + _fth + 2, false);
-    }
-    if (ui_button(_ftx2, _fty, _ftw, _fth, "Unwired", _interactive)) {
+    if (ui_toggle(_ftx2, _fty, _ftw, _fth, "Unwired", show_unwired_hotspots, _interactive)) {
         show_unwired_hotspots = !show_unwired_hotspots;
     }
 }
