@@ -202,6 +202,85 @@ function add_wire_coil(_vbuff, _tree, _branch) {
         }
         _prev_ring = _ring;
     }
+
+    add_wire_anchor(_vbuff, _tree, _branch, _wire_r, _wire_col);
+}
+
+// Trunk-side anchor for a branch wire. In real bonsai, wire is anchored by
+// wrapping the trunk 1–2 turns before going onto the branch — this stops the
+// wire rotating freely when the branch is bent. Here it's purely visual: a
+// short helix around the trunk z-axis at the branch's base, ending on the
+// side the branch attaches so the eye reads the anchor as feeding into the
+// branch coil.
+function add_wire_anchor(_vbuff, _tree, _branch, _wire_r, _col) {
+    var _trunk = _tree.trunk;
+
+    // Trunk z at the branch base
+    var _t = clamp(_branch.origin_y / _trunk.height_cm, 0, 1);
+    var _trunk_h_world = (_trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
+    var _z_centre = _t * _trunk_h_world;
+
+    // Trunk radius at that z
+    var _base_r = ((_trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE;
+    var _trunk_r = lerp(_base_r, _base_r * (1 - _trunk.taper), _t);
+
+    // Trunk centre at that z, accounting for movement (mirrors build_trunk)
+    var _cursor_x = 0;
+    var _cursor_y = 0;
+    var _moves = _trunk.movement;
+    for (var m = 0; m < array_length(_moves); m++) {
+        var _mh = _moves[m].y / _trunk.height_cm;
+        if (_mh <= _t) {
+            var _strength = (_t - _mh) * 0.05;
+            _cursor_x += dcos(_moves[m].angle_deg) * _strength;
+            _cursor_y += dsin(_moves[m].angle_deg) * _strength;
+        }
+    }
+
+    var _anchor_turns = 1.5;
+    var _anchor_pitch = 3 * (2 * _wire_r);   // matches branch coil pitch
+    var _anchor_h     = _anchor_turns * _anchor_pitch;
+    var _z_start      = _z_centre - _anchor_h / 2;
+    var _offset       = _trunk_r + _wire_r;
+
+    // Sweep ends on the branch-attachment side, sweeping back from there
+    var _end_angle   = _branch.angle;
+    var _start_angle = _end_angle - _anchor_turns * 360;
+
+    var _segs = max(16, ceil(_anchor_turns * 8));
+    var _ring_segs = 6;
+
+    var _axial_speed       = _anchor_h;
+    var _radial_speed_base = _anchor_turns * 2 * pi;
+
+    var _prev_ring = undefined;
+    for (var i = 0; i <= _segs; i++) {
+        var _s     = i / _segs;
+        var _theta = lerp(_start_angle, _end_angle, _s);
+        var _ca    = dcos(_theta);
+        var _sa    = dsin(_theta);
+        var _z     = _z_start + _s * _anchor_h;
+
+        var _centre = vec3(
+            _cursor_x + _ca * _offset,
+            _cursor_y + _sa * _offset,
+            _z
+        );
+
+        // Helix tangent: axial along world +z, radial tangent to circle
+        var _radial_mag = _offset * _radial_speed_base;
+        var _tan_x = -_sa * _radial_mag;
+        var _tan_y =  _ca * _radial_mag;
+        var _tan_z = _axial_speed;
+        var _tlen  = sqrt(_tan_x*_tan_x + _tan_y*_tan_y + _tan_z*_tan_z);
+        _tan_x /= _tlen; _tan_y /= _tlen; _tan_z /= _tlen;
+
+        var _ring = build_oriented_ring(_centre, _wire_r, _ring_segs, _tan_x, _tan_y, _tan_z);
+        if (_prev_ring != undefined) {
+            stitch_rings(_vbuff, _prev_ring, _ring, _col);
+        }
+        _prev_ring = _ring;
+    }
 }
 
 // Ring of `_segments` vertices around `_centre`, in the plane perpendicular to
