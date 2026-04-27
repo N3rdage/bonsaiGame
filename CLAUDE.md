@@ -45,7 +45,6 @@ Methods aren't serialized (they're on the constructor's static table). `load_gam
 
 ## Known rough edges (don't treat as bugs to fix incidentally)
 
-- Branch hotspot positions in the 3D viewer are slightly offset from visual branch positions.
 - Trunk bending is a lateral shift, not a proper curve — trees with wired trunks look wobbly.
 - Wire has no visual representation and no removal UI.
 - Only junipers can be grown from cuttings; seeds aren't implemented.

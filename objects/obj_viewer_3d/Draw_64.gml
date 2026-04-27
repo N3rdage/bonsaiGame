@@ -57,22 +57,7 @@ draw_set_halign(fa_left);
 function _draw_branch_hotspots() {
     for (var i = 0; i < array_length(tree.branches); i++) {
         var _b = tree.branches[i];
-        
-        // Compute the branch midpoint in world space, same formula as the mesh builder
-        var _trunk_h_m = (tree.trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
-        var _t = _b.origin_y / tree.trunk.height_cm;
-        _t = clamp(_t, 0, 1);
-        var _origin_z = _t * _trunk_h_m;
-        var _dir_angle = _b.angle + _b.bend;
-        var _length_m = (_b.length / 100) * BONSAI_DISPLAY_SCALE;
-        var _mid_factor = 0.7;
-        
-        var _mid = vec3(
-            dcos(_dir_angle) * _length_m * _mid_factor,
-            dsin(_dir_angle) * _length_m * _mid_factor,
-            _origin_z + _length_m * _mid_factor * 0.25
-        );
-        
+        var _mid = branch_point(tree, _b, 0.7);
         var _scr = project_3d_to_screen(_mid);
         if (_scr == undefined) continue;
         

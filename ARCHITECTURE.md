@@ -201,7 +201,6 @@ Because `obj_tree_sprite` is tied to a room, and trees are tied to a `location` 
 
 ## Known rough edges
 
-- **Branch hotspot positions are slightly off** from where branches visually appear in 3D. The hotspot code uses a simplified version of the mesh builder's formula; the mesh builder offsets branches to the trunk surface, the hotspot code starts them at x=0,y=0. Close enough for now.
 - **Trunk bending** is a crude lateral shift rather than proper parallel-transport frame rotation. Trees with wired trunks look wobbly rather than curved. Needs rewriting with Frenet frames or similar.
 - **Foliage is untextured cross-billboards.** They work but look cubic. Needs a leaf texture with alpha.
 - **Wire is not visually represented** on the tree — wired branches bend but don't show a visible wire.
