@@ -1,13 +1,24 @@
 // obj_viewer_3d — Step event
 
+// --- Modal preempts all other step input ---
+if (pending_wire_removal >= 0) {
+    if (keyboard_check_pressed(vk_escape)) pending_wire_removal = -1;
+    // A drag may have started on the same frame the modal opened — clear it
+    // so the camera doesn't jerk when the modal closes.
+    dragging = false;
+    exit;
+}
+
 // --- Mouse drag to rotate camera ---
 var _mx = window_mouse_get_x();
 var _my = window_mouse_get_y();
 
+// Wire mode draws a sub-row of filter toggles below the main toolbar,
+// so the no-drag strip is taller in that mode.
+var _ui_strip_h = (viewer_mode == "wire") ? 110 : 60;
+
 if (mouse_check_button_pressed(mb_left)) {
-    // Only start dragging if click was NOT on the UI strip along the top
-    // (simple rule: top 60 pixels reserved for toolbar)
-    if (_my > 60) {
+    if (_my > _ui_strip_h) {
         dragging = true;
         prev_mx = _mx;
         prev_my = _my;
