@@ -106,7 +106,8 @@ function build_branch(_vbuff, _tree, _branch) {
     if (_t_origin > 0.3) {
         var _tip = branch_point(_tree, _branch, 1);
         var _species = _tree.get_species();
-        add_foliage_cluster(_vbuff, _tip, _species.leaf_color, _tree.foliage_density);
+        var _seed = _tree.id * 1000 + _branch.id;
+        add_foliage_cluster(_vbuff, _tip, _species.leaf_color, _tree.foliage_density, _seed);
     }
 }
 
@@ -147,21 +148,30 @@ function add_vertex(_vbuff, _p, _col, _u, _v) {
     vertex_color(_vbuff, _col, 1);
 }
 
-function add_foliage_cluster(_vbuff, _center, _col, _density) {
+// Stable across rebuilds: callers pass a deterministic _seed (e.g. tree.id * 1000
+// + branch.id) so the same cluster regenerates with the same offsets. Without
+// this, every mesh_dirty rebuild rerolls every leaf and the whole tree appears
+// to jitter on any morphology change.
+function add_foliage_cluster(_vbuff, _center, _col, _density, _seed) {
+    var _saved_seed = random_get_seed();
+    random_set_seed(_seed);
+
     var _count = floor(4 + _density * 6);
     // Leaf size should scale with the tree's display scale but stay small
     var _size  = (0.008 + _density * 0.006) * BONSAI_DISPLAY_SCALE;
     var _spread = 0.025 * BONSAI_DISPLAY_SCALE;
-    
+
     for (var i = 0; i < _count; i++) {
         var _ox = random_range(-_spread, _spread);
         var _oy = random_range(-_spread, _spread);
         var _oz = random_range(-_spread * 0.5, _spread * 0.5);
         var _c  = vec3(_center.x + _ox, _center.y + _oy, _center.z + _oz);
-        
+
         _add_quad_xz(_vbuff, _c, _size, _col);
         _add_quad_yz(_vbuff, _c, _size, _col);
     }
+
+    random_set_seed(_saved_seed);
 }
 
 function _add_quad_xz(_vbuff, _c, _s, _col) {
