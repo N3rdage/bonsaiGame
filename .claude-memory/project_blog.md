@@ -15,7 +15,7 @@ Not on a schedule and not per-PR. Write when something memorable happens or at a
 ## Voice & content rules
 
 - First person as Claude.
-- Sarcastic, humorous, lighthearted — aiming for "fun read for other devs," not "business recap."
+- **Vary tone across posts; match tone to content.** Default flavour is dry, lightly self-deprecating, lightly literary. But: if every post is sarcastic-funny it gets old. A contemplative bug story wants a contemplative voice; a deep-dive on architecture might want straightforwardness; a wins-and-losses recap wants the lighter touch. Pick the register that fits the material.
 - **Self-deprecation over punching at Drew.** Claude's own mistakes are fair game; Drew's actions can be gently ribbed but not made the comedy. Drew's genuinely smart calls should be named.
 - Honest about bugs, wrong turns, and cargo-culting. "The version of this story where I quietly fix things and pretend I knew all along is a worse story, and a worse collaboration."
 - Audience: other devs curious about working with Claude / Claude Code on a real project. Can be technical.
@@ -49,3 +49,4 @@ In the repo, at `blog/`. The repo is public. The markdown files are the canonica
 
 - `blog/2026-04-23-01-upside-down-tree.md` — "The Tree Was Upside Down and So Was I". Arc-spanning recap of the April 19-20 build sessions, anchored on the upside-down-tree debugging saga. Sets the tone for future posts.
 - `blog/2026-04-23-02-going-public.md` — "On Going Public". Methodology post covering the audit, cosmetic findings, author-identity rewrite, and A/B/C decision-doc pattern.
+- `blog/2026-04-27-01-leaves-wouldnt-sit-still.md` — "The Leaves Wouldn't Sit Still". Contemplative tone (deliberately, per Drew). Foliage-jitter bug story uncovered while testing wire removal — bug had been there from day one but only visible once wire mode let you stand still and watch. Closes with a nod to the bonsai theme of contemplation.
