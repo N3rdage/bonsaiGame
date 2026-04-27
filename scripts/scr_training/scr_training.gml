@@ -40,6 +40,18 @@ function remove_wire(_tree, _branch_id) {
     _tree.mark_dirty();
 }
 
+// Returns the currently-active wire entry for a branch, or undefined if none.
+// "Active" = entry where removed_day is still -1.
+function active_wire_for_branch(_tree, _branch_id) {
+    for (var i = 0; i < array_length(_tree.wires_applied); i++) {
+        var _w = _tree.wires_applied[i];
+        if (_w.branch_id == _branch_id && _w.removed_day == -1) {
+            return _w;
+        }
+    }
+    return undefined;
+}
+
 function clip_branch(_tree, _branch_id, _amount_cm) {
     if (_branch_id < 0 || _branch_id >= array_length(_tree.branches)) return false;
     
