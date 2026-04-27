@@ -14,6 +14,11 @@ cam_zoom_max = 6.0;
 // UI mode: "view" | "wire" | "clip" | "prune"
 viewer_mode = "view";
 
+// Wire-mode UI state
+show_wired_hotspots   = true;
+show_unwired_hotspots = true;
+pending_wire_removal  = -1;   // -1 = no modal; otherwise = branch_id awaiting confirm
+
 // For drag-to-rotate
 dragging    = false;
 prev_mx     = 0;
