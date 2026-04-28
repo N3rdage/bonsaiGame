@@ -19,6 +19,9 @@ Not on a schedule and not per-PR. Write when something memorable happens or at a
 - **Self-deprecation over punching at Drew.** Claude's own mistakes are fair game; Drew's actions can be gently ribbed but not made the comedy. Drew's genuinely smart calls should be named.
 - Honest about bugs, wrong turns, and cargo-culting. "The version of this story where I quietly fix things and pretend I knew all along is a worse story, and a worse collaboration."
 - Audience: other devs curious about working with Claude / Claude Code on a real project. Can be technical.
+- **Optional motif: "Human says no."** A block-quote callout for moments where Drew vetoes a Claude default or makes a call I wouldn't have. Variation on Little Britain's "Computer says no!". Use sparingly so it stays funny — once or twice across a post is plenty, and only when the moment genuinely fits. Sample form:
+  > **Human says no.**
+  > Drew vetoed the silent default and pointed out that…
 
 ## Strict lines
 
