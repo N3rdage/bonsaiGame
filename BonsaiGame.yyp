@@ -36,6 +36,7 @@
     {"id":{"name":"obj_player_2d","path":"objects/obj_player_2d/obj_player_2d.yy",},},
     {"id":{"name":"obj_source_plant","path":"objects/obj_source_plant/obj_source_plant.yy",},},
     {"id":{"name":"obj_tree_sprite","path":"objects/obj_tree_sprite/obj_tree_sprite.yy",},},
+    {"id":{"name":"obj_ui_inventory","path":"objects/obj_ui_inventory/obj_ui_inventory.yy",},},
     {"id":{"name":"obj_ui_panel","path":"objects/obj_ui_panel/obj_ui_panel.yy",},},
     {"id":{"name":"obj_ui_plant_cutting","path":"objects/obj_ui_plant_cutting/obj_ui_plant_cutting.yy",},},
     {"id":{"name":"obj_ui_tree_inspector","path":"objects/obj_ui_tree_inspector/obj_ui_tree_inspector.yy",},},
