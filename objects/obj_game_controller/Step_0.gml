@@ -30,3 +30,13 @@ if (keyboard_check_pressed(vk_f1) && array_length(global.all_trees) > 0) {
         show_debug_message("Not enough fertilizer to skip.");
     }
 }
+
+// Inventory panel: I to toggle. Closes if already open; otherwise opens
+// unless another modal panel is up.
+if (keyboard_check_pressed(ord("I"))) {
+    if (instance_exists(obj_ui_inventory)) {
+        with (obj_ui_inventory) instance_destroy();
+    } else if (!instance_exists(obj_ui_panel)) {
+        instance_create_depth(0, 0, -1000, obj_ui_inventory);
+    }
+}
