@@ -8,22 +8,21 @@ Priority-ordered toward "playable." Security items always at top.
 
 | # | Category | Name | Description | Size |
 |---|---|---|---|---|
-| 1 | UX | Inventory + tree-naming UI | Player can see their inventory (clay, pots, fertilizer, wire, cuttings/seeds) and rename trees. `BonsaiTree.name` field already exists with no UI to set it. | M |
-| 2 | Mechanics | Tree styles & training goals | Player picks a target style per tree (formal upright, slanting, cascade, broom, etc.). Drives aesthetic-scoring criteria in #3 and gives the player direction. Split candidates: style data model, per-tree style-assignment UI, style-specific scoring rubric. | L |
-| 3 | Mechanics | Aesthetic scoring + display/sell loop | Score tree quality from morphology (taper, branch placement, foliage balance, style conformance). Display trees indoors for passive payoff, or sell at the shop for a one-shot reward. The "why" for the entire sim. Needs splitting into: scoring math, display mechanic, sell mechanic. | XL |
-| 4 | Mechanics | Shop & money sink | Shop selling seeds, pots, fertilizer, wire, rare species, tools. Closes the economy loop with #3. Split candidates: shop UI, shop content/balancing. | L |
-| 5 | UX | Tutorial / onboarding | Guide a new player through the first ~10 minutes: take a cutting, plant, water, skip a week, train, inspect 3D. Mentor character / scripted notebook / guided objectives — design TBD. | M |
-| 6 | UX | Title screen + settings + save slots | Game currently launches straight into the shed with one fixed save. Add title screen, save-slot picker, settings (volume, fullscreen, etc.). Split candidates: title + settings, multi-save support. | M |
-| 7 | Mechanics | Seasons + deeper care sim | Seasons (spring/summer/autumn/winter) affect growth and water decay; some operations become season-gated (e.g. no repotting in winter). Includes the repotting mechanic itself plus pot size / soil affecting vigor. Split candidates: season clock + visuals, repotting, pot/soil effects, season-gated operations. | XL |
-| 8 | Mechanics | Seeds | Seed collection + planting (maple / pine only propagate from seed). Tree starts as a 2cm sprout. | L |
-| 9 | Content | More species playable | Beyond juniper-from-cuttings: maple and pine via seeds (post-#8), plus per-species care quirks (e.g. pine candling) and mesh tweaks (leaf shape, bark colour). | L |
-| 10 | Content | House interiors | Indoor rooms (lounge, study, hallway) for displaying finished trees. Display areas / shelves connect to the display loop in #3. | L |
-| 11 | Content | Greenhouse room + building system | Grid-based wall/shelf placement so the player can lay out their greenhouse interior. Split candidates: empty greenhouse room, item placement system, item catalogue. | L |
-| 12 | Polish | Audio pass | Currently silent. SFX (water, snip, footsteps, UI clicks) + ambient music per room. Split candidates: SFX layer, music layer, mixer/settings hook. | L |
-| 13 | Polish | Foliage texture with alpha | Currently cross-billboard solid quads — looks cubic. Replace with a leaf texture with alpha cutoff. | M |
-| 14 | Polish | Proper trunk-bending math | Current lateral shift is wobbly; needs Frenet / parallel-transport frames so wired trunks curve naturally instead of leaning. | L |
-| 15 | Polish | Proper branch-curvature math | `branch.bend` currently rotates the whole branch direction (`angle + bend`) but the branch itself stays a straight line. Wired branches need to curve along their length so wiring is visually legible. Same fix family as #14 (trunk uses `movement[]`, branches use a single `bend` scalar — separate code paths). | L |
-| 16 | Polish | Art pass | Replace placeholder sprites and 3D textures with cohesive art. Last item — only when systems are stable. Likely split per-asset-type or per-room. | XL |
+| 1 | Mechanics | Tree styles & training goals | Player picks a target style per tree (formal upright, slanting, cascade, broom, etc.). Drives aesthetic-scoring criteria in #2 and gives the player direction. Split candidates: style data model, per-tree style-assignment UI, style-specific scoring rubric. | L |
+| 2 | Mechanics | Aesthetic scoring + display/sell loop | Score tree quality from morphology (taper, branch placement, foliage balance, style conformance). Display trees indoors for passive payoff, or sell at the shop for a one-shot reward. The "why" for the entire sim. Needs splitting into: scoring math, display mechanic, sell mechanic. | XL |
+| 3 | Mechanics | Shop & money sink | Shop selling seeds, pots, fertilizer, wire, rare species, tools. Closes the economy loop with #2. Split candidates: shop UI, shop content/balancing. | L |
+| 4 | UX | Tutorial / onboarding | Guide a new player through the first ~10 minutes: take a cutting, plant, water, skip a week, train, inspect 3D. Mentor character / scripted notebook / guided objectives — design TBD. | M |
+| 5 | UX | Title screen + settings + save slots | Game currently launches straight into the shed with one fixed save. Add title screen, save-slot picker, settings (volume, fullscreen, etc.). Split candidates: title + settings, multi-save support. | M |
+| 6 | Mechanics | Seasons + deeper care sim | Seasons (spring/summer/autumn/winter) affect growth and water decay; some operations become season-gated (e.g. no repotting in winter). Includes the repotting mechanic itself plus pot size / soil affecting vigor. Split candidates: season clock + visuals, repotting, pot/soil effects, season-gated operations. | XL |
+| 7 | Mechanics | Seeds | Seed collection + planting (maple / pine only propagate from seed). Tree starts as a 2cm sprout. | L |
+| 8 | Content | More species playable | Beyond juniper-from-cuttings: maple and pine via seeds (post-#7), plus per-species care quirks (e.g. pine candling) and mesh tweaks (leaf shape, bark colour). | L |
+| 9 | Content | House interiors | Indoor rooms (lounge, study, hallway) for displaying finished trees. Display areas / shelves connect to the display loop in #2. | L |
+| 10 | Content | Greenhouse room + building system | Grid-based wall/shelf placement so the player can lay out their greenhouse interior. Split candidates: empty greenhouse room, item placement system, item catalogue. | L |
+| 11 | Polish | Audio pass | Currently silent. SFX (water, snip, footsteps, UI clicks) + ambient music per room. Split candidates: SFX layer, music layer, mixer/settings hook. | L |
+| 12 | Polish | Foliage texture with alpha | Currently cross-billboard solid quads — looks cubic. Replace with a leaf texture with alpha cutoff. | M |
+| 13 | Polish | Proper trunk-bending math | Current lateral shift is wobbly; needs Frenet / parallel-transport frames so wired trunks curve naturally instead of leaning. | L |
+| 14 | Polish | Proper branch-curvature math | `branch.bend` currently rotates the whole branch direction (`angle + bend`) but the branch itself stays a straight line. Wired branches need to curve along their length so wiring is visually legible. Same fix family as #13 (trunk uses `movement[]`, branches use a single `bend` scalar — separate code paths). | L |
+| 15 | Polish | Art pass | Replace placeholder sprites and 3D textures with cohesive art. Last item — only when systems are stable. Likely split per-asset-type or per-room. | XL |
 
 ## Shipped
 
@@ -43,3 +42,4 @@ Priority-ordered toward "playable." Security items always at top.
 | — | Game | Tune branch-hotspot positions in 3D viewer | Extracted shared `branch_point(tree, branch, t)` helper; mesh builder and hotspots now share one formula. | S | 1 PR |
 | — | Mechanics | Wire removal UI | Click a wired hotspot in 3D viewer's wire mode → confirmation modal → spring-back vs permanent based on age. Filter sub-row to show/hide wired or unwired hotspots. New `ui_toggle` helper in `scr_ui`. Bonus: stable-foliage-seed fix to stop the whole tree jittering on every mesh rebuild. | M | 3 PRs (#14, #15, #16) |
 | — | Polish | Visible wire on wired branches in 3D viewer | Copper helix wraps wired branches; thickness/pitch scale with branch girth and bend severity. Trunk-side anchor wrap added for realism. New helpers `add_wire_coil`, `add_wire_anchor`, `build_oriented_ring` in `scr_bonsai_mesh`. | M | 2 PRs (#19, this) |
+| — | UX | Inventory + tree-naming UI | New `obj_ui_inventory` (read-only readout, `I` to toggle, three category sections) and `obj_ui_tree_rename` (modal text-input dialog using `keyboard_string`, 20-char limit, spawned from a Rename button on the tree inspector). | M | 2 PRs (this PR + previous) |
