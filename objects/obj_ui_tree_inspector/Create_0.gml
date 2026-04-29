@@ -115,11 +115,18 @@ draw_content = function() {
 
 	// Second row: mode buttons
     var _by2 = _by + _bh + _gap;
-    
+
     if (ui_button(_bx, _by2, _bw, _bh, "Inspect 3D")) {
         // Close this panel first, then open the viewer
         instance_destroy();
         enter_3d_viewer(tree);
+    }
+
+    if (ui_button(_bx + (_bw + _gap), _by2, _bw, _bh, "Rename")) {
+        // Hand off to the rename dialog; user re-inspects to see the new name
+        var _panel = instance_create_depth(0, 0, -1000, obj_ui_tree_rename);
+        _panel.tree = tree;
+        instance_destroy();
     }
 	
     // Footer info (below the button rows)
