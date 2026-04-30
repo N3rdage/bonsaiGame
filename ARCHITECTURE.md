@@ -51,11 +51,12 @@ objects/
   obj_source_plant       — Gives cuttings of a specific species
   obj_tree_sprite        — A tree as it appears in the 2D world (inspectable)
 
-  obj_ui_panel           — Parent class for modal UI panels
-  obj_ui_tree_inspector  — Shows a tree's stats and action buttons
-  obj_ui_tree_rename     — Modal text-input dialog for naming a tree
-  obj_ui_plant_cutting   — Picks a cutting and pot to create a new tree
-  obj_ui_inventory       — Read-only inventory readout (I to toggle)
+  obj_ui_panel              — Parent class for modal UI panels
+  obj_ui_tree_inspector     — Shows a tree's stats and action buttons
+  obj_ui_tree_rename        — Modal text-input dialog for naming a tree
+  obj_ui_tree_style_picker  — Modal style picker for setting a tree's target_style
+  obj_ui_plant_cutting      — Picks a cutting and pot to create a new tree
+  obj_ui_inventory          — Read-only inventory readout (I to toggle)
 
   obj_viewer_3d          — The 3D viewer itself, lives in rm_viewer_3d
   obj_hud                — Draws the "[E] Interact" prompt

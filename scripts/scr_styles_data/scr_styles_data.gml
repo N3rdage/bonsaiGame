@@ -12,32 +12,32 @@ function init_styles() {
         formal_upright: {
             key:          "formal_upright",
             display_name: "Formal Upright (Chokkan)",
-            description:  "Perfectly straight vertical trunk with branches alternating evenly. The classical, formal style.",
+            description:  "Straight vertical trunk; branches alternating evenly.",
         },
         informal_upright: {
             key:          "informal_upright",
             display_name: "Informal Upright (Moyogi)",
-            description:  "Trunk has a gentle S-curve as it rises. The most common natural form.",
+            description:  "Gently curved trunk; the most natural form.",
         },
         slanting: {
             key:          "slanting",
             display_name: "Slanting (Shakan)",
-            description:  "Trunk leans noticeably to one side, suggesting a tree shaped by wind or weight.",
+            description:  "Trunk leans noticeably to one side.",
         },
         cascade: {
             key:          "cascade",
             display_name: "Cascade (Kengai)",
-            description:  "Main growth descends below the pot's rim, like a tree on a cliff face.",
+            description:  "Main growth descends below the pot's rim.",
         },
         broom: {
             key:          "broom",
             display_name: "Broom (Hokidachi)",
-            description:  "Straight trunk fans out into a dome of branches near the top, like an old oak.",
+            description:  "Straight trunk fans into a dome of branches.",
         },
         windswept: {
             key:          "windswept",
             display_name: "Windswept (Fukinagashi)",
-            description:  "Trunk and branches all swept in one direction, as if shaped by a constant wind.",
+            description:  "All growth swept in one direction.",
         },
     };
 }
