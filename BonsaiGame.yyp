@@ -41,6 +41,7 @@
     {"id":{"name":"obj_ui_plant_cutting","path":"objects/obj_ui_plant_cutting/obj_ui_plant_cutting.yy",},},
     {"id":{"name":"obj_ui_tree_inspector","path":"objects/obj_ui_tree_inspector/obj_ui_tree_inspector.yy",},},
     {"id":{"name":"obj_ui_tree_rename","path":"objects/obj_ui_tree_rename/obj_ui_tree_rename.yy",},},
+    {"id":{"name":"obj_ui_tree_style_picker","path":"objects/obj_ui_tree_style_picker/obj_ui_tree_style_picker.yy",},},
     {"id":{"name":"obj_viewer_3d","path":"objects/obj_viewer_3d/obj_viewer_3d.yy",},},
     {"id":{"name":"obj_wall","path":"objects/obj_wall/obj_wall.yy",},},
     {"id":{"name":"obj_workbench","path":"objects/obj_workbench/obj_workbench.yy",},},
