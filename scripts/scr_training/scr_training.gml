@@ -72,8 +72,11 @@ function prune_branch(_tree, _branch_id) {
     if (_branch_id < 0 || _branch_id >= array_length(_tree.branches)) return false;
     
     array_delete(_tree.branches, _branch_id, 1);
+    // Renumber surviving branches by position. Direct `.id =` assignment trips
+    // GameMaker's GM1008 reserved-word check on structs (newer compilers); the
+    // dynamic accessor sidesteps it.
     for (var i = 0; i < array_length(_tree.branches); i++) {
-        _tree.branches[i].id = i;
+        variable_struct_set(_tree.branches[i], "id", i);
     }
     _tree.foliage_density = max(0, _tree.foliage_density - 0.1);
     

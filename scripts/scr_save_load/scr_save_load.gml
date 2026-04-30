@@ -32,6 +32,7 @@ function save_game(_slot = 1) {
             prunes_history:  _t.prunes_history,
             repots_history:  _t.repots_history,
             style_tags:      _t.style_tags,
+            target_style:    _t.target_style,
         });
     }
     
