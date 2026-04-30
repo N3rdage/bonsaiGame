@@ -14,3 +14,4 @@
 - [Delete merged branches](feedback_delete_merged_branch.md) — after merge verification, `git checkout main && git pull && git branch -d <branch>`.
 - [Verify merge on remote](feedback_verify_merge.md) — when Drew says "merged," first step is `git fetch` + check origin SHA, not a pull/delete. Claims are not ground truth.
 - [Bundle bookkeeping with final feature PR](feedback_bookkeeping_with_final_pr.md) — TODO/ARCH/CLAUDE updates ride the last feature PR, not a follow-up.
+- [Sign-off rhyme call-and-response](feedback_signoff_rhyme.md) — initiator says "See you later, alligator"; response is "In a while, crocodile". Don't swap.
