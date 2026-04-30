@@ -40,6 +40,13 @@ draw_content = function() {
                                  + string_format(tree.trunk.girth_mm, 1, 1) + " mm thick");
     _y += _line;
     draw_text(_x, _y, "Branches: " + string(array_length(tree.branches)));
+    _y += _line;
+
+    var _style_label = "(none)";
+    if (tree.target_style != "" && variable_struct_exists(global.styles, tree.target_style)) {
+        _style_label = global.styles[$ tree.target_style].display_name;
+    }
+    draw_text(_x, _y, "Style: " + _style_label);
     _y += _line + 8;
     
     // Bars
@@ -125,6 +132,12 @@ draw_content = function() {
     if (ui_button(_bx + (_bw + _gap), _by2, _bw, _bh, "Rename")) {
         // Hand off to the rename dialog; user re-inspects to see the new name
         var _panel = instance_create_depth(0, 0, -1000, obj_ui_tree_rename);
+        _panel.tree = tree;
+        instance_destroy();
+    }
+
+    if (ui_button(_bx + (_bw + _gap) * 2, _by2, _bw, _bh, "Set Style")) {
+        var _panel = instance_create_depth(0, 0, -1000, obj_ui_tree_style_picker);
         _panel.tree = tree;
         instance_destroy();
     }
