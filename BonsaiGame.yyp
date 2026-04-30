@@ -54,6 +54,7 @@
     {"id":{"name":"scr_math_3d","path":"scripts/scr_math_3d/scr_math_3d.yy",},},
     {"id":{"name":"scr_save_load","path":"scripts/scr_save_load/scr_save_load.yy",},},
     {"id":{"name":"scr_species_data","path":"scripts/scr_species_data/scr_species_data.yy",},},
+    {"id":{"name":"scr_styles_data","path":"scripts/scr_styles_data/scr_styles_data.yy",},},
     {"id":{"name":"scr_training","path":"scripts/scr_training/scr_training.yy",},},
     {"id":{"name":"scr_ui","path":"scripts/scr_ui/scr_ui.yy",},},
     {"id":{"name":"scr_viewer","path":"scripts/scr_viewer/scr_viewer.yy",},},
