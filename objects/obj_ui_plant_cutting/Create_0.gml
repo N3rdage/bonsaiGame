@@ -56,7 +56,9 @@ draw_content = function() {
     
     if (!_any_found) {
         draw_set_color(make_color_rgb(200, 150, 150));
-        draw_text(_x, _y, "No cuttings available. Take some from plants in the garden.");
+        draw_text(_x, _y, "No cuttings available.");
+        _y += _line;
+        draw_text(_x, _y, "Take some from plants in the garden.");
         _y += _line;
     }
     
@@ -76,11 +78,12 @@ draw_content = function() {
         do_plant();
     }
     
-    // Hint
+    // Hint — sits clearly above the button so the button's outline doesn't
+    // run into the text descenders.
     if (!_can_plant) {
         draw_set_color(make_color_rgb(150, 150, 150));
         draw_set_halign(fa_center);
-        draw_text(panel_x + panel_w / 2, _by - 20,
+        draw_text(panel_x + panel_w / 2, _by - 32,
             selected_species == "" ? "Select a cutting first." :
             (_pots <= 0 ? "You need a pot." : ""));
         draw_set_halign(fa_left);
