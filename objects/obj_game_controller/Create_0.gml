@@ -9,6 +9,7 @@ global.time_accumulator = 0;
 global.base_time_scale  = 1.0;
 
 init_species();
+init_styles();
 init_inventory();
 init_vertex_format();
 
