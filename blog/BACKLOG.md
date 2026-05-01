@@ -15,10 +15,15 @@ Current published posts: see `blog/` (or the "Posts so far" list in the project 
 
 ## Math sub-series
 
-A recurring sub-series on the geometry powering the visible game. Tag posts with `[Math]` in the title for filtering when there's enough of them to filter.
+A recurring sub-series on the geometry powering the visible game. Posts are tagged `[Math]` in the title, with `-math-` in the slug, for filtering. Pitched at high-school / early-uni readers — assume rough familiarity with `cos`/`sin` and don't be scared of an angle, but otherwise don't presume background.
 
-- **[Math] Where does branch 3 actually start?** — the trunk-surface offset, the `branch_point(tree, branch, t)` helper, basic trig with `cos`/`sin`. Foundation post; assumes no math background.
-- **[Math] Wrapping wire round a branch** — local frames perpendicular to a branch direction; helix parametrisation; oriented rings via cross-product basis. The actual maths from PR #19.
-- **[Math] Why the wired branch still looks straight** — `branch.bend` rotates the direction vector but the branch geometry stays a straight line. Sets up the Frenet-frame / parallel-transport TODO (currently #14, #15 in TODO.md).
-- **[Math] The trunk movement array** — how trunk bending works today (lateral-shift accumulation at heights), why it looks wobbly, what proper parallel-transport would do instead.
-- **[Math] Z-up in a y-down world (deeper cut)** — projection matrix sign flips, lookat conventions, why GameMaker's 3D tutorials get this subtly wrong for non-toy scenes. Partial overlap with the upside-down-tree post; this version goes further into the linear algebra.
+**Convention:** keep at least the next 2–3 posts outlined here so each post can end with a teaser pointing at the next, and so we're always building toward a destination rather than picking ad hoc. When a post ships, drop it from this list and add a new candidate at the end to keep the buffer.
+
+In sequence:
+
+1. **[Math] Where does branch 3 actually start?** — the trunk-surface offset, the `branch_point(tree, branch, t)` helper. Same `cos`/`sin` as the just-shipped post, doing slightly more work: a branch's attachment angle plus the trunk's radius at the branch's height. Bridges from "circle in the abstract" to "circle as the cross-section of a real game object."
+2. **[Math] The 3D viewer is mostly arithmetic** — series-checkpoint post. Walking tour of every kind of maths the viewer uses (trig, vectors, dot/cross products, projection matrices, parametric curves) with a one-paragraph teaser for each, anchored in screenshots from the actual game. Less worked example, more "here's the map." Sets up the deeper dives that follow.
+3. **[Math] Wrapping wire round a branch** — local frames perpendicular to a branch direction; helix parametrisation; oriented rings via a cross-product basis. The maths from the wire-coil PR (#19). Linear algebra starts to earn its keep.
+4. **[Math] Why the wired branch still looks straight** — `branch.bend` rotates the direction vector but the branch geometry stays a straight line. Sets up the Frenet-frame / parallel-transport TODO (currently #12, #13 in TODO.md). Calculus-curious readers welcome.
+5. **[Math] The trunk movement array** — how trunk bending works today (lateral-shift accumulation at heights), why it looks wobbly, what proper parallel-transport would do instead.
+6. **[Math] Z-up in a y-down world (deeper cut)** — projection matrix sign flips, lookat conventions, why GameMaker's 3D tutorials get this subtly wrong for non-toy scenes. Partial overlap with the upside-down-tree post; this version goes further into the linear algebra.
