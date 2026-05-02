@@ -79,6 +79,18 @@ function score_tree(_tree) {
     var _v_fol = _score_band(_tree.foliage_density, 0.3, 0.7, 0.3);
     array_push(_crits, { label: "Foliage", value: _v_fol, weight: 1.0 });
 
+    // 7. Style conformance — only when a target style is set, so choosing a
+    //    style is a real commitment that can pull the score up or down.
+    if (_tree.target_style != "" && variable_struct_exists(global.styles, _tree.target_style)) {
+        var _style   = global.styles[$ _tree.target_style];
+        var _v_style = _style.score(_tree);
+        array_push(_crits, {
+            label:  "Style: " + _style.display_name,
+            value:  _v_style,
+            weight: 1.5,
+        });
+    }
+
     // Sum weighted contributions, normalize to 0..1.
     var _sum = 0; var _wsum = 0;
     for (var i = 0; i < array_length(_crits); i++) {
