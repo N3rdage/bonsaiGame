@@ -1,20 +1,19 @@
 {
   "$GMObject":"",
-  "%Name":"obj_pedestal",
+  "%Name":"obj_ui_pedestal",
   "eventList":[
     {"$GMEvent":"v1","%Name":"","collisionObjectId":null,"eventNum":0,"eventType":0,"isDnD":false,"name":"","resourceType":"GMEvent","resourceVersion":"2.0",},
-    {"$GMEvent":"v1","%Name":"","collisionObjectId":null,"eventNum":0,"eventType":8,"isDnD":false,"name":"","resourceType":"GMEvent","resourceVersion":"2.0",},
   ],
   "managed":true,
-  "name":"obj_pedestal",
+  "name":"obj_ui_pedestal",
   "overriddenProperties":[],
   "parent":{
-    "name":"Shed",
-    "path":"folders/Shed.yy",
+    "name":"Bonsai",
+    "path":"folders/_Shared/Bonsai.yy",
   },
   "parentObjectId":{
-    "name":"obj_interactable",
-    "path":"objects/obj_interactable/obj_interactable.yy",
+    "name":"obj_ui_panel",
+    "path":"objects/obj_ui_panel/obj_ui_panel.yy",
   },
   "persistent":false,
   "physicsAngularDamping":0.1,
@@ -33,10 +32,7 @@
   "resourceType":"GMObject",
   "resourceVersion":"2.0",
   "solid":false,
-  "spriteId":{
-    "name":"spr_interactable",
-    "path":"sprites/spr_interactable/spr_interactable.yy",
-  },
+  "spriteId":null,
   "spriteMaskId":null,
   "visible":true,
 }
