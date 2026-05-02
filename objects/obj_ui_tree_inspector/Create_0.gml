@@ -4,7 +4,7 @@ event_inherited();
 // Subclass overrides
 panel_title = "Bonsai Inspector";
 panel_w     = 600;
-panel_h     = 560;
+panel_h     = 620;
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
@@ -13,6 +13,9 @@ tree = undefined;
 
 // Which branch is selected for clipping/pruning (UI selection only)
 selected_branch = 0;
+
+// Toggles the score breakdown view in place of the branch selector
+show_breakdown = false;
 
 // Override the draw_content function to render tree info + buttons.
 draw_content = function() {
@@ -48,7 +51,15 @@ draw_content = function() {
     }
     draw_text(_x, _y, "Style: " + _style_label);
     _y += _line + 8;
-    
+
+    // Score
+    var _score = score_tree(tree);
+    draw_text(_x, _y, "Score: " + string(_score.total) + " / 100");
+    if (ui_button(_x + 200, _y - 4, 140, 24, show_breakdown ? "Hide details" : "Show details")) {
+        show_breakdown = !show_breakdown;
+    }
+    _y += _line + 8;
+
     // Bars
     draw_text(_x, _y, "Vitality");
     ui_bar(_x + 120, _y + 4, 200, 14, tree.vitality, 100, make_color_rgb(120, 200, 100));
@@ -65,9 +76,23 @@ draw_content = function() {
     draw_text(_x + 330, _y, string(floor(tree.vigor)) + "/100");
     _y += _line + 16;
     
-    // Branch selector
     var _branch_count = array_length(tree.branches);
-    if (_branch_count > 0) {
+    if (show_breakdown) {
+        // Score breakdown: replaces the branch selector while toggled on.
+        var _step = 22;
+        var _by   = _y;
+        for (var i = 0; i < array_length(_score.breakdown); i++) {
+            var _c = _score.breakdown[i];
+            draw_text(_x, _by, _c.label);
+            if (_c.is_multiplier) {
+                draw_text(_x + 200, _by, "x " + string_format(_c.value, 1, 2));
+            } else {
+                draw_text(_x + 200, _by, string_format(_c.points, 1, 1) + " pts");
+            }
+            _by += _step;
+        }
+        _y = _by + 8;
+    } else if (_branch_count > 0) {
         draw_text(_x, _y, "Selected branch: " + string(selected_branch) + " / " + string(_branch_count - 1));
         if (ui_button(_x + 260, _y - 4, 40, 24, "<")) {
             selected_branch = (selected_branch - 1 + _branch_count) mod _branch_count;
@@ -76,7 +101,7 @@ draw_content = function() {
             selected_branch = (selected_branch + 1) mod _branch_count;
         }
         _y += _line;
-        
+
         var _b = tree.branches[selected_branch];
         draw_text(_x + 20, _y, "Length: " + string_format(_b.length, 1, 1) + " cm | "
                               + "Angle: " + string(_b.angle) + "° | "
