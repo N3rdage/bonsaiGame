@@ -166,7 +166,13 @@ draw_content = function() {
         _panel.tree = tree;
         instance_destroy();
     }
-	
+
+    if (ui_button(_bx + (_bw + _gap) * 3, _by2, _bw, _bh, "Sell")) {
+        var _panel = instance_create_depth(0, 0, -1000, obj_ui_tree_sell_confirm);
+        _panel.tree = tree;
+        instance_destroy();
+    }
+
     // Footer info (below the button rows)
     draw_set_color(make_color_rgb(150, 150, 150));
     draw_text(_bx, _by + (_bh + _gap) * 2 + 8,
