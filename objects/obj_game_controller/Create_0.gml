@@ -22,6 +22,7 @@ _sample.add_branch(-1, 8,  30,  12);
 _sample.add_branch(-1, 14, 210, 11);
 _sample.add_branch(-1, 18, 120, 10);
 _sample.add_branch(-1, 22, 60,   9);
+_sample.foliage_density = 0.5;
 _sample.location = "shed";
 array_push(global.all_trees, _sample);
 
