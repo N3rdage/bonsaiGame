@@ -3,12 +3,14 @@
 // (BonsaiTree.target_style), and `score_tree` (scr_scoring) feeds the tree
 // into the style's `score(_tree)` function as one weighted criterion.
 //
-// Each style returns a 0..1 conformance value. Styles whose distinguishing
-// feature is trunk shape (curvature/lean/descending growth) currently have
-// no morphology field to read from — `trunk.movement` is unused and branches
-// always angle upward — so they stub to 1.0 with a TODO. Real scoring lands
-// when TODO #12 (proper trunk-bending math) gives those styles something to
-// measure.
+// Each style with a `score` field returns a 0..1 conformance value. Styles
+// whose distinguishing feature is trunk shape (curvature/lean/descending
+// growth) currently have no morphology field to read from — `trunk.movement`
+// is unused and branches always angle upward — so they omit the function
+// entirely. `score_tree` treats missing-score styles the same as "no target
+// style": the criterion drops out of the weighted average. Real scoring
+// lands when TODO #12 (proper trunk-bending math) gives those styles
+// something to measure.
 //
 // Call init_styles() once at game start.
 
@@ -43,23 +45,20 @@ function init_styles() {
             key:          "informal_upright",
             display_name: "Informal Upright (Moyogi)",
             description:  "Gently curved trunk; the most natural form.",
-            // TODO: needs trunk curvature data (see TODO #12).
-            score: function(_tree) { return 1.0; },
+            // No score: needs trunk curvature data (see TODO #12).
         },
         slanting: {
             key:          "slanting",
             display_name: "Slanting (Shakan)",
             description:  "Trunk leans noticeably to one side.",
-            // TODO: needs trunk lean data (see TODO #12).
-            score: function(_tree) { return 1.0; },
+            // No score: needs trunk lean data (see TODO #12).
         },
         cascade: {
             key:          "cascade",
             display_name: "Cascade (Kengai)",
             description:  "Main growth descends below the pot's rim.",
-            // TODO: needs downward-growing branches or below-pot reach.
+            // No score: needs downward-growing branches / below-pot reach.
             // Current branches always angle upward (see TODO #12 family).
-            score: function(_tree) { return 1.0; },
         },
         broom: {
             key:          "broom",

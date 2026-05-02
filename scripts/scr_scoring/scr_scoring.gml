@@ -81,19 +81,24 @@ function score_tree(_tree) {
 
     // 7. Style conformance — only when a target style is set, so choosing a
     //    style is a real commitment that can pull the score up or down.
+    // A style with no `score` field (informal_upright, slanting, cascade)
+    // is omitted just like an unset target_style — it shouldn't be free
+    // max-score points until the underlying morphology lands.
     if (_tree.target_style != "" && variable_struct_exists(global.styles, _tree.target_style)) {
-        var _style   = global.styles[$ _tree.target_style];
-        var _v_style = _style.score(_tree);
-        // Strip the parenthetical Japanese name so the label fits the
-        // breakdown column; the full name still shows in the main stats row.
-        var _short = _style.display_name;
-        var _paren = string_pos(" (", _short);
-        if (_paren > 0) _short = string_copy(_short, 1, _paren - 1);
-        array_push(_crits, {
-            label:  "Style: " + _short,
-            value:  _v_style,
-            weight: 1.5,
-        });
+        var _style = global.styles[$ _tree.target_style];
+        if (variable_struct_exists(_style, "score")) {
+            var _v_style = _style.score(_tree);
+            // Strip the parenthetical Japanese name so the label fits the
+            // breakdown column; the full name still shows in the main stats row.
+            var _short = _style.display_name;
+            var _paren = string_pos(" (", _short);
+            if (_paren > 0) _short = string_copy(_short, 1, _paren - 1);
+            array_push(_crits, {
+                label:  "Style: " + _short,
+                value:  _v_style,
+                weight: 1.5,
+            });
+        }
     }
 
     // Sum weighted contributions, normalize to 0..1.
