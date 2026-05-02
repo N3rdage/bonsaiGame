@@ -4,7 +4,7 @@ event_inherited();
 // Subclass overrides
 panel_title = "Bonsai Inspector";
 panel_w     = 600;
-panel_h     = 620;
+panel_h     = 640;
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
@@ -85,9 +85,9 @@ draw_content = function() {
             var _c = _score.breakdown[i];
             draw_text(_x, _by, _c.label);
             if (_c.is_multiplier) {
-                draw_text(_x + 200, _by, "x " + string_format(_c.value, 1, 2));
+                draw_text(_x + 260, _by, "x " + string_format(_c.value, 1, 2));
             } else {
-                draw_text(_x + 200, _by, string_format(_c.points, 1, 1) + " pts");
+                draw_text(_x + 260, _by, string_format(_c.points, 1, 1) + " pts");
             }
             _by += _step;
         }

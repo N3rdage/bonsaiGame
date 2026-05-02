@@ -19,7 +19,7 @@ Priority-ordered toward "playable." Security items always at top.
 | 9 | Content | Greenhouse room + building system | Grid-based wall/shelf placement so the player can lay out their greenhouse interior. Split candidates: empty greenhouse room, item placement system, item catalogue. | L |
 | 10 | Polish | Audio pass | Currently silent. SFX (water, snip, footsteps, UI clicks) + ambient music per room. Split candidates: SFX layer, music layer, mixer/settings hook. | L |
 | 11 | Polish | Foliage texture with alpha | Currently cross-billboard solid quads — looks cubic. Replace with a leaf texture with alpha cutoff. | M |
-| 12 | Polish | Proper trunk-bending math | Current lateral shift is wobbly; needs Frenet / parallel-transport frames so wired trunks curve naturally instead of leaning. | L |
+| 12 | Polish | Proper trunk-bending math | Current lateral shift is wobbly; needs Frenet / parallel-transport frames so wired trunks curve naturally instead of leaning. **Hitchhiker:** unlocks real style-conformance scoring for informal_upright, slanting, and cascade — currently stubbed to 1.0 in `scr_styles_data` because no morphology field captures trunk lean/curve or downward-growing branches. | L |
 | 13 | Polish | Proper branch-curvature math | `branch.bend` currently rotates the whole branch direction (`angle + bend`) but the branch itself stays a straight line. Wired branches need to curve along their length so wiring is visually legible. Same fix family as #12 (trunk uses `movement[]`, branches use a single `bend` scalar — separate code paths). | L |
 | 14 | Polish | Art pass | Replace placeholder sprites and 3D textures with cohesive art. Last item — only when systems are stable. Likely split per-asset-type or per-room. | XL |
 
