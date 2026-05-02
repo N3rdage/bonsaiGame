@@ -12,5 +12,3 @@ In-flight work on TODO #1 ("Aesthetic scoring + display/sell loop"). Agreed plan
 4. **Display mechanic** — display slots in rooms, passive money trickle from displayed trees. Bookkeeping (TODO/ARCH/CLAUDE updates) rides this final PR.
 
 **Why:** This sequence keeps each PR small enough to verify in-editor and answers the "does scoring give signal?" question before building economy on top of it. Style criteria comes second because the style picker UI already exists and currently does nothing — wiring it into score gives existing UI meaning.
-
-**How to apply:** On resume, propose PR 2 (style conformance) unless Drew redirects. Read `scr_styles_data` and `scr_scoring` first to plan the integration shape, then propose with the "plan:" workflow.
