@@ -13,7 +13,7 @@ panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
 tree  = undefined;   // set by spawner immediately after instance_create_depth
-score = undefined;   // captured on first draw
+tree_score = undefined;   // captured on first draw
 coins = 0;
 
 draw_content = function() {
@@ -25,9 +25,9 @@ draw_content = function() {
         return;
     }
 
-    if (score == undefined) {
-        score = score_tree(tree);
-        coins = round(score.total * 2);
+    if (tree_score == undefined) {
+        tree_score = score_tree(tree);
+        coins = round(tree_score.total * 2);
     }
 
     var _x = panel_x + 24;
@@ -46,7 +46,7 @@ draw_content = function() {
     draw_set_color(make_color_rgb(180, 180, 180));
     draw_text(_x, _y, "Species: " + _species.display_name);
     _y += _line;
-    draw_text(_x, _y, "Score: " + string(score.total) + " / 100");
+    draw_text(_x, _y, "Score: " + string(tree_score.total) + " / 100");
     _y += _line + 8;
 
     draw_set_color(make_color_rgb(220, 200, 120));
