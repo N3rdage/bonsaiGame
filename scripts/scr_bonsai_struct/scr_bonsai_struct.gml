@@ -42,8 +42,8 @@ function BonsaiTree(_species_key, _origin) constructor {
     style_tags = [];
 
     // Player-chosen target style. Empty string = no target. Otherwise a key
-    // into global.styles (see scr_styles_data). Drives aesthetic scoring
-    // once TODO #2 lands.
+    // into global.styles (see scr_styles_data). Feeds the style-conformance
+    // criterion in score_tree (scr_scoring).
     target_style = "";
     
     // Mesh cache

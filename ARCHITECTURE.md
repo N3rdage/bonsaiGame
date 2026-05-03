@@ -29,10 +29,12 @@ The morphology fields are the recipe for the 3D mesh. Training operations mutate
 ```
 scripts/
   scr_species_data       — Species definitions as static data
+  scr_styles_data        — Bonsai style definitions and per-style scoring functions
   scr_inventory          — Player inventory (struct of key:count pairs)
   scr_bonsai_struct      — The BonsaiTree constructor
-  scr_growth             — Daily tick simulation, water, time skip
+  scr_growth             — Daily tick simulation, water, time skip, display revenue
   scr_training           — Wire, clip, prune, trunk bend operations
+  scr_scoring            — Aesthetic scoring of a tree; called on demand, never persisted
   scr_save_load          — JSON save/load of whole game state
   scr_math_3d            — Vector helpers, 3D vertex format, screen projection
   scr_bonsai_mesh        — Builds vertex buffers from tree morphology, including visible copper-wire coils on wired branches
@@ -40,7 +42,7 @@ scripts/
   scr_viewer             — Enter/exit the 3D viewer room
 
 objects/
-  obj_game_controller    — Persistent; initializes everything, drives time, handles save/load keys
+  obj_game_controller    — Persistent; initializes everything, drives time, handles save/load keys, draws money/day HUD
   obj_player_2d          — Persistent top-down player with movement and interaction
   obj_wall               — Static collision box for the player
   obj_door               — Interactable that transitions to another room
@@ -50,11 +52,14 @@ objects/
   obj_planting_table     — Opens the planting UI
   obj_source_plant       — Gives cuttings of a specific species
   obj_tree_sprite        — A tree as it appears in the 2D world (inspectable)
+  obj_pedestal           — Display slot for a single tree (per-instance pedestal_key)
 
   obj_ui_panel              — Parent class for modal UI panels
-  obj_ui_tree_inspector     — Shows a tree's stats and action buttons
+  obj_ui_tree_inspector     — Shows a tree's stats, score, and action buttons
   obj_ui_tree_rename        — Modal text-input dialog for naming a tree
   obj_ui_tree_style_picker  — Modal style picker for setting a tree's target_style
+  obj_ui_tree_sell_confirm  — Modal confirming sale of a tree for score-based coins
+  obj_ui_pedestal           — Modal for placing/inspecting/removing a tree on a pedestal
   obj_ui_plant_cutting      — Picks a cutting and pot to create a new tree
   obj_ui_inventory          — Read-only inventory readout (I to toggle)
 
@@ -112,6 +117,24 @@ Trees store only the species *key* (e.g. `"juniper"`), and look up properties at
 
 `BonsaiTree.mesh_dirty` is set to true by any operation that changes morphology. The viewer calls `tree.get_mesh()` each frame, which checks the flag and rebuilds only when needed. Most frames, it returns the cached buffer for free. A training click during the viewer triggers a rebuild on the next frame.
 
+### Tree location is a free-form string, not an enum
+
+`BonsaiTree.location` started as a room name (`"shed"`, `"inventory"`) and the room-respawn loop in `obj_game_controller`'s Room Start filters by exact match: a tree gets a world sprite spawned only if its location equals the current room's tag. As features grew, this string took on extra encodings without changing the filter:
+
+- `"sold"` — set by the sell modal as a soft-delete (the struct stays in `global.all_trees` for future sale-history features). The exact-match filter naturally skips these.
+- `"displayed:<pedestal_key>"` — set when the player places a tree on a pedestal. The pedestal modal does the lookup by walking `global.all_trees` for matching strings; the exact-match world-sprite filter again skips these (no duplicate sprite).
+- The display-revenue tick in `scr_growth` uses `string_pos("displayed:", ...) == 1` to find paying trees.
+
+The pattern works because every reader knows the convention: location strings either name a room or carry a typed prefix. New verbs ("withered", "in_storage") would extend the same way.
+
+### Scoring is derived, never persisted
+
+`score_tree(_tree)` in `scr_scoring` returns a `{ total, breakdown }` struct on demand. Six MVP criteria (taper, proportion, branch count, angular spread, vertical spread, foliage) are weighted 1.0 each; an optional 7th style-conformance criterion (weight 1.5) calls into the chosen `global.styles[key].score(_tree)` if the style declares one. Each criterion's value is multiplied by the vitality fraction so a sickly tree caps the score. Save files don't store the score — recomputing from morphology means the score always reflects what the tree currently is, with no migration concerns when scoring rules change.
+
+### Pedestals identify by stable key, not instance id
+
+GameMaker instance IDs aren't stable across save/load or room reloads, so a displayed tree can't reference its pedestal by instance. Each `obj_pedestal` instance gets a `pedestal_key` set in the room editor's instance creation code (e.g. `pedestal_key = "shed_main";`). Trees on display set `tree.location = "displayed:" + pedestal_key`. On Room Start the pedestals are recreated as room instances; each one looks up its tree on demand via `get_displayed_tree()` (a O(n) scan over `global.all_trees`). No pedestal serialization, no instance id reasoning.
+
 ### Persistent player + Room Start positioning
 
 The player is marked persistent, so a single instance survives all room transitions. Doors set `global.pending_player_x/y` before calling `room_goto`. The player's Room Start event applies those pending coordinates to itself and clears the globals. This is subtle but clean: each door knows where to drop the player in the destination room, and the player doesn't need per-room spawn logic.
@@ -162,6 +185,21 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 5. Player clicks Clip → `clip_branch(tree, selected_branch, 1)` reduces branch length by 1cm, reduces foliage density, pushes an entry onto `clips_history`
 6. Player clicks Inspect 3D → panel destroys itself, `enter_3d_viewer(tree)` saves return state and calls `room_goto(rm_viewer_3d)`
 
+### Selling a tree
+
+1. Player opens an inspector, clicks Sell. Inspector destroys itself and spawns `obj_ui_tree_sell_confirm` with `tree` set
+2. The modal computes `tree_score = score_tree(tree)` and `coins = round(tree_score.total * 2)` once on open, so the displayed price matches the actual transaction
+3. On confirm: `global.money += coins`, `tree.location = "sold"`, the matching `obj_tree_sprite` is destroyed by walking `obj_tree_sprite` and comparing struct identity against `global.all_trees[tree_index]`. The struct itself stays in `global.all_trees` (and in the next save file) for a future sale-history feature
+4. The exact-match room-respawn filter naturally skips `"sold"` trees on future room loads
+
+### Displaying a tree on a pedestal
+
+1. Player presses E on an `obj_pedestal`. It spawns `obj_ui_pedestal` with `pedestal = self`
+2. The modal calls `pedestal.get_displayed_tree()` to branch on state:
+   - **Empty:** lists trees with `location == "shed"`. Player clicks a row to select, clicks Place. The tree's `location` is set to `"displayed:" + pedestal.pedestal_key` and the tree's world sprite is destroyed (struct-identity walk through `obj_tree_sprite`)
+   - **Occupied:** shows the tree's name and a row of two buttons. Inspect destroys this modal and opens the tree inspector for the displayed tree. Remove sets `tree.location = "shed"` and spawns a fresh `obj_tree_sprite` next to the pedestal so the tree is reachable again immediately
+3. Each game day, the display-revenue tick in `scr_growth.advance_day_all_trees` walks `global.all_trees`, finds entries with location starting `"displayed:"`, and adds `round(score_tree(tree).total * 0.1)` coins per displayed tree. A score-50 tree pays 5 coins/day; matching the sell payout (100 coins) takes 20 game days
+
 ### The 3D viewer
 
 1. `obj_viewer_3d` instantiates in `rm_viewer_3d`. Its Create event grabs `global.viewer_target`, sets initial camera angles, calls `tree.get_mesh()` to pre-warm the mesh
@@ -209,4 +247,7 @@ Because `obj_tree_sprite` is tied to a room, and trees are tied to a `location` 
 - **Pacing is tuned aggressively toward active play.** Branch spawn rate is 10% per day weighted by vitality. Real bonsai is slower. This is a game, not a simulator.
 - **Only junipers are playable.** Maple and pine can't be grown from cuttings (realistic) and seeds aren't implemented yet.
 - **Only two rooms** exist. The house interiors and greenhouse are placeholder or absent.
-- **There's no win condition, no scoring, no progression.** You grow trees and stop when you get bored. Aesthetic scoring and sellable trees are planned.
+- **No shop yet.** Money has both an income side (display trickle, sell payout) and a HUD readout, but nothing to spend it on. The shop is the next major economy item (TODO #1).
+- **Pedestals live in the shed as a stopgap.** They're conceptually indoor furniture; they'll migrate to a proper lounge / display room when interiors land (TODO #7).
+- **Three styles can't be scored.** `informal_upright`, `slanting`, and `cascade` need trunk-curve / lean / downward-growth data that doesn't exist on `BonsaiTree` yet. Their `score` field is omitted; `score_tree` skips the criterion entirely for those styles. Real scoring lands alongside TODO #11 (proper trunk-bending math).
+- **No win condition or progression beyond the score → money loop.** You grow trees, display or sell them, and stop when you get bored.

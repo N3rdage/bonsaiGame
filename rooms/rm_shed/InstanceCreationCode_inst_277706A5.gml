@@ -1,0 +1,1 @@
+pedestal_key = "shed_window";

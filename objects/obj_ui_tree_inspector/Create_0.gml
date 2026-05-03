@@ -177,5 +177,6 @@ draw_content = function() {
     draw_set_color(make_color_rgb(150, 150, 150));
     draw_text(_bx, _by + (_bh + _gap) * 2 + 8,
         "Fertilizer: " + string(inventory_count("fertilizer"))
-        + "  |  Day: " + string(global.game_day));
+        + "  |  Day: " + string(global.game_day)
+        + "  |  $" + string(global.money));
 };
