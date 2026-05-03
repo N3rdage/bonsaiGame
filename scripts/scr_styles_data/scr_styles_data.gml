@@ -9,7 +9,7 @@
 // is unused and branches always angle upward — so they omit the function
 // entirely. `score_tree` treats missing-score styles the same as "no target
 // style": the criterion drops out of the weighted average. Real scoring
-// lands when TODO #12 (proper trunk-bending math) gives those styles
+// lands when TODO #11 (proper trunk-bending math) gives those styles
 // something to measure.
 //
 // Call init_styles() once at game start.
@@ -45,20 +45,20 @@ function init_styles() {
             key:          "informal_upright",
             display_name: "Informal Upright (Moyogi)",
             description:  "Gently curved trunk; the most natural form.",
-            // No score: needs trunk curvature data (see TODO #12).
+            // No score: needs trunk curvature data (see TODO #11).
         },
         slanting: {
             key:          "slanting",
             display_name: "Slanting (Shakan)",
             description:  "Trunk leans noticeably to one side.",
-            // No score: needs trunk lean data (see TODO #12).
+            // No score: needs trunk lean data (see TODO #11).
         },
         cascade: {
             key:          "cascade",
             display_name: "Cascade (Kengai)",
             description:  "Main growth descends below the pot's rim.",
             // No score: needs downward-growing branches / below-pot reach.
-            // Current branches always angle upward (see TODO #12 family).
+            // Current branches always angle upward (see TODO #11 family).
         },
         broom: {
             key:          "broom",
