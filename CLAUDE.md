@@ -11,7 +11,7 @@ Bonsai Greenhouse — a cozy bonsai-growing sim written in **GameMaker** (IDE 20
 ## Build / run / test
 
 - **No CLI build, no test suite, no linter.** The project is opened and run from the GameMaker IDE (`BonsaiGame.yyp` at the repo root). Don't try to invoke a build from the shell.
-- **Saves** land at `%LOCALAPPDATA%\BonsaiGame\save1.json`. F5 saves, F9 loads, F1 is a debug hotkey (skip 7 days on tree 0).
+- **Saves** land at `%LOCALAPPDATA%\BonsaiGame\save1.json`. F5 saves, F9 loads. Debug hotkeys: F1 skips 7 days on tree 0 only (no world advance), F2 advances the whole world 7 days (ticks every tree, fires display revenue).
 - **Changes to code should be verified in-editor by the user.** You cannot run or type-check GML from here — flag when a change needs a runtime check.
 
 ## Layout
@@ -34,6 +34,9 @@ These are the things that are easy to break if you don't know them. `ARCHITECTUR
 - **`obj_interactable` and `obj_ui_panel` are parent objects.** New interactables/panels inherit from them and call `event_inherited()` in Create. The player finds interactables via `instance_nearest(x, y, obj_interactable)` — no registration needed.
 - **UI buttons combine draw + click detection in one call.** `ui_button(...)` returns `true` on the click frame. Call it from a Draw event; don't try to split drawing and input for panels.
 - **The player is persistent across rooms.** Doors set `global.pending_player_x/y` before `room_goto`; the player applies them in its Room Start event. Tree sprites (`obj_tree_sprite`) are NOT persistent — the game controller respawns them on Room Start based on each tree's `location` field. Moving a tree = changing `location`.
+- **`BonsaiTree.location` is a tagged-union string, not an enum.** Plain values name a room (`"shed"`, `"inventory"`); typed prefixes encode state — `"sold"` (soft-deleted, struct stays for sale-history), `"displayed:<pedestal_key>"` (on a display pedestal). The room respawn loop filters by exact match, so prefixed locations naturally don't get a duplicate world sprite. Add new states by inventing a new prefix and updating the relevant readers (currently: room respawn, sell flow, pedestal lookup, display revenue tick in `scr_growth`).
+- **Pedestals require a `pedestal_key` set in the room editor.** `obj_pedestal` defaults `pedestal_key = ""` and refuses to interact if it's empty. Each instance's creation code sets a stable string (e.g. `pedestal_key = "shed_main";`) — that's what `tree.location = "displayed:" + pedestal_key` references. Don't rely on GM instance ids; they don't survive save/reload.
+- **Scoring is derived, never persisted.** `score_tree(_tree)` in `scr_scoring` recomputes on demand from morphology + style + vitality. Don't add a `score` field to `BonsaiTree`. (Also: `score` is a built-in GM real-typed variable — don't shadow it on instance fields, it'll throw on `undefined` assignment.)
 - **The 3D viewer pauses the simulation.** `global.game_paused = true` while in `rm_viewer_3d`; the controller's Step exits early on pause. Don't rely on ticks happening during inspection.
 - **3D is z-up, not y-up.** `matrix_build_lookat(..., 0, 0, -1)` and a negated aspect ratio account for GM's y-down screen convention. Don't "fix" these sign flips.
 - **Simulation uses real units.** Trunk height in cm, girth in mm. The mesh builder applies `BONSAI_DISPLAY_SCALE = 4` — scale up only in rendering, not in game logic.
@@ -45,8 +48,8 @@ Methods aren't serialized (they're on the constructor's static table). `load_gam
 
 ## Known rough edges (don't treat as bugs to fix incidentally)
 
-- Trunk bending is a lateral shift, not a proper curve — trees with wired trunks look wobbly.
-- Wire has no visual representation and no removal UI.
+- Trunk bending is a lateral shift, not a proper curve — trees with wired trunks look wobbly. This also means three styles (informal_upright, slanting, cascade) can't be scored; their `score` field is omitted in `scr_styles_data`.
 - Only junipers can be grown from cuttings; seeds aren't implemented.
+- No shop yet — money only flows in (display trickle, sell payout) but has nowhere to go.
 
 See `ARCHITECTURE.md` § "Known rough edges" for the full list and rationale.
