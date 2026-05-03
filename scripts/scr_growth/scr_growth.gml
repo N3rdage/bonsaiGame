@@ -8,6 +8,22 @@ function advance_day_all_trees(_days) {
             tree_daily_tick(global.all_trees[i], false);
         }
     }
+
+    // Display revenue: each tree on a pedestal pays score/10 coins per day.
+    // Sell payout for the same tree is score*2, so display matches sell at
+    // 20 days — the trade-off is patience vs instant cash.
+    var _revenue = 0;
+    for (var i = 0; i < array_length(global.all_trees); i++) {
+        var _t = global.all_trees[i];
+        if (string_pos("displayed:", _t.location) != 1) continue;
+        var _score = score_tree(_t);
+        _revenue += round(_score.total * 0.1) * _days;
+    }
+    if (_revenue > 0) {
+        global.money += _revenue;
+        show_debug_message("Display revenue: +" + string(_revenue)
+            + " coins. Money: " + string(global.money));
+    }
 }
 
 function tree_daily_tick(_tree, _isolated = false) {
