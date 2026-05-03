@@ -11,7 +11,7 @@ Bonsai Greenhouse — a cozy bonsai-growing sim written in **GameMaker** (IDE 20
 ## Build / run / test
 
 - **No CLI build, no test suite, no linter.** The project is opened and run from the GameMaker IDE (`BonsaiGame.yyp` at the repo root). Don't try to invoke a build from the shell.
-- **Saves** land at `%LOCALAPPDATA%\BonsaiGame\save1.json`. F5 saves, F9 loads, F1 is a debug hotkey (skip 7 days on tree 0).
+- **Saves** land at `%LOCALAPPDATA%\BonsaiGame\save1.json`. F5 saves, F9 loads. Debug hotkeys: F1 skips 7 days on tree 0 only (no world advance), F2 advances the whole world 7 days (ticks every tree, fires display revenue).
 - **Changes to code should be verified in-editor by the user.** You cannot run or type-check GML from here — flag when a change needs a runtime check.
 
 ## Layout

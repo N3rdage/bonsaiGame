@@ -31,6 +31,13 @@ if (keyboard_check_pressed(vk_f1) && array_length(global.all_trees) > 0) {
     }
 }
 
+// F2: advance the world by 7 days. Ticks every tree, advances global.game_day,
+// fires display revenue. Use this to test the full sim — F1 only skips tree 0.
+if (keyboard_check_pressed(vk_f2)) {
+    advance_day_all_trees(7);
+    show_debug_message("World advanced 7 days. Day " + string(global.game_day));
+}
+
 // Inventory panel: I to toggle. Closes if already open; otherwise opens
 // unless another modal panel is up.
 if (keyboard_check_pressed(ord("I"))) {
