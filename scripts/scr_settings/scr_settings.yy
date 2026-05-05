@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_settings",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_settings",
+  "parent":{
+    "name":"Player",
+    "path":"folders/_Shared/Player.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
