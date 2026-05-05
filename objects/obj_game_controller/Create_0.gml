@@ -19,6 +19,9 @@ global.game_paused      = false;
 global.time_accumulator = 0;
 global.base_time_scale  = 1.0;
 
+// Title flow normally sets this before room_goto; default 0 = unsaved session
+if (!variable_global_exists("active_slot")) global.active_slot = 0;
+
 var _slot = variable_global_exists("pending_load_slot") ? global.pending_load_slot : 0;
 if (_slot > 0) {
     if (!load_game(_slot)) {
