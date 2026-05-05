@@ -114,31 +114,38 @@ draw_content = function() {
     }
     
     // Action buttons
-// Action buttons
     var _bx = panel_x + 20;
     var _bh = 36;
     var _gap = 10;
     var _footer_h = 28;
     // Two rows of buttons plus footer, working up from the panel bottom
     var _by = panel_y + panel_h - (_bh * 2 + _gap + _footer_h + 20);
-    var _bw = 120;
-    
-    if (ui_button(_bx, _by, _bw, _bh, "Water")) {
+    // Row 1 squeezes 5 buttons (care actions) at narrower width;
+    // row 2 keeps 4 buttons at the original width.
+    var _bw1 = 100;
+    var _bw  = 120;
+
+    if (ui_button(_bx, _by, _bw1, _bh, "Water")) {
         water_tree(tree);
     }
-    
-	var _skip_cost = max(1, ceil(7 * 0.5));   // mirrors the formula in scr_growth
-	var _can_skip = inventory_has("fertilizer", _skip_cost);
-	if (ui_button(_bx + (_bw + _gap), _by, _bw, _bh, "Skip 7d (" + string(_skip_cost) + "f)", _can_skip)) {
-	    skip_tree_time(tree, 7);
-	}
-    
+
+    var _can_fertilize = inventory_has("fertilizer", 1);
+    if (ui_button(_bx + (_bw1 + _gap), _by, _bw1, _bh, "Fertilize", _can_fertilize)) {
+        fertilize_tree(tree);
+    }
+
+    var _skip_cost = max(1, ceil(7 * 0.5));   // mirrors the formula in scr_growth
+    var _can_skip = inventory_has("fertilizer", _skip_cost);
+    if (ui_button(_bx + (_bw1 + _gap) * 2, _by, _bw1, _bh, "Skip 7d (" + string(_skip_cost) + "f)", _can_skip)) {
+        skip_tree_time(tree, 7);
+    }
+
     var _has_branches = _branch_count > 0;
-    if (ui_button(_bx + (_bw + _gap) * 2, _by, _bw, _bh, "Clip", _has_branches)) {
+    if (ui_button(_bx + (_bw1 + _gap) * 3, _by, _bw1, _bh, "Clip", _has_branches)) {
         clip_branch(tree, selected_branch, 1);
     }
-    
-    if (ui_button(_bx + (_bw + _gap) * 3, _by, _bw, _bh, "Prune", _has_branches)) {
+
+    if (ui_button(_bx + (_bw1 + _gap) * 4, _by, _bw1, _bh, "Prune", _has_branches)) {
         prune_branch(tree, selected_branch);
         if (selected_branch >= array_length(tree.branches)) {
             selected_branch = max(0, array_length(tree.branches) - 1);
@@ -175,8 +182,15 @@ draw_content = function() {
 
     // Footer info (below the button rows)
     draw_set_color(make_color_rgb(150, 150, 150));
+    var _fert_status = "";
+    if (global.game_day < tree.fertilized_until_day) {
+        var _days_left = tree.fertilized_until_day - global.game_day;
+        _fert_status = "  |  Fertilized: " + string(_days_left) + "d left";
+    }
     draw_text(_bx, _by + (_bh + _gap) * 2 + 8,
         "Fertilizer: " + string(inventory_count("fertilizer"))
+        + "  |  Wire: " + string(inventory_count("wire"))
         + "  |  Day: " + string(global.game_day)
-        + "  |  $" + string(global.money));
+        + "  |  $" + string(global.money)
+        + _fert_status);
 };

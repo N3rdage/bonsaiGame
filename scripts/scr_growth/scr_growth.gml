@@ -41,6 +41,7 @@ function tree_daily_tick(_tree, _isolated = false) {
         vitality = clamp(vitality, 0, 100);
         
         var _growth_mult = (vitality / 100) * (vigor / 50) * _species.growth_rate;
+        if (global.game_day < fertilized_until_day) _growth_mult *= 1.5;
         
         if (trunk.height_cm < _species.max_trunk_cm) {
             trunk.height_cm += 0.02 * _growth_mult;
@@ -81,6 +82,15 @@ function _spawn_branch_naturally(_tree) {
 function water_tree(_tree) {
     _tree.water_level = 100;
     _tree.last_watered_day = global.game_day;
+}
+
+// Consume 1 fertilizer and grant the tree a 7-day 1.5x growth window.
+// Returns true on success, false if no fertilizer available.
+function fertilize_tree(_tree) {
+    if (!inventory_remove("fertilizer", 1)) return false;
+    _tree.fertilized_until_day = global.game_day + 7;
+    _tree.last_fed_day = global.game_day;
+    return true;
 }
 
 function skip_tree_time(_tree, _days) {
