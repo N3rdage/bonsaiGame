@@ -14,6 +14,7 @@ spawn_x    = 0;
 spawn_y    = 0;
 
 selected_species = "";
+use_fancy_pot    = false;
 
 draw_content = function() {
     var _x = panel_x + 20;
@@ -65,19 +66,32 @@ draw_content = function() {
     // Pot availability
     _y += 10;
     draw_set_color(c_white);
-    var _pots = inventory_count("pot");
-    draw_text(_x, _y, "Pots available: " + string(_pots));
+    var _pots       = inventory_count("pot");
+    var _fancy_pots = inventory_count("fancy_pot");
+    draw_text(_x, _y, "Pots: " + string(_pots) + "  |  Fancy pots: " + string(_fancy_pots));
     _y += _line;
-    
+
+    // Fancy-pot toggle: only meaningful if any are available; auto-clears
+    // when stock runs out so do_plant() doesn't fall through to a missing key.
+    if (_fancy_pots <= 0) use_fancy_pot = false;
+    if (_fancy_pots > 0) {
+        if (ui_toggle(_x, _y, 220, 28, "Use fancy pot (+25% display)", use_fancy_pot)) {
+            use_fancy_pot = !use_fancy_pot;
+        }
+        _y += _line + 4;
+    }
+
     // Plant button
     var _bx = panel_x + (panel_w - 160) / 2;
     var _by = panel_y + panel_h - 70;
-    var _can_plant = (selected_species != "") && (_pots > 0);
-    
+    var _pot_key  = use_fancy_pot ? "fancy_pot" : "pot";
+    var _pot_have = inventory_count(_pot_key);
+    var _can_plant = (selected_species != "") && (_pot_have > 0);
+
     if (ui_button(_bx, _by, 160, 44, "Plant Cutting", _can_plant)) {
         do_plant();
     }
-    
+
     // Hint — sits clearly above the button so the button's outline doesn't
     // run into the text descenders.
     if (!_can_plant) {
@@ -85,22 +99,24 @@ draw_content = function() {
         draw_set_halign(fa_center);
         draw_text(panel_x + panel_w / 2, _by - 32,
             selected_species == "" ? "Select a cutting first." :
-            (_pots <= 0 ? "You need a pot." : ""));
+            (_pot_have <= 0 ? "You need a " + (use_fancy_pot ? "fancy " : "") + "pot." : ""));
         draw_set_halign(fa_left);
     }
 };
 
 do_plant = function() {
     if (selected_species == "") return;
-    if (!inventory_has("pot", 1)) return;
+    var _pot_key = use_fancy_pot ? "fancy_pot" : "pot";
+    if (!inventory_has(_pot_key, 1)) return;
     if (!inventory_has("cutting_" + selected_species, 1)) return;
-    
-    inventory_remove("pot", 1);
+
+    inventory_remove(_pot_key, 1);
     inventory_remove("cutting_" + selected_species, 1);
-    
+
     // Create the tree
     var _tree = new BonsaiTree(selected_species, "cutting");
     _tree.name = "New " + global.species[$ selected_species].display_name;
+    _tree.pot_tier = use_fancy_pot ? 1 : 0;
     _tree.location = "inventory";   // until placed in world — set below
     array_push(global.all_trees, _tree);
     

@@ -4,10 +4,16 @@
 // panel UI. Transactions debit global.money and add to global.inventory.
 
 function init_shop_catalogue() {
+    // Reference points: starting money $100; score-50 displayed tree
+    // earns ~5/day; selling that same tree pays $100. Prices below are
+    // tuned against those numbers — supplies are an everyday spend,
+    // fancy pot is a milestone purchase that pays itself back over weeks.
     global.shop_catalogue = [
-        { key: "clay",       label: "Clay",       price: 5  },
-        { key: "wire",       label: "Wire",       price: 10 },
-        { key: "fertilizer", label: "Fertilizer", price: 8  },
+        { key: "clay",       label: "Clay",       price: 4  },
+        { key: "pot",        label: "Pot",        price: 12 },
+        { key: "wire",       label: "Wire",       price: 8  },
+        { key: "fertilizer", label: "Fertilizer", price: 10 },
+        { key: "fancy_pot",  label: "Fancy Pot",  price: 80 },
     ];
 }
 

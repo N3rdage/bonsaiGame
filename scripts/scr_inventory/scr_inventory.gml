@@ -5,6 +5,7 @@ function init_inventory() {
     global.inventory = {
         clay:             5,
         pot:              2,
+        fancy_pot:        0,
         wire:             10,
         fertilizer:       50,
         seed_juniper:     1,

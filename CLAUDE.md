@@ -41,6 +41,10 @@ These are the things that are easy to break if you don't know them. `ARCHITECTUR
 - **3D is z-up, not y-up.** `matrix_build_lookat(..., 0, 0, -1)` and a negated aspect ratio account for GM's y-down screen convention. Don't "fix" these sign flips.
 - **Simulation uses real units.** Trunk height in cm, girth in mm. The mesh builder applies `BONSAI_DISPLAY_SCALE = 4` — scale up only in rendering, not in game logic.
 - **Species are data, not code.** `scr_species_data` defines `global.species` as a struct keyed by species name (`"juniper"`, `"maple"`, `"pine"`). Trees store the key only; look up properties via `tree.get_species()`.
+- **The shop catalogue is data on `global.shop_catalogue`.** `init_shop_catalogue` (in `scr_shop`) populates it from the game controller's Create event. Adding/repricing items means editing that struct, not the panel UI. Money debits go through `shop_buy(key, qty, unit_price)` — no other code path should mutate `global.money` downward.
+- **Wire and fertilizer are real consumables.** `apply_wire` / `wire_trunk` decrement `inventory.wire`; `fertilize_tree` and `skip_tree_time` decrement `inventory.fertilizer`. New training/care actions that "use" a supply must follow the same pattern — gate on `inventory_has(...)` (or use `inventory_remove(...)`'s false return) and bail cleanly if empty.
+- **Pots are tiered.** `BonsaiTree.pot_tier` is `0` (standard) or `1` (fancy). Standard pots come from `inventory.pot`; fancy from `inventory.fancy_pot`. The display-revenue tick in `scr_growth` multiplies daily payout by 1.25 for fancy. Don't conflate the two inventory keys.
+- **Fertilizer is timed, not consumed-on-tick.** A `Fertilize` button consumes 1 fertilizer and sets `tree.fertilized_until_day = global.game_day + 7`. The growth tick checks `global.game_day < fertilized_until_day` for the 1.5x multiplier — the fertilizer item is gone but the *effect* lives on the tree until the day rolls past.
 
 ## Save/load caveat
 
@@ -50,6 +54,6 @@ Methods aren't serialized (they're on the constructor's static table). `load_gam
 
 - Trunk bending is a lateral shift, not a proper curve — trees with wired trunks look wobbly. This also means three styles (informal_upright, slanting, cascade) can't be scored; their `score` field is omitted in `scr_styles_data`.
 - Only junipers can be grown from cuttings; seeds aren't implemented.
-- No shop yet — money only flows in (display trickle, sell payout) but has nowhere to go.
+- Fancy pots are stat-only (1.25x display revenue) — no visual differentiation in the world sprite or 3D viewer yet.
 
 See `ARCHITECTURE.md` § "Known rough edges" for the full list and rationale.
