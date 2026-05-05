@@ -2,7 +2,8 @@
 
 function apply_wire(_tree, _branch_id, _target_bend_deg) {
     if (_branch_id < 0 || _branch_id >= array_length(_tree.branches)) return false;
-    
+    if (!inventory_remove("wire", 1)) return false;
+
     var _branch = _tree.branches[_branch_id];
     _branch.wired = true;
     _branch.bend  = _target_bend_deg;
@@ -90,9 +91,11 @@ function prune_branch(_tree, _branch_id) {
 }
 
 function wire_trunk(_tree, _height_cm, _angle_deg) {
+    if (!inventory_remove("wire", 1)) return false;
     array_push(_tree.trunk.movement, {
         y: _height_cm,
         angle_deg: _angle_deg,
     });
     _tree.mark_dirty();
+    return true;
 }

@@ -80,8 +80,11 @@ if (viewer_mode == "clip" || viewer_mode == "prune" || viewer_mode == "wire") {
 draw_set_color(make_color_rgb(180, 180, 180));
 draw_set_halign(fa_center);
 if (viewer_mode == "wire") {
-    draw_text(_gw / 2, _gh - 44,
-        "Click branch to apply wire  |  Click wired branch to remove");
+    var _wire_stock = inventory_count("wire");
+    var _wire_msg = "Click branch to apply wire  |  Click wired branch to remove"
+        + "  |  Wire: " + string(_wire_stock);
+    if (_wire_stock <= 0) _wire_msg += "  (out)";
+    draw_text(_gw / 2, _gh - 44, _wire_msg);
 }
 draw_text(_gw / 2, _gh - 24,
     "Drag to rotate  |  Scroll to zoom  |  R to reset camera");
