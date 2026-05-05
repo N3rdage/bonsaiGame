@@ -3,7 +3,7 @@ event_inherited();
 
 // Subclass overrides
 panel_title = "Bonsai Inspector";
-panel_w     = 600;
+panel_w     = 680;
 panel_h     = 640;
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
@@ -120,32 +120,29 @@ draw_content = function() {
     var _footer_h = 28;
     // Two rows of buttons plus footer, working up from the panel bottom
     var _by = panel_y + panel_h - (_bh * 2 + _gap + _footer_h + 20);
-    // Row 1 squeezes 5 buttons (care actions) at narrower width;
-    // row 2 keeps 4 buttons at the original width.
-    var _bw1 = 100;
-    var _bw  = 120;
+    var _bw = 120;
 
-    if (ui_button(_bx, _by, _bw1, _bh, "Water")) {
+    if (ui_button(_bx, _by, _bw, _bh, "Water")) {
         water_tree(tree);
     }
 
     var _can_fertilize = inventory_has("fertilizer", 1);
-    if (ui_button(_bx + (_bw1 + _gap), _by, _bw1, _bh, "Fertilize", _can_fertilize)) {
+    if (ui_button(_bx + (_bw + _gap), _by, _bw, _bh, "Fertilize", _can_fertilize)) {
         fertilize_tree(tree);
     }
 
     var _skip_cost = max(1, ceil(7 * 0.5));   // mirrors the formula in scr_growth
     var _can_skip = inventory_has("fertilizer", _skip_cost);
-    if (ui_button(_bx + (_bw1 + _gap) * 2, _by, _bw1, _bh, "Skip 7d (" + string(_skip_cost) + "f)", _can_skip)) {
+    if (ui_button(_bx + (_bw + _gap) * 2, _by, _bw, _bh, "Skip 7d (" + string(_skip_cost) + "f)", _can_skip)) {
         skip_tree_time(tree, 7);
     }
 
     var _has_branches = _branch_count > 0;
-    if (ui_button(_bx + (_bw1 + _gap) * 3, _by, _bw1, _bh, "Clip", _has_branches)) {
+    if (ui_button(_bx + (_bw + _gap) * 3, _by, _bw, _bh, "Clip", _has_branches)) {
         clip_branch(tree, selected_branch, 1);
     }
 
-    if (ui_button(_bx + (_bw1 + _gap) * 4, _by, _bw1, _bh, "Prune", _has_branches)) {
+    if (ui_button(_bx + (_bw + _gap) * 4, _by, _bw, _bh, "Prune", _has_branches)) {
         prune_branch(tree, selected_branch);
         if (selected_branch >= array_length(tree.branches)) {
             selected_branch = max(0, array_length(tree.branches) - 1);
