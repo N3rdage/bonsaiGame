@@ -27,6 +27,14 @@ function vec3_normalize(_v) {
     return vec3(_v.x / _l, _v.y / _l, _v.z / _l);
 }
 
+function vec3_cross(_a, _b) {
+    return vec3(
+        _a.y * _b.z - _a.z * _b.y,
+        _a.z * _b.x - _a.x * _b.z,
+        _a.x * _b.y - _a.y * _b.x
+    );
+}
+
 // Call once at game start to build the 3D vertex format.
 function init_vertex_format() {
     vertex_format_begin();
