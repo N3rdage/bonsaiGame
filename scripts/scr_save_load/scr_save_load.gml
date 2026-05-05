@@ -1,5 +1,14 @@
 // scr_save_load
 
+#macro SAVE_SLOT_COUNT 3
+
+// "YYYY-MM-DD HH:MM" so lexicographic comparison sorts chronologically.
+function _save_timestamp() {
+    var _pad2 = function(_n) { return (_n < 10) ? "0" + string(_n) : string(_n); };
+    return string(current_year) + "-" + _pad2(current_month) + "-" + _pad2(current_day)
+        + " " + _pad2(current_hour) + ":" + _pad2(current_minute);
+}
+
 function save_game(_slot = 1) {
     var _tree_data = [];
     for (var i = 0; i < array_length(global.all_trees); i++) {
@@ -40,6 +49,7 @@ function save_game(_slot = 1) {
     
     var _save = {
         version:      1,
+        saved_at:     _save_timestamp(),
         game_day:     global.game_day,
         money:        global.money,
         inventory:    global.inventory,
@@ -82,6 +92,41 @@ function load_game(_slot = 1) {
         _t.mesh_cache = undefined;
         array_push(global.all_trees, _t);
     }
-    
+
     return true;
+}
+
+// Read just the header fields of a save file so the slot picker can show
+// a preview without rehydrating trees. Returns undefined if no save exists.
+function save_slot_metadata(_slot) {
+    var _fname = "save" + string(_slot) + ".json";
+    if (!file_exists(_fname)) return undefined;
+
+    var _buff = buffer_load(_fname);
+    var _json = buffer_read(_buff, buffer_string);
+    buffer_delete(_buff);
+
+    var _save = json_parse(_json);
+    return {
+        slot:     _slot,
+        day:      _save.game_day,
+        money:    _save.money,
+        saved_at: variable_struct_exists(_save, "saved_at") ? _save.saved_at : "",
+    };
+}
+
+// Returns the slot number with the most recent saved_at, or -1 if no saves.
+// Lexicographic compare works on the "YYYY-MM-DD HH:MM" format.
+function most_recent_save_slot() {
+    var _best = -1;
+    var _best_at = "";
+    for (var i = 1; i <= SAVE_SLOT_COUNT; i++) {
+        var _meta = save_slot_metadata(i);
+        if (_meta == undefined) continue;
+        if (_meta.saved_at > _best_at) {
+            _best_at = _meta.saved_at;
+            _best = i;
+        }
+    }
+    return _best;
 }
