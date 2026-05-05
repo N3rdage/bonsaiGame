@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_title_hero",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_title_hero",
+  "parent":{
+    "name":"Misc",
+    "path":"folders/_Shared/Misc.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
