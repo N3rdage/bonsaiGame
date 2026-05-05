@@ -42,6 +42,7 @@
     {"id":{"name":"obj_ui_panel","path":"objects/obj_ui_panel/obj_ui_panel.yy",},},
     {"id":{"name":"obj_ui_pedestal","path":"objects/obj_ui_pedestal/obj_ui_pedestal.yy",},},
     {"id":{"name":"obj_ui_plant_cutting","path":"objects/obj_ui_plant_cutting/obj_ui_plant_cutting.yy",},},
+    {"id":{"name":"obj_ui_save_slots","path":"objects/obj_ui_save_slots/obj_ui_save_slots.yy",},},
     {"id":{"name":"obj_ui_settings","path":"objects/obj_ui_settings/obj_ui_settings.yy",},},
     {"id":{"name":"obj_ui_shop","path":"objects/obj_ui_shop/obj_ui_shop.yy",},},
     {"id":{"name":"obj_ui_tree_inspector","path":"objects/obj_ui_tree_inspector/obj_ui_tree_inspector.yy",},},

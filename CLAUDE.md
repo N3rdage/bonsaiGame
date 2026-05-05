@@ -11,7 +11,7 @@ Bonsai Greenhouse — a cozy bonsai-growing sim written in **GameMaker** (IDE 20
 ## Build / run / test
 
 - **No CLI build, no test suite, no linter.** The project is opened and run from the GameMaker IDE (`BonsaiGame.yyp` at the repo root). Don't try to invoke a build from the shell.
-- **Saves** land at `%LOCALAPPDATA%\BonsaiGame\save1.json`. F5 saves, F9 loads. Debug hotkeys: F1 skips 7 days on tree 0 only (no world advance), F2 advances the whole world 7 days (ticks every tree, fires display revenue).
+- **Saves** land at `%LOCALAPPDATA%\BonsaiGame\saveN.json` (slots 1–3). F5 quicksaves to the active slot (defaults to 1), F9 quickloads it (falls back to opening the slot picker if the active slot is empty). The title screen has a slot picker for picking which slot New Game / Load Game uses. Per-machine settings sit in `settings.json` next to the saves. Debug hotkeys: F1 skips 7 days on tree 0 only (no world advance), F2 advances the whole world 7 days (ticks every tree, fires display revenue).
 - **Changes to code should be verified in-editor by the user.** You cannot run or type-check GML from here — flag when a change needs a runtime check.
 
 ## Layout
@@ -45,6 +45,8 @@ These are the things that are easy to break if you don't know them. `ARCHITECTUR
 - **Wire and fertilizer are real consumables.** `apply_wire` / `wire_trunk` decrement `inventory.wire`; `fertilize_tree` and `skip_tree_time` decrement `inventory.fertilizer`. New training/care actions that "use" a supply must follow the same pattern — gate on `inventory_has(...)` (or use `inventory_remove(...)`'s false return) and bail cleanly if empty.
 - **Pots are tiered.** `BonsaiTree.pot_tier` is `0` (standard) or `1` (fancy). Standard pots come from `inventory.pot`; fancy from `inventory.fancy_pot`. The display-revenue tick in `scr_growth` multiplies daily payout by 1.25 for fancy. Don't conflate the two inventory keys.
 - **Fertilizer is timed, not consumed-on-tick.** A `Fertilize` button consumes 1 fertilizer and sets `tree.fertilized_until_day = global.game_day + 7`. The growth tick checks `global.game_day < fertilized_until_day` for the 1.5x multiplier — the fertilizer item is gone but the *effect* lives on the tree until the day rolls past.
+- **The title screen runs before any game state exists.** `obj_title` is in `rm_title` (the first room) and bootstraps only the static globals it needs to render the hero tree (species, styles, vertex format) plus settings. `obj_game_controller` doesn't instantiate until the player picks a slot and `room_goto(rm_shed)` fires. The handoff goes through two globals: `global.pending_load_slot` (0 = fresh start with a starter juniper, > 0 = call `load_game(slot)` instead) and `global.active_slot` (which slot in-game F5/F9 read/write).
+- **Settings live separately from save slots.** `global.settings` persists to `settings.json` via `scr_settings`; saves persist to `saveN.json` via `scr_save_load`. Don't mix them — settings are per-machine player preferences, save slots are per-game state. The save file's `version` field is for save-data shape only.
 
 ## Save/load caveat
 

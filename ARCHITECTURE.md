@@ -32,13 +32,15 @@ scripts/
   scr_styles_data        — Bonsai style definitions and per-style scoring functions
   scr_inventory          — Player inventory (struct of key:count pairs)
   scr_shop               — Shop catalogue (data on global.shop_catalogue) and shop_buy transaction primitive
+  scr_settings           — Per-machine settings (fullscreen, etc.) persisted to settings.json
   scr_bonsai_struct      — The BonsaiTree constructor
   scr_growth             — Daily tick simulation, water, time skip, display revenue
   scr_training           — Wire, clip, prune, trunk bend operations
   scr_scoring            — Aesthetic scoring of a tree; called on demand, never persisted
-  scr_save_load          — JSON save/load of whole game state
+  scr_save_load          — JSON save/load of whole game state, multi-slot + metadata helpers
   scr_math_3d            — Vector helpers, 3D vertex format, screen projection
   scr_bonsai_mesh        — Builds vertex buffers from tree morphology, including visible copper-wire coils on wired branches
+  scr_title_hero         — Builds the hand-crafted hero juniper rendered on the title screen
   scr_ui                 — Button and bar drawing helpers
   scr_viewer             — Enter/exit the 3D viewer room
 
@@ -65,11 +67,15 @@ objects/
   obj_ui_plant_cutting      — Picks a cutting and pot to create a new tree
   obj_ui_inventory          — Read-only inventory readout (I to toggle)
   obj_ui_shop               — Shop panel: catalogue rows with Buy buttons
+  obj_ui_save_slots         — Slot picker (mode = "new"/"load"), used by title menu and F9
+  obj_ui_settings           — Settings modal (fullscreen toggle for now)
 
+  obj_title              — Title-screen controller (3D hero tree + menu buttons)
   obj_viewer_3d          — The 3D viewer itself, lives in rm_viewer_3d
   obj_hud                — Draws the "[E] Interact" prompt
 
 rooms/
+  rm_title               — First room. Hero juniper on a slow camera turntable; menu on the right
   rm_shed                — Starting room. Workbench, planting table, doors, tree sprites
   rm_garden_back         — Outdoor garden with source plants
   rm_viewer_3d           — Empty room dedicated to hosting obj_viewer_3d
@@ -225,9 +231,23 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 
 ### Saving and loading
 
-`save_game` serializes `global.all_trees` as plain data (structs are JSON-compatible since GM's `json_stringify` handles them). Game day, money, and inventory are also saved.
+`save_game(slot)` serializes `global.all_trees` as plain data (structs are JSON-compatible since GM's `json_stringify` handles them). Game day, money, inventory, and a `saved_at` timestamp ("YYYY-MM-DD HH:MM") are also written. There are 3 slots (`SAVE_SLOT_COUNT`); each writes to `saveN.json` in the working directory.
 
-`load_game` does the reverse. Tree structs are rehydrated: a new `BonsaiTree` is constructed, then every saved field is copied onto it. Methods aren't saved (they live on the constructor's static table and are attached fresh on construction). The mesh cache is explicitly invalidated on load so the viewer will rebuild on next inspection.
+`load_game(slot)` does the reverse. Tree structs are rehydrated: a new `BonsaiTree` is constructed, then every saved field is copied onto it. Methods aren't saved (they live on the constructor's static table and are attached fresh on construction). The mesh cache is explicitly invalidated on load so the viewer will rebuild on next inspection.
+
+`save_slot_metadata(slot)` reads only the header fields of a save file so the slot picker can show a preview (day, money, timestamp) without rehydrating trees. `most_recent_save_slot()` scans all slots and returns the one with the latest `saved_at`, or -1 if none — used by the title's Continue button.
+
+### The title flow
+
+1. Game launches into `rm_title`. `obj_title` initialises the static globals it needs to render the hero tree (species, vertex format, mesh helpers) and to read settings (`init_settings` + `load_settings` + `apply_settings`). It does NOT instantiate `obj_game_controller` or seed game state — that happens later when the player commits to a slot
+2. Hero tree comes from `build_title_hero_tree()` (a hand-crafted juniper). The orbital camera renders it with a lateral shift along the camera-right vector so the tree sits in the left half of the screen while the menu sits in the right
+3. Menu buttons set `global.active_slot` and `global.pending_load_slot` before `room_goto(rm_shed)`. New Game spawns `obj_ui_save_slots` in "new" mode (overwrite-confirm if occupied); Continue picks `most_recent_save_slot()`; Load Game spawns the picker in "load" mode (only occupied slots clickable)
+4. When `rm_shed` loads for the first time, `obj_game_controller`'s Create event runs the standard inits and either calls `load_game(pending_load_slot)` (if > 0) or seeds the starter juniper. The controller is persistent so this Create runs exactly once per session
+5. In-game, F5 saves to `global.active_slot` (defaults to 1 if 0) and updates `active_slot`. F9 quickloads from `active_slot`; if that slot is empty it falls back to opening the slot picker so the player can switch slots without quitting
+
+### Settings
+
+`scr_settings` keeps per-machine settings on `global.settings`, persisted to `settings.json` (separate from save slot data — settings are the player's preferences, not game state). The title screen loads + applies them on Create. `obj_ui_settings` saves and applies on every change so a toggle takes effect immediately and survives a restart.
 
 ## Design decisions worth knowing
 

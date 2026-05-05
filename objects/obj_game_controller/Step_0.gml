@@ -11,14 +11,31 @@ while (global.time_accumulator >= _seconds_per_day) {
     show_debug_message("--- Day " + string(global.game_day) + " ---");
 }
 
-// Debug keys
+// Quicksave / quickload to the active slot (defaults to 1 if none set yet).
+// F9 falls back to opening the slot picker when the active slot is empty,
+// so the player can still get to a save without going back to the title.
 if (keyboard_check_pressed(vk_f5)) {
-    save_game(1);
-    show_debug_message("Saved.");
+    var _slot = (global.active_slot > 0) ? global.active_slot : 1;
+    save_game(_slot);
+    global.active_slot = _slot;
+    show_debug_message("Saved to slot " + string(_slot) + ".");
 }
 if (keyboard_check_pressed(vk_f9)) {
-    if (load_game(1)) show_debug_message("Loaded.");
-    else show_debug_message("No save found.");
+    var _slot = (global.active_slot > 0) ? global.active_slot : 1;
+    if (load_game(_slot)) {
+        global.active_slot = _slot;
+        show_debug_message("Loaded slot " + string(_slot) + ".");
+    } else if (!instance_exists(obj_ui_panel)) {
+        var _panel = instance_create_depth(0, 0, -1000, obj_ui_save_slots);
+        _panel.mode = "load";
+        _panel.panel_title = "Load Game";
+        _panel.on_select_slot = function(_slot) {
+            if (load_game(_slot)) {
+                global.active_slot = _slot;
+                show_debug_message("Loaded slot " + string(_slot) + ".");
+            }
+        };
+    }
 }
 if (keyboard_check_pressed(vk_f1) && array_length(global.all_trees) > 0) {
     if (skip_tree_time(global.all_trees[0], 7)) {
