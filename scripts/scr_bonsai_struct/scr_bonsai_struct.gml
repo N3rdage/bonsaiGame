@@ -9,15 +9,16 @@ function BonsaiTree(_species_key, _origin) constructor {
     name         = "";
     
     // Lifecycle
-    age_days         = 0;
-    vitality         = 100;
-    vigor            = 50;
-    water_level      = 50;
-    last_watered_day = 0;
-    last_fed_day     = 0;
-    in_pot           = undefined;
-    location         = "inventory";
-    time_accel       = 1.0;
+    age_days             = 0;
+    vitality             = 100;
+    vigor                = 50;
+    water_level          = 50;
+    last_watered_day     = 0;
+    last_fed_day         = 0;
+    fertilized_until_day = 0;   // game_day < this => 1.5x growth multiplier
+    in_pot               = undefined;
+    location             = "inventory";
+    time_accel           = 1.0;
     
     // Morphology — read by the 3D mesh builder
     trunk = {
