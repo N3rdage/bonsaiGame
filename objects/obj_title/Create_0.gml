@@ -22,11 +22,14 @@ if (!variable_global_exists("next_tree_id")) global.next_tree_id = 0;
 hero_tree = build_title_hero_tree();
 hero_mesh = hero_tree.get_mesh();
 
-// Orbital camera (slow turntable around the tree)
-cam_target   = { x: 0, y: 0, z: 0.7 };
-cam_distance = 2.4;
-cam_yaw      = 30;
-cam_pitch    = 14;
+// Orbital camera (slow turntable around the tree). lateral_shift offsets
+// both eye and target along the camera-right vector so the tree renders on
+// the left side of the frame, leaving the right half clear for menu text.
+cam_target    = { x: 0, y: 0, z: 0.7 };
+cam_distance  = 3.0;
+cam_yaw       = 30;
+cam_pitch     = 14;
+lateral_shift = 0.55;
 
 // Marks whether a settings panel is currently up — gates other inputs
 showing_settings = false;
