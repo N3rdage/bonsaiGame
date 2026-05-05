@@ -13,6 +13,7 @@ panel_y = (display_get_gui_height() - panel_h) / 2;
 resource_labels = {
     clay:        "Clay",
     pot:         "Pots",
+    fancy_pot:   "Fancy Pots",
     wire:        "Wire",
     fertilizer:  "Fertilizer",
 };

@@ -11,13 +11,15 @@ function advance_day_all_trees(_days) {
 
     // Display revenue: each tree on a pedestal pays score/10 coins per day.
     // Sell payout for the same tree is score*2, so display matches sell at
-    // 20 days — the trade-off is patience vs instant cash.
+    // 20 days — the trade-off is patience vs instant cash. Fancy pots
+    // (pot_tier == 1) bump the daily rate by 1.25x.
     var _revenue = 0;
     for (var i = 0; i < array_length(global.all_trees); i++) {
         var _t = global.all_trees[i];
         if (string_pos("displayed:", _t.location) != 1) continue;
         var _score = score_tree(_t);
-        _revenue += round(_score.total * 0.1) * _days;
+        var _pot_mult = (_t.pot_tier == 1) ? 1.25 : 1.0;
+        _revenue += round(_score.total * 0.1 * _pot_mult) * _days;
     }
     if (_revenue > 0) {
         global.money += _revenue;
