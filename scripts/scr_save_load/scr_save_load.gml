@@ -116,14 +116,16 @@ function save_slot_metadata(_slot) {
 }
 
 // Returns the slot number with the most recent saved_at, or -1 if no saves.
-// Lexicographic compare works on the "YYYY-MM-DD HH:MM" format.
+// Lexicographic compare works on the "YYYY-MM-DD HH:MM" format. Pre-PR2
+// saves have an empty saved_at — the `_best == -1` short-circuit makes them
+// still count as discoverable; a slot with a real timestamp wins over them.
 function most_recent_save_slot() {
     var _best = -1;
     var _best_at = "";
     for (var i = 1; i <= SAVE_SLOT_COUNT; i++) {
         var _meta = save_slot_metadata(i);
         if (_meta == undefined) continue;
-        if (_meta.saved_at > _best_at) {
+        if (_best == -1 || _meta.saved_at > _best_at) {
             _best_at = _meta.saved_at;
             _best = i;
         }
