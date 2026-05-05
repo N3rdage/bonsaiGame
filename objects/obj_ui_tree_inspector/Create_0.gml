@@ -50,6 +50,10 @@ draw_content = function() {
         _style_label = global.styles[$ tree.target_style].display_name;
     }
     draw_text(_x, _y, "Style: " + _style_label);
+    _y += _line;
+
+    var _pot_label = (tree.pot_tier == 1) ? "Fancy (+25% display)" : "Standard";
+    draw_text(_x, _y, "Pot: " + _pot_label);
     _y += _line + 8;
 
     // Score

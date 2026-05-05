@@ -17,7 +17,7 @@ The `BonsaiTree` struct (`scr_bonsai_struct`) is the most important data structu
 
 A tree struct carries:
 - **Identity:** id, species key, origin (seed or cutting), player-chosen name
-- **Lifecycle:** age, vitality, vigor, water level, last watered/fed days, location (which room it lives in)
+- **Lifecycle:** age, vitality, vigor, water level, last watered/fed days, `fertilized_until_day` (cutoff for the 1.5x growth window), `pot_tier` (0 = standard, 1 = fancy → 1.25x display revenue), location (which room it lives in)
 - **Morphology:** trunk (height, girth, taper, movement points), an array of branches (each with angle, length, girth, bend, wired flag), foliage density
 - **Training history:** arrays of every wire, clip, prune, and repot operation performed, with day-stamps
 - **Cached 3D mesh** plus a dirty flag
@@ -31,6 +31,7 @@ scripts/
   scr_species_data       — Species definitions as static data
   scr_styles_data        — Bonsai style definitions and per-style scoring functions
   scr_inventory          — Player inventory (struct of key:count pairs)
+  scr_shop               — Shop catalogue (data on global.shop_catalogue) and shop_buy transaction primitive
   scr_bonsai_struct      — The BonsaiTree constructor
   scr_growth             — Daily tick simulation, water, time skip, display revenue
   scr_training           — Wire, clip, prune, trunk bend operations
@@ -53,6 +54,7 @@ objects/
   obj_source_plant       — Gives cuttings of a specific species
   obj_tree_sprite        — A tree as it appears in the 2D world (inspectable)
   obj_pedestal           — Display slot for a single tree (per-instance pedestal_key)
+  obj_shop_kiosk         — Opens the shop UI
 
   obj_ui_panel              — Parent class for modal UI panels
   obj_ui_tree_inspector     — Shows a tree's stats, score, and action buttons
@@ -62,6 +64,7 @@ objects/
   obj_ui_pedestal           — Modal for placing/inspecting/removing a tree on a pedestal
   obj_ui_plant_cutting      — Picks a cutting and pot to create a new tree
   obj_ui_inventory          — Read-only inventory readout (I to toggle)
+  obj_ui_shop               — Shop panel: catalogue rows with Buy buttons
 
   obj_viewer_3d          — The 3D viewer itself, lives in rm_viewer_3d
   obj_hud                — Draws the "[E] Interact" prompt
@@ -150,7 +153,7 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 1. GameMaker loads `rm_shed` (configured as the first room in the room order)
 2. `obj_game_controller` is placed in the room. Its Create event fires:
    - Initializes globals (`game_day`, `money`, `all_trees`, etc.)
-   - Calls `init_species()`, `init_inventory()`, `init_vertex_format()`
+   - Calls `init_species()`, `init_styles()`, `init_inventory()`, `init_shop_catalogue()`, `init_vertex_format()`
    - Creates a "Starter" juniper as a fully-populated `BonsaiTree` and pushes it onto `global.all_trees`
 3. `obj_player_2d` is placed in the room; becomes the persistent player instance
 4. `obj_game_controller`'s Room Start event fires, sees the room is `rm_shed`, and creates an `obj_tree_sprite` instance for every tree whose `location` is `"shed"`
@@ -168,9 +171,10 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 3. Panel lists every species with a cutting count > 0 and shows a "Select" button per species
 4. Player selects a species; panel's `selected_species` is set
 5. Player clicks "Plant Cutting." Panel's `do_plant` function:
-   - Removes 1 pot and 1 cutting from inventory
+   - Removes 1 pot (or 1 fancy_pot, if the "Use fancy pot" toggle is on) and 1 cutting from inventory
    - Creates a new `BonsaiTree` via `new BonsaiTree(species_key, "cutting")`
    - The constructor applies cutting-specific initial morphology (8cm trunk, two small branches)
+   - Sets `tree.pot_tier = 1` if a fancy pot was used, else 0
    - Sets the tree's `location = "shed"`
    - Pushes onto `global.all_trees`
    - Instantiates an `obj_tree_sprite` at `spawn_x, spawn_y` with `tree_index = len(all_trees) - 1`
@@ -212,6 +216,13 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 3. Hotspots: for each branch, compute a world-space midpoint via the shared `branch_point(tree, branch, t)` helper, project to screen space with `project_3d_to_screen`, render a circle with the branch id. On click, call the current mode's operation (`clip_branch`, `prune_branch`, `apply_wire`, or `remove_wire`). Wire mode splits its hotspots by `branch.wired`: blue circles apply, amber circles remove (via a confirmation modal). The operation marks the mesh dirty; next frame's `get_mesh` rebuilds it
 4. Exit: call `exit_3d_viewer()`, which calls `room_goto(global.viewer_return_room)` with the saved player return coordinates
 
+### Buying from the shop
+
+1. Player presses E on `obj_shop_kiosk`. Its `on_interact` spawns `obj_ui_shop`
+2. The panel iterates `global.shop_catalogue` (a plain array of `{ key, label, price }` structs initialised by `init_shop_catalogue` in `obj_game_controller`'s Create event). Each row shows label, price, owned count, and a Buy button — disabled when the player can't afford it
+3. On click: `shop_buy(key, 1, price)` debits `global.money` and calls `inventory_add(key, 1)`. No quantity selector yet — one click, one item
+4. Items are real consumables wired to existing systems: clay → pot via the workbench; pot → tree via `obj_ui_plant_cutting`; wire decremented inside `apply_wire` / `wire_trunk`; fertilizer decremented inside `fertilize_tree` (Fertilize button on the inspector) and `skip_tree_time` (Skip 7d). Fancy pots are a separate `fancy_pot` inventory key with a "Use fancy pot" toggle on the planting panel — choosing fancy sets `tree.pot_tier = 1`, which the display-revenue tick reads to apply a 1.25x multiplier
+
 ### Saving and loading
 
 `save_game` serializes `global.all_trees` as plain data (structs are JSON-compatible since GM's `json_stringify` handles them). Game day, money, and inventory are also saved.
@@ -247,7 +258,7 @@ Because `obj_tree_sprite` is tied to a room, and trees are tied to a `location` 
 - **Pacing is tuned aggressively toward active play.** Branch spawn rate is 10% per day weighted by vitality. Real bonsai is slower. This is a game, not a simulator.
 - **Only junipers are playable.** Maple and pine can't be grown from cuttings (realistic) and seeds aren't implemented yet.
 - **Only two rooms** exist. The house interiors and greenhouse are placeholder or absent.
-- **No shop yet.** Money has both an income side (display trickle, sell payout) and a HUD readout, but nothing to spend it on. The shop is the next major economy item (TODO #1).
-- **Pedestals live in the shed as a stopgap.** They're conceptually indoor furniture; they'll migrate to a proper lounge / display room when interiors land (TODO #7).
-- **Three styles can't be scored.** `informal_upright`, `slanting`, and `cascade` need trunk-curve / lean / downward-growth data that doesn't exist on `BonsaiTree` yet. Their `score` field is omitted; `score_tree` skips the criterion entirely for those styles. Real scoring lands alongside TODO #11 (proper trunk-bending math).
+- **Pedestals live in the shed as a stopgap.** They're conceptually indoor furniture; they'll migrate to a proper lounge / display room when interiors land (TODO #6).
+- **Three styles can't be scored.** `informal_upright`, `slanting`, and `cascade` need trunk-curve / lean / downward-growth data that doesn't exist on `BonsaiTree` yet. Their `score` field is omitted; `score_tree` skips the criterion entirely for those styles. Real scoring lands alongside TODO #10 (proper trunk-bending math).
+- **Fancy pots are stat-only.** A `pot_tier == 1` tree pays 1.25x display revenue but the world sprite and 3D viewer don't render the pot any differently. Visual differentiation is a future polish hitchhiker.
 - **No win condition or progression beyond the score → money loop.** You grow trees, display or sell them, and stop when you get bored.
