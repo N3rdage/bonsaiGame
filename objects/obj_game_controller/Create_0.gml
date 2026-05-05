@@ -11,6 +11,7 @@ global.base_time_scale  = 1.0;
 init_species();
 init_styles();
 init_inventory();
+init_shop_catalogue();
 init_vertex_format();
 
 // Sample tree for testing
