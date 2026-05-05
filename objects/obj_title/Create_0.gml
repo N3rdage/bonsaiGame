@@ -31,5 +31,3 @@ cam_yaw       = 30;
 cam_pitch     = 14;
 lateral_shift = 0.55;
 
-// Marks whether a settings panel is currently up — gates other inputs
-showing_settings = false;
