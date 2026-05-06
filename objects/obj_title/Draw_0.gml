@@ -3,8 +3,16 @@
 _draw_ground();
 
 matrix_set(matrix_world, matrix_build(0, 0, 0, 0, 0, 0, 1, 1, 1));
-vertex_submit(hero_mesh.bark,    pr_trianglelist, -1);
-vertex_submit(hero_mesh.foliage, pr_trianglelist, -1);
+vertex_submit(hero_mesh.bark, pr_trianglelist, -1);
+
+// Foliage pass: leaf texture + alpha test + no-culling. See obj_viewer_3d Draw.
+gpu_set_alphatestenable(true);
+gpu_set_alphatestref(128);
+gpu_set_cullmode(cull_noculling);
+vertex_submit(hero_mesh.foliage, pr_trianglelist, sprite_get_texture(spr_foliage, 0));
+gpu_set_cullmode(cull_counterclockwise);
+gpu_set_alphatestenable(false);
+
 matrix_set(matrix_world, matrix_build_identity());
 
 function _draw_ground() {
