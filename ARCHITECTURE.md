@@ -124,7 +124,9 @@ Trees store only the species *key* (e.g. `"juniper"`), and look up properties at
 
 ### Deferred mesh rebuilds
 
-`BonsaiTree.mesh_dirty` is set to true by any operation that changes morphology. The viewer calls `tree.get_mesh()` each frame, which checks the flag and rebuilds only when needed. Most frames, it returns the cached buffer for free. A training click during the viewer triggers a rebuild on the next frame.
+`BonsaiTree.mesh_dirty` is set to true by any operation that changes morphology. The viewer calls `tree.get_mesh()` each frame, which checks the flag and rebuilds only when needed. Most frames, it returns the cached struct for free. A training click during the viewer triggers a rebuild on the next frame.
+
+`get_mesh()` returns a struct `{ bark, foliage }` of two frozen vertex buffers. Bark holds trunk, branches, wire coils, and wire anchors — submitted untextured (vertex-coloured). Foliage holds the leaf-cluster quads — intended for a textured + alpha-cutoff submit so leaves can have see-through edges without bleeding alpha state onto bark triangles. Splitting also lets each pass set its own GPU state independently. Cache invalidation deletes both buffers.
 
 ### Tree location is a free-form string, not an enum
 
@@ -216,7 +218,7 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 2. Each frame:
    - Step event: process mouse drag for camera orbit, scroll wheel for zoom, keyboard shortcuts
    - Draw Begin event: build lookat and projection matrices, set the camera, enable z-buffer
-   - Draw event: draw the pedestal, draw the tree mesh via `vertex_submit`
+   - Draw event: draw the pedestal, then submit the tree mesh — `_mesh.bark` and `_mesh.foliage` as two separate `vertex_submit` calls
    - Draw End event: disable z-buffer, restore identity world matrix
    - Draw GUI event: draw the toolbar, tree info, and (if in clip/prune/wire mode) branch hotspot circles
 3. Hotspots: for each branch, compute a world-space midpoint via the shared `branch_point(tree, branch, t)` helper, project to screen space with `project_3d_to_screen`, render a circle with the branch id. On click, call the current mode's operation (`clip_branch`, `prune_branch`, `apply_wire`, or `remove_wire`). Wire mode splits its hotspots by `branch.wired`: blue circles apply, amber circles remove (via a confirmation modal). The operation marks the mesh dirty; next frame's `get_mesh` rebuilds it

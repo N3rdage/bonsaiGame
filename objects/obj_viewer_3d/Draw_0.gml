@@ -3,10 +3,12 @@
 // Draw a simple pedestal/pot so the tree isn't floating
 _draw_pedestal();
 
-// Draw the tree mesh
+// Draw the tree mesh — bark untextured, foliage will get a leaf texture in PR2
 var _m = matrix_build(0, 0, 0, 0, 0, 0, 1, 1, 1);
 matrix_set(matrix_world, _m);
-vertex_submit(tree.get_mesh(), pr_trianglelist, -1);  // -1 = no texture, uses vertex colours
+var _mesh = tree.get_mesh();
+vertex_submit(_mesh.bark,    pr_trianglelist, -1);
+vertex_submit(_mesh.foliage, pr_trianglelist, -1);
 matrix_set(matrix_world, matrix_build_identity());
 
 // Bottom of Draw event
