@@ -36,7 +36,9 @@ if (_slot == 0) {
     // The tutorial (TUT_WATER → TUT_SKIP_WEEK → TUT_TRAIN) teaches care/training
     // on this tree before PR2 introduces the cutting/planting steps.
     var _sample = new BonsaiTree("juniper", "seed");
-    _sample.name = "Granny's Juniper";
+    // "Granny's" — short on purpose so it fits the inspector header without
+    // clipping. The tutorial copy still calls it "Granny's juniper" for clarity.
+    _sample.name = "Granny's";
     _sample.trunk.height_cm = 25;
     _sample.trunk.girth_mm  = 18;
     _sample.add_branch(-1, 8,  30,  12);
