@@ -138,6 +138,7 @@ do_plant = function() {
     
     show_debug_message("Planted a " + global.species[$ selected_species].display_name
         + ". Total trees: " + string(array_length(global.all_trees)));
-    
+
+    tutorial_advance_if(TUT_PLANT);
     instance_destroy();   // close the panel
 };

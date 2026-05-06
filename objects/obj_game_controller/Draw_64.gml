@@ -47,6 +47,12 @@ if (global.tutorial_step != TUT_DONE) {
     draw_text_ext(_px + 12, _py + _body_y, tutorial_step_body(global.tutorial_step), 16, _body_w);
 
     var _skip_y = _py + _body_y + _body_h + _skip_gap;
+
+    // J-for-notebook hint sits opposite the Skip button so players discover
+    // the longer reference exists.
+    draw_set_color(make_color_rgb(140, 160, 130));
+    draw_text(_px + 12, _skip_y + 4, "Press J for notebook");
+
     if (!instance_exists(obj_ui_panel)) {
         if (ui_button(_px + _w - 70, _skip_y, 60, _skip_h, "Skip")) {
             instance_create_depth(0, 0, -1000, obj_ui_tutorial_skip_confirm);
