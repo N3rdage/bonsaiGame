@@ -128,6 +128,7 @@ draw_content = function() {
 
     if (ui_button(_bx, _by, _bw, _bh, "Water")) {
         water_tree(tree);
+        tutorial_advance_if(TUT_WATER);
     }
 
     var _can_fertilize = inventory_has("fertilizer", 1);
@@ -138,7 +139,9 @@ draw_content = function() {
     var _skip_cost = max(1, ceil(7 * 0.5));   // mirrors the formula in scr_growth
     var _can_skip = inventory_has("fertilizer", _skip_cost);
     if (ui_button(_bx + (_bw + _gap) * 2, _by, _bw, _bh, "Skip 7d (" + string(_skip_cost) + "f)", _can_skip)) {
-        skip_tree_time(tree, 7);
+        if (skip_tree_time(tree, 7)) {
+            tutorial_advance_if(TUT_SKIP_WEEK);
+        }
     }
 
     var _has_branches = _branch_count > 0;

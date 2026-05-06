@@ -21,6 +21,7 @@ function apply_wire(_tree, _branch_id, _target_bend_deg) {
     }
     
     _tree.mark_dirty();
+    tutorial_advance_if(TUT_TRAIN);
     return true;
 }
 
@@ -64,8 +65,9 @@ function clip_branch(_tree, _branch_id, _amount_cm) {
         day:       global.game_day,
         amount:    _amount_cm,
     });
-    
+
     _tree.mark_dirty();
+    tutorial_advance_if(TUT_TRAIN);
     return true;
 }
 
@@ -85,8 +87,9 @@ function prune_branch(_tree, _branch_id) {
         branch_id: _branch_id,
         day:       global.game_day,
     });
-    
+
     _tree.mark_dirty();
+    tutorial_advance_if(TUT_TRAIN);
     return true;
 }
 
@@ -97,5 +100,6 @@ function wire_trunk(_tree, _height_cm, _angle_deg) {
         angle_deg: _angle_deg,
     });
     _tree.mark_dirty();
+    tutorial_advance_if(TUT_TRAIN);
     return true;
 }
