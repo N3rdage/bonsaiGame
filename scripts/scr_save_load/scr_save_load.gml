@@ -55,6 +55,7 @@ function save_game(_slot = 1) {
         inventory:    global.inventory,
         trees:        _tree_data,
         next_tree_id: global.next_tree_id,
+        tutorial_step: global.tutorial_step,
     };
     
     var _json = json_stringify(_save);
@@ -79,6 +80,7 @@ function load_game(_slot = 1) {
     global.money        = _save.money;
     global.inventory    = _save.inventory;
     global.next_tree_id = _save.next_tree_id;
+    tutorial_init_for_load(_save);
     
     global.all_trees = [];
     for (var i = 0; i < array_length(_save.trees); i++) {
