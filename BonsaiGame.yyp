@@ -72,6 +72,7 @@
     {"id":{"name":"scr_ui","path":"scripts/scr_ui/scr_ui.yy",},},
     {"id":{"name":"scr_viewer","path":"scripts/scr_viewer/scr_viewer.yy",},},
     {"id":{"name":"spr_door","path":"sprites/spr_door/spr_door.yy",},},
+    {"id":{"name":"spr_foliage","path":"sprites/spr_foliage/spr_foliage.yy",},},
     {"id":{"name":"spr_interactable","path":"sprites/spr_interactable/spr_interactable.yy",},},
     {"id":{"name":"spr_player","path":"sprites/spr_player/spr_player.yy",},},
     {"id":{"name":"spr_source_plant","path":"sprites/spr_source_plant/spr_source_plant.yy",},},

@@ -126,7 +126,7 @@ Trees store only the species *key* (e.g. `"juniper"`), and look up properties at
 
 `BonsaiTree.mesh_dirty` is set to true by any operation that changes morphology. The viewer calls `tree.get_mesh()` each frame, which checks the flag and rebuilds only when needed. Most frames, it returns the cached struct for free. A training click during the viewer triggers a rebuild on the next frame.
 
-`get_mesh()` returns a struct `{ bark, foliage }` of two frozen vertex buffers. Bark holds trunk, branches, wire coils, and wire anchors — submitted untextured (vertex-coloured). Foliage holds the leaf-cluster quads — intended for a textured + alpha-cutoff submit so leaves can have see-through edges without bleeding alpha state onto bark triangles. Splitting also lets each pass set its own GPU state independently. Cache invalidation deletes both buffers.
+`get_mesh()` returns a struct `{ bark, foliage }` of two frozen vertex buffers. Bark holds trunk, branches, wire coils, and wire anchors — submitted untextured (vertex-coloured). Foliage holds the leaf-cluster quads, submitted with `spr_foliage` (a placeholder white-on-transparent leaf cluster) plus `gpu_set_alphatestenable(true)` / `gpu_set_alphatestref(128)` for crisp see-through edges, and `cull_noculling` so cross-quads are visible from any camera angle. The foliage texture is intentionally white so vertex colour drives all per-species tinting via `species.leaf_color`. Splitting buffers lets each pass set GPU state independently without bleeding alpha config onto bark; cache invalidation deletes both.
 
 ### Tree location is a free-form string, not an enum
 
