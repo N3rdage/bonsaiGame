@@ -141,7 +141,7 @@ function _draw_branch_hotspots() {
             var _wire = active_wire_for_branch(tree, i);
             var _age = (_wire == undefined) ? 0 : (global.game_day - _wire.applied_day);
             var _caption = string(_age) + "d";
-            if (_age < 56) _caption += " — early";
+            if (_age < 56) _caption += " (early)";
             draw_set_valign(fa_top);
             draw_text(_scr.x, _scr.y + _r + 4, _caption);
         }
