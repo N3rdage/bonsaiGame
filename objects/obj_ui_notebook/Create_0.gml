@@ -55,7 +55,7 @@ draw_content = function() {
         var _badge_text;
         if (_status == "completed") {
             _badge_col = make_color_rgb(140, 200, 120);
-            _badge_text = "✓ done";
+            _badge_text = "done";
         } else if (_status == "active") {
             _badge_col = make_color_rgb(220, 200, 120);
             _badge_text = "in progress";

@@ -73,17 +73,17 @@ function tutorial_step_body(_step) {
 function tutorial_step_flavour(_step) {
     switch (_step) {
         case TUT_WATER:
-            return "Bonsai dry out faster than houseplants — small pots, lots of leaf surface for their soil volume. Watch the Water bar in the inspector; below 30 the tree starts to suffer. A click of Water tops it back to 100.";
+            return "Bonsai dry out faster than houseplants - small pots, lots of leaf surface for their soil volume. Watch the Water bar in the inspector; below 30 the tree starts to suffer. A click of Water tops it back to 100.";
         case TUT_SKIP_WEEK:
-            return "Real bonsai is a slow craft — you might wait a season for a branch to thicken. Skip 7d fast-forwards a week of care, costing fertilizer (it stands in for the daily attention you'd be giving the tree).";
+            return "Real bonsai is a slow craft - you might wait a season for a branch to thicken. Skip 7d fast-forwards a week of care, costing fertilizer (it stands in for the daily attention you'd be giving the tree).";
         case TUT_TRAIN:
             return "Three tools shape a tree. Wire bends a branch (sets permanently after about 8 weeks). Clip shortens a branch without removing it. Prune removes the branch entirely. Open the 3D viewer from the inspector, pick a mode, and click a branch.";
         case TUT_TAKE_CUTTING:
-            return "Junipers propagate easily from cuttings — snip a branch and root it in soil to get a clone of the parent. Source plants live in the back garden; each offers a few cuttings before needing time to recover.";
+            return "Junipers propagate easily from cuttings - snip a branch and root it in soil to get a clone of the parent. Source plants live in the back garden; each offers a few cuttings before needing time to recover.";
         case TUT_PLANT:
             return "A cutting needs a pot to live in. The planting table at the workbench takes one cutting and one pot and creates a new tree at sapling size (8cm). Fancy pots cost more but earn more daily revenue when the tree is on display.";
         case TUT_DONE:
-            return "Granny would be proud. The basic care, training, and propagation loop is yours now. Try selling a tree once it scores well, or buying a fancier pot from the shop kiosk. The notebook stays — flip back here any time with J.";
+            return "Granny would be proud. The basic care, training, and propagation loop is yours now. Try selling a tree once it scores well, or buying a fancier pot from the shop kiosk. The notebook stays - flip back here any time with J.";
     }
     return "";
 }
