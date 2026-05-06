@@ -29,7 +29,7 @@ var _by = (_gh - _stack_h) / 2 + 40;
 if (ui_button(_bx, _by, _bw, _bh, "New Game", _interactive)) {
     var _panel = instance_create_depth(0, 0, -1000, obj_ui_save_slots);
     _panel.mode = "new";
-    _panel.panel_title = "New Game — Pick a Slot";
+    _panel.panel_title = "New Game - Pick a Slot";
     _panel.on_select_slot = function(_slot) {
         global.active_slot       = _slot;
         global.pending_load_slot = 0;
