@@ -32,8 +32,11 @@ if (_slot > 0) {
 global.pending_load_slot = 0;
 
 if (_slot == 0) {
+    // New game: seed Granny's juniper as the player's inherited starting tree.
+    // The tutorial (TUT_WATER → TUT_SKIP_WEEK → TUT_TRAIN) teaches care/training
+    // on this tree before PR2 introduces the cutting/planting steps.
     var _sample = new BonsaiTree("juniper", "seed");
-    _sample.name = "Starter";
+    _sample.name = "Granny's Juniper";
     _sample.trunk.height_cm = 25;
     _sample.trunk.girth_mm  = 18;
     _sample.add_branch(-1, 8,  30,  12);
@@ -43,7 +46,10 @@ if (_slot == 0) {
     _sample.foliage_density = 0.5;
     _sample.location = "shed";
     array_push(global.all_trees, _sample);
+    tutorial_init_for_new_game();
 }
+// (When _slot > 0, load_game already restored global.tutorial_step via
+// tutorial_init_for_load — defaults to TUT_DONE for old saves.)
 
 show_debug_message("Game controller initialized. Day " + string(global.game_day));
 show_debug_message("Inventory — Clay: " + string(inventory_count("clay"))
