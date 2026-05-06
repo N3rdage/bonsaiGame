@@ -64,3 +64,12 @@ if (keyboard_check_pressed(ord("I"))) {
         instance_create_depth(0, 0, -1000, obj_ui_inventory);
     }
 }
+
+// Granny's notebook: J to toggle. Same gating as inventory.
+if (keyboard_check_pressed(ord("J"))) {
+    if (instance_exists(obj_ui_notebook)) {
+        with (obj_ui_notebook) instance_destroy();
+    } else if (!instance_exists(obj_ui_panel)) {
+        instance_create_depth(0, 0, -1000, obj_ui_notebook);
+    }
+}

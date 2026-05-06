@@ -33,6 +33,7 @@ on_interact = function() {
     }
     
     inventory_add("cutting_" + species_key, 1);
+    tutorial_advance_if(TUT_TAKE_CUTTING);
     cuttings_taken++;
     show_debug_message("Took a " + _species.display_name + " cutting. Inventory: "
         + string(inventory_count("cutting_" + species_key)));
