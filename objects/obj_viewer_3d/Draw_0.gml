@@ -3,12 +3,21 @@
 // Draw a simple pedestal/pot so the tree isn't floating
 _draw_pedestal();
 
-// Draw the tree mesh — bark untextured, foliage will get a leaf texture in PR2
+// Draw the tree mesh — bark untextured, foliage textured with alpha cutoff
 var _m = matrix_build(0, 0, 0, 0, 0, 0, 1, 1, 1);
 matrix_set(matrix_world, _m);
 var _mesh = tree.get_mesh();
-vertex_submit(_mesh.bark,    pr_trianglelist, -1);
-vertex_submit(_mesh.foliage, pr_trianglelist, -1);
+vertex_submit(_mesh.bark, pr_trianglelist, -1);
+
+// Foliage pass: leaf texture + alpha test for crisp see-through edges; no
+// culling because cross-quads need both faces visible from any camera angle.
+gpu_set_alphatestenable(true);
+gpu_set_alphatestref(128);
+gpu_set_cullmode(cull_noculling);
+vertex_submit(_mesh.foliage, pr_trianglelist, sprite_get_texture(spr_foliage, 0));
+gpu_set_cullmode(cull_counterclockwise);
+gpu_set_alphatestenable(false);
+
 matrix_set(matrix_world, matrix_build_identity());
 
 // Bottom of Draw event
