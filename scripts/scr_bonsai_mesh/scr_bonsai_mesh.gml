@@ -5,18 +5,26 @@
 
 #macro BONSAI_DISPLAY_SCALE 4   // 1 sim cm renders as 4 "viewer units"
 
+// Returns { bark, foliage } — two frozen vertex buffers. Bark is submitted
+// untextured (vertex-coloured); foliage is submitted with a leaf texture and
+// alpha cutoff (PR2). Splitting them lets each pass set its own GPU state
+// without bleeding alpha config onto bark triangles.
 function build_tree_mesh(_tree) {
-    var _vbuff = vertex_create_buffer();
-    vertex_begin(_vbuff, global.vformat_3d);
-    
-    build_trunk(_vbuff, _tree);
+    var _bark = vertex_create_buffer();
+    var _foliage = vertex_create_buffer();
+    vertex_begin(_bark, global.vformat_3d);
+    vertex_begin(_foliage, global.vformat_3d);
+
+    build_trunk(_bark, _tree);
     for (var i = 0; i < array_length(_tree.branches); i++) {
-        build_branch(_vbuff, _tree, _tree.branches[i]);
+        build_branch(_bark, _foliage, _tree, _tree.branches[i]);
     }
-    
-    vertex_end(_vbuff);
-    vertex_freeze(_vbuff);
-    return _vbuff;
+
+    vertex_end(_bark);
+    vertex_end(_foliage);
+    vertex_freeze(_bark);
+    vertex_freeze(_foliage);
+    return { bark: _bark, foliage: _foliage };
 }
 
 function build_trunk(_vbuff, _tree) {
@@ -83,7 +91,7 @@ function branch_point(_tree, _branch, _t_along) {
     );
 }
 
-function build_branch(_vbuff, _tree, _branch) {
+function build_branch(_bark, _foliage, _tree, _branch) {
     var _segs = 6;
     var _bark_col = make_color_rgb(110, 75, 50);
     var _prev_ring = undefined;
@@ -97,13 +105,13 @@ function build_branch(_vbuff, _tree, _branch) {
 
         var _ring = build_ring(_pt, _r, 6);
         if (_prev_ring != undefined) {
-            stitch_rings(_vbuff, _prev_ring, _ring, _bark_col);
+            stitch_rings(_bark, _prev_ring, _ring, _bark_col);
         }
         _prev_ring = _ring;
     }
 
     if (_branch.wired) {
-        add_wire_coil(_vbuff, _tree, _branch);
+        add_wire_coil(_bark, _tree, _branch);
     }
 
     var _t_origin = clamp(_branch.origin_y / _tree.trunk.height_cm, 0, 1);
@@ -111,7 +119,7 @@ function build_branch(_vbuff, _tree, _branch) {
         var _tip = branch_point(_tree, _branch, 1);
         var _species = _tree.get_species();
         var _seed = _tree.id * 1000 + _branch.id;
-        add_foliage_cluster(_vbuff, _tip, _species.leaf_color, _tree.foliage_density, _seed);
+        add_foliage_cluster(_foliage, _tip, _species.leaf_color, _tree.foliage_density, _seed);
     }
 }
 

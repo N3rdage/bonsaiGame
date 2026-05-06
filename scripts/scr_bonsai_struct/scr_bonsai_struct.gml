@@ -80,9 +80,14 @@ function BonsaiTree(_species_key, _origin) constructor {
         mesh_dirty = true;
     }
     
+    // mesh_cache holds { bark, foliage } — two frozen vertex buffers.
+    // See scr_bonsai_mesh.build_tree_mesh.
     static get_mesh = function() {
         if (mesh_dirty || mesh_cache == undefined) {
-            if (mesh_cache != undefined) vertex_delete_buffer(mesh_cache);
+            if (mesh_cache != undefined) {
+                vertex_delete_buffer(mesh_cache.bark);
+                vertex_delete_buffer(mesh_cache.foliage);
+            }
             mesh_cache = build_tree_mesh(self);
             mesh_dirty = false;
         }

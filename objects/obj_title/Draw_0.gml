@@ -3,7 +3,8 @@
 _draw_ground();
 
 matrix_set(matrix_world, matrix_build(0, 0, 0, 0, 0, 0, 1, 1, 1));
-vertex_submit(hero_mesh, pr_trianglelist, -1);
+vertex_submit(hero_mesh.bark,    pr_trianglelist, -1);
+vertex_submit(hero_mesh.foliage, pr_trianglelist, -1);
 matrix_set(matrix_world, matrix_build_identity());
 
 function _draw_ground() {
