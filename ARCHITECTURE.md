@@ -251,6 +251,14 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 
 `scr_settings` keeps per-machine settings on `global.settings`, persisted to `settings.json` (separate from save slot data — settings are the player's preferences, not game state). The title screen loads + applies them on Create. `obj_ui_settings` saves and applies on every change so a toggle takes effect immediately and survives a restart.
 
+### Tutorial / onboarding
+
+`scr_tutorial` defines a linear step machine on `global.tutorial_step` — `TUT_WATER` → `TUT_SKIP_WEEK` → `TUT_TRAIN` → `TUT_TAKE_CUTTING` → `TUT_PLANT` → `TUT_DONE`. Steps advance via `tutorial_advance_if(_from)` from the matching gameplay call site (Water/Skip 7d on the inspector, training fns in `scr_training`, `obj_source_plant`'s cutting interaction, `do_plant` in the planting panel). The function is a no-op unless `global.tutorial_step == _from`, so callsites are idempotent and can't rewind progress.
+
+New games initialise via `tutorial_init_for_new_game()` (called from the controller's Create event after seeding Granny's Juniper). Loaded saves go through `tutorial_init_for_load(_save)` which reads the save's `tutorial_step` field, defaulting to `TUT_DONE` if missing — old saves don't get dropped back into onboarding.
+
+Two UIs read this state. The corner panel is drawn from `obj_game_controller`'s Draw GUI when `global.tutorial_step != TUT_DONE`: short label + body for the active step, plus a Skip button gated to a confirmation modal (`obj_ui_tutorial_skip_confirm`). It auto-sizes to body text and drops to the bottom-right when in `rm_viewer_3d` to clear that room's toolbar; the Skip button itself is disabled while another modal panel is open so its click can't bleed through. The notebook (`obj_ui_notebook`, J to toggle, parent: `obj_ui_panel`) paginates every step with longer flavour text and status badges (color-coded: done / in progress / not yet); a finale "All caught up" page appears once the player reaches `TUT_DONE`.
+
 ## Design decisions worth knowing
 
 ### Why z-up in 3D?
