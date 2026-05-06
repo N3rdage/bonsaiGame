@@ -51,7 +51,7 @@ if (global.tutorial_step != TUT_DONE) {
     // J-for-notebook hint sits opposite the Skip button so players discover
     // the longer reference exists.
     draw_set_color(make_color_rgb(140, 160, 130));
-    draw_text(_px + 12, _skip_y + 4, "J — open notebook");
+    draw_text(_px + 12, _skip_y + 4, "Press J for notebook");
 
     if (!instance_exists(obj_ui_panel)) {
         if (ui_button(_px + _w - 70, _skip_y, 60, _skip_h, "Skip")) {
