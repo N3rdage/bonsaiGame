@@ -311,13 +311,15 @@ function _draw_trunk_hotspots() {
 
 // Translate screen-relative bend direction to a world XY angle in degrees.
 // Camera convention (Draw_72.gml): camera at (cos yaw * cos pitch, -sin yaw *
-// cos pitch, sin pitch) * d, looking at the tree. Screen-right at the tree's
-// height ends up at world (sin yaw, cos yaw); the other three directions are
-// 90° rotations of that. Independent of pitch — bends are horizontal.
+// cos pitch, sin pitch) * d, looking at the tree. Up/Down lie on the camera-
+// radial axis. Left/Right would be world-perpendicular to that axis, but the
+// project's z-up + (0,0,-1) lookat + negated aspect combo flips the screen-x
+// handedness, so the L/R cases are inverted from the naive derivation.
+// Independent of pitch — all bends stay horizontal in world.
 function _trunk_bend_world_angle(_dir, _yaw) {
     switch (_dir) {
-        case "right": return 90  - _yaw;
-        case "left":  return -90 - _yaw;
+        case "right": return -90 - _yaw;
+        case "left":  return  90 - _yaw;
         case "up":    return 180 - _yaw;   // away from camera
         case "down":  return       -_yaw;  // toward camera
     }
