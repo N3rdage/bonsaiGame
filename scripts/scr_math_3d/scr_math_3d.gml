@@ -35,6 +35,24 @@ function vec3_cross(_a, _b) {
     );
 }
 
+// Rodrigues' rotation formula: rotate _v around unit axis _axis by _angle_deg.
+// Caller must pass a unit axis. Used for parallel-transporting trunk frames as
+// the trunk's tangent rotates through bend events.
+function vec3_rotate(_v, _axis, _angle_deg) {
+    var _ca  = dcos(_angle_deg);
+    var _sa  = dsin(_angle_deg);
+    var _dot = _axis.x * _v.x + _axis.y * _v.y + _axis.z * _v.z;
+    var _cx  = _axis.y * _v.z - _axis.z * _v.y;
+    var _cy  = _axis.z * _v.x - _axis.x * _v.z;
+    var _cz  = _axis.x * _v.y - _axis.y * _v.x;
+    var _k   = (1 - _ca) * _dot;
+    return vec3(
+        _v.x * _ca + _cx * _sa + _axis.x * _k,
+        _v.y * _ca + _cy * _sa + _axis.y * _k,
+        _v.z * _ca + _cz * _sa + _axis.z * _k
+    );
+}
+
 // Call once at game start to build the 3D vertex format.
 function init_vertex_format() {
     vertex_format_begin();
