@@ -46,26 +46,59 @@ if (ui_button(_gw - 120, 12, 100, _bh, "Exit (Esc)", _interactive)) {
     exit_3d_viewer();
 }
 
-// Wire-mode filter sub-row: toggle which hotspots show
+// Wire-mode sub-row: trunk-bend direction selector + branch-hotspot filters.
+// Both groups are screen-relative, so the row's natural mental model is
+// "what to do when you click" + "what to show".
 if (viewer_mode == "wire") {
-    var _ftw = 100, _fth = 28;
-    var _ftgap = 8;
-    var _fty = 64;
-    var _ftx = _gw / 2 - (_ftw * 2 + _ftgap) / 2;
+    var _fty   = 64;
+    var _fth   = 28;
+    var _gap   = 8;
+    var _label_w = 50;
 
-    // "Show:" label, right-aligned to the left of the buttons
+    // Group A: bend direction (screen-relative; cam_yaw maps to world angle on click)
+    var _dirs   = ["up", "left", "down", "right"];
+    var _dir_lab = ["Up", "Left", "Down", "Right"];
+    var _dw     = 56;
+    var _g_a_w  = _label_w + _gap + (_dw * 4 + _gap * 3);
+
+    // Group B: hotspot filters
+    var _ftw    = 92;
+    var _g_b_w  = _label_w + _gap + (_ftw * 2 + _gap);
+
+    var _sep    = 24;
+    var _total  = _g_a_w + _sep + _g_b_w;
+    var _row_x  = _gw / 2 - _total / 2;
+
+    // Group A — Bend
     draw_set_color(make_color_rgb(180, 180, 180));
     draw_set_halign(fa_right);
     draw_set_valign(fa_middle);
-    draw_text(_ftx - 12, _fty + _fth / 2, "Show:");
+    draw_text(_row_x + _label_w, _fty + _fth / 2, "Bend:");
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
 
+    var _dir_x0 = _row_x + _label_w + _gap;
+    for (var i = 0; i < 4; i++) {
+        var _dir_bx = _dir_x0 + i * (_dw + _gap);
+        if (ui_toggle(_dir_bx, _fty, _dw, _fth, _dir_lab[i], wire_trunk_dir == _dirs[i], _interactive)) {
+            wire_trunk_dir = _dirs[i];
+        }
+    }
+
+    // Group B — Show
+    var _showx = _row_x + _g_a_w + _sep;
+    draw_set_color(make_color_rgb(180, 180, 180));
+    draw_set_halign(fa_right);
+    draw_set_valign(fa_middle);
+    draw_text(_showx + _label_w, _fty + _fth / 2, "Show:");
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+
+    var _ftx = _showx + _label_w + _gap;
     if (ui_toggle(_ftx, _fty, _ftw, _fth, "Wired", show_wired_hotspots, _interactive)) {
         show_wired_hotspots = !show_wired_hotspots;
     }
-
-    var _ftx2 = _ftx + _ftw + _ftgap;
+    var _ftx2 = _ftx + _ftw + _gap;
     if (ui_toggle(_ftx2, _fty, _ftw, _fth, "Unwired", show_unwired_hotspots, _interactive)) {
         show_unwired_hotspots = !show_unwired_hotspots;
     }
@@ -75,13 +108,16 @@ if (viewer_mode == "wire") {
 if (viewer_mode == "clip" || viewer_mode == "prune" || viewer_mode == "wire") {
     _draw_branch_hotspots();
 }
+if (viewer_mode == "wire") {
+    _draw_trunk_hotspots();
+}
 
 // Bottom help text
 draw_set_color(make_color_rgb(180, 180, 180));
 draw_set_halign(fa_center);
 if (viewer_mode == "wire") {
     var _wire_stock = inventory_count("wire");
-    var _wire_msg = "Click branch to apply wire  |  Click wired branch to remove"
+    var _wire_msg = "Click branch or trunk to wire  |  Click wired branch to remove"
         + "  |  Wire: " + string(_wire_stock);
     if (_wire_stock <= 0) _wire_msg += "  (out)";
     draw_text(_gw / 2, _gh - 44, _wire_msg);
@@ -222,4 +258,70 @@ function _draw_wire_removal_modal() {
         remove_wire(tree, pending_wire_removal);
         pending_wire_removal = -1;
     }
+}
+
+// Trunk wiring hotspots: 4 evenly-spaced points up the trunk's curve. Click
+// applies a 20° bend at that height in the direction selected in the sub-row,
+// consuming 1 wire. The trunk has no per-event "wired" state — movement is
+// write-only history — so the Wired/Unwired filters only affect branches.
+function _draw_trunk_hotspots() {
+    var _ui_h = (viewer_mode == "wire") ? 110 : 60;
+    var _modal_open = (pending_wire_removal >= 0);
+
+    // 4 hotspots at trunk-arc fractions 0.2 .. 0.8 (skip very base / tip)
+    var _count = 4;
+    var _t_lo  = 0.2;
+    var _t_hi  = 0.8;
+
+    for (var i = 0; i < _count; i++) {
+        var _t = lerp(_t_lo, _t_hi, i / (_count - 1));
+        var _f = trunk_frame_at(tree, _t);
+        var _scr = project_3d_to_screen(_f.pos);
+        if (_scr == undefined) continue;
+
+        var _hover = point_distance(
+            device_mouse_x_to_gui(0), device_mouse_y_to_gui(0),
+            _scr.x, _scr.y) < 16;
+
+        // Distinct hue from branch wire hotspots — green so the player reads
+        // "this is a different kind of click target."
+        var _col = make_color_rgb(120, 220, 140);
+        var _r = _hover ? 12 : 8;
+        draw_set_color(_col);
+        draw_set_alpha(_hover ? 0.9 : 0.6);
+        draw_circle(_scr.x, _scr.y, _r, false);
+        draw_set_color(c_white);
+        draw_set_alpha(1);
+        draw_circle(_scr.x, _scr.y, _r, true);
+
+        var _height_cm = _t * tree.trunk.height_cm;
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_middle);
+        draw_text(_scr.x, _scr.y, string_format(_height_cm, 1, 0));
+        draw_set_halign(fa_left);
+        draw_set_valign(fa_top);
+
+        if (_hover && mouse_check_button_pressed(mb_left)
+         && device_mouse_y_to_gui(0) > _ui_h
+         && !_modal_open) {
+            wire_trunk(tree, _height_cm, _trunk_bend_world_angle(wire_trunk_dir, cam_yaw));
+        }
+    }
+}
+
+// Translate screen-relative bend direction to a world XY angle in degrees.
+// Camera convention (Draw_72.gml): camera at (cos yaw * cos pitch, -sin yaw *
+// cos pitch, sin pitch) * d, looking at the tree. Up/Down lie on the camera-
+// radial axis. Left/Right would be world-perpendicular to that axis, but the
+// project's z-up + (0,0,-1) lookat + negated aspect combo flips the screen-x
+// handedness, so the L/R cases are inverted from the naive derivation.
+// Independent of pitch — all bends stay horizontal in world.
+function _trunk_bend_world_angle(_dir, _yaw) {
+    switch (_dir) {
+        case "right": return -90 - _yaw;
+        case "left":  return  90 - _yaw;
+        case "up":    return 180 - _yaw;   // away from camera
+        case "down":  return       -_yaw;  // toward camera
+    }
+    return 0;
 }
