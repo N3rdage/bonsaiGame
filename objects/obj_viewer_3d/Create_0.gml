@@ -18,6 +18,12 @@ viewer_mode = "view";
 show_wired_hotspots   = true;
 show_unwired_hotspots = true;
 pending_wire_removal  = -1;   // -1 = no modal; otherwise = branch_id awaiting confirm
+// Trunk-wire direction is screen-relative ("left"/"right"/"up"/"down") and
+// persists across clicks. The viewer translates it to a world XY angle at
+// click time using cam_yaw, so "left" always means screen-left from the
+// current camera angle. Player rotates camera, picks direction once, then
+// clicks trunk hotspots to apply.
+wire_trunk_dir = "left";
 
 // For drag-to-rotate
 dragging    = false;
