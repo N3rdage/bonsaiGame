@@ -1,9 +1,8 @@
 // scr_bonsai_mesh
 // Builds a 3D vertex buffer from a BonsaiTree struct.
-// This is a crude starting point — trees will look rough until the
-// bending math is replaced with proper parallel-transport frames.
 
-#macro BONSAI_DISPLAY_SCALE 4   // 1 sim cm renders as 4 "viewer units"
+#macro BONSAI_DISPLAY_SCALE 4         // 1 sim cm renders as 4 "viewer units"
+#macro BONSAI_TRUNK_BEND_PER_EVENT 20 // degrees of tangent deflection per movement event
 
 // Returns { bark, foliage } — two frozen vertex buffers. Bark is submitted
 // untextured (vertex-coloured); foliage is submitted with a leaf texture and
@@ -27,40 +26,153 @@ function build_tree_mesh(_tree) {
     return { bark: _bark, foliage: _foliage };
 }
 
+// Sample N+1 parallel-transported frames along the trunk's curve. Frame i has
+// { pos, tangent, normal, binormal } — an orthonormal right-handed basis where
+// tangent is the trunk's local "up" direction. The starting tangent is world
+// +z; each `trunk.movement` event below the current sample height deflects the
+// tangent (and the whole frame, via Rodrigues) by BONSAI_TRUNK_BEND_PER_EVENT
+// degrees toward (cos angle_deg, sin angle_deg, 0). Position integrates from
+// tangent step-by-step, so trunk.height_cm now reads as arc length: a curved
+// trunk is shorter vertically than its arc length, which matches how wire-bent
+// real trunks behave.
+function trunk_frames(_tree) {
+    var _trunk        = _tree.trunk;
+    var _arc_world    = (_trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
+    var _segments     = max(8, floor(_arc_world * 20));
+
+    // Sort movement events by height. Rotations don't commute, so the trunk
+    // bends event-by-event from the base upward; an event at y=5 rotates
+    // everything above y=5, including subsequent events' deflection axes.
+    var _events_n = array_length(_trunk.movement);
+    var _events   = array_create(_events_n);
+    for (var i = 0; i < _events_n; i++) _events[i] = _trunk.movement[i];
+    array_sort(_events, function(_a, _b) { return _a.y - _b.y; });
+
+    var _frames = array_create(_segments + 1);
+    var _pos    = vec3(0, 0, 0);
+    var _T      = vec3(0, 0, 1);
+    var _N      = vec3(1, 0, 0);
+    var _B      = vec3(0, 1, 0);
+    var _ds     = (_segments > 0) ? (_arc_world / _segments) : 0;
+    var _next_event = 0;
+
+    for (var i = 0; i <= _segments; i++) {
+        var _t       = (_segments > 0) ? (i / _segments) : 0;
+        var _arc_now = _t * _arc_world;
+
+        // Apply any events whose height we've reached or passed.
+        // Axis is world_up × d, NOT current_T × d: using current_T flips sign
+        // when the trunk passes horizontal (cascade case), so further bends
+        // would un-bend the trunk instead of continuing the cascade. With a
+        // world-frame axis, cumulative bends compose consistently no matter
+        // how much the trunk has already curved.
+        while (_next_event < _events_n) {
+            var _ev          = _events[_next_event];
+            var _ev_arc      = (_ev.y / 100) * BONSAI_DISPLAY_SCALE;
+            if (_ev_arc > _arc_now) break;
+
+            // up × d, with up = (0,0,1), d = (cos, sin, 0), simplifies to
+            // (-sin, cos, 0) — already unit-length.
+            var _ax = vec3(-dsin(_ev.angle_deg), dcos(_ev.angle_deg), 0);
+            _T = vec3_rotate(_T, _ax, BONSAI_TRUNK_BEND_PER_EVENT);
+            _N = vec3_rotate(_N, _ax, BONSAI_TRUNK_BEND_PER_EVENT);
+            _B = vec3_rotate(_B, _ax, BONSAI_TRUNK_BEND_PER_EVENT);
+            _next_event++;
+        }
+
+        _frames[i] = {
+            pos:      _pos,
+            tangent:  _T,
+            normal:   _N,
+            binormal: _B,
+        };
+
+        if (i < _segments) {
+            _pos = vec3(_pos.x + _T.x * _ds, _pos.y + _T.y * _ds, _pos.z + _T.z * _ds);
+        }
+    }
+
+    return _frames;
+}
+
+// Frame at fractional height _t in [0..1] along the trunk arc. Linearly
+// interpolates between sampled frames and renormalises — adjacent frames
+// differ only by small angles, so lerp+renormalise is a cheap stand-in for
+// slerp. Used by branch_point and the wire anchor for any-height lookups.
+function trunk_frame_at(_tree, _t) {
+    var _frames = trunk_frames(_tree);
+    var _n      = array_length(_frames);
+    if (_n == 0) {
+        return {
+            pos:      vec3(0, 0, 0),
+            tangent:  vec3(0, 0, 1),
+            normal:   vec3(1, 0, 0),
+            binormal: vec3(0, 1, 0),
+        };
+    }
+    if (_n == 1) return _frames[0];
+
+    var _idx_f = clamp(_t, 0, 1) * (_n - 1);
+    var _i0    = floor(_idx_f);
+    var _i1    = min(_i0 + 1, _n - 1);
+    var _f     = _idx_f - _i0;
+    var _a     = _frames[_i0];
+    var _b     = _frames[_i1];
+
+    return {
+        pos:      vec3(lerp(_a.pos.x, _b.pos.x, _f),
+                       lerp(_a.pos.y, _b.pos.y, _f),
+                       lerp(_a.pos.z, _b.pos.z, _f)),
+        tangent:  vec3_normalize(vec3(lerp(_a.tangent.x, _b.tangent.x, _f),
+                                      lerp(_a.tangent.y, _b.tangent.y, _f),
+                                      lerp(_a.tangent.z, _b.tangent.z, _f))),
+        normal:   vec3_normalize(vec3(lerp(_a.normal.x, _b.normal.x, _f),
+                                      lerp(_a.normal.y, _b.normal.y, _f),
+                                      lerp(_a.normal.z, _b.normal.z, _f))),
+        binormal: vec3_normalize(vec3(lerp(_a.binormal.x, _b.binormal.x, _f),
+                                      lerp(_a.binormal.y, _b.binormal.y, _f),
+                                      lerp(_a.binormal.z, _b.binormal.z, _f))),
+    };
+}
+
+// Ring of `_segments` vertices around `_centre` in the plane spanned by the
+// EXPLICIT basis vectors (_u, _v). Differs from build_oriented_ring, which
+// derives U/V from a reference axis cross product — that method's reference-
+// axis switch can flip vertex ordering between consecutive rings, twisting
+// the geometry. Parallel-transported frames give us a continuous (U, V) that
+// matches across rings, so we want them passed in directly.
+function build_ring_with_basis(_centre, _radius, _segments, _u, _v) {
+    var _ring = array_create(_segments);
+    for (var i = 0; i < _segments; i++) {
+        var _a  = (i / _segments) * 360;
+        var _ca = dcos(_a);
+        var _sa = dsin(_a);
+        _ring[i] = vec3(
+            _centre.x + (_ca * _u.x + _sa * _v.x) * _radius,
+            _centre.y + (_ca * _u.y + _sa * _v.y) * _radius,
+            _centre.z + (_ca * _u.z + _sa * _v.z) * _radius
+        );
+    }
+    return _ring;
+}
+
 function build_trunk(_vbuff, _tree) {
-    var _trunk = _tree.trunk;
-	var _height_m    = (_trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
-    var _base_radius = ((_trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE;
-    
-    var _segments_tall  = max(8, floor(_height_m * 20));
+    var _trunk        = _tree.trunk;
+    var _base_radius  = ((_trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE;
+
+    var _frames         = trunk_frames(_tree);
+    var _n              = array_length(_frames);
     var _segments_round = 10;
-    
-    var _moves = _trunk.movement;
-    var _bark_col = make_color_rgb(90, 60, 40);
-    
+    var _bark_col       = make_color_rgb(90, 60, 40);
+
     var _prev_ring = undefined;
-    
-    for (var i = 0; i <= _segments_tall; i++) {
-        var _t = i / _segments_tall;
-        var _z = _t * _height_m;
-        
+    for (var i = 0; i < _n; i++) {
+        var _t = (_n > 1) ? (i / (_n - 1)) : 0;
         var _r = lerp(_base_radius, _base_radius * (1 - _trunk.taper), _t);
         _r = max(_r, 0.001);
-        
-        var _cursor_x = 0;
-        var _cursor_y = 0;
-        for (var m = 0; m < array_length(_moves); m++) {
-            var _mh = _moves[m].y / _trunk.height_cm;
-            if (_mh <= _t) {
-                var _strength = (_t - _mh) * 0.05;
-                _cursor_x += dcos(_moves[m].angle_deg) * _strength;
-                _cursor_y += dsin(_moves[m].angle_deg) * _strength;
-            }
-        }
-        
-        var _center = vec3(_cursor_x, _cursor_y, _z);
-        var _ring = build_ring(_center, _r, _segments_round);
-        
+
+        var _f    = _frames[i];
+        var _ring = build_ring_with_basis(_f.pos, _r, _segments_round, _f.normal, _f.binormal);
         if (_prev_ring != undefined) {
             stitch_rings(_vbuff, _prev_ring, _ring, _bark_col);
         }
@@ -72,22 +184,33 @@ function build_trunk(_vbuff, _tree) {
 // t_along: 0 = trunk-surface origin, 1 = branch tip.
 function branch_point(_tree, _branch, _t_along) {
     var _trunk = _tree.trunk;
-    var _t = clamp(_branch.origin_y / _trunk.height_cm, 0, 1);
-    var _origin_z = _t * (_trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
+    var _t     = clamp(_branch.origin_y / _trunk.height_cm, 0, 1);
 
+    var _f       = trunk_frame_at(_tree, _t);
     var _base_r  = ((_trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE;
     var _trunk_r = lerp(_base_r, _base_r * (1 - _trunk.taper), _t);
 
-    var _ox = dcos(_branch.angle) * _trunk_r;
-    var _oy = dsin(_branch.angle) * _trunk_r;
+    // Branch attaches to the trunk surface in a direction expressed in the
+    // trunk's LOCAL basis: cos(angle) along normal, sin(angle) along binormal.
+    // For a vertical trunk (normal = +x, binormal = +y) this collapses to the
+    // old (cos, sin, 0) attachment. For a leaning trunk it stays glued to the
+    // tilted surface.
+    var _ca = dcos(_branch.angle);
+    var _sa = dsin(_branch.angle);
+    var _ox = _f.pos.x + (_ca * _f.normal.x + _sa * _f.binormal.x) * _trunk_r;
+    var _oy = _f.pos.y + (_ca * _f.normal.y + _sa * _f.binormal.y) * _trunk_r;
+    var _oz = _f.pos.z + (_ca * _f.normal.z + _sa * _f.binormal.z) * _trunk_r;
 
+    // Branch direction is still planar — branch.bend rotates the world XY
+    // direction; the small +z arc is a stylised lift. Real branch curvature
+    // (Frenet/parallel-transport for branches) is TODO #10.
     var _dir_angle = _branch.angle + _branch.bend;
     var _length_m  = (_branch.length / 100) * BONSAI_DISPLAY_SCALE;
 
     return vec3(
         _ox + dcos(_dir_angle) * _length_m * _t_along,
         _oy + dsin(_dir_angle) * _length_m * _t_along,
-        _origin_z + _length_m * _t_along * 0.25
+        _oz + _length_m * _t_along * 0.25
     );
 }
 
@@ -217,38 +340,22 @@ function add_wire_coil(_vbuff, _tree, _branch) {
 // Trunk-side anchor for a branch wire. In real bonsai, wire is anchored by
 // wrapping the trunk 1–2 turns before going onto the branch — this stops the
 // wire rotating freely when the branch is bent. Here it's purely visual: a
-// short helix around the trunk z-axis at the branch's base, ending on the
-// side the branch attaches so the eye reads the anchor as feeding into the
-// branch coil.
+// short helix around the trunk axis at the branch's base, ending on the side
+// the branch attaches so the eye reads the anchor as feeding into the branch
+// coil. The helix axis follows the trunk's local tangent so the anchor stays
+// glued to a leaning trunk.
 function add_wire_anchor(_vbuff, _tree, _branch, _wire_r, _col) {
     var _trunk = _tree.trunk;
-
-    // Trunk z at the branch base
     var _t = clamp(_branch.origin_y / _trunk.height_cm, 0, 1);
-    var _trunk_h_world = (_trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
-    var _z_centre = _t * _trunk_h_world;
 
-    // Trunk radius at that z
-    var _base_r = ((_trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE;
+    var _base_r  = ((_trunk.girth_mm / 1000) / 2) * BONSAI_DISPLAY_SCALE;
     var _trunk_r = lerp(_base_r, _base_r * (1 - _trunk.taper), _t);
 
-    // Trunk centre at that z, accounting for movement (mirrors build_trunk)
-    var _cursor_x = 0;
-    var _cursor_y = 0;
-    var _moves = _trunk.movement;
-    for (var m = 0; m < array_length(_moves); m++) {
-        var _mh = _moves[m].y / _trunk.height_cm;
-        if (_mh <= _t) {
-            var _strength = (_t - _mh) * 0.05;
-            _cursor_x += dcos(_moves[m].angle_deg) * _strength;
-            _cursor_y += dsin(_moves[m].angle_deg) * _strength;
-        }
-    }
+    var _f = trunk_frame_at(_tree, _t);
 
     var _anchor_turns = 1.5;
     var _anchor_pitch = 3 * (2 * _wire_r);   // matches branch coil pitch
     var _anchor_h     = _anchor_turns * _anchor_pitch;
-    var _z_start      = _z_centre - _anchor_h / 2;
     var _offset       = _trunk_r + _wire_r;
 
     // Sweep ends on the branch-attachment side, sweeping back from there
@@ -267,19 +374,26 @@ function add_wire_anchor(_vbuff, _tree, _branch, _wire_r, _col) {
         var _theta = lerp(_start_angle, _end_angle, _s);
         var _ca    = dcos(_theta);
         var _sa    = dsin(_theta);
-        var _z     = _z_start + _s * _anchor_h;
+        // s in [0..1] runs the anchor from below the branch to above it,
+        // along the trunk's local tangent — not world +z.
+        var _axial = (_s - 0.5) * _anchor_h;
 
         var _centre = vec3(
-            _cursor_x + _ca * _offset,
-            _cursor_y + _sa * _offset,
-            _z
+            _f.pos.x + (_ca * _f.normal.x + _sa * _f.binormal.x) * _offset + _f.tangent.x * _axial,
+            _f.pos.y + (_ca * _f.normal.y + _sa * _f.binormal.y) * _offset + _f.tangent.y * _axial,
+            _f.pos.z + (_ca * _f.normal.z + _sa * _f.binormal.z) * _offset + _f.tangent.z * _axial
         );
 
-        // Helix tangent: axial along world +z, radial tangent to circle
+        // Helix tangent in world space: axial component along trunk tangent +
+        // radial component tangent to the circle (in the normal/binormal plane).
         var _radial_mag = _offset * _radial_speed_base;
-        var _tan_x = -_sa * _radial_mag;
-        var _tan_y =  _ca * _radial_mag;
-        var _tan_z = _axial_speed;
+        var _radial_x = (-_sa * _f.normal.x + _ca * _f.binormal.x) * _radial_mag;
+        var _radial_y = (-_sa * _f.normal.y + _ca * _f.binormal.y) * _radial_mag;
+        var _radial_z = (-_sa * _f.normal.z + _ca * _f.binormal.z) * _radial_mag;
+
+        var _tan_x = _f.tangent.x * _axial_speed + _radial_x;
+        var _tan_y = _f.tangent.y * _axial_speed + _radial_y;
+        var _tan_z = _f.tangent.z * _axial_speed + _radial_z;
         var _tlen  = sqrt(_tan_x*_tan_x + _tan_y*_tan_y + _tan_z*_tan_z);
         _tan_x /= _tlen; _tan_y /= _tlen; _tan_z /= _tlen;
 
