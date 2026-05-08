@@ -3,8 +3,8 @@
 var _gw = display_get_gui_width();
 var _gh = display_get_gui_height();
 
-// While any modal is open, all other UI is non-interactive.
-var _interactive = (pending_wire_removal == -1) && (pending_trunk_wire_y == -1);
+// While the confirmation modal is open, all other UI is non-interactive.
+var _interactive = (pending_wire_removal == -1);
 
 // Top toolbar background — taller in wire mode to host the filter sub-row
 var _toolbar_h = (viewer_mode == "wire") ? 110 : 60;
@@ -46,26 +46,59 @@ if (ui_button(_gw - 120, 12, 100, _bh, "Exit (Esc)", _interactive)) {
     exit_3d_viewer();
 }
 
-// Wire-mode filter sub-row: toggle which hotspots show
+// Wire-mode sub-row: trunk-bend direction selector + branch-hotspot filters.
+// Both groups are screen-relative, so the row's natural mental model is
+// "what to do when you click" + "what to show".
 if (viewer_mode == "wire") {
-    var _ftw = 100, _fth = 28;
-    var _ftgap = 8;
-    var _fty = 64;
-    var _ftx = _gw / 2 - (_ftw * 2 + _ftgap) / 2;
+    var _fty   = 64;
+    var _fth   = 28;
+    var _gap   = 8;
+    var _label_w = 50;
 
-    // "Show:" label, right-aligned to the left of the buttons
+    // Group A: bend direction (screen-relative; cam_yaw maps to world angle on click)
+    var _dirs   = ["up", "left", "down", "right"];
+    var _dir_lab = ["Up", "Left", "Down", "Right"];
+    var _dw     = 56;
+    var _g_a_w  = _label_w + _gap + (_dw * 4 + _gap * 3);
+
+    // Group B: hotspot filters
+    var _ftw    = 92;
+    var _g_b_w  = _label_w + _gap + (_ftw * 2 + _gap);
+
+    var _sep    = 24;
+    var _total  = _g_a_w + _sep + _g_b_w;
+    var _row_x  = _gw / 2 - _total / 2;
+
+    // Group A — Bend
     draw_set_color(make_color_rgb(180, 180, 180));
     draw_set_halign(fa_right);
     draw_set_valign(fa_middle);
-    draw_text(_ftx - 12, _fty + _fth / 2, "Show:");
+    draw_text(_row_x + _label_w, _fty + _fth / 2, "Bend:");
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
 
+    var _dir_x0 = _row_x + _label_w + _gap;
+    for (var i = 0; i < 4; i++) {
+        var _dir_bx = _dir_x0 + i * (_dw + _gap);
+        if (ui_toggle(_dir_bx, _fty, _dw, _fth, _dir_lab[i], wire_trunk_dir == _dirs[i], _interactive)) {
+            wire_trunk_dir = _dirs[i];
+        }
+    }
+
+    // Group B — Show
+    var _showx = _row_x + _g_a_w + _sep;
+    draw_set_color(make_color_rgb(180, 180, 180));
+    draw_set_halign(fa_right);
+    draw_set_valign(fa_middle);
+    draw_text(_showx + _label_w, _fty + _fth / 2, "Show:");
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+
+    var _ftx = _showx + _label_w + _gap;
     if (ui_toggle(_ftx, _fty, _ftw, _fth, "Wired", show_wired_hotspots, _interactive)) {
         show_wired_hotspots = !show_wired_hotspots;
     }
-
-    var _ftx2 = _ftx + _ftw + _ftgap;
+    var _ftx2 = _ftx + _ftw + _gap;
     if (ui_toggle(_ftx2, _fty, _ftw, _fth, "Unwired", show_unwired_hotspots, _interactive)) {
         show_unwired_hotspots = !show_unwired_hotspots;
     }
@@ -93,17 +126,14 @@ draw_text(_gw / 2, _gh - 24,
     "Drag to rotate  |  Scroll to zoom  |  R to reset camera");
 draw_set_halign(fa_left);
 
-// Modals — drawn last so they sit above everything else
+// Confirmation modal — drawn last so it sits above everything else
 if (pending_wire_removal >= 0) {
     _draw_wire_removal_modal();
-}
-if (pending_trunk_wire_y >= 0) {
-    _draw_trunk_wire_modal();
 }
 
 function _draw_branch_hotspots() {
     var _ui_h = (viewer_mode == "wire") ? 110 : 60;
-    var _modal_open = (pending_wire_removal >= 0) || (pending_trunk_wire_y >= 0);
+    var _modal_open = (pending_wire_removal >= 0);
 
     for (var i = 0; i < array_length(tree.branches); i++) {
         var _b = tree.branches[i];
@@ -231,12 +261,12 @@ function _draw_wire_removal_modal() {
 }
 
 // Trunk wiring hotspots: 4 evenly-spaced points up the trunk's curve. Click
-// to open the direction picker. The trunk doesn't have a per-event "wired"
-// state (movement events are write-only history), so these aren't filtered
-// by the Wired/Unwired toggles — those apply only to branches.
+// applies a 20° bend at that height in the direction selected in the sub-row,
+// consuming 1 wire. The trunk has no per-event "wired" state — movement is
+// write-only history — so the Wired/Unwired filters only affect branches.
 function _draw_trunk_hotspots() {
     var _ui_h = (viewer_mode == "wire") ? 110 : 60;
-    var _modal_open = (pending_wire_removal >= 0) || (pending_trunk_wire_y >= 0);
+    var _modal_open = (pending_wire_removal >= 0);
 
     // 4 hotspots at trunk-arc fractions 0.2 .. 0.8 (skip very base / tip)
     var _count = 4;
@@ -264,7 +294,6 @@ function _draw_trunk_hotspots() {
         draw_set_alpha(1);
         draw_circle(_scr.x, _scr.y, _r, true);
 
-        // Label as height in cm so the player knows what they're picking
         var _height_cm = _t * tree.trunk.height_cm;
         draw_set_halign(fa_center);
         draw_set_valign(fa_middle);
@@ -275,79 +304,22 @@ function _draw_trunk_hotspots() {
         if (_hover && mouse_check_button_pressed(mb_left)
          && device_mouse_y_to_gui(0) > _ui_h
          && !_modal_open) {
-            pending_trunk_wire_y = _height_cm;
+            wire_trunk(tree, _height_cm, _trunk_bend_world_angle(wire_trunk_dir, cam_yaw));
         }
     }
 }
 
-// Direction picker for trunk wiring: 8 compass buttons in a 3x3 grid (centre
-// holds the cancel button). Confirm calls wire_trunk(...) which consumes 1
-// wire and pushes the bend onto trunk.movement.
-function _draw_trunk_wire_modal() {
-    var _gw = display_get_gui_width();
-    var _gh = display_get_gui_height();
-
-    draw_set_color(c_black);
-    draw_set_alpha(0.55);
-    draw_rectangle(0, 0, _gw, _gh, false);
-    draw_set_alpha(1);
-
-    var _mw = 360, _mh = 320;
-    var _mx = (_gw - _mw) / 2;
-    var _my = (_gh - _mh) / 2;
-
-    draw_set_color(make_color_rgb(40, 50, 40));
-    draw_rectangle(_mx, _my, _mx + _mw, _my + _mh, false);
-    draw_set_color(c_white);
-    draw_rectangle(_mx, _my, _mx + _mw, _my + _mh, true);
-
-    draw_set_halign(fa_center);
-    draw_set_valign(fa_top);
-    draw_text(_mx + _mw / 2, _my + 16,
-        "Bend trunk at " + string_format(pending_trunk_wire_y, 1, 0) + "cm");
-
-    var _wire_stock = inventory_count("wire");
-    draw_set_color(make_color_rgb(220, 220, 220));
-    var _detail = "Pick a direction. Each click adds a "
-        + string(BONSAI_TRUNK_BEND_PER_EVENT) + "° bend and uses 1 wire.";
-    draw_text(_mx + _mw / 2, _my + 44, _detail);
-    draw_text(_mx + _mw / 2, _my + 64, "Wire: " + string(_wire_stock)
-        + (_wire_stock <= 0 ? "  (out)" : ""));
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
-    draw_set_color(c_white);
-
-    // 3x3 grid: 8 compass directions around a Cancel button. Angles use the
-    // game's existing convention (0 = +x / east, 90 = +y / north).
-    var _bw = 72, _bh = 48, _gap = 12;
-    var _grid_w = _bw * 3 + _gap * 2;
-    var _grid_x = _mx + (_mw - _grid_w) / 2;
-    var _grid_y = _my + 100;
-
-    var _labels = ["NW", "N",  "NE",
-                   "W",  "X",  "E",
-                   "SW", "S",  "SE"];
-    var _angles = [135,  90,   45,
-                   180,  -1,   0,
-                   225,  270,  315];
-    var _can_buy = (_wire_stock > 0);
-
-    for (var i = 0; i < 9; i++) {
-        var _col = i mod 3;
-        var _row = i div 3;
-        var _bx  = _grid_x + _col * (_bw + _gap);
-        var _by  = _grid_y + _row * (_bh + _gap);
-
-        if (_angles[i] == -1) {
-            // Centre cell: Cancel
-            if (ui_button(_bx, _by, _bw, _bh, "Cancel")) {
-                pending_trunk_wire_y = -1;
-            }
-        } else {
-            if (ui_button(_bx, _by, _bw, _bh, _labels[i], _can_buy)) {
-                wire_trunk(tree, pending_trunk_wire_y, _angles[i]);
-                pending_trunk_wire_y = -1;
-            }
-        }
+// Translate screen-relative bend direction to a world XY angle in degrees.
+// Camera convention (Draw_72.gml): camera at (cos yaw * cos pitch, -sin yaw *
+// cos pitch, sin pitch) * d, looking at the tree. Screen-right at the tree's
+// height ends up at world (sin yaw, cos yaw); the other three directions are
+// 90° rotations of that. Independent of pitch — bends are horizontal.
+function _trunk_bend_world_angle(_dir, _yaw) {
+    switch (_dir) {
+        case "right": return 90  - _yaw;
+        case "left":  return -90 - _yaw;
+        case "up":    return 180 - _yaw;   // away from camera
+        case "down":  return       -_yaw;  // toward camera
     }
+    return 0;
 }
