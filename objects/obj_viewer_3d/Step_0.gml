@@ -8,6 +8,11 @@ if (pending_wire_removal >= 0) {
     dragging = false;
     exit;
 }
+if (pending_trunk_wire_y >= 0) {
+    if (keyboard_check_pressed(vk_escape)) pending_trunk_wire_y = -1;
+    dragging = false;
+    exit;
+}
 
 // --- Mouse drag to rotate camera ---
 var _mx = window_mouse_get_x();
