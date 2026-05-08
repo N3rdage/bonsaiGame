@@ -18,6 +18,7 @@ viewer_mode = "view";
 show_wired_hotspots   = true;
 show_unwired_hotspots = true;
 pending_wire_removal  = -1;   // -1 = no modal; otherwise = branch_id awaiting confirm
+pending_trunk_wire_y  = -1;   // -1 = no modal; otherwise = trunk height_cm awaiting direction pick
 
 // For drag-to-rotate
 dragging    = false;

@@ -3,8 +3,8 @@
 var _gw = display_get_gui_width();
 var _gh = display_get_gui_height();
 
-// While the confirmation modal is open, all other UI is non-interactive.
-var _interactive = (pending_wire_removal == -1);
+// While any modal is open, all other UI is non-interactive.
+var _interactive = (pending_wire_removal == -1) && (pending_trunk_wire_y == -1);
 
 // Top toolbar background — taller in wire mode to host the filter sub-row
 var _toolbar_h = (viewer_mode == "wire") ? 110 : 60;
@@ -75,13 +75,16 @@ if (viewer_mode == "wire") {
 if (viewer_mode == "clip" || viewer_mode == "prune" || viewer_mode == "wire") {
     _draw_branch_hotspots();
 }
+if (viewer_mode == "wire") {
+    _draw_trunk_hotspots();
+}
 
 // Bottom help text
 draw_set_color(make_color_rgb(180, 180, 180));
 draw_set_halign(fa_center);
 if (viewer_mode == "wire") {
     var _wire_stock = inventory_count("wire");
-    var _wire_msg = "Click branch to apply wire  |  Click wired branch to remove"
+    var _wire_msg = "Click branch or trunk to wire  |  Click wired branch to remove"
         + "  |  Wire: " + string(_wire_stock);
     if (_wire_stock <= 0) _wire_msg += "  (out)";
     draw_text(_gw / 2, _gh - 44, _wire_msg);
@@ -90,14 +93,17 @@ draw_text(_gw / 2, _gh - 24,
     "Drag to rotate  |  Scroll to zoom  |  R to reset camera");
 draw_set_halign(fa_left);
 
-// Confirmation modal — drawn last so it sits above everything else
+// Modals — drawn last so they sit above everything else
 if (pending_wire_removal >= 0) {
     _draw_wire_removal_modal();
+}
+if (pending_trunk_wire_y >= 0) {
+    _draw_trunk_wire_modal();
 }
 
 function _draw_branch_hotspots() {
     var _ui_h = (viewer_mode == "wire") ? 110 : 60;
-    var _modal_open = (pending_wire_removal >= 0);
+    var _modal_open = (pending_wire_removal >= 0) || (pending_trunk_wire_y >= 0);
 
     for (var i = 0; i < array_length(tree.branches); i++) {
         var _b = tree.branches[i];
@@ -221,5 +227,127 @@ function _draw_wire_removal_modal() {
     if (ui_button(_remove_x, _by, _bw, _bh, "Remove")) {
         remove_wire(tree, pending_wire_removal);
         pending_wire_removal = -1;
+    }
+}
+
+// Trunk wiring hotspots: 4 evenly-spaced points up the trunk's curve. Click
+// to open the direction picker. The trunk doesn't have a per-event "wired"
+// state (movement events are write-only history), so these aren't filtered
+// by the Wired/Unwired toggles — those apply only to branches.
+function _draw_trunk_hotspots() {
+    var _ui_h = (viewer_mode == "wire") ? 110 : 60;
+    var _modal_open = (pending_wire_removal >= 0) || (pending_trunk_wire_y >= 0);
+
+    // 4 hotspots at trunk-arc fractions 0.2 .. 0.8 (skip very base / tip)
+    var _count = 4;
+    var _t_lo  = 0.2;
+    var _t_hi  = 0.8;
+
+    for (var i = 0; i < _count; i++) {
+        var _t = lerp(_t_lo, _t_hi, i / (_count - 1));
+        var _f = trunk_frame_at(tree, _t);
+        var _scr = project_3d_to_screen(_f.pos);
+        if (_scr == undefined) continue;
+
+        var _hover = point_distance(
+            device_mouse_x_to_gui(0), device_mouse_y_to_gui(0),
+            _scr.x, _scr.y) < 16;
+
+        // Distinct hue from branch wire hotspots — green so the player reads
+        // "this is a different kind of click target."
+        var _col = make_color_rgb(120, 220, 140);
+        var _r = _hover ? 12 : 8;
+        draw_set_color(_col);
+        draw_set_alpha(_hover ? 0.9 : 0.6);
+        draw_circle(_scr.x, _scr.y, _r, false);
+        draw_set_color(c_white);
+        draw_set_alpha(1);
+        draw_circle(_scr.x, _scr.y, _r, true);
+
+        // Label as height in cm so the player knows what they're picking
+        var _height_cm = _t * tree.trunk.height_cm;
+        draw_set_halign(fa_center);
+        draw_set_valign(fa_middle);
+        draw_text(_scr.x, _scr.y, string_format(_height_cm, 1, 0));
+        draw_set_halign(fa_left);
+        draw_set_valign(fa_top);
+
+        if (_hover && mouse_check_button_pressed(mb_left)
+         && device_mouse_y_to_gui(0) > _ui_h
+         && !_modal_open) {
+            pending_trunk_wire_y = _height_cm;
+        }
+    }
+}
+
+// Direction picker for trunk wiring: 8 compass buttons in a 3x3 grid (centre
+// holds the cancel button). Confirm calls wire_trunk(...) which consumes 1
+// wire and pushes the bend onto trunk.movement.
+function _draw_trunk_wire_modal() {
+    var _gw = display_get_gui_width();
+    var _gh = display_get_gui_height();
+
+    draw_set_color(c_black);
+    draw_set_alpha(0.55);
+    draw_rectangle(0, 0, _gw, _gh, false);
+    draw_set_alpha(1);
+
+    var _mw = 360, _mh = 320;
+    var _mx = (_gw - _mw) / 2;
+    var _my = (_gh - _mh) / 2;
+
+    draw_set_color(make_color_rgb(40, 50, 40));
+    draw_rectangle(_mx, _my, _mx + _mw, _my + _mh, false);
+    draw_set_color(c_white);
+    draw_rectangle(_mx, _my, _mx + _mw, _my + _mh, true);
+
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_top);
+    draw_text(_mx + _mw / 2, _my + 16,
+        "Bend trunk at " + string_format(pending_trunk_wire_y, 1, 0) + "cm");
+
+    var _wire_stock = inventory_count("wire");
+    draw_set_color(make_color_rgb(220, 220, 220));
+    var _detail = "Pick a direction. Each click adds a "
+        + string(BONSAI_TRUNK_BEND_PER_EVENT) + "° bend and uses 1 wire.";
+    draw_text(_mx + _mw / 2, _my + 44, _detail);
+    draw_text(_mx + _mw / 2, _my + 64, "Wire: " + string(_wire_stock)
+        + (_wire_stock <= 0 ? "  (out)" : ""));
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
+    draw_set_color(c_white);
+
+    // 3x3 grid: 8 compass directions around a Cancel button. Angles use the
+    // game's existing convention (0 = +x / east, 90 = +y / north).
+    var _bw = 72, _bh = 48, _gap = 12;
+    var _grid_w = _bw * 3 + _gap * 2;
+    var _grid_x = _mx + (_mw - _grid_w) / 2;
+    var _grid_y = _my + 100;
+
+    var _labels = ["NW", "N",  "NE",
+                   "W",  "X",  "E",
+                   "SW", "S",  "SE"];
+    var _angles = [135,  90,   45,
+                   180,  -1,   0,
+                   225,  270,  315];
+    var _can_buy = (_wire_stock > 0);
+
+    for (var i = 0; i < 9; i++) {
+        var _col = i mod 3;
+        var _row = i div 3;
+        var _bx  = _grid_x + _col * (_bw + _gap);
+        var _by  = _grid_y + _row * (_bh + _gap);
+
+        if (_angles[i] == -1) {
+            // Centre cell: Cancel
+            if (ui_button(_bx, _by, _bw, _bh, "Cancel")) {
+                pending_trunk_wire_y = -1;
+            }
+        } else {
+            if (ui_button(_bx, _by, _bw, _bh, _labels[i], _can_buy)) {
+                wire_trunk(tree, pending_trunk_wire_y, _angles[i]);
+                pending_trunk_wire_y = -1;
+            }
+        }
     }
 }
