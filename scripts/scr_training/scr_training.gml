@@ -1,27 +1,32 @@
 // scr_training
 
-function apply_wire(_tree, _branch_id, _target_bend_deg) {
+function apply_wire(_tree, _branch_id, _target_bend_deg, _target_bend_v_deg = 0) {
     if (_branch_id < 0 || _branch_id >= array_length(_tree.branches)) return false;
     if (!inventory_remove("wire", 1)) return false;
 
-    var _branch   = _tree.branches[_branch_id];
-    var _old_bend = _branch.bend;
-    _branch.wired = true;
-    _branch.bend  = _target_bend_deg;
+    var _branch     = _tree.branches[_branch_id];
+    var _old_bend   = _branch.bend;
+    var _old_bend_v = variable_struct_exists(_branch, "bend_v") ? _branch.bend_v : 0;
+    _branch.wired  = true;
+    _branch.bend   = _target_bend_deg;
+    _branch.bend_v = _target_bend_v_deg;
 
     array_push(_tree.wires_applied, {
-        branch_id:   _branch_id,
-        applied_day: global.game_day,
-        removed_day: -1,
-        bend_target: _target_bend_deg,
+        branch_id:     _branch_id,
+        applied_day:   global.game_day,
+        removed_day:   -1,
+        bend_target:   _target_bend_deg,
+        bend_target_v: _target_bend_v_deg,
     });
 
-    // Vitality penalty fires only when crossing into the unsafe zone — multi-
-    // click wiring shouldn't ding repeatedly for staying over-bent.
+    // Vitality penalty fires only when crossing into the unsafe zone, judged
+    // by the combined bend magnitude sqrt(h² + v²) — multi-click wiring (in
+    // either axis) shouldn't ding repeatedly for staying over-bent.
     var _max_safe = 60 - (_branch.girth * 20);
-    var _was_safe = abs(_old_bend) <= _max_safe;
-    var _is_safe  = abs(_target_bend_deg) <= _max_safe;
-    if (_was_safe && !_is_safe) {
+    var _old_mag  = sqrt(_old_bend * _old_bend + _old_bend_v * _old_bend_v);
+    var _new_mag  = sqrt(_target_bend_deg * _target_bend_deg
+                       + _target_bend_v_deg * _target_bend_v_deg);
+    if (_old_mag <= _max_safe && _new_mag > _max_safe) {
         _tree.vitality -= 10;
     }
 
@@ -40,6 +45,9 @@ function remove_wire(_tree, _branch_id) {
             var _duration = _w.removed_day - _w.applied_day;
             if (_duration < 56) {
                 _branch.bend *= 0.3;
+                if (variable_struct_exists(_branch, "bend_v")) {
+                    _branch.bend_v *= 0.3;
+                }
             }
             break;
         }
