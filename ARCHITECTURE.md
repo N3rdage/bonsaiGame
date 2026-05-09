@@ -39,7 +39,7 @@ scripts/
   scr_scoring            — Aesthetic scoring of a tree; called on demand, never persisted
   scr_save_load          — JSON save/load of whole game state, multi-slot + metadata helpers
   scr_math_3d            — Vector helpers, 3D vertex format, screen projection
-  scr_bonsai_mesh        — Builds vertex buffers from tree morphology, including visible copper-wire coils on wired branches. Also exports trunk_frames(_tree) — N+1 parallel-transported {pos, tangent, normal, binormal} frames sampled along the trunk's curve, derived from trunk.movement bend events. Both the mesh and the trunk-shape style scorers (informal_upright, slanting, cascade in scr_styles_data) consume the same frame walk, so what the player sees is what they're scored on.
+  scr_bonsai_mesh        — Builds vertex buffers from tree morphology, including visible copper-wire coils on wired branches. Also exports trunk_frames(_tree) / trunk_frame_at(_tree, _t) — N+1 parallel-transported {pos, tangent, normal, binormal} frames sampled along the trunk's curve, derived from trunk.movement bend events. Branches get the same treatment via branch_frame_at(_tree, _branch, _t) — closed-form arc geometry from the single branch.bend scalar (no parallel-transport walk needed). Both the mesh and the trunk-shape style scorers (informal_upright, slanting, cascade in scr_styles_data) consume the same frame walk, so what the player sees is what they're scored on.
   scr_title_hero         — Builds the hand-crafted hero juniper rendered on the title screen
   scr_ui                 — Button and bar drawing helpers
   scr_viewer             — Enter/exit the 3D viewer room
@@ -283,7 +283,6 @@ Because `obj_tree_sprite` is tied to a room, and trees are tied to a `location` 
 
 ## Known rough edges
 
-- **Branch curvature is still planar.** `branch.bend` rotates the whole branch direction in world XY but the branch itself stays a straight line. Wired branches tilt their endpoint but don't curve along their length. Same fix family as the trunk math (parallel transport for branches), tracked as TODO #10.
 - **Foliage is untextured cross-billboards.** They work but look cubic. Needs a leaf texture with alpha.
 - **Pacing is tuned aggressively toward active play.** Branch spawn rate is 10% per day weighted by vitality. Real bonsai is slower. This is a game, not a simulator.
 - **Only junipers are playable.** Maple and pine can't be grown from cuttings (realistic) and seeds aren't implemented yet.

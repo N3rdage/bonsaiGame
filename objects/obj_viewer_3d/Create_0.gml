@@ -18,12 +18,15 @@ viewer_mode = "view";
 show_wired_hotspots   = true;
 show_unwired_hotspots = true;
 pending_wire_removal  = -1;   // -1 = no modal; otherwise = branch_id awaiting confirm
-// Trunk-wire direction is screen-relative ("left"/"right"/"up"/"down") and
-// persists across clicks. The viewer translates it to a world XY angle at
-// click time using cam_yaw, so "left" always means screen-left from the
-// current camera angle. Player rotates camera, picks direction once, then
-// clicks trunk hotspots to apply.
-wire_trunk_dir = "left";
+// Bend direction is screen-relative ("left"/"right"/"up"/"down") and persists
+// across clicks. Used for both trunk bends (translates to a world XY angle via
+// cam_yaw) and branch bends (translates to a CCW/CW sign by perturbing the
+// branch's tip and projecting to screen).
+wire_bend_dir = "left";
+// "bend" or "remove" — what clicks do in wire mode. Bend mode hotspot clicks
+// add bend in wire_bend_dir; Remove mode opens the existing removal modal on
+// wired branches and hides trunk hotspots (no per-event trunk removal yet).
+wire_action = "bend";
 
 // For drag-to-rotate
 dragging    = false;
