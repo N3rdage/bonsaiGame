@@ -235,9 +235,14 @@ function _draw_branch_hotspots() {
                 if (wire_action == "remove") {
                     if (_b.wired) pending_wire_removal = i;  // open confirm modal
                 } else {
-                    var _sign       = _branch_bend_sign(tree, _b, wire_bend_dir);
-                    var _new_target = _b.bend + _sign * BONSAI_BRANCH_BEND_PER_CLICK;
-                    apply_wire(tree, i, _new_target);
+                    var _is_vertical = (wire_bend_dir == "up" || wire_bend_dir == "down");
+                    var _axis = _is_vertical ? "v" : "h";
+                    var _sign = _branch_bend_sign(tree, _b, wire_bend_dir, _axis);
+                    var _delta = _sign * BONSAI_BRANCH_BEND_PER_CLICK;
+                    var _cur_v = variable_struct_exists(_b, "bend_v") ? _b.bend_v : 0;
+                    var _new_h = _is_vertical ? _b.bend  : (_b.bend + _delta);
+                    var _new_v = _is_vertical ? (_cur_v + _delta) : _cur_v;
+                    apply_wire(tree, i, _new_h, _new_v);
                 }
             }
         }
@@ -356,17 +361,27 @@ function _draw_trunk_hotspots() {
 // handedness, so the L/R cases are inverted from the naive derivation.
 // Independent of pitch — all bends stay horizontal in world.
 // Pick the sign for a branch bend increment so the tip moves in the player's
-// chosen screen direction. Numerical: perturb the branch's bend by a small
-// test delta, project the tip before-and-after to screen, and dot the screen-
-// motion vector with the target screen direction. Positive dot → +bend moves
-// the tip the right way; negative → flip the sign. Falls back to +1 when the
-// branch is end-on to the camera (no usable screen motion).
-function _branch_bend_sign(_tree, _branch, _dir) {
+// chosen screen direction. Numerical: perturb the branch's bend (in the named
+// axis — "h" for horizontal sweep, "v" for vertical) by a small test delta,
+// project the tip before-and-after to screen, and dot the screen-motion vector
+// against the target screen direction. Positive dot → +bend moves the tip the
+// right way; negative → flip the sign. Falls back to +1 when the branch is
+// end-on to the camera (no usable screen motion).
+function _branch_bend_sign(_tree, _branch, _dir, _axis) {
     var _scr_a = project_3d_to_screen(branch_point(_tree, _branch, 1));
-    var _orig  = _branch.bend;
-    _branch.bend = _orig + 5;
-    var _scr_b = project_3d_to_screen(branch_point(_tree, _branch, 1));
-    _branch.bend = _orig;
+    var _delta_test = 5;
+    var _scr_b;
+    if (_axis == "v") {
+        var _orig_v = variable_struct_exists(_branch, "bend_v") ? _branch.bend_v : 0;
+        _branch.bend_v = _orig_v + _delta_test;
+        _scr_b = project_3d_to_screen(branch_point(_tree, _branch, 1));
+        _branch.bend_v = _orig_v;
+    } else {
+        var _orig = _branch.bend;
+        _branch.bend = _orig + _delta_test;
+        _scr_b = project_3d_to_screen(branch_point(_tree, _branch, 1));
+        _branch.bend = _orig;
+    }
     if (_scr_a == undefined || _scr_b == undefined) return 1;
 
     var _dx = _scr_b.x - _scr_a.x;

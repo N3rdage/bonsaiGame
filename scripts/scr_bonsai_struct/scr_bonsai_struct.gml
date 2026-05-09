@@ -65,7 +65,8 @@ function BonsaiTree(_species_key, _origin) constructor {
             length:    _length_cm,
             girth:     max(2, _length_cm * 0.3),
             wired:     false,
-            bend:      0,
+            bend:      0,   // horizontal sweep (degrees, around world +z)
+            bend_v:    0,   // vertical sweep (degrees, around horizontal axis perpendicular to initial branch direction)
         };
         array_push(branches, _b);
         mesh_dirty = true;
