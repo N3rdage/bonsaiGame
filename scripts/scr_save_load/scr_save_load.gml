@@ -90,6 +90,13 @@ function load_game(_slot = 1) {
         for (var k = 0; k < array_length(_keys); k++) {
             variable_struct_set(_t, _keys[k], _data[$ _keys[k]]);
         }
+        // Branch field migration: pre-bend_v saves don't have the field.
+        // Default to 0 so the mesh and viewer don't trip over a missing read.
+        for (var b = 0; b < array_length(_t.branches); b++) {
+            if (!variable_struct_exists(_t.branches[b], "bend_v")) {
+                _t.branches[b].bend_v = 0;
+            }
+        }
         _t.mesh_dirty = true;
         _t.mesh_cache = undefined;
         array_push(global.all_trees, _t);

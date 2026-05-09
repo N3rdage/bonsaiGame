@@ -184,12 +184,15 @@ function build_trunk(_vbuff, _tree) {
 // Shared by build_branch and the 3D viewer's hotspot code.
 // t_along: 0 = trunk-surface origin, 1 = branch tip.
 //
-// Branches carry a single `branch.bend` scalar (degrees), interpreted as the
-// total angular sweep over the branch's length: at the base the branch grows
-// in `branch.angle`, at the tip in `branch.angle + branch.bend`. The bend axis
-// is world +z, so the curve lives in a horizontal plane plus a constant +0.25
-// z lift per unit horizontal travel. Uniform curvature → closed-form circular-
-// arc integration in xy; degenerate at bend ≈ 0 (straight branch).
+// Branches carry two bend scalars (degrees) interpreted as the total angular
+// sweep over the branch's length:
+//   - branch.bend (horizontal): rotates the tangent around world +z
+//   - branch.bend_v (vertical): rotates the tangent around the horizontal axis
+//                               perpendicular to the initial branch direction
+// Rotation order is V-then-H, so bend_v=0 collapses exactly to the horizontal-
+// only behaviour (closed-form circular-arc integral). With both axes active,
+// the rotation composition no longer admits a closed form, so position is
+// integrated numerically over a small number of steps.
 function branch_point(_tree, _branch, _t_along) {
     var _trunk = _tree.trunk;
     var _ot    = clamp(_branch.origin_y / _trunk.height_cm, 0, 1);
@@ -207,45 +210,89 @@ function branch_point(_tree, _branch, _t_along) {
     var _oz  = _tf.pos.z + (_ca0 * _tf.normal.z + _sa0 * _tf.binormal.z) * _trunk_r;
 
     var _length_m = (_branch.length / 100) * BONSAI_DISPLAY_SCALE;
-    var _hx, _hy;
-    if (abs(_branch.bend) < 0.001) {
-        // Straight branch — degenerate case of the integral below.
-        _hx = _length_m * _t_along * _ca0;
-        _hy = _length_m * _t_along * _sa0;
-    } else {
-        // Closed form: integrate (cos angle(s), sin angle(s)) along arc length
-        // s ∈ [0, L*t] with angle(s) = a0 + (bend/L)*s.
-        //   ∫ cos(a0 + κs) ds = (1/κ) * (sin(a0 + κs) - sin(a0))
-        // Convert κ from rad to deg via the (180/π) factor.
-        var _angle_t = _branch.angle + _branch.bend * _t_along;
-        var _scale   = (_length_m / _branch.bend) * (180 / pi);
-        _hx = _scale * (dsin(_angle_t) - dsin(_branch.angle));
-        _hy = _scale * (-dcos(_angle_t) + dcos(_branch.angle));
-    }
-    var _zl = _length_m * _t_along * 0.25;
+    var _bend_v   = variable_struct_exists(_branch, "bend_v") ? _branch.bend_v : 0;
 
-    return vec3(_ox + _hx, _oy + _hy, _oz + _zl);
+    var _hx, _hy, _hz;
+    if (abs(_bend_v) < 0.001) {
+        // Pure horizontal — closed-form arc integral + linear z lift.
+        if (abs(_branch.bend) < 0.001) {
+            _hx = _length_m * _t_along * _ca0;
+            _hy = _length_m * _t_along * _sa0;
+        } else {
+            // ∫ cos(a0 + κs) ds = (1/κ) * (sin(a0 + κs) - sin(a0))
+            // Convert κ from rad to deg via the (180/π) factor.
+            var _angle_t = _branch.angle + _branch.bend * _t_along;
+            var _scale   = (_length_m / _branch.bend) * (180 / pi);
+            _hx = _scale * (dsin(_angle_t) - dsin(_branch.angle));
+            _hy = _scale * (-dcos(_angle_t) + dcos(_branch.angle));
+        }
+        _hz = _length_m * _t_along * 0.25;
+    } else {
+        // Mixed bend — numerical integration. T0 stays unnormalised (mag
+        // sqrt(1.0625)) so its z component matches the legacy 0.25 lift.
+        var _v_axis = vec3(_sa0, -_ca0, 0);
+        var _zaxis  = vec3(0, 0, 1);
+        var _T0     = vec3(_ca0, _sa0, 0.25);
+        var _N      = 12;
+        var _ds     = _length_m * _t_along / _N;
+        _hx = 0; _hy = 0; _hz = 0;
+        for (var i = 0; i < _N; i++) {
+            var _u  = (i + 0.5) / _N * _t_along;
+            var _Tv = vec3_rotate(_T0, _v_axis, _bend_v * _u);
+            var _T  = vec3_rotate(_Tv, _zaxis, _branch.bend * _u);
+            _hx += _T.x * _ds;
+            _hy += _T.y * _ds;
+            _hz += _T.z * _ds;
+        }
+    }
+
+    return vec3(_ox + _hx, _oy + _hy, _oz + _hz);
 }
 
-// Frame at fractional length _t along the branch. Tangent rotates uniformly
-// around world +z by (branch.bend * _t) from the start; normal/binormal rotate
-// with it. Closed-form, no parallel-transport walk needed (single bend scalar
-// → uniform curvature). Position via branch_point.
+// Frame at fractional length _t along the branch. With bend_v=0 the frame is
+// closed-form (cos/sin direct). With bend_v ≠ 0, rotate the initial unit frame
+// by R_v then R_h — same composition order as the position integral above, so
+// tangent here matches the integrand exactly.
 function branch_frame_at(_tree, _branch, _t) {
     var _pos = branch_point(_tree, _branch, _t);
 
-    var _angle_t = _branch.angle + _branch.bend * _t;
-    var _ca = dcos(_angle_t);
-    var _sa = dsin(_angle_t);
-    // The unnormalised tangent is (cos, sin, 0.25); its magnitude sqrt(1.0625)
-    // is constant along the curve since rotations around +z don't touch z.
+    var _bend_v = variable_struct_exists(_branch, "bend_v") ? _branch.bend_v : 0;
+    var _ca0 = dcos(_branch.angle);
+    var _sa0 = dsin(_branch.angle);
     var _inv = 1 / sqrt(1.0625);
+
+    if (abs(_bend_v) < 0.001) {
+        // Pure horizontal — closed-form rotation of the initial frame.
+        var _angle_t = _branch.angle + _branch.bend * _t;
+        var _ca = dcos(_angle_t);
+        var _sa = dsin(_angle_t);
+        return {
+            pos:      _pos,
+            tangent:  vec3(_ca * _inv,        _sa * _inv,        0.25 * _inv),
+            normal:   vec3(-_sa,              _ca,               0),
+            binormal: vec3(-0.25 * _ca * _inv, -0.25 * _sa * _inv, _inv),
+        };
+    }
+
+    // Mixed: rotate initial T0/N0/B0 by R_v(bend_v*t) then R_h(bend_h*t).
+    var _v_axis = vec3(_sa0, -_ca0, 0);
+    var _zaxis  = vec3(0, 0, 1);
+    var _T0     = vec3(_ca0 * _inv,         _sa0 * _inv,         0.25 * _inv);
+    var _N0     = vec3(-_sa0,               _ca0,                0);
+    var _B0     = vec3(-0.25 * _ca0 * _inv, -0.25 * _sa0 * _inv, _inv);
+
+    var _av = _bend_v * _t;
+    var _ah = _branch.bend * _t;
+
+    var _Tv = vec3_rotate(_T0, _v_axis, _av);
+    var _Nv = vec3_rotate(_N0, _v_axis, _av);
+    var _Bv = vec3_rotate(_B0, _v_axis, _av);
 
     return {
         pos:      _pos,
-        tangent:  vec3(_ca * _inv,        _sa * _inv,        0.25 * _inv),
-        normal:   vec3(-_sa,              _ca,               0),
-        binormal: vec3(-0.25 * _ca * _inv, -0.25 * _sa * _inv, _inv),
+        tangent:  vec3_rotate(_Tv, _zaxis, _ah),
+        normal:   vec3_rotate(_Nv, _zaxis, _ah),
+        binormal: vec3_rotate(_Bv, _zaxis, _ah),
     };
 }
 
