@@ -3,14 +3,10 @@
 // (BonsaiTree.target_style), and `score_tree` (scr_scoring) feeds the tree
 // into the style's `score(_tree)` function as one weighted criterion.
 //
-// Each style with a `score` field returns a 0..1 conformance value. Styles
-// whose distinguishing feature is trunk shape (curvature/lean/descending
-// growth) currently have no morphology field to read from — `trunk.movement`
-// is unused and branches always angle upward — so they omit the function
-// entirely. `score_tree` treats missing-score styles the same as "no target
-// style": the criterion drops out of the weighted average. Real scoring
-// lands when TODO #11 (proper trunk-bending math) gives those styles
-// something to measure.
+// Each style's `score(_tree)` returns a 0..1 conformance value. Trunk-shape
+// styles (informal_upright, slanting, cascade) read the trunk's curve via
+// trunk_frames(_tree) — the same parallel-transported frame walk that drives
+// the mesh, so what the player sees IS what they're scored on.
 //
 // Call init_styles() once at game start.
 
@@ -45,20 +41,74 @@ function init_styles() {
             key:          "informal_upright",
             display_name: "Informal Upright (Moyogi)",
             description:  "Gently curved trunk; the most natural form.",
-            // No score: needs trunk curvature data (see TODO #11).
+            score: function(_tree) {
+                // Reward visible curve along the trunk that returns to vertical
+                // at the apex — the S-curve silhouette of a Moyogi. Two factors
+                // multiplied:
+                //  - max lean along the trunk peaks at ~25° (gentle curve)
+                //  - apex lean stays near vertical
+                var _frames = trunk_frames(_tree);
+                var _n = array_length(_frames);
+                if (_n < 2) return 0;
+                var _max_lean = 0;
+                for (var i = 0; i < _n; i++) {
+                    var _l = darccos(clamp(_frames[i].tangent.z, -1, 1));
+                    if (_l > _max_lean) _max_lean = _l;
+                }
+                var _apex_lean = darccos(clamp(_frames[_n - 1].tangent.z, -1, 1));
+                var _curve_score   = max(0, 1 - abs(_max_lean - 25) / 25);
+                var _upright_score = max(0, 1 - _apex_lean / 30);
+                return _curve_score * _upright_score;
+            },
         },
         slanting: {
             key:          "slanting",
             display_name: "Slanting (Shakan)",
             description:  "Trunk leans noticeably to one side.",
-            // No score: needs trunk lean data (see TODO #11).
+            score: function(_tree) {
+                // Reward an apex that leans in the 25..45° band, with bend
+                // events all pointing the same direction (no S-curve).
+                var _frames = trunk_frames(_tree);
+                var _n = array_length(_frames);
+                if (_n < 2) return 0;
+                var _apex_lean = darccos(clamp(_frames[_n - 1].tangent.z, -1, 1));
+
+                // Plateau 25..45°, falls off outside.
+                var _lean_score = max(0, 1 - max(abs(_apex_lean - 35) - 10, 0) / 30);
+
+                // Direction consistency: cosine-mean of bend-event angles
+                // relative to the first event. 1 = perfectly aligned, 0 or
+                // negative = scattered or reversing.
+                var _movement = _tree.trunk.movement;
+                var _events_n = array_length(_movement);
+                if (_events_n == 0) return 0;
+                var _ref = _movement[0].angle_deg;
+                var _consistent = 0;
+                for (var i = 0; i < _events_n; i++) {
+                    _consistent += dcos(_movement[i].angle_deg - _ref);
+                }
+                var _consistency = max(0, _consistent / _events_n);
+
+                return _lean_score * _consistency;
+            },
         },
         cascade: {
             key:          "cascade",
             display_name: "Cascade (Kengai)",
             description:  "Main growth descends below the pot's rim.",
-            // No score: needs downward-growing branches / below-pot reach.
-            // Current branches always angle upward (see TODO #11 family).
+            score: function(_tree) {
+                // Reward the trunk tip dropping below the base. Full marks at
+                // a drop equal to ~half the trunk's arc length below the base
+                // (a textbook Kengai descent). Linear scale below that.
+                var _frames = trunk_frames(_tree);
+                var _n = array_length(_frames);
+                if (_n < 2) return 0;
+                var _drop = _frames[0].pos.z - _frames[_n - 1].pos.z;
+                if (_drop <= 0) return 0;
+                var _arc = (_tree.trunk.height_cm / 100) * BONSAI_DISPLAY_SCALE;
+                if (_arc <= 0) return 0;
+                return clamp(_drop / (_arc * 0.5), 0, 1);
+            },
         },
         broom: {
             key:          "broom",
