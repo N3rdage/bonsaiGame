@@ -46,61 +46,84 @@ if (ui_button(_gw - 120, 12, 100, _bh, "Exit (Esc)", _interactive)) {
     exit_3d_viewer();
 }
 
-// Wire-mode sub-row: trunk-bend direction selector + branch-hotspot filters.
-// Both groups are screen-relative, so the row's natural mental model is
-// "what to do when you click" + "what to show".
+// Wire-mode sub-row: action toggle, plus (in Bend mode only) direction picker
+// and hotspot filters. Mental model is "what does a click do" + "in which
+// direction" + "what to show." Remove mode collapses to just the action toggle
+// since direction and unwired-filter are irrelevant when removing.
 if (viewer_mode == "wire") {
     var _fty   = 64;
     var _fth   = 28;
     var _gap   = 8;
     var _label_w = 50;
 
-    // Group A: bend direction (screen-relative; cam_yaw maps to world angle on click)
+    // Group A: action (always visible in wire mode)
+    var _aw    = 80;
+    var _g_a_w = _label_w + _gap + (_aw * 2 + _gap);
+
+    // Groups B and C only in Bend mode
+    var _show_bend_groups = (wire_action == "bend");
     var _dirs   = ["up", "left", "down", "right"];
     var _dir_lab = ["Up", "Left", "Down", "Right"];
     var _dw     = 56;
-    var _g_a_w  = _label_w + _gap + (_dw * 4 + _gap * 3);
-
-    // Group B: hotspot filters
+    var _g_b_w  = _label_w + _gap + (_dw * 4 + _gap * 3);
     var _ftw    = 92;
-    var _g_b_w  = _label_w + _gap + (_ftw * 2 + _gap);
+    var _g_c_w  = _label_w + _gap + (_ftw * 2 + _gap);
 
     var _sep    = 24;
-    var _total  = _g_a_w + _sep + _g_b_w;
+    var _total  = _show_bend_groups ? (_g_a_w + _sep + _g_b_w + _sep + _g_c_w) : _g_a_w;
     var _row_x  = _gw / 2 - _total / 2;
 
-    // Group A — Bend
+    // Group A — Action
     draw_set_color(make_color_rgb(180, 180, 180));
     draw_set_halign(fa_right);
     draw_set_valign(fa_middle);
-    draw_text(_row_x + _label_w, _fty + _fth / 2, "Bend:");
+    draw_text(_row_x + _label_w, _fty + _fth / 2, "Action:");
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
 
-    var _dir_x0 = _row_x + _label_w + _gap;
-    for (var i = 0; i < 4; i++) {
-        var _dir_bx = _dir_x0 + i * (_dw + _gap);
-        if (ui_toggle(_dir_bx, _fty, _dw, _fth, _dir_lab[i], wire_trunk_dir == _dirs[i], _interactive)) {
-            wire_trunk_dir = _dirs[i];
+    var _ax0 = _row_x + _label_w + _gap;
+    if (ui_toggle(_ax0, _fty, _aw, _fth, "Bend", wire_action == "bend", _interactive)) {
+        wire_action = "bend";
+    }
+    if (ui_toggle(_ax0 + _aw + _gap, _fty, _aw, _fth, "Remove", wire_action == "remove", _interactive)) {
+        wire_action = "remove";
+    }
+
+    if (_show_bend_groups) {
+        // Group B — Bend direction
+        var _bendx = _row_x + _g_a_w + _sep;
+        draw_set_color(make_color_rgb(180, 180, 180));
+        draw_set_halign(fa_right);
+        draw_set_valign(fa_middle);
+        draw_text(_bendx + _label_w, _fty + _fth / 2, "Bend:");
+        draw_set_halign(fa_left);
+        draw_set_valign(fa_top);
+
+        var _dir_x0 = _bendx + _label_w + _gap;
+        for (var i = 0; i < 4; i++) {
+            var _dir_bx = _dir_x0 + i * (_dw + _gap);
+            if (ui_toggle(_dir_bx, _fty, _dw, _fth, _dir_lab[i], wire_bend_dir == _dirs[i], _interactive)) {
+                wire_bend_dir = _dirs[i];
+            }
         }
-    }
 
-    // Group B — Show
-    var _showx = _row_x + _g_a_w + _sep;
-    draw_set_color(make_color_rgb(180, 180, 180));
-    draw_set_halign(fa_right);
-    draw_set_valign(fa_middle);
-    draw_text(_showx + _label_w, _fty + _fth / 2, "Show:");
-    draw_set_halign(fa_left);
-    draw_set_valign(fa_top);
+        // Group C — Show
+        var _showx = _bendx + _g_b_w + _sep;
+        draw_set_color(make_color_rgb(180, 180, 180));
+        draw_set_halign(fa_right);
+        draw_set_valign(fa_middle);
+        draw_text(_showx + _label_w, _fty + _fth / 2, "Show:");
+        draw_set_halign(fa_left);
+        draw_set_valign(fa_top);
 
-    var _ftx = _showx + _label_w + _gap;
-    if (ui_toggle(_ftx, _fty, _ftw, _fth, "Wired", show_wired_hotspots, _interactive)) {
-        show_wired_hotspots = !show_wired_hotspots;
-    }
-    var _ftx2 = _ftx + _ftw + _gap;
-    if (ui_toggle(_ftx2, _fty, _ftw, _fth, "Unwired", show_unwired_hotspots, _interactive)) {
-        show_unwired_hotspots = !show_unwired_hotspots;
+        var _ftx = _showx + _label_w + _gap;
+        if (ui_toggle(_ftx, _fty, _ftw, _fth, "Wired", show_wired_hotspots, _interactive)) {
+            show_wired_hotspots = !show_wired_hotspots;
+        }
+        var _ftx2 = _ftx + _ftw + _gap;
+        if (ui_toggle(_ftx2, _fty, _ftw, _fth, "Unwired", show_unwired_hotspots, _interactive)) {
+            show_unwired_hotspots = !show_unwired_hotspots;
+        }
     }
 }
 
@@ -108,7 +131,7 @@ if (viewer_mode == "wire") {
 if (viewer_mode == "clip" || viewer_mode == "prune" || viewer_mode == "wire") {
     _draw_branch_hotspots();
 }
-if (viewer_mode == "wire") {
+if (viewer_mode == "wire" && wire_action == "bend") {
     _draw_trunk_hotspots();
 }
 
@@ -117,8 +140,14 @@ draw_set_color(make_color_rgb(180, 180, 180));
 draw_set_halign(fa_center);
 if (viewer_mode == "wire") {
     var _wire_stock = inventory_count("wire");
-    var _wire_msg = "Click branch or trunk to wire  |  Click wired branch to remove"
-        + "  |  Wire: " + string(_wire_stock);
+    var _wire_msg;
+    if (wire_action == "bend") {
+        _wire_msg = "Click branch or trunk to bend (" + string(BONSAI_BRANCH_BEND_PER_CLICK)
+            + "° per click on branches, " + string(BONSAI_TRUNK_BEND_PER_EVENT)
+            + "° on trunks)  |  Wire: " + string(_wire_stock);
+    } else {
+        _wire_msg = "Click a wired branch to remove its wire  |  Wire: " + string(_wire_stock);
+    }
     if (_wire_stock <= 0) _wire_msg += "  (out)";
     draw_text(_gw / 2, _gh - 44, _wire_msg);
 }
@@ -138,10 +167,15 @@ function _draw_branch_hotspots() {
     for (var i = 0; i < array_length(tree.branches); i++) {
         var _b = tree.branches[i];
 
-        // Wire mode: respect filter toggles
+        // Wire mode filters. In Remove action, force Wired-only — unwired
+        // branches aren't a removal target so showing them would be noise.
         if (viewer_mode == "wire") {
-            if (_b.wired && !show_wired_hotspots) continue;
-            if (!_b.wired && !show_unwired_hotspots) continue;
+            if (wire_action == "remove") {
+                if (!_b.wired) continue;
+            } else {
+                if (_b.wired && !show_wired_hotspots) continue;
+                if (!_b.wired && !show_unwired_hotspots) continue;
+            }
         }
 
         var _mid = branch_point(tree, _b, 0.7);
@@ -152,12 +186,15 @@ function _draw_branch_hotspots() {
             device_mouse_x_to_gui(0), device_mouse_y_to_gui(0),
             _scr.x, _scr.y) < 16;
 
-        // Colour by mode (wire mode splits by wired state: blue = apply, amber = remove)
+        // Colour by mode + action: clip yellow, prune red. Wire mode splits
+        // by wired state in Bend (blue = first wire, amber = add bend on
+        // already-wired) and goes amber for everything in Remove.
         var _col;
         if (viewer_mode == "clip")       _col = make_color_rgb(255, 200, 80);
         else if (viewer_mode == "prune") _col = make_color_rgb(255, 100, 100);
-        else if (_b.wired)               _col = make_color_rgb(255, 130, 40);  // wire — remove
-        else                             _col = make_color_rgb(100, 200, 255); // wire — apply
+        else if (wire_action == "remove") _col = make_color_rgb(255, 130, 40);
+        else if (_b.wired)               _col = make_color_rgb(255, 180, 80);
+        else                             _col = make_color_rgb(100, 200, 255);
 
         var _r = _hover ? 12 : 8;
         draw_set_color(_col);
@@ -195,10 +232,12 @@ function _draw_branch_hotspots() {
                 prune_branch(tree, i);
                 return;   // array changed, bail out of this frame's loop
             } else if (viewer_mode == "wire") {
-                if (_b.wired) {
-                    pending_wire_removal = i;   // open the confirm modal
+                if (wire_action == "remove") {
+                    if (_b.wired) pending_wire_removal = i;  // open confirm modal
                 } else {
-                    apply_wire(tree, i, 30);
+                    var _sign       = _branch_bend_sign(tree, _b, wire_bend_dir);
+                    var _new_target = _b.bend + _sign * BONSAI_BRANCH_BEND_PER_CLICK;
+                    apply_wire(tree, i, _new_target);
                 }
             }
         }
@@ -304,7 +343,7 @@ function _draw_trunk_hotspots() {
         if (_hover && mouse_check_button_pressed(mb_left)
          && device_mouse_y_to_gui(0) > _ui_h
          && !_modal_open) {
-            wire_trunk(tree, _height_cm, _trunk_bend_world_angle(wire_trunk_dir, cam_yaw));
+            wire_trunk(tree, _height_cm, _trunk_bend_world_angle(wire_bend_dir, cam_yaw));
         }
     }
 }
@@ -316,6 +355,34 @@ function _draw_trunk_hotspots() {
 // project's z-up + (0,0,-1) lookat + negated aspect combo flips the screen-x
 // handedness, so the L/R cases are inverted from the naive derivation.
 // Independent of pitch — all bends stay horizontal in world.
+// Pick the sign for a branch bend increment so the tip moves in the player's
+// chosen screen direction. Numerical: perturb the branch's bend by a small
+// test delta, project the tip before-and-after to screen, and dot the screen-
+// motion vector with the target screen direction. Positive dot → +bend moves
+// the tip the right way; negative → flip the sign. Falls back to +1 when the
+// branch is end-on to the camera (no usable screen motion).
+function _branch_bend_sign(_tree, _branch, _dir) {
+    var _scr_a = project_3d_to_screen(branch_point(_tree, _branch, 1));
+    var _orig  = _branch.bend;
+    _branch.bend = _orig + 5;
+    var _scr_b = project_3d_to_screen(branch_point(_tree, _branch, 1));
+    _branch.bend = _orig;
+    if (_scr_a == undefined || _scr_b == undefined) return 1;
+
+    var _dx = _scr_b.x - _scr_a.x;
+    var _dy = _scr_b.y - _scr_a.y;
+    var _tx = 0;
+    var _ty = 0;
+    switch (_dir) {
+        case "right": _tx =  1; break;
+        case "left":  _tx = -1; break;
+        case "up":    _ty = -1; break;   // screen y grows downward
+        case "down":  _ty =  1; break;
+    }
+    var _dot = _dx * _tx + _dy * _ty;
+    return (_dot >= 0) ? 1 : -1;
+}
+
 function _trunk_bend_world_angle(_dir, _yaw) {
     switch (_dir) {
         case "right": return -90 - _yaw;
