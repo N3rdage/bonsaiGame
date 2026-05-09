@@ -31,6 +31,7 @@ These are the things that are easy to break if you don't know them. `ARCHITECTUR
 
 - **`BonsaiTree` struct is the single source of truth.** Both the 2D sprite and the 3D mesh derive from it. Never store display state separately from morphology.
 - **Mesh rebuilds are triggered by `mesh_dirty`.** Any operation that mutates tree morphology (growth, wire, clip, prune, repot) must set `tree.mesh_dirty = true` (or call `mark_dirty()` / use `add_branch` which does it). The viewer rebuilds lazily via `get_mesh()`, which returns a struct `{ bark, foliage }` of two frozen vertex buffers. Each draw site does two `vertex_submit` calls — bark untextured (vertex-coloured), foliage submitted with `spr_foliage` + `gpu_set_alphatestenable(true)` + `gpu_set_alphatestref(128)` + `cull_noculling`, then GPU state restored. Cache invalidation must free both buffers. Vertex colour still tints the foliage texture, so per-species `leaf_color` keeps working.
+- **Trunk shape lives in `trunk_frames(_tree)`.** The trunk's curve is derived from `trunk.movement` bend events via parallel-transport: starting tangent `(0,0,1)`, each event rotates the whole frame (T/N/B) by `BONSAI_TRUNK_BEND_PER_EVENT` (20°) around `world_up × bend_dir` (Rodrigues, fixed axis so cumulative bends compose past horizontal). `trunk_frames` returns N+1 sampled `{pos, tangent, normal, binormal}` frames; `trunk_frame_at(_tree, _t)` interpolates. Both the mesh (`build_trunk`, `branch_point`, `add_wire_anchor`), the trunk hotspot UI, and the trunk-shape style scorers (informal_upright, slanting, cascade) read from this helper. Don't write a parallel curve derivation — call `trunk_frames` so visuals and scoring agree.
 - **`obj_interactable` and `obj_ui_panel` are parent objects.** New interactables/panels inherit from them and call `event_inherited()` in Create. The player finds interactables via `instance_nearest(x, y, obj_interactable)` — no registration needed.
 - **UI buttons combine draw + click detection in one call.** `ui_button(...)` returns `true` on the click frame. Call it from a Draw event; don't try to split drawing and input for panels.
 - **The player is persistent across rooms.** Doors set `global.pending_player_x/y` before `room_goto`; the player applies them in its Room Start event. Tree sprites (`obj_tree_sprite`) are NOT persistent — the game controller respawns them on Room Start based on each tree's `location` field. Moving a tree = changing `location`.
@@ -55,7 +56,7 @@ Methods aren't serialized (they're on the constructor's static table). `load_gam
 
 ## Known rough edges (don't treat as bugs to fix incidentally)
 
-- Trunk bending is a lateral shift, not a proper curve — trees with wired trunks look wobbly. This also means three styles (informal_upright, slanting, cascade) can't be scored; their `score` field is omitted in `scr_styles_data`.
+- Branch curvature is still planar — `branch.bend` rotates the whole branch direction in world XY but the branch itself stays a straight line. Same fix family as trunk parallel-transport (now done); branch version is TODO #10.
 - Only junipers can be grown from cuttings; seeds aren't implemented.
 - Fancy pots are stat-only (1.25x display revenue) — no visual differentiation in the world sprite or 3D viewer yet.
 
