@@ -22,7 +22,7 @@ Common ingredients:
   stone greys (`160,155,150`), leafy greens (`70-130, 100-130, 60-75`),
   brass accents for handles. The player's shirt is `80,110,160` blue.
 
-Real pixel art is TODO #13 (Art pass) and only happens once systems are
+Real pixel art is TODO #9 (Art pass) and only happens once systems are
 locked. Until then: primitives, consistently styled.
 
 ## Tile grid
@@ -93,7 +93,7 @@ Pedestals tucked into a recessed alcove top-centre — feels more
 bit more work in the room editor.
 
 I'd default to **A** for simplicity. B is nicer once the visual style
-sells the alcove (probably needs an indoor floor texture, future TODO #13).
+sells the alcove (probably needs an indoor floor texture, future TODO #9).
 
 ### `rm_garden_back` — current layout
 
@@ -122,10 +122,10 @@ should fit one of these footprints unless there's a reason to break it.
 
 ## What's next
 
-- **TODO #7 (House interiors)**: pedestals migrate to a lounge / display
+- **TODO #5 (House interiors)**: pedestals migrate to a lounge / display
   room. The shed becomes a workshop only. Floor texture per room becomes
   worth the effort once there are >2 rooms.
-- **TODO #13 (Art pass)**: replace primitives with hand-drawn or
+- **TODO #9 (Art pass)**: replace primitives with hand-drawn or
   generated pixel art under a coherent style guide. Until then, keep
   iterating on the primitive look — the constraint is good for the
   prototype's identity.
