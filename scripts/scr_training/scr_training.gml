@@ -4,22 +4,27 @@ function apply_wire(_tree, _branch_id, _target_bend_deg) {
     if (_branch_id < 0 || _branch_id >= array_length(_tree.branches)) return false;
     if (!inventory_remove("wire", 1)) return false;
 
-    var _branch = _tree.branches[_branch_id];
+    var _branch   = _tree.branches[_branch_id];
+    var _old_bend = _branch.bend;
     _branch.wired = true;
     _branch.bend  = _target_bend_deg;
-    
+
     array_push(_tree.wires_applied, {
         branch_id:   _branch_id,
         applied_day: global.game_day,
         removed_day: -1,
         bend_target: _target_bend_deg,
     });
-    
+
+    // Vitality penalty fires only when crossing into the unsafe zone — multi-
+    // click wiring shouldn't ding repeatedly for staying over-bent.
     var _max_safe = 60 - (_branch.girth * 20);
-    if (abs(_target_bend_deg) > _max_safe) {
+    var _was_safe = abs(_old_bend) <= _max_safe;
+    var _is_safe  = abs(_target_bend_deg) <= _max_safe;
+    if (_was_safe && !_is_safe) {
         _tree.vitality -= 10;
     }
-    
+
     _tree.mark_dirty();
     tutorial_advance_if(TUT_TRAIN);
     return true;
