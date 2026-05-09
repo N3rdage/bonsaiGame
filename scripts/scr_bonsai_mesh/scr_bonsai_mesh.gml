@@ -2,7 +2,8 @@
 // Builds a 3D vertex buffer from a BonsaiTree struct.
 
 #macro BONSAI_DISPLAY_SCALE 4         // 1 sim cm renders as 4 "viewer units"
-#macro BONSAI_TRUNK_BEND_PER_EVENT 20 // degrees of tangent deflection per movement event
+#macro BONSAI_TRUNK_BEND_PER_EVENT 20 // degrees of tangent deflection per trunk-wire click
+#macro BONSAI_BRANCH_BEND_PER_CLICK 15 // degrees of bend added per branch-wire click
 
 // Returns { bark, foliage } — two frozen vertex buffers. Bark is submitted
 // untextured (vertex-coloured); foliage is submitted with a leaf texture and
