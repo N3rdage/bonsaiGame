@@ -54,7 +54,20 @@ draw_content = function() {
 
     var _pot_label = (tree.pot_tier == 1) ? "Fancy (+25% display)" : "Standard";
     draw_text(_x, _y, "Pot: " + _pot_label);
-    _y += _line + 8;
+    _y += _line;
+
+    // Dormancy callout — drawn only when the species is dormant this season.
+    // Sits between the stats block and the score so it explains the
+    // greyed-out action buttons further down without crowding their labels.
+    var _season         = current_season();
+    var _dormant_inline = (season_growth_multiplier(tree.get_species(), _season) <= 0);
+    if (_dormant_inline) {
+        draw_set_color(make_color_rgb(220, 180, 80));
+        draw_text(_x, _y, "Dormant — " + season_label(_season) + " operations limited");
+        draw_set_color(c_white);
+        _y += _line;
+    }
+    _y += 8;
 
     // Score
     var _score = score_tree(tree);
@@ -131,7 +144,11 @@ draw_content = function() {
         tutorial_advance_if(TUT_WATER);
     }
 
-    var _can_fertilize = inventory_has("fertilizer", 1);
+    // Fertilize is gated by season — dormant species refuse. The "Dormant"
+    // callout near the top of the inspector explains the greyed state, so
+    // the button label stays short.
+    var _is_dormant = season_growth_multiplier(tree.get_species(), current_season()) <= 0;
+    var _can_fertilize = inventory_has("fertilizer", 1) && !_is_dormant;
     if (ui_button(_bx + (_bw + _gap), _by, _bw, _bh, "Fertilize", _can_fertilize)) {
         fertilize_tree(tree);
     }

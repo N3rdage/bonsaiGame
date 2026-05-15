@@ -131,6 +131,15 @@ Each species also carries a `seasonal: { spring, summer, autumn, winter }` colou
 
 Mesh invalidation on season change happens implicitly: `advance_day_all_trees` calls `tree_daily_tick` on every tree per advanced day, which sets `mesh_dirty = true`. The next `get_mesh()` rebuild reads the new season colour. There is no explicit "season changed" event — if you add a code path that advances `global.game_day` without ticking every tree, mark the affected trees dirty yourself.
 
+### Season effects on the simulation
+
+The growth tick and water decay both scale by season:
+
+- `season_growth_multiplier(_species, _season)` returns 0 (dormant) when the season isn't in `_species.seasons_active`, otherwise a per-season scalar (spring 1.3, summer 1.0, autumn 0.5, winter 0.4 for winter-active species). `tree_daily_tick` multiplies its `_growth_mult` by this, so dormant species skip all morphology changes that tick — height, girth, branch length/girth, foliage density and spontaneous-branch-spawn all stall.
+- `season_water_multiplier(_season)` is species-agnostic — summer pulls hardest (1.5x), winter barely (0.3x).
+
+`fertilize_tree` consults `season_growth_multiplier(...) <= 0` and refuses (returning `false`, leaving the fertilizer inventory intact) when the species is dormant — the inspector greys the button with a "Dormant" suffix as a visual cue, but the function refuses defensively regardless of UI state. This is the canonical dormancy check pattern; future season-gated operations should consult the same predicate.
+
 ### Deferred mesh rebuilds
 
 `BonsaiTree.mesh_dirty` is set to true by any operation that changes morphology. The viewer calls `tree.get_mesh()` each frame, which checks the flag and rebuilds only when needed. Most frames, it returns the cached struct for free. A training click during the viewer triggers a rebuild on the next frame.

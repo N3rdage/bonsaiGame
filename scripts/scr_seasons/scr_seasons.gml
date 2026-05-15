@@ -37,3 +37,38 @@ function season_label(_key) {
         default:       return "?";
     }
 }
+
+// Growth multiplier for a species in a given season. Returns 0 (dormant) when
+// `_season` is not in `_species.seasons_active`. Otherwise: spring strongest,
+// summer baseline, autumn slowing, winter only meaningful for winter-active
+// species (pine). This is the single source of truth for "is this species
+// growing right now" — fertilize gating and the daily tick both consult it.
+function season_growth_multiplier(_species, _season) {
+    var _active = _species.seasons_active;
+    var _is_active = false;
+    for (var i = 0; i < array_length(_active); i++) {
+        if (_active[i] == _season) { _is_active = true; break; }
+    }
+    if (!_is_active) return 0;
+
+    switch (_season) {
+        case "spring": return 1.3;
+        case "summer": return 1.0;
+        case "autumn": return 0.5;
+        case "winter": return 0.4;   // for species that list winter as active
+        default:       return 1.0;
+    }
+}
+
+// Water decay multiplier. Species-agnostic for now — even dormant deciduous
+// transpire a little through bark, so winter is reduced but not zero. Summer
+// pulls hardest.
+function season_water_multiplier(_season) {
+    switch (_season) {
+        case "spring": return 1.0;
+        case "summer": return 1.5;
+        case "autumn": return 0.7;
+        case "winter": return 0.3;
+        default:       return 1.0;
+    }
+}

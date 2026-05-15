@@ -31,34 +31,39 @@ function advance_day_all_trees(_days) {
 function tree_daily_tick(_tree, _isolated = false) {
     with (_tree) {
         var _species = get_species();
+        var _season  = current_season();
         age_days++;
-        
+
         if (!_isolated) {
-            water_level = max(0, water_level - _species.water_need * 5);
+            // Water pulls harder in summer, barely in winter (see scr_seasons).
+            water_level = max(0, water_level - _species.water_need * 5 * season_water_multiplier(_season));
         }
-        
+
         if (water_level < 10) vitality -= 2;
         else if (water_level > 90) vitality -= 1;
         else vitality = min(100, vitality + 0.3);
         vitality = clamp(vitality, 0, 100);
-        
-        var _growth_mult = (vitality / 100) * (vigor / 50) * _species.growth_rate;
+
+        // Season modulates growth: 0 = dormant (no morphology change this tick),
+        // 1.3 spring boost, 1.0 summer baseline, 0.5 autumn, 0.4 winter-active.
+        var _growth_mult = (vitality / 100) * (vigor / 50) * _species.growth_rate
+                         * season_growth_multiplier(_species, _season);
         if (global.game_day < fertilized_until_day) _growth_mult *= 1.5;
-        
+
         if (trunk.height_cm < _species.max_trunk_cm) {
             trunk.height_cm += 0.02 * _growth_mult;
         }
         trunk.girth_mm += 0.05 * _growth_mult;
-        
+
         for (var i = 0; i < array_length(branches); i++) {
             branches[i].length += 0.1 * _growth_mult;
             branches[i].girth  += 0.01 * _growth_mult;
         }
-        
+
 		if (random(1) < 0.1 * _growth_mult && array_length(branches) < 15) {
 		    _spawn_branch_naturally(self);
 		}
-        
+
         foliage_density = clamp(foliage_density + 0.01 * _growth_mult, 0, 1);
         mesh_dirty = true;
     }
@@ -87,8 +92,16 @@ function water_tree(_tree) {
 }
 
 // Consume 1 fertilizer and grant the tree a 7-day 1.5x growth window.
-// Returns true on success, false if no fertilizer available.
+// Returns true on success, false if no fertilizer available or if the tree's
+// species is dormant this season (in which case fertilizer is NOT consumed —
+// the player would just be wasting it). The inspector greys the button in
+// this case so the player sees why; this is the belt-and-braces refusal.
 function fertilize_tree(_tree) {
+    var _species = _tree.get_species();
+    if (season_growth_multiplier(_species, current_season()) <= 0) {
+        show_debug_message("Tree is dormant this season; fertilizer skipped.");
+        return false;
+    }
     if (!inventory_remove("fertilizer", 1)) return false;
     _tree.fertilized_until_day = global.game_day + 7;
     _tree.last_fed_day = global.game_day;
