@@ -131,8 +131,12 @@ draw_content = function() {
         tutorial_advance_if(TUT_WATER);
     }
 
-    var _can_fertilize = inventory_has("fertilizer", 1);
-    if (ui_button(_bx + (_bw + _gap), _by, _bw, _bh, "Fertilize", _can_fertilize)) {
+    // Fertilize is gated by season — dormant species refuse and the button
+    // greys with a "Dormant" suffix so the player sees why.
+    var _is_dormant = season_growth_multiplier(tree.get_species(), current_season()) <= 0;
+    var _can_fertilize = inventory_has("fertilizer", 1) && !_is_dormant;
+    var _fert_label    = _is_dormant ? "Fertilize (Dormant)" : "Fertilize";
+    if (ui_button(_bx + (_bw + _gap), _by, _bw, _bh, _fert_label, _can_fertilize)) {
         fertilize_tree(tree);
     }
 
