@@ -321,10 +321,14 @@ function build_branch(_bark, _foliage, _tree, _branch) {
 
     var _t_origin = clamp(_branch.origin_y / _tree.trunk.height_cm, 0, 1);
     if (_t_origin > 0.3) {
-        var _tip = branch_point(_tree, _branch, 1);
-        var _species = _tree.get_species();
-        var _seed = _tree.id * 1000 + _branch.id;
-        add_foliage_cluster(_foliage, _tip, _species.leaf_color, _tree.foliage_density, _seed);
+        var _species     = _tree.get_species();
+        var _foliage_col = species_seasonal_color(_species, current_season());
+        // undefined => deciduous winter-bare; skip foliage entirely for this branch.
+        if (_foliage_col != undefined) {
+            var _tip  = branch_point(_tree, _branch, 1);
+            var _seed = _tree.id * 1000 + _branch.id;
+            add_foliage_cluster(_foliage, _tip, _foliage_col, _tree.foliage_density, _seed);
+        }
     }
 }
 
