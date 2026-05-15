@@ -37,6 +37,7 @@ scripts/
   scr_growth             — Daily tick simulation, water, time skip, display revenue
   scr_training           — Wire, clip, prune, trunk bend operations
   scr_scoring            — Aesthetic scoring of a tree; called on demand, never persisted
+  scr_seasons            — Season clock (BONSAI_DAYS_PER_SEASON, current_season(), current_season_day(), season_label()); derived from global.game_day, no persisted state
   scr_save_load          — JSON save/load of whole game state, multi-slot + metadata helpers
   scr_math_3d            — Vector helpers, 3D vertex format, screen projection
   scr_bonsai_mesh        — Builds vertex buffers from tree morphology, including visible copper-wire coils on wired branches. Also exports trunk_frames(_tree) / trunk_frame_at(_tree, _t) — N+1 parallel-transported {pos, tangent, normal, binormal} frames sampled along the trunk's curve, derived from trunk.movement bend events. Branches get a similar helper via branch_frame_at(_tree, _branch, _t) reading branch.bend (horizontal, around world +z) and branch.bend_v (vertical, around the horizontal axis perpendicular to the initial branch direction). Horizontal-only is closed-form; mixed bends use a 12-step numerical integration. Both the mesh and the trunk-shape style scorers (informal_upright, slanting, cascade in scr_styles_data) consume the same frame walk, so what the player sees is what they're scored on.
@@ -121,6 +122,14 @@ global.species = {
 ```
 
 Trees store only the species *key* (e.g. `"juniper"`), and look up properties at need. Adding a new species means adding a struct entry and, eventually, an appropriate source plant in a room — no code changes elsewhere. Future: load this from JSON for modding.
+
+Each species also carries a `seasonal: { spring, summer, autumn, winter }` colour table; the foliage mesh looks up the active season's colour via `species_seasonal_color(_species, current_season())`. A season set to `undefined` means "drop foliage entirely this season" (e.g. maple in winter), and the mesh builder skips foliage clusters for that branch. Old code paths that don't know about seasons (inspector swatches etc.) fall back to `species.leaf_color`.
+
+### Seasons are derived from game_day
+
+`scr_seasons` is the season clock. Season is a pure function of `global.game_day` — `BONSAI_DAYS_PER_SEASON = 28` (default), four seasons per year, year starts in spring on day 1. Nothing is persisted in the save file; old saves automatically compute the correct season from their `game_day` field. `current_season()` is safe to call before any game state exists (e.g. the title screen) — it falls back to spring when `global.game_day` isn't defined.
+
+Mesh invalidation on season change happens implicitly: `advance_day_all_trees` calls `tree_daily_tick` on every tree per advanced day, which sets `mesh_dirty = true`. The next `get_mesh()` rebuild reads the new season colour. There is no explicit "season changed" event — if you add a code path that advances `global.game_day` without ticking every tree, mark the affected trees dirty yourself.
 
 ### Deferred mesh rebuilds
 
