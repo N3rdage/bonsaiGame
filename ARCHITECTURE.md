@@ -2,6 +2,8 @@
 
 This document describes how the code is organized, the key design decisions, and the common flows through the system. It's intended for anyone (including future you) who wants to add features, fix bugs, or understand why something is the way it is.
 
+For a catalogue of deliberately-unsimulated behaviour (candidates for a future "sim depth" / hardcore mode), see [SIMPLIFICATIONS.md](SIMPLIFICATIONS.md). For the planned-work queue, see [TODO.md](TODO.md).
+
 ## High-level shape
 
 The game is a **GameMaker** project, so it's organized into the standard GM asset categories: scripts (plain code), objects (behavior with events), sprites, and rooms. The project splits into two worlds that share data:
