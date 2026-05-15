@@ -65,6 +65,7 @@
     {"id":{"name":"scr_math_3d","path":"scripts/scr_math_3d/scr_math_3d.yy",},},
     {"id":{"name":"scr_save_load","path":"scripts/scr_save_load/scr_save_load.yy",},},
     {"id":{"name":"scr_scoring","path":"scripts/scr_scoring/scr_scoring.yy",},},
+    {"id":{"name":"scr_seasons","path":"scripts/scr_seasons/scr_seasons.yy",},},
     {"id":{"name":"scr_settings","path":"scripts/scr_settings/scr_settings.yy",},},
     {"id":{"name":"scr_shop","path":"scripts/scr_shop/scr_shop.yy",},},
     {"id":{"name":"scr_species_data","path":"scripts/scr_species_data/scr_species_data.yy",},},

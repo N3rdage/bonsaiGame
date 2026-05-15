@@ -1,10 +1,14 @@
 // obj_game_controller — Draw GUI event
-// Always-visible HUD: current day + money. Top-right corner.
+// Always-visible HUD: current season, day, money. Top-right corner.
+var _season = current_season();
 draw_set_halign(fa_right);
 draw_set_valign(fa_top);
 draw_set_color(c_white);
 draw_text(display_get_gui_width() - 16, 4,
-    "Day " + string(global.game_day) + "  |  $" + string(global.money));
+    season_label(_season) + " " + string(current_season_day()) + "/"
+    + string(BONSAI_DAYS_PER_SEASON)
+    + "  |  Day " + string(global.game_day)
+    + "  |  $" + string(global.money));
 draw_set_halign(fa_left);
 
 // Tutorial corner panel — visible across all rooms while a step is active.
