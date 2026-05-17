@@ -56,16 +56,29 @@ draw_content = function() {
     draw_text(_x, _y, "Pot: " + _pot_label);
     _y += _line;
 
-    // Dormancy callout — drawn only when the species is dormant this season.
-    // Sits between the stats block and the score so it explains the
-    // greyed-out action buttons further down without crowding their labels.
-    var _season         = current_season();
-    var _dormant_inline = (season_growth_multiplier(tree.get_species(), _season) <= 0);
-    if (_dormant_inline) {
+    // Status notes — one line per "why is a button greyed" reason. Stacks
+    // vertically; keeps button labels short. Yellow so the player's eye
+    // catches them when an action looks disabled below.
+    var _season    = current_season();
+    var _dormant   = (season_growth_multiplier(tree.get_species(), _season) <= 0);
+    var _repot_st  = repot_check(tree);
+    var _notes     = [];
+    if (_dormant) {
+        array_push(_notes, "Dormant — " + season_label(_season) + " operations limited");
+    }
+    if (_repot_st == "out_of_season") {
+        array_push(_notes, "Repot: requires spring");
+    } else if (_repot_st == "cooldown") {
+        var _wait = REPOT_COOLDOWN_DAYS - (global.game_day - tree.last_repot_day);
+        array_push(_notes, "Repot: cooldown — wait " + string(_wait) + "d");
+    }
+    if (array_length(_notes) > 0) {
         draw_set_color(make_color_rgb(220, 180, 80));
-        draw_text(_x, _y, "Dormant — " + season_label(_season) + " operations limited");
+        for (var n = 0; n < array_length(_notes); n++) {
+            draw_text(_x, _y, _notes[n]);
+            _y += _line;
+        }
         draw_set_color(c_white);
-        _y += _line;
     }
     _y += 8;
 
@@ -197,6 +210,16 @@ draw_content = function() {
 
     if (ui_button(_bx + (_bw + _gap) * 3, _by2, _bw, _bh, "Sell")) {
         var _panel = instance_create_depth(0, 0, -1000, obj_ui_tree_sell_confirm);
+        _panel.tree = tree;
+        instance_destroy();
+    }
+
+    // Repot — gated by season + cooldown. Status callouts above explain
+    // grey states so the label stays short.
+    var _have_any_pot = inventory_has("pot", 1) || inventory_has("fancy_pot", 1);
+    var _can_repot    = (_repot_st == "ok") && _have_any_pot;
+    if (ui_button(_bx + (_bw + _gap) * 4, _by2, _bw, _bh, "Repot", _can_repot)) {
+        var _panel = instance_create_depth(0, 0, -1000, obj_ui_tree_repot_confirm);
         _panel.tree = tree;
         instance_destroy();
     }

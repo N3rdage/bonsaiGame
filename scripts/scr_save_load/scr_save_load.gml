@@ -33,6 +33,7 @@ function save_game(_slot = 1) {
             last_fed_day:        _t.last_fed_day,
             fertilized_until_day:_t.fertilized_until_day,
             pot_tier:            _t.pot_tier,
+            last_repot_day:      _t.last_repot_day,
             location:            _t.location,
             time_accel:      _t.time_accel,
             trunk:           _t.trunk,

@@ -108,6 +108,37 @@ function fertilize_tree(_tree) {
     return true;
 }
 
+// Minimum days between repots — prevents free vigor resets and matches the
+// real-bonsai practice of repotting every 2–3 years for mature trees.
+#macro REPOT_COOLDOWN_DAYS 60
+
+// Returns "ok" if the tree can be repotted right now, else a short reason
+// string. The inspector uses this to render status callouts; the action
+// itself re-checks before mutating so UI state can't lie.
+function repot_check(_tree) {
+    if (current_season() != "spring") return "out_of_season";
+    if (global.game_day - _tree.last_repot_day < REPOT_COOLDOWN_DAYS) return "cooldown";
+    return "ok";
+}
+
+// Consumes 1 pot of the chosen tier; refreshes vigor to baseline, stamps the
+// repot day, appends to repots_history. Returns true on success. Caller
+// (obj_ui_tree_repot_confirm) is expected to have already checked repot_check
+// and the relevant inventory; this is a belt-and-braces gate so the action
+// can't be smuggled past the UI.
+function repot_tree(_tree, _new_tier) {
+    if (repot_check(_tree) != "ok") return false;
+    var _key = (_new_tier == 1) ? "fancy_pot" : "pot";
+    if (!inventory_remove(_key, 1)) return false;
+
+    _tree.pot_tier       = _new_tier;
+    _tree.vigor          = 50;            // baseline reset; no full-100 boost
+    _tree.last_repot_day = global.game_day;
+    array_push(_tree.repots_history, { day: global.game_day, to_tier: _new_tier });
+    _tree.mesh_dirty     = true;          // no visual delta yet, but future fancy-pot mesh will need it
+    return true;
+}
+
 function skip_tree_time(_tree, _days) {
     // Cost scales sub-linearly — bulk skips are efficient
     var _cost = max(1, ceil(_days * 0.5));
