@@ -17,6 +17,7 @@ function BonsaiTree(_species_key, _origin) constructor {
     last_fed_day         = 0;
     fertilized_until_day = 0;   // game_day < this => 1.5x growth multiplier
     pot_tier             = 0;   // 0 = standard, 1 = fancy (1.25x display revenue)
+    last_repot_day       = 0;   // game_day stamp of last repot; gates cooldown
     in_pot               = undefined;
     location             = "inventory";
     time_accel           = 1.0;
