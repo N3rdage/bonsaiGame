@@ -58,12 +58,12 @@ draw_content = function() {
     var _cx = panel_x + panel_w / 2;
 
     if (ui_button(_cx - _gap / 2 - _bw, _by, _bw, _bh,
-                  "Standard Pot (owned: " + string(_have_std) + ")",
+                  "Standard Pot (" + string(_have_std) + ")",
                   _have_std > 0)) {
         do_repot(0);
     }
     if (ui_button(_cx + _gap / 2, _by, _bw, _bh,
-                  "Fancy Pot (owned: " + string(_have_fcy) + ")",
+                  "Fancy Pot (" + string(_have_fcy) + ")",
                   _have_fcy > 0)) {
         do_repot(1);
     }
