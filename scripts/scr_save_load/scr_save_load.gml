@@ -33,6 +33,7 @@ function save_game(_slot = 1) {
             last_fed_day:        _t.last_fed_day,
             fertilized_until_day:_t.fertilized_until_day,
             pot_tier:            _t.pot_tier,
+            soil_tier:           _t.soil_tier,
             last_repot_day:      _t.last_repot_day,
             location:            _t.location,
             time_accel:      _t.time_accel,
@@ -91,6 +92,10 @@ function load_game(_slot = 1) {
         for (var k = 0; k < array_length(_keys); k++) {
             variable_struct_set(_t, _keys[k], _data[$ _keys[k]]);
         }
+        // (soil_tier needs no migration: it's a tree-level field, so the
+        // BonsaiTree constructor's default of 0 already stands for old saves
+        // that don't carry the key — unlike the branch fields below, whose
+        // array is overwritten wholesale by the field copy above.)
         // Branch field migration: pre-bend_v saves don't have the field.
         // Default to 0 so the mesh and viewer don't trip over a missing read.
         for (var b = 0; b < array_length(_t.branches); b++) {

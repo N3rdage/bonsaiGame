@@ -14,6 +14,7 @@ resource_labels = {
     clay:        "Clay",
     pot:         "Pots",
     fancy_pot:   "Fancy Pots",
+    soil_premium:"Akadama Mix",
     wire:        "Wire",
     fertilizer:  "Fertilizer",
 };

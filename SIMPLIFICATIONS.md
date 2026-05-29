@@ -21,7 +21,7 @@ Entries should record:
 
 - **Watering is binary.** Click resets water to 100. Real-world: partial watering, soil moisture varies by drainage + pot size, over-watering causes root rot.
 - **Fertilizer is a 7-day window.** Boolean "fertilized or not." Real-world: NPK ratios, slow-vs-fast release, depletion curves over weeks, over-fertilizing burns roots.
-- **Soil composition is flat.** Only the pot tier (standard / fancy) matters. Real-world: akadama / lava rock / pumice mix percentages affect drainage, water retention, root health.
+- **Soil is a two-tier flag, not a mix.** Basic vs premium akadama (`soil_tier`) modulates vigor-drift rate and water-stress penalties (see #2c), but it's a single boolean upgrade. Real-world: akadama / lava rock / pumice mix *percentages* tune drainage, water retention and root health independently — a continuous recipe, not one switch.
 
 ## Environment
 

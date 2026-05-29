@@ -7,11 +7,12 @@ event_inherited();
 
 panel_title = "Repot Tree";
 panel_w     = 520;
-panel_h     = 320;
+panel_h     = 372;
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
-tree = undefined;   // set by spawner immediately after instance_create_depth
+tree = undefined;          // set by spawner immediately after instance_create_depth
+use_premium_soil = false;  // toggled below; only meaningful if any akadama is in stock
 
 draw_content = function() {
     if (tree == undefined) {
@@ -45,7 +46,19 @@ draw_content = function() {
     draw_text(_x, _y, "Vigor: " + string(floor(tree.vigor)) + " / 100 (resets to 50)");
     _y += _line;
     draw_text(_x, _y, "Days since last repot: " + string(_days_since));
-    _y += _line + 12;
+    _y += _line + 8;
+
+    // Premium-soil toggle: same auto-clear-on-empty pattern as the plant panel.
+    var _have_soil = inventory_count("soil_premium");
+    draw_text(_x, _y, "Akadama mix: " + string(_have_soil));
+    _y += _line;
+    if (_have_soil <= 0) use_premium_soil = false;
+    if (_have_soil > 0) {
+        var _ps_label = "Use premium soil (slower vigor loss)";
+        if (ui_toggle(_x, _y, string_width(_ps_label) + 24, 28, _ps_label, use_premium_soil)) {
+            use_premium_soil = !use_premium_soil;
+        }
+    }
 
     var _have_std = inventory_count("pot");
     var _have_fcy = inventory_count("fancy_pot");
@@ -79,9 +92,11 @@ draw_content = function() {
 
 do_repot = function(_tier) {
     if (tree == undefined) return;
-    if (repot_tree(tree, _tier)) {
+    var _soil = (use_premium_soil && inventory_has("soil_premium", 1)) ? 1 : 0;
+    if (repot_tree(tree, _tier, _soil)) {
         show_debug_message("Repotted into "
-            + ((_tier == 1) ? "fancy" : "standard") + " pot.");
+            + ((_tier == 1) ? "fancy" : "standard") + " pot with "
+            + ((_soil == 1) ? "premium" : "basic") + " soil.");
     }
     instance_destroy();
 };
