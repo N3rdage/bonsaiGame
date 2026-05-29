@@ -76,7 +76,8 @@ draw_content = function() {
     // when stock runs out so do_plant() doesn't fall through to a missing key.
     if (_fancy_pots <= 0) use_fancy_pot = false;
     if (_fancy_pots > 0) {
-        if (ui_toggle(_x, _y, 220, 28, "Use fancy pot (+25% display)", use_fancy_pot)) {
+        var _fp_label = "Use fancy pot (+25% display)";
+        if (ui_toggle(_x, _y, string_width(_fp_label) + 24, 28, _fp_label, use_fancy_pot)) {
             use_fancy_pot = !use_fancy_pot;
         }
         _y += _line + 4;
@@ -89,7 +90,8 @@ draw_content = function() {
     _y += _line;
     if (_premium_soil <= 0) use_premium_soil = false;
     if (_premium_soil > 0) {
-        if (ui_toggle(_x, _y, 260, 28, "Use premium soil (slower vigor loss)", use_premium_soil)) {
+        var _ps_label = "Use premium soil (slower vigor loss)";
+        if (ui_toggle(_x, _y, string_width(_ps_label) + 24, 28, _ps_label, use_premium_soil)) {
             use_premium_soil = !use_premium_soil;
         }
         _y += _line + 4;

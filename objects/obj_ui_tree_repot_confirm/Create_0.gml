@@ -54,7 +54,8 @@ draw_content = function() {
     _y += _line;
     if (_have_soil <= 0) use_premium_soil = false;
     if (_have_soil > 0) {
-        if (ui_toggle(_x, _y, 280, 28, "Use premium soil (slower vigor loss)", use_premium_soil)) {
+        var _ps_label = "Use premium soil (slower vigor loss)";
+        if (ui_toggle(_x, _y, string_width(_ps_label) + 24, 28, _ps_label, use_premium_soil)) {
             use_premium_soil = !use_premium_soil;
         }
     }
