@@ -14,7 +14,6 @@ Entries should record:
 
 ## Lifecycle / vigor
 
-- **Vigor doesn't drift.** Currently static; only changes when repotting resets it to 50. Real-world: pots become root-bound over 2–3 years, soil compacts, drainage degrades, vigor falls. Notes: makes repotting (#2b) cosmetic until #2c lands; see also the dedicated TODO entry.
 - **Trees never die.** Vitality stalls growth at 0 but the tree persists indefinitely. Real-world: prolonged neglect (or shock from poor training) kills the tree, struct should soft-delete to a "dead" location prefix.
 - **Wire scarring is binary.** A branch either springs back or holds the bend, based on time-on-tree. Real-world: wire cuts into bark over weeks, leaves visible scars that take years to grow over, and can girdle a branch entirely.
 

@@ -28,11 +28,21 @@ function advance_day_all_trees(_days) {
     }
 }
 
+// Vigor slowly falls as the pot ages — soil compacts, roots fill the pot,
+// drainage degrades. Repotting is the only thing that resets it (to 50, in
+// repot_tree). Drift is floored so a neglected tree goes sluggish (growth
+// scales with vigor/50) but never freezes outright. This is time-based like
+// age_days, so it applies even on isolated/skip ticks.
+#macro BONSAI_VIGOR_DRIFT_PER_DAY 0.2
+#macro BONSAI_VIGOR_FLOOR         10
+
 function tree_daily_tick(_tree, _isolated = false) {
     with (_tree) {
         var _species = get_species();
         var _season  = current_season();
         age_days++;
+
+        vigor = max(BONSAI_VIGOR_FLOOR, vigor - BONSAI_VIGOR_DRIFT_PER_DAY);
 
         if (!_isolated) {
             // Water pulls harder in summer, barely in winter (see scr_seasons).
