@@ -68,19 +68,19 @@ draw_content = function() {
     var _repot_st  = repot_check(tree);
     var _notes     = [];
     if (_dormant) {
-        array_push(_notes, "Dormant — " + season_label(_season) + " operations limited");
+        array_push(_notes, "Dormant - " + season_label(_season) + " operations limited");
     }
     if (_repot_st == "out_of_season") {
         array_push(_notes, "Repot: requires spring");
     } else if (_repot_st == "cooldown") {
         var _wait = REPOT_COOLDOWN_DAYS - (global.game_day - tree.last_repot_day);
-        array_push(_notes, "Repot: cooldown — wait " + string(_wait) + "d");
+        array_push(_notes, "Repot: cooldown - wait " + string(_wait) + "d");
     }
     // Low vigor + a repot is actually available right now → nudge the player.
     // When repot is on cooldown / out of season the note above already
     // explains why they can't act, so only surface this when it's actionable.
     if (tree.vigor <= 30 && _repot_st == "ok") {
-        array_push(_notes, "Low vigor — repotting would refresh it");
+        array_push(_notes, "Low vigor - repotting would refresh it");
     }
     if (array_length(_notes) > 0) {
         draw_set_color(make_color_rgb(220, 180, 80));
