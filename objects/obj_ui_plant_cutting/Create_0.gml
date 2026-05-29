@@ -3,7 +3,7 @@ event_inherited();
 
 panel_title = "Plant a Cutting";
 panel_w     = 520;
-panel_h     = 420;
+panel_h     = 470;
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
@@ -13,8 +13,9 @@ spawn_room = -1;
 spawn_x    = 0;
 spawn_y    = 0;
 
-selected_species = "";
-use_fancy_pot    = false;
+selected_species  = "";
+use_fancy_pot     = false;
+use_premium_soil  = false;
 
 draw_content = function() {
     var _x = panel_x + 20;
@@ -75,8 +76,23 @@ draw_content = function() {
     // when stock runs out so do_plant() doesn't fall through to a missing key.
     if (_fancy_pots <= 0) use_fancy_pot = false;
     if (_fancy_pots > 0) {
-        if (ui_toggle(_x, _y, 220, 28, "Use fancy pot (+25% display)", use_fancy_pot)) {
+        var _fp_label = "Use fancy pot (+25% display)";
+        if (ui_toggle(_x, _y, string_width(_fp_label) + 24, 28, _fp_label, use_fancy_pot)) {
             use_fancy_pot = !use_fancy_pot;
+        }
+        _y += _line + 4;
+    }
+
+    // Premium-soil toggle: same auto-clear-on-empty pattern as the fancy pot.
+    var _premium_soil = inventory_count("soil_premium");
+    draw_set_color(c_white);
+    draw_text(_x, _y, "Akadama mix: " + string(_premium_soil));
+    _y += _line;
+    if (_premium_soil <= 0) use_premium_soil = false;
+    if (_premium_soil > 0) {
+        var _ps_label = "Use premium soil (slower vigor loss)";
+        if (ui_toggle(_x, _y, string_width(_ps_label) + 24, 28, _ps_label, use_premium_soil)) {
+            use_premium_soil = !use_premium_soil;
         }
         _y += _line + 4;
     }
@@ -110,13 +126,18 @@ do_plant = function() {
     if (!inventory_has(_pot_key, 1)) return;
     if (!inventory_has("cutting_" + selected_species, 1)) return;
 
+    // Premium soil is optional; only consume it if still in stock.
+    var _use_soil = use_premium_soil && inventory_has("soil_premium", 1);
+
     inventory_remove(_pot_key, 1);
     inventory_remove("cutting_" + selected_species, 1);
+    if (_use_soil) inventory_remove("soil_premium", 1);
 
     // Create the tree
     var _tree = new BonsaiTree(selected_species, "cutting");
     _tree.name = "New " + global.species[$ selected_species].display_name;
-    _tree.pot_tier = use_fancy_pot ? 1 : 0;
+    _tree.pot_tier  = use_fancy_pot ? 1 : 0;
+    _tree.soil_tier = _use_soil ? 1 : 0;
     _tree.location = "inventory";   // until placed in world — set below
     array_push(global.all_trees, _tree);
     

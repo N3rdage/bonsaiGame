@@ -19,7 +19,7 @@ The `BonsaiTree` struct (`scr_bonsai_struct`) is the most important data structu
 
 A tree struct carries:
 - **Identity:** id, species key, origin (seed or cutting), player-chosen name
-- **Lifecycle:** age, vitality, vigor, water level, last watered/fed days, `fertilized_until_day` (cutoff for the 1.5x growth window), `pot_tier` (0 = standard, 1 = fancy → 1.25x display revenue), location (which room it lives in)
+- **Lifecycle:** age, vitality, vigor, water level, last watered/fed days, `fertilized_until_day` (cutoff for the 1.5x growth window), `pot_tier` (0 = standard, 1 = fancy → 1.25x display revenue), `soil_tier` (0 = basic, 1 = premium akadama → slower vigor drift + softer water-stress penalties), location (which room it lives in)
 - **Morphology:** trunk (height, girth, taper, movement points), an array of branches (each with angle, length, girth, bend, wired flag), foliage density
 - **Training history:** arrays of every wire, clip, prune, and repot operation performed, with day-stamps
 - **Cached 3D mesh** plus a dirty flag
@@ -142,6 +142,12 @@ The growth tick and water decay both scale by season:
 
 `fertilize_tree` consults `season_growth_multiplier(...) <= 0` and refuses (returning `false`, leaving the fertilizer inventory intact) when the species is dormant — the inspector greys the button with a "Dormant" suffix as a visual cue, but the function refuses defensively regardless of UI state. This is the canonical dormancy check pattern; future season-gated operations should consult the same predicate.
 
+### Pots, soil and vigor drift
+
+`vigor` (a 0–100 scalar feeding the growth tick as `vigor / 50`) is not static — `tree_daily_tick` decays it by `BONSAI_VIGOR_DRIFT_PER_DAY` (0.2) toward a floor of `BONSAI_VIGOR_FLOOR` (10) every tick, applied *outside* the `_isolated` guard (like `age_days`) so skip/debug ticks age the pot too. A neglected tree goes sluggish but never freezes; the only thing that resets vigor (to the 50 baseline) is `repot_tree`. This makes repotting real maintenance rather than cosmetic.
+
+`soil_tier` (0 basic / 1 premium akadama) modulates two things in the tick: drift is multiplied by `BONSAI_PREMIUM_SOIL_DRIFT_MULT` (0.5), and the under-/over-water vitality penalties by `BONSAI_PREMIUM_SOIL_STRESS_MULT` (0.5). Premium soil is an optional consumable (`soil_premium` in inventory / `init_shop_catalogue`); basic soil is free/implicit, mirroring the fancy-pot pattern. It's set at plant time (`obj_ui_plant_cutting`) and at repot time (`obj_ui_tree_repot_confirm` → `repot_tree(_tree, _new_tier, _soil_tier)`), each gating its toggle on stock and consuming one unit when on. `soil_tier` is a tree-level field, so old saves need no migration — the `BonsaiTree` constructor's default of 0 stands when the key is absent.
+
 ### Deferred mesh rebuilds
 
 `BonsaiTree.mesh_dirty` is set to true by any operation that changes morphology. The viewer calls `tree.get_mesh()` each frame, which checks the flag and rebuilds only when needed. Most frames, it returns the cached struct for free. A training click during the viewer triggers a rebuild on the next frame.
@@ -199,10 +205,10 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 3. Panel lists every species with a cutting count > 0 and shows a "Select" button per species
 4. Player selects a species; panel's `selected_species` is set
 5. Player clicks "Plant Cutting." Panel's `do_plant` function:
-   - Removes 1 pot (or 1 fancy_pot, if the "Use fancy pot" toggle is on) and 1 cutting from inventory
+   - Removes 1 pot (or 1 fancy_pot, if the "Use fancy pot" toggle is on), 1 cutting, and 1 `soil_premium` if the "Use premium soil" toggle is on, from inventory
    - Creates a new `BonsaiTree` via `new BonsaiTree(species_key, "cutting")`
    - The constructor applies cutting-specific initial morphology (8cm trunk, two small branches)
-   - Sets `tree.pot_tier = 1` if a fancy pot was used, else 0
+   - Sets `tree.pot_tier = 1` if a fancy pot was used, else 0; `tree.soil_tier = 1` if premium soil was used, else 0
    - Sets the tree's `location = "shed"`
    - Pushes onto `global.all_trees`
    - Instantiates an `obj_tree_sprite` at `spawn_x, spawn_y` with `tree_index = len(all_trees) - 1`
