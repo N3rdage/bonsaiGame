@@ -36,21 +36,31 @@ function advance_day_all_trees(_days) {
 #macro BONSAI_VIGOR_DRIFT_PER_DAY 0.2
 #macro BONSAI_VIGOR_FLOOR         10
 
+// Premium akadama soil (soil_tier == 1) ages slower and buffers water stress:
+// better structure means the pot stays open longer (slower drift) and forgiving
+// drainage/retention softens both under- and over-watering penalties.
+#macro BONSAI_PREMIUM_SOIL_DRIFT_MULT  0.5
+#macro BONSAI_PREMIUM_SOIL_STRESS_MULT 0.5
+
 function tree_daily_tick(_tree, _isolated = false) {
     with (_tree) {
         var _species = get_species();
         var _season  = current_season();
         age_days++;
 
-        vigor = max(BONSAI_VIGOR_FLOOR, vigor - BONSAI_VIGOR_DRIFT_PER_DAY);
+        // Premium soil ages slower; basic soil drifts at the full rate.
+        var _drift_mult = (soil_tier == 1) ? BONSAI_PREMIUM_SOIL_DRIFT_MULT : 1;
+        vigor = max(BONSAI_VIGOR_FLOOR, vigor - BONSAI_VIGOR_DRIFT_PER_DAY * _drift_mult);
 
         if (!_isolated) {
             // Water pulls harder in summer, barely in winter (see scr_seasons).
             water_level = max(0, water_level - _species.water_need * 5 * season_water_multiplier(_season));
         }
 
-        if (water_level < 10) vitality -= 2;
-        else if (water_level > 90) vitality -= 1;
+        // Premium soil softens the cost of letting water stray out of band.
+        var _stress_mult = (soil_tier == 1) ? BONSAI_PREMIUM_SOIL_STRESS_MULT : 1;
+        if (water_level < 10) vitality -= 2 * _stress_mult;
+        else if (water_level > 90) vitality -= 1 * _stress_mult;
         else vitality = min(100, vitality + 0.3);
         vitality = clamp(vitality, 0, 100);
 
@@ -136,15 +146,23 @@ function repot_check(_tree) {
 // (obj_ui_tree_repot_confirm) is expected to have already checked repot_check
 // and the relevant inventory; this is a belt-and-braces gate so the action
 // can't be smuggled past the UI.
-function repot_tree(_tree, _new_tier) {
+function repot_tree(_tree, _new_tier, _soil_tier = 0) {
     if (repot_check(_tree) != "ok") return false;
-    var _key = (_new_tier == 1) ? "fancy_pot" : "pot";
-    if (!inventory_remove(_key, 1)) return false;
+    var _pot_key = (_new_tier == 1) ? "fancy_pot" : "pot";
+    // Premium soil is optional; downgrade gracefully if it's somehow gone so
+    // the repot still succeeds with basic soil rather than failing outright.
+    if (_soil_tier == 1 && !inventory_has("soil_premium", 1)) _soil_tier = 0;
+    // Check the pot is available before consuming anything (avoids spending
+    // soil on a repot that then can't find a pot).
+    if (!inventory_has(_pot_key, 1)) return false;
+    inventory_remove(_pot_key, 1);
+    if (_soil_tier == 1) inventory_remove("soil_premium", 1);
 
     _tree.pot_tier       = _new_tier;
+    _tree.soil_tier      = _soil_tier;
     _tree.vigor          = 50;            // baseline reset; no full-100 boost
     _tree.last_repot_day = global.game_day;
-    array_push(_tree.repots_history, { day: global.game_day, to_tier: _new_tier });
+    array_push(_tree.repots_history, { day: global.game_day, to_tier: _new_tier, soil_tier: _soil_tier });
     _tree.mesh_dirty     = true;          // no visual delta yet, but future fancy-pot mesh will need it
     return true;
 }

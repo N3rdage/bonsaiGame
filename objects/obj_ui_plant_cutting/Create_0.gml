@@ -3,7 +3,7 @@ event_inherited();
 
 panel_title = "Plant a Cutting";
 panel_w     = 520;
-panel_h     = 420;
+panel_h     = 470;
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
@@ -13,8 +13,9 @@ spawn_room = -1;
 spawn_x    = 0;
 spawn_y    = 0;
 
-selected_species = "";
-use_fancy_pot    = false;
+selected_species  = "";
+use_fancy_pot     = false;
+use_premium_soil  = false;
 
 draw_content = function() {
     var _x = panel_x + 20;
@@ -81,6 +82,19 @@ draw_content = function() {
         _y += _line + 4;
     }
 
+    // Premium-soil toggle: same auto-clear-on-empty pattern as the fancy pot.
+    var _premium_soil = inventory_count("soil_premium");
+    draw_set_color(c_white);
+    draw_text(_x, _y, "Akadama mix: " + string(_premium_soil));
+    _y += _line;
+    if (_premium_soil <= 0) use_premium_soil = false;
+    if (_premium_soil > 0) {
+        if (ui_toggle(_x, _y, 260, 28, "Use premium soil (slower vigor loss)", use_premium_soil)) {
+            use_premium_soil = !use_premium_soil;
+        }
+        _y += _line + 4;
+    }
+
     // Plant button
     var _bx = panel_x + (panel_w - 160) / 2;
     var _by = panel_y + panel_h - 70;
@@ -110,13 +124,18 @@ do_plant = function() {
     if (!inventory_has(_pot_key, 1)) return;
     if (!inventory_has("cutting_" + selected_species, 1)) return;
 
+    // Premium soil is optional; only consume it if still in stock.
+    var _use_soil = use_premium_soil && inventory_has("soil_premium", 1);
+
     inventory_remove(_pot_key, 1);
     inventory_remove("cutting_" + selected_species, 1);
+    if (_use_soil) inventory_remove("soil_premium", 1);
 
     // Create the tree
     var _tree = new BonsaiTree(selected_species, "cutting");
     _tree.name = "New " + global.species[$ selected_species].display_name;
-    _tree.pot_tier = use_fancy_pot ? 1 : 0;
+    _tree.pot_tier  = use_fancy_pot ? 1 : 0;
+    _tree.soil_tier = _use_soil ? 1 : 0;
     _tree.location = "inventory";   // until placed in world — set below
     array_push(global.all_trees, _tree);
     

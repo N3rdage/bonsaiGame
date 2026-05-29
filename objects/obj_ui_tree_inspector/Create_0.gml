@@ -56,6 +56,10 @@ draw_content = function() {
     draw_text(_x, _y, "Pot: " + _pot_label);
     _y += _line;
 
+    var _soil_label = (tree.soil_tier == 1) ? "Akadama (slower vigor loss)" : "Basic";
+    draw_text(_x, _y, "Soil: " + _soil_label);
+    _y += _line;
+
     // Status notes — one line per "why is a button greyed" reason. Stacks
     // vertically; keeps button labels short. Yellow so the player's eye
     // catches them when an action looks disabled below.

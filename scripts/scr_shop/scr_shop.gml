@@ -14,6 +14,9 @@ function init_shop_catalogue() {
         { key: "wire",       label: "Wire",       price: 8  },
         { key: "fertilizer", label: "Fertilizer", price: 10 },
         { key: "fancy_pot",  label: "Fancy Pot",  price: 80 },
+        // Premium soil is a per-repot horticultural upgrade (slower vigor
+        // drift + softer water-stress penalties); basic soil is free/implicit.
+        { key: "soil_premium", label: "Akadama Mix", price: 18 },
     ];
 }
 
