@@ -163,8 +163,40 @@ function repot_tree(_tree, _new_tier, _soil_tier = 0) {
     _tree.vigor          = 50;            // baseline reset; no full-100 boost
     _tree.last_repot_day = global.game_day;
     array_push(_tree.repots_history, { day: global.game_day, to_tier: _new_tier, soil_tier: _soil_tier });
-    _tree.mesh_dirty     = true;          // no visual delta yet, but future fancy-pot mesh will need it
+    _tree.mesh_dirty     = true;          // pot colour is live-drawn, but keep this for any future pot mesh geometry
     return true;
+}
+
+// Visual palette for a pot tier. Centralised here (alongside the rest of the
+// pot-tier semantics — repot_tree, the display-revenue multiplier) so the 2D
+// world sprite (obj_tree_sprite) and the 3D viewer's pedestal disc
+// (obj_viewer_3d) read the same colours and can't drift apart. Standard is the
+// terracotta the game shipped with; fancy is a glazed celadon ceramic so the
+// $80 pot reads as premium at a glance. `highlight` is undefined for tiers with
+// no glaze sheen.
+//   body / body_line — pot body fill + outline (2D)
+//   rim  / rim_line  — lighter rim band + outline (2D)
+//   disc             — flat pedestal disc colour (3D)
+//   highlight        — optional glaze sheen, or undefined
+function pot_palette(_tier) {
+    if (_tier == 1) {
+        return {
+            body:      make_color_rgb( 60, 110, 105),
+            body_line: make_color_rgb( 35,  70,  68),
+            rim:       make_color_rgb( 95, 150, 140),
+            rim_line:  make_color_rgb( 35,  70,  68),
+            disc:      make_color_rgb( 45,  80,  75),
+            highlight: make_color_rgb(150, 200, 190),
+        };
+    }
+    return {
+        body:      make_color_rgb(150,  90,  55),
+        body_line: make_color_rgb( 85,  50,  30),
+        rim:       make_color_rgb(170, 105,  65),
+        rim_line:  make_color_rgb( 85,  50,  30),
+        disc:      make_color_rgb( 70,  55,  45),
+        highlight: undefined,
+    };
 }
 
 function skip_tree_time(_tree, _days) {

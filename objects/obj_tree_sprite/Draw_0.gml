@@ -12,16 +12,43 @@ if (tree_index >= 0 && tree_index < array_length(global.all_trees)) {
     var _t       = global.all_trees[tree_index];
     var _species = _t.get_species();
 
-    // Pot body
-    draw_set_color(make_color_rgb(150, 90, 55));
-    draw_rectangle(x - 10, y + 8, x + 10, y + 18, false);
-    draw_set_color(make_color_rgb(85, 50, 30));
-    draw_rectangle(x - 10, y + 8, x + 10, y + 18, true);
+    // Pot — colours per tier (standard terracotta / fancy glazed celadon),
+    // drawn as a tapered vessel with a top-to-base gradient for a little depth.
+    var _pot = pot_palette(_t.pot_tier);
 
-    // Pot rim — lighter band along the top edge
-    draw_set_color(make_color_rgb(170, 105, 65));
+    // Feet (fancy only) — drawn first so the body overlaps their tops
+    if (_pot.highlight != undefined) {
+        draw_set_color(_pot.body_line);
+        draw_rectangle(x - 8, y + 17, x - 4, y + 21, false);
+        draw_rectangle(x + 4, y + 17, x + 8, y + 21, false);
+    }
+
+    // Pot body — tapered trapezoid, body colour at the rim fading to the
+    // darker outline colour at the base
+    draw_primitive_begin(pr_trianglestrip);
+    draw_vertex_color(x - 10, y + 8,  _pot.body,      1);
+    draw_vertex_color(x + 10, y + 8,  _pot.body,      1);
+    draw_vertex_color(x - 8,  y + 18, _pot.body_line, 1);
+    draw_vertex_color(x + 8,  y + 18, _pot.body_line, 1);
+    draw_primitive_end();
+
+    // Glaze sheen — a thin highlight stripe down the left of a fancy pot
+    if (_pot.highlight != undefined) {
+        draw_set_color(_pot.highlight);
+        draw_rectangle(x - 8, y + 10, x - 6, y + 17, false);
+    }
+
+    // Body outline (trapezoid)
+    draw_set_color(_pot.body_line);
+    draw_line(x - 10, y + 8,  x + 10, y + 8);
+    draw_line(x + 10, y + 8,  x + 8,  y + 18);
+    draw_line(x + 8,  y + 18, x - 8,  y + 18);
+    draw_line(x - 8,  y + 18, x - 10, y + 8);
+
+    // Pot rim — lighter band along the top edge (overhangs the body lip)
+    draw_set_color(_pot.rim);
     draw_rectangle(x - 11, y + 7, x + 11, y + 10, false);
-    draw_set_color(make_color_rgb(85, 50, 30));
+    draw_set_color(_pot.rim_line);
     draw_rectangle(x - 11, y + 7, x + 11, y + 10, true);
 
     // Trunk
