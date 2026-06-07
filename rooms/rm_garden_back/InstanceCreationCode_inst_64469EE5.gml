@@ -1,4 +1,4 @@
-target_room = rm_shed;   // or whatever your shed room is named
-target_x = 512;          // somewhere sensible inside the shed
-target_y = 400;
+target_room = rm_shed;
+target_x = 480;          // just inside the shed's bottom doorway
+target_y = 460;
 prompt = "Back to Shed";
