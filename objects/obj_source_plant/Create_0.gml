@@ -12,35 +12,36 @@ regrow_day     = -1;       // day when it'll offer cuttings again (-1 = ready no
 
 on_interact = function() {
     if (regrow_day > global.game_day) {
-        show_debug_message("This plant is recovering. Ready on day " + string(regrow_day));
+        show_toast("This plant is recovering - ready on day " + string(regrow_day));
         return;
     }
-    
+
     var _species = global.species[$ species_key];
     if (_species == undefined) {
         show_debug_message("Unknown species: " + species_key);
         return;
     }
-    
+
     // Can this species be propagated by cutting?
     var _can_cutting = false;
     for (var i = 0; i < array_length(_species.propagation); i++) {
         if (_species.propagation[i] == "cutting") _can_cutting = true;
     }
     if (!_can_cutting) {
-        show_debug_message(_species.display_name + " cannot be grown from cuttings. Try seeds.");
+        show_toast(_species.display_name + " can't be grown from cuttings - try seeds");
         return;
     }
-    
+
     inventory_add("cutting_" + species_key, 1);
     tutorial_advance_if(TUT_TAKE_CUTTING);
     cuttings_taken++;
-    show_debug_message("Took a " + _species.display_name + " cutting. Inventory: "
-        + string(inventory_count("cutting_" + species_key)));
-    
+    var _msg = "Took a " + _species.display_name + " cutting  ("
+        + string(inventory_count("cutting_" + species_key)) + " in inventory)";
+
     if (cuttings_taken >= max_cuttings) {
         regrow_day = global.game_day + 14;   // 2 weeks to regrow
         cuttings_taken = 0;
-        show_debug_message("Plant needs to recover.");
+        _msg += " - plant now recovering";
     }
+    show_toast(_msg);
 };
