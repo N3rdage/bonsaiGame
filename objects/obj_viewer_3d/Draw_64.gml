@@ -20,14 +20,14 @@ draw_set_valign(fa_top);
 var _species = tree.get_species();
 draw_text(16, 10, _species.display_name + (tree.name == "" ? "" : " \"" + tree.name + "\""));
 draw_text(16, 32, "Age: " + string(tree.age_days) + "d  |  Height: "
-    + string_format(tree.trunk.height_cm, 1, 1) + "cm  |  Branches: "
-    + string(array_length(tree.branches)));
+    + string_format(tree.trunk.height_cm, 1, 1) + "cm");
 
-// Mode buttons (top-centre)
+// Mode buttons — right-aligned just left of Exit so they clear the info text on
+// the left (the old centred layout overlapped it at the 960-wide GUI).
 var _modes = ["view", "wire", "clip", "prune"];
 var _labels = ["View (V)", "Wire (W)", "Clip (C)", "Prune (P)"];
-var _bw = 100, _bh = 36;
-var _bx = _gw / 2 - (_bw * 4 + 24) / 2;
+var _bw = 84, _bh = 36;
+var _bx = _gw - 136 - (_bw * 4 + 24);   // group ends 16px before the Exit button
 
 for (var i = 0; i < 4; i++) {
     var _selected = (viewer_mode == _modes[i]);

@@ -83,6 +83,14 @@ function ui_bar(_x, _y, _w, _h, _value, _max, _col) {
     draw_rectangle(_x, _y, _x + _w, _y + _h, true);
 }
 
+// Transient on-screen notification ("toast"). Call from anywhere (e.g. crafting,
+// purchases) to give the player visible feedback for an action. The game
+// controller counts the timer down and draws it bottom-centre. ~2.5s at 60fps.
+function show_toast(_msg) {
+    global.toast_text  = _msg;
+    global.toast_timer = 150;
+}
+
 // Draw a labeled stat row.
 function ui_stat_row(_x, _y, _label, _value) {
     draw_set_color(make_color_rgb(200, 200, 200));
