@@ -28,6 +28,10 @@ global.game_paused      = false;
 global.time_accumulator = 0;
 global.base_time_scale  = 1.0;
 
+// Transient toast notification state (see show_toast / Step / Draw GUI)
+global.toast_text       = "";
+global.toast_timer      = 0;
+
 // Title flow normally sets this before room_goto; default 0 = unsaved session
 if (!variable_global_exists("active_slot")) global.active_slot = 0;
 
