@@ -1,15 +1,19 @@
 // obj_game_controller — Draw GUI event
-// Always-visible HUD: current season, day, money. Top-right corner.
-var _season = current_season();
-draw_set_halign(fa_right);
-draw_set_valign(fa_top);
-draw_set_color(c_white);
-draw_text(display_get_gui_width() - 16, 4,
-    season_label(_season) + " " + string(current_season_day()) + "/"
-    + string(BONSAI_DAYS_PER_SEASON)
-    + "  |  Day " + string(global.game_day)
-    + "  |  $" + string(global.money));
-draw_set_halign(fa_left);
+// World HUD: current season, day, money. Top-right corner. Hidden in the 3D
+// viewer (it has its own toolbar there) and behind any open modal panel (so it
+// doesn't bleed past the dim overlay).
+if (room != rm_viewer_3d && !instance_exists(obj_ui_panel)) {
+    var _season = current_season();
+    draw_set_halign(fa_right);
+    draw_set_valign(fa_top);
+    draw_set_color(c_white);
+    draw_text(display_get_gui_width() - 16, 4,
+        season_label(_season) + " " + string(current_season_day()) + "/"
+        + string(BONSAI_DAYS_PER_SEASON)
+        + "  |  Day " + string(global.game_day)
+        + "  |  $" + string(global.money));
+    draw_set_halign(fa_left);
+}
 
 // Tutorial corner panel — visible across all rooms while a step is active.
 // Stays drawn even when a modal (e.g. the tree inspector) is open so the
@@ -68,4 +72,28 @@ if (global.tutorial_step != TUT_DONE) {
         ui_button(_px + _w - 70, _skip_y, 60, _skip_h, "Skip", false);
     }
     draw_set_halign(fa_left);
+}
+
+// Transient toast notification (bottom-centre), fading over its final ~0.5s.
+if (global.toast_timer > 0) {
+    var _tgw   = display_get_gui_width();
+    var _tcy   = display_get_gui_height() - 56;
+    var _alpha = min(1, global.toast_timer / 30);
+    var _bw    = string_width(global.toast_text) + 28;
+    var _bh    = 30;
+    var _cx    = _tgw / 2;
+
+    draw_set_alpha(_alpha * 0.85);
+    draw_set_color(make_color_rgb(30, 35, 30));
+    draw_rectangle(_cx - _bw / 2, _tcy - _bh / 2, _cx + _bw / 2, _tcy + _bh / 2, false);
+    draw_set_alpha(_alpha);
+    draw_set_color(make_color_rgb(140, 160, 120));
+    draw_rectangle(_cx - _bw / 2, _tcy - _bh / 2, _cx + _bw / 2, _tcy + _bh / 2, true);
+    draw_set_halign(fa_center);
+    draw_set_valign(fa_middle);
+    draw_set_color(c_white);
+    draw_text(_cx, _tcy, global.toast_text);
+    draw_set_alpha(1);
+    draw_set_halign(fa_left);
+    draw_set_valign(fa_top);
 }

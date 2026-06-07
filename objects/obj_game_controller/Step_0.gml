@@ -1,5 +1,8 @@
 // obj_game_controller — Step event
 
+// Toast countdown runs even while paused (so it still fades in the 3D viewer)
+if (global.toast_timer > 0) global.toast_timer -= 1;
+
 if (global.game_paused) exit;
 
 global.time_accumulator += (delta_time / 1_000_000) * global.base_time_scale;
