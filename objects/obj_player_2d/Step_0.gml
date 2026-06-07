@@ -24,6 +24,11 @@ var _ny = y + _iy * move_speed;
 if (!place_meeting(_nx, y, obj_wall)) x = _nx;
 if (!place_meeting(x, _ny, obj_wall)) y = _ny;
 
+// Keep the player inside the room regardless of wall coverage (rooms aren't
+// always fully enclosed yet). Room-space, so it tracks the 960x540 view.
+x = clamp(x, 8, room_width  - 8);
+y = clamp(y, 8, room_height - 8);
+
 // Facing
 if      (_ix >  0.5) facing = "right";
 else if (_ix < -0.5) facing = "left";
