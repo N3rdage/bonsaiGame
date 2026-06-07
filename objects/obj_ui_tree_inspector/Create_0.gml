@@ -4,7 +4,7 @@ event_inherited();
 // Subclass overrides
 panel_title = "Bonsai Inspector";
 panel_w     = 680;
-panel_h     = 640;
+panel_h     = display_get_gui_height() - 24;   // fit the 540px canvas (was a fixed 640)
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
@@ -26,38 +26,33 @@ draw_content = function() {
     
     var _species = tree.get_species();
     var _x = panel_x + 20;
-    var _y = panel_y + 50;
-    var _line = 22;
-    
-    // Stats section
+    var _y = panel_y + 44;
+    var _line = 18;
+
+    // Labels for the paired stat lines below
+    var _style_label = "(none)";
+    if (tree.target_style != "" && variable_struct_exists(global.styles, tree.target_style)) {
+        _style_label = global.styles[$ tree.target_style].display_name;
+    }
+    var _pot_label  = (tree.pot_tier == 1) ? "Fancy (+25% display)" : "Standard";
+    var _soil_label = (tree.soil_tier == 1) ? "Akadama (slower vigor loss)" : "Basic";
+
+    // Stats section — paired onto fewer lines so the whole panel (incl. the
+    // score breakdown + status notes) fits the 540px screen.
     draw_set_color(c_white);
     draw_set_halign(fa_left);
     draw_set_valign(fa_top);
     draw_text(_x, _y, "Species: " + _species.display_name);
     _y += _line;
-    draw_text(_x, _y, "Origin: " + tree.origin);
-    _y += _line;
-    draw_text(_x, _y, "Age: " + string(tree.age_days) + " days");
+    draw_text(_x, _y, "Age: " + string(tree.age_days) + " days  |  Origin: " + tree.origin);
     _y += _line;
     draw_text(_x, _y, "Trunk: " + string_format(tree.trunk.height_cm, 1, 1) + " cm tall, "
                                  + string_format(tree.trunk.girth_mm, 1, 1) + " mm thick");
     _y += _line;
-    draw_text(_x, _y, "Branches: " + string(array_length(tree.branches)));
+    draw_text(_x, _y, "Branches: " + string(array_length(tree.branches))
+                                   + "  |  Style: " + _style_label);
     _y += _line;
-
-    var _style_label = "(none)";
-    if (tree.target_style != "" && variable_struct_exists(global.styles, tree.target_style)) {
-        _style_label = global.styles[$ tree.target_style].display_name;
-    }
-    draw_text(_x, _y, "Style: " + _style_label);
-    _y += _line;
-
-    var _pot_label = (tree.pot_tier == 1) ? "Fancy (+25% display)" : "Standard";
-    draw_text(_x, _y, "Pot: " + _pot_label);
-    _y += _line;
-
-    var _soil_label = (tree.soil_tier == 1) ? "Akadama (slower vigor loss)" : "Basic";
-    draw_text(_x, _y, "Soil: " + _soil_label);
+    draw_text(_x, _y, "Pot: " + _pot_label + "  |  Soil: " + _soil_label);
     _y += _line;
 
     // Status notes — one line per "why is a button greyed" reason. Stacks
@@ -114,24 +109,30 @@ draw_content = function() {
     draw_text(_x, _y, "Vigor");
     ui_bar(_x + 120, _y + 4, 200, 14, tree.vigor, 100, make_color_rgb(220, 180, 80));
     draw_text(_x + 330, _y, string(floor(tree.vigor)) + "/100");
-    _y += _line + 16;
+    _y += _line + 12;
     
     var _branch_count = array_length(tree.branches);
     if (show_breakdown) {
-        // Score breakdown: replaces the branch selector while toggled on.
-        var _step = 22;
-        var _by   = _y;
-        for (var i = 0; i < array_length(_score.breakdown); i++) {
-            var _c = _score.breakdown[i];
-            draw_text(_x, _by, _c.label);
+        // Score breakdown: replaces the branch selector while toggled on. Laid
+        // out in two columns so the list (which grows a row when a style is
+        // assigned) stays clear of the action buttons on the short 540px screen.
+        var _step  = 18;
+        var _count = array_length(_score.breakdown);
+        var _rows  = ceil(_count / 2);
+        for (var i = 0; i < _count; i++) {
+            var _c   = _score.breakdown[i];
+            var _col = (i < _rows) ? 0 : 1;
+            var _row = (i < _rows) ? i : (i - _rows);
+            var _cx  = _x + _col * 330;
+            var _cy  = _y + _row * _step;
+            draw_text(_cx, _cy, _c.label);
             if (_c.is_multiplier) {
-                draw_text(_x + 260, _by, "x " + string_format(_c.value, 1, 2));
+                draw_text(_cx + 150, _cy, "x " + string_format(_c.value, 1, 2));
             } else {
-                draw_text(_x + 260, _by, string_format(_c.points, 1, 1) + " pts");
+                draw_text(_cx + 150, _cy, string_format(_c.points, 1, 1) + " pts");
             }
-            _by += _step;
         }
-        _y = _by + 8;
+        _y += _rows * _step + 8;
     } else if (_branch_count > 0) {
         draw_text(_x, _y, "Selected branch: " + string(selected_branch) + " / " + string(_branch_count - 1));
         if (ui_button(_x + 260, _y - 4, 40, 24, "<")) {
