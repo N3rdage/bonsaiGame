@@ -1,31 +1,37 @@
 // obj_game_controller — Room Start event
 // Respawn tree sprites for any trees "located" in this room.
 
-// For now, only the shed/starting room hosts trees.
-// When we add the greenhouse, we'll expand this check.
+// Rooms the controller manages. Only the shed hosts placed trees for now.
 var _room_location = "";
-if (room == rm_shed)  _room_location = "shed";
+if (room == rm_shed)             _room_location = "shed";
+else if (room == rm_garden_back) _room_location = "garden";
 //if (room == rm_greenhouse) _room_location = "greenhouse";
 
 if (_room_location == "") exit;
 
-// Build an enclosed wall border at runtime. Replaces the ~130 hand-placed wall
-// instances the shed used to carry (see DESIGN.md). obj_wall is non-persistent,
-// so leaving/re-entering the room rebuilds it fresh — no accumulation. A gap on
-// the bottom edge lines up with the garden door so it reads as a doorway.
-var _tw     = 32;
-var _gap_x1 = 448;   // doorway gap (the obj_door instance sits in here)
-var _gap_x2 = 512;
+// Build an enclosed wall border at runtime. Replaces hand-placed obj_wall
+// instances (see DESIGN.md). obj_wall is non-persistent, so leaving/re-entering
+// rebuilds it fresh — no accumulation. Each room leaves a doorway gap that lines
+// up with its obj_door: the shed's is on the bottom edge, the garden's (door
+// back to the shed, where the player arrives) is on the left edge.
+var _tw = 32;
 for (var _wx = 0; _wx <= room_width - _tw; _wx += _tw) {
-    instance_create_layer(_wx, 0, "Instances", obj_wall);              // top edge
-    if (_wx < _gap_x1 || _wx >= _gap_x2) {
-        instance_create_layer(_wx, room_height - _tw, "Instances", obj_wall);  // bottom edge (minus doorway)
+    instance_create_layer(_wx, 0, "Instances", obj_wall);                 // top edge
+    // Bottom edge — gap in the shed for its doorway
+    if (_room_location != "shed" || _wx < 448 || _wx >= 512) {
+        instance_create_layer(_wx, room_height - _tw, "Instances", obj_wall);
     }
 }
 for (var _wy = _tw; _wy < room_height - _tw; _wy += _tw) {
-    instance_create_layer(0, _wy, "Instances", obj_wall);             // left edge
-    instance_create_layer(room_width - _tw, _wy, "Instances", obj_wall); // right edge
+    // Left edge — gap in the garden for its doorway
+    if (_room_location != "garden" || _wy < 416 || _wy >= 480) {
+        instance_create_layer(0, _wy, "Instances", obj_wall);
+    }
+    instance_create_layer(room_width - _tw, _wy, "Instances", obj_wall);  // right edge
 }
+
+// Tree sprites only live in the shed for now.
+if (_room_location != "shed") exit;
 
 // Grid of positions to place tree sprites in the open floor (clear of the work
 // area top-left, the display pedestals top-right, and the doorway bottom-centre)
