@@ -47,7 +47,21 @@ function apply_settings() {
     window_set_fullscreen(global.settings.fullscreen);
     if (!global.settings.fullscreen) {
         var _scale = max(1, global.settings.scale);
-        window_set_size(GAME_WIDTH * _scale, GAME_HEIGHT * _scale);
+        var _w = GAME_WIDTH  * _scale;
+        var _h = GAME_HEIGHT * _scale;
+
+        // Never request a window larger than the usable desktop. Reserve room
+        // for the title bar + taskbar (fractions, so it holds across DPI). The
+        // window shrinks uniformly so it stays 16:9 -- e.g. a 2x/3x request on
+        // a 1080-tall screen just fills the available height instead of running
+        // off-screen behind the taskbar. Fullscreen stays the crisp full-size
+        // option; option_windows_scale=0 (keep aspect) covers any leftover.
+        var _fit = min(1, (display_get_width() * 0.98) / _w,
+                          (display_get_height() * 0.90) / _h);
+        _w = floor(_w * _fit);
+        _h = floor(_h * _fit);
+
+        window_set_size(_w, _h);
         window_center();
     }
 }
