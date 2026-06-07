@@ -11,6 +11,15 @@ init_inventory();
 init_shop_catalogue();
 init_vertex_format();
 
+// Normally the title screen has already initialised + applied settings, but
+// guard for launching straight into rm_shed (debug) so the GUI/window scale
+// is still set up.
+if (!variable_global_exists("settings")) {
+    init_settings();
+    load_settings();
+}
+apply_settings();
+
 global.game_day         = 0;
 global.money            = 100;
 global.all_trees        = [];

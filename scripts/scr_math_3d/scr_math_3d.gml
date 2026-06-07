@@ -80,8 +80,10 @@ function project_3d_to_screen(_world_pos) {
     var _ndc_x = _cx / _cw;
     var _ndc_y = _cy / _cw;
     
+    // Map NDC to GUI space (the logical 960x540), not window pixels — hotspots
+    // are drawn in Draw GUI, and window size differs from GUI size once scaled.
     return {
-        x: (_ndc_x * 0.5 + 0.5) * window_get_width(),
-        y: (1 - (_ndc_y * 0.5 + 0.5)) * window_get_height(),
+        x: (_ndc_x * 0.5 + 0.5) * display_get_gui_width(),
+        y: (1 - (_ndc_y * 0.5 + 0.5)) * display_get_gui_height(),
     };
 }

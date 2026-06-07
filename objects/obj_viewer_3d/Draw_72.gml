@@ -11,7 +11,7 @@ var _view = matrix_build_lookat(
     0, 0, -1
 );
 
-var _aspect = window_get_width() / window_get_height();
+var _aspect = display_get_gui_width() / display_get_gui_height();
 var _proj = matrix_build_projection_perspective_fov(
     60,
     -_aspect,

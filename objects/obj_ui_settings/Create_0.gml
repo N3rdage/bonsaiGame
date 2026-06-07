@@ -28,6 +28,23 @@ draw_content = function() {
     }
     _y += _line + 8;
 
+    // Window scale — only meaningful when not fullscreen; greyed out otherwise.
+    var _scale_enabled = !global.settings.fullscreen;
+    draw_set_color(_scale_enabled ? c_white : make_color_rgb(140, 140, 140));
+    draw_text(_x, _y + 6, "Window scale");
+    var _sw = 48;
+    var _sgap = 8;
+    for (var _s = 1; _s <= 3; _s++) {
+        var _bx = _x + 200 + (_s - 1) * (_sw + _sgap);
+        if (ui_toggle(_bx, _y, _sw, 28, string(_s) + "x",
+                      global.settings.scale == _s, _scale_enabled)) {
+            global.settings.scale = _s;
+            apply_settings();
+            save_settings();
+        }
+    }
+    _y += _line + 8;
+
     // Close button at the bottom
     var _bw = 140;
     var _bh = 36;
