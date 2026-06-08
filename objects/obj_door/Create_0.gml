@@ -1,6 +1,9 @@
 // obj_door — Create event
 event_inherited();
 
+// Draw above the wall ring (depth 0) so a door set into a solid wall is visible.
+depth = -1;
+
 // Configure these per-instance via Creation Code in the Room Editor
 target_room = -1;
 target_x    = 0;

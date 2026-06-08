@@ -16,6 +16,9 @@ Priority-ordered toward "playable." Security items always at top.
 | 6 | Content | Greenhouse room + building system | Grid-based wall/shelf placement so the player can lay out their greenhouse interior. Split candidates: empty greenhouse room, item placement system, item catalogue. | L |
 | 7 | Polish | Audio pass | Currently silent. SFX (water, snip, footsteps, UI clicks) + ambient music per room. Split candidates: SFX layer, music layer, mixer/settings hook. | L |
 | 9 | Polish | Art pass | Replace placeholder sprites and 3D textures with cohesive art. Last item — only when systems are stable. Likely split per-asset-type or per-room. | XL |
+| 10 | Content | Shed decor / clutter | A furniture/clutter pass to make the cozy shed feel lived-in: wall shelves (with pots), garden tools (rake/shears/watering can), random pots/sacks lying around, a window. Needs new decor sprites (art flow) placed in the empty wall/floor space. | M |
+| 11 | Polish | Garden fence verticals | The left/right fence runs reuse the horizontal `spr_fence`, so they read as a row of horizontal fence-ends rather than a vertical fence. Needs a vertical fence sprite (or a post-and-rail that works both orientations) and per-edge selection in the wall draw. | S |
+| 12 | Polish | Garden door context | The garden door reads as a small door floating in a wall with no building around it. Give it a doorframe / shed-exterior surround (or rethink how the garden→shed transition is presented). | S |
 
 ## Shipped
 

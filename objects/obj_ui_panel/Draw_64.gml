@@ -1,5 +1,8 @@
 // obj_ui_panel — Draw GUI event
 // Draws the panel chrome. Subclasses add content by overriding draw_content.
+// Set the UI font here so every panel (chrome + draw_content) uses it — draw
+// font state isn't reliably carried between events/passes.
+draw_set_font(fnt_main);
 
 // Dim the world behind the panel
 draw_set_alpha(0.5);
