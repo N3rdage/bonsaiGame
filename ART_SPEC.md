@@ -149,3 +149,47 @@ everything. Each group is a small PR under the usual loop:
 - Static tree sprites (procedural/data-driven — see above).
 - Pot visuals: already done in code (terracotta/celadon with depth + feet).
 - Audio (Suno) — separate pass, TODO #7.
+
+---
+
+# Decor pass (TODO #10 / #11)
+
+A second drop to make the cozy shed feel lived-in (shelves, garden tools, stray
+pots, a window) plus the garden vertical-fence fix. **Same constraints + palette
+as above** (1:1, RGBA, transparent, hard pixel edges, no AA, palette table).
+
+**One difference from the first batch — these are drawn UNSCALED (1×).** The
+earlier 32×32 props are drawn at 1.5× in-game (~48px on screen); to keep the
+decor crisp, author it at the **on-screen size directly** (the sizes below
+already match that ~48px scale) and I draw it 1:1. So design at the listed pixel
+dimensions, chunky, readable at 2–4× window scaling.
+
+**View/style:** match the existing props — slightly oblique top-down (you see the
+top *and* a bit of the front face, like the workbench's tabletop + legs). Warm,
+lamplit-cozy shed mood.
+
+**Origin = `base-centre`** for everything except the fence: X = width/2,
+Y = height−1 (bottom-centre), so each piece anchors at its floor/wall contact
+point (I add the drop shadow in code). The fence is top-left + tileable.
+
+### Shed decor
+
+| Sprite | Size | Origin | Frames | Notes |
+|--------|------|--------|--------|-------|
+| `spr_shelf` | 56×44 | base-centre | 1 | Wall shelf/rack against the wall: wooden frame, 2 shelves holding a few small terracotta pots + a tin/jar. Front-facing oblique; sits against the top wall. |
+| `spr_tools` | 36×52 | base-centre | 1 | A rake + spade + broom leaning together against the wall. Tall, narrow; wood handles, metal/brush heads, brass accents ok. |
+| `spr_watering_can` | 32×30 | base-centre | 1 | Galvanised/brass watering can on the floor — body, handle, spout + rose. |
+| `spr_pot_stack` | 40×40 | base-centre | 1 | Casual clutter: 2–3 empty terracotta pots, one short stack + one tipped on its side. Terracotta family. |
+| `spr_sack` | 32×34 | base-centre | 1 | Slumped burlap/hessian sack of soil, open top with a little spilled soil at the base. |
+| `spr_window` | 56×24 | base-centre | 1 | A window set into the wall — wooden frame + sill + pale daylight glass. Reads as letting light into the shed; sits on the top wall. |
+
+### Garden (fixes TODO #11)
+
+| Sprite | Size | Origin | Frames | Notes |
+|--------|------|--------|--------|-------|
+| `spr_fence_v` | 32×32 | Top Left | 1 | **Vertical** fence segment — rails running up–down with a post, **seamless top & bottom** so a left/right run reads as one continuous fence (not the horizontal-end look the current `spr_fence` gives on side runs). Same palette/weight as `spr_fence`; transparent left & right of the rails so grass shows through. |
+
+### Wiring (my side, after you import)
+- Floor clutter (`spr_watering_can`, `spr_pot_stack`, `spr_sack`) + leaning `spr_tools`: place a few in the shed's empty wall/floor corners, with a small shadow.
+- `spr_shelf` + `spr_window`: mount on the top wall.
+- `spr_fence_v`: have `obj_wall` draw it on the garden's left/right edges (vertical runs), keeping `spr_fence` for the top/bottom (horizontal runs).
