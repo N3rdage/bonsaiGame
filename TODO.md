@@ -17,8 +17,9 @@ Priority-ordered toward "playable." Security items always at top.
 | 7 | Polish | Audio pass | Currently silent. SFX (water, snip, footsteps, UI clicks) + ambient music per room. Split candidates: SFX layer, music layer, mixer/settings hook. | L |
 | 9 | Polish | Art pass | Replace placeholder sprites and 3D textures with cohesive art. Last item — only when systems are stable. Likely split per-asset-type or per-room. | XL |
 | 10 | Content | Shed decor / clutter | A furniture/clutter pass to make the cozy shed feel lived-in: wall shelves (with pots), garden tools (rake/shears/watering can), random pots/sacks lying around, a window. Needs new decor sprites (art flow) placed in the empty wall/floor space. | M |
-| 11 | Polish | Garden fence verticals | The left/right fence runs reuse the horizontal `spr_fence`, so they read as a row of horizontal fence-ends rather than a vertical fence. Needs a vertical fence sprite (or a post-and-rail that works both orientations) and per-edge selection in the wall draw. | S |
+| 11 | Polish | Garden fence corners | Vertical runs now use `spr_fence_v` (good), but the **corners** leave a gap where the horizontal (`spr_fence`) and vertical runs meet — the rails don't connect, and the procedural corner post sits on the vertical run without bridging the gap. Needs a dedicated **corner fence sprite** (L-piece) that joins both runs, selected per-corner in the wall draw. | S |
 | 12 | Polish | Garden door context | The garden door reads as a small door floating in a wall with no building around it. Give it a doorframe / shed-exterior surround (or rethink how the garden→shed transition is presented). | S |
+| 13 | Polish | Decor y-sorting | Shed decor is drawn on the floor layer (behind the player), and wall pieces (window) are special-cased in a Draw End event. If decor should occlude/sort with the player by position, promote it to a small y-sorted `obj_decor` (depth = -y) placed as instances rather than fixed draws. | S |
 
 ## Shipped
 

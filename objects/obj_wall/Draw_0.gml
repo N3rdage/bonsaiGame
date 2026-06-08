@@ -1,4 +1,10 @@
 // obj_wall — Draw event
-// Shed walls (spr_wall) / garden fence (spr_fence). Both 32x32, top-left origin;
-// drawn at the instance position (the runtime border places these on the grid).
-draw_sprite(room == rm_garden_back ? spr_fence : spr_wall, 0, x, y);
+// Shed walls use spr_wall. Garden fence: horizontal runs (top/bottom edges) use
+// spr_fence; vertical runs (left/right edges) use spr_fence_v so they read as a
+// fence rather than horizontal board-ends. All 32x32, top-left origin.
+if (room == rm_garden_back) {
+    var _vertical = (x <= 0 || x >= room_width - 32);
+    draw_sprite(_vertical ? spr_fence_v : spr_fence, 0, x, y);
+} else {
+    draw_sprite(spr_wall, 0, x, y);
+}
