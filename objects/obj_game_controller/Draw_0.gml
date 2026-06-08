@@ -46,4 +46,25 @@ if (room == rm_shed) {
     draw_set_color(make_color_rgb(155, 110, 95));  // inset border
     draw_roundrect(_r1x + 7, _r1y + 7, _r2x - 7, _r2y - 7, true);
     draw_set_color(c_white);
+
+    // Decor / clutter — bottom-centre-origin sprites at fixed interior spots with
+    // a faint ground shadow. Drawn on the floor layer (behind props/player);
+    // positions picked for the empty corners and easy to retune.
+    // (spr_window is drawn in Draw End so it sits IN the top wall, not on the floor)
+    var _decor = [
+        [spr_shelf,        440, 174],   // against the top wall
+        [spr_tools,        212, 352],   // leaning on the left wall
+        [spr_watering_can, 706, 256],   // right floor
+        [spr_pot_stack,    706, 388],   // bottom-right corner
+        [spr_sack,         300, 384],   // bottom-left floor
+    ];
+    for (var _i = 0; _i < array_length(_decor); _i++) {
+        var _ds = _decor[_i][0], _dx = _decor[_i][1], _dy = _decor[_i][2];
+        var _dw = sprite_get_width(_ds);
+        draw_set_color(c_black);
+        draw_set_alpha(0.18);
+        draw_ellipse(_dx - _dw / 3, _dy - 4, _dx + _dw / 3, _dy + 2, false);
+        draw_set_alpha(1);
+        draw_sprite(_ds, 0, _dx, _dy);
+    }
 }
