@@ -1,4 +1,6 @@
 // obj_game_controller — Draw GUI event
+draw_set_font(fnt_main);   // HUD / tutorial / toast text
+
 // World HUD: current season, day, money. Top-right corner. Hidden in the 3D
 // viewer (it has its own toolbar there) and behind any open modal panel (so it
 // doesn't bleed past the dim overlay).

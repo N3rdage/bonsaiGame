@@ -35,6 +35,14 @@ else if (_ix < -0.5) facing = "left";
 else if (_iy >  0.5) facing = "down";
 else if (_iy < -0.5) facing = "up";
 
+// Walk animation — advance the 4-frame cycle while moving, idle (0) when still
+if (_ix != 0 || _iy != 0) {
+    walk_anim += 0.14;
+    if (walk_anim >= 4) walk_anim -= 4;
+} else {
+    walk_anim = 0;
+}
+
 // Nearest interactable within range
 nearest_interactable = instance_nearest(x, y, obj_interactable);
 if (nearest_interactable != noone
@@ -45,3 +53,7 @@ if (nearest_interactable != noone
 if (nearest_interactable != noone && keyboard_check_pressed(ord("E"))) {
     nearest_interactable.on_interact();
 }
+
+// Depth-sort by y so the player draws in front of walls/door/props (which sit
+// at depth 0). Negative depth keeps the player above the floor (depth 50) too.
+depth = -y;

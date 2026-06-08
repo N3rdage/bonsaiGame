@@ -32,6 +32,10 @@ global.base_time_scale  = 1.0;
 global.toast_text       = "";
 global.toast_timer      = 0;
 
+// Floor is drawn in the controller's Draw event; this depth sits between the
+// room's background colour (depth 100) and the instance layer (depth 0).
+depth = 50;
+
 // Title flow normally sets this before room_goto; default 0 = unsaved session
 if (!variable_global_exists("active_slot")) global.active_slot = 0;
 

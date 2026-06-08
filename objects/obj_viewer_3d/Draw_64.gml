@@ -1,4 +1,5 @@
 // obj_viewer_3d — Draw GUI event
+draw_set_font(fnt_main);
 
 var _gw = display_get_gui_width();
 var _gh = display_get_gui_height();
