@@ -10,6 +10,16 @@
 #macro GAME_WIDTH  960
 #macro GAME_HEIGHT 540
 
+// Shed interior: the wall ring is inset well inside the 960x540 view so the shed
+// reads as a cozy room rather than a warehouse. These are the wall-tile corner
+// positions (top-left of the ring / bottom-right wall tile). Shared by the
+// runtime wall ring (obj_game_controller Room Start) and the floor draw, so the
+// floor tiles exactly the interior. Outside the ring shows the room background.
+#macro SHED_X0 160
+#macro SHED_Y0 96
+#macro SHED_X1 768
+#macro SHED_Y1 416
+
 function init_settings() {
     global.settings = {
         fullscreen: false,

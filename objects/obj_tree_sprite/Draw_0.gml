@@ -1,6 +1,7 @@
 // obj_tree_sprite — Draw event
 // Bonsai silhouette: pot, trunk, leafy dome in the species's leaf colour.
 // Sprite is 48×48 centered.
+draw_set_font(fnt_main);   // name label below
 
 // Drop shadow
 draw_set_color(c_black);
