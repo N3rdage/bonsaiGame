@@ -9,7 +9,6 @@
 - [TODO tracking](feedback_todo_tracking.md) — TODO.md at repo root is source of truth; create on first use; "sync TODOs" reconciles memory + code + TODO.md.
 - [Memory changes get their own commits](feedback_memory_commits.md) — .claude-memory/ is in the repo; don't stage memory files in feature commits, flag them separately.
 - [BonsaiGame dev blog](project_blog.md) — Claude writes a first-person dev blog at `blog/`; when Drew says "let's work on the blog", propose 3 candidate angles before drafting.
-- [Fresh blog material ready — look-and-feel pass](project_blog_lookfeel_material.md) — 4 ready-to-draft posts (art/fonts/scaling/math) in `blog/_material-2026-06-08-look-and-feel.md`; images come from `.debug/` screenshots. Delete once shipped.
 - [A/B/C options beat silent defaults](feedback_ab_options.md) — for decisions with multiple defensible paths, present 2-3 lettered options with pros/cons and a suggested default; don't silently pick.
 - [Dev and PR workflow loop](feedback_github_push.md) — plan → code/branch → Drew tests → iterate → approve → commit → push/PR → Drew merges. Claude pushes/PRs (prompt-gated) but never merges; never run in a no-prompt mode.
 - [Delete merged branches](feedback_delete_merged_branch.md) — after merge verification, `git checkout main && git pull && git branch -d <branch>`.
