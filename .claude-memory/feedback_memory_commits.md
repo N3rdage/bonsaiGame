@@ -4,7 +4,7 @@ description: .claude-memory/ is in the repo. Don't stage memory files in feature
 type: feedback
 originSessionId: ea7bf55b-43b2-4736-8b01-70a80594d6b6
 ---
-Claude's per-project memory lives in the repo at `.claude-memory/`. On Drew's current machine the auto-memory path `~/.claude/projects/<hash>/memory` is a **separate copy**, NOT a junction to the repo (verified 2026-06-09: empty `LinkType`, and the two MEMORY.md files had diverged). So the two stores can drift: when you change a memory file, edit BOTH the live `~/.claude/.../memory/<file>` (what loads into context each session) AND the repo `.claude-memory/<file>` (the version-controlled copy), or they fall out of sync. (An older note claimed a junction; that's no longer true here.)
+Claude's per-project memory lives in the repo at `.claude-memory/` (real files, version-controlled). The auto-memory path `~/.claude/projects/<hash>/memory` is a **Windows junction pointing at the repo `.claude-memory/`**, so harness writes land directly in the repo and there's a single store — edit a memory file once (through either path) and both views update. (The junction broke during the F: drive migration, leaving two diverged real copies; restored 2026-06-09 after reconciling them. If memory ever appears to "split" again — the same file differing between the two paths — the junction has broken again: recreate it with `New-Item -ItemType Junction -Path <user-memory> -Target F:\BonsaiGame\.claude-memory` after merging the live copy's newer files into the repo.)
 
 When committing feature work, do NOT stage `.claude-memory/` files alongside code. Stage feature files explicitly (`git add <paths>`) rather than `git add -A` or `git add .`.
 
