@@ -1,11 +1,14 @@
 ---
-name: Auto-commit locally
-description: Always stage and commit changes locally with a descriptive message before handing off — don't wait to be asked.
-type: feedback
-originSessionId: ea7bf55b-43b2-4736-8b01-70a80594d6b6
+name: commit-timing-after-drew-tests-and-approves
+description: "Don't auto-commit before handing off. Code first, hand off uncommitted for Drew to test/iterate; commit only once Drew approves. Small commits fine (squash-merged)."
+metadata: 
+  node_type: memory
+  type: feedback
+  originSessionId: 02e3b647-86d9-4e10-be13-083c57bbb8c5
 ---
-Always stage and commit changes locally (with a descriptive commit message) before telling Drew the branch is ready. Do this by default — don't wait for him to ask.
 
-**Why:** Drew prefers the branch to be commit-ready when he picks it up for review/push.
+Commit only **after** Drew has tested the change locally and approved it — not before handing off. The earlier "auto-commit locally before handoff, don't wait to be asked" guidance is **superseded** (2026-06-07): Drew wants to test the working-tree changes in the GameMaker IDE first, iterate on fixes, and approve; the commit comes after that.
 
-**How to apply:** After finishing work on a branch, stage the relevant files (explicit paths, not `git add -A`) and commit with a conventional-commit-style message before reporting completion.
+Multiple small commits as work progresses is fine — the repo squash-merges, so per-commit granularity is washed out; Claude's call. Stage explicit paths (not `git add -A`); keep `.claude-memory` changes out of feature commits (see [[feedback_memory_commits]]).
+
+This is step 7 of the full loop in [[feedback_github_push]].
