@@ -6,3 +6,8 @@
 *.yy text eol=lf
 *.yyp text eol=lf
 *.json text eol=lf
+
+# Claude memory is edited by the harness (writes LF) via a junction at
+# ~/.claude/projects/<hash>/memory -> .claude-memory; keep LF so memory files
+# don't churn between LF/CRLF every session.
+.claude-memory/** text eol=lf

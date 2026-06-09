@@ -2,16 +2,18 @@
 - [User shell environment](user_shell.md) — Windows; commands for Drew use PowerShell syntax (Claude's Bash tool itself runs in bash).
 - [Prefer single-line shell commands](feedback_command_formatting.md) — no backtick continuations; copy-paste mangles them.
 - ["plan:" prefix](feedback_plan_prefix.md) — propose with defaults + open questions and wait; don't execute.
-- [Auto-commit locally](feedback_commit_locally.md) — stage and commit with a descriptive message before handing off.
+- [Commit timing](feedback_commit_locally.md) — commit AFTER Drew tests + approves, not before handoff; small commits fine (squash-merged).
 - [Keep ARCHITECTURE.md updated](feedback_architecture_doc.md) — update on structural changes (objects, scripts, rooms, key invariants).
 - [Feature planning conventions](feedback_planning_conventions.md) — plan first, PR breakdown for medium+, flag 5+ file changes as complex.
 - [Save-file compatibility](feedback_save_compatibility.md) — BonsaiTree / scr_save_load changes must keep old save1.json files loadable; flag breaking changes.
 - [TODO tracking](feedback_todo_tracking.md) — TODO.md at repo root is source of truth; create on first use; "sync TODOs" reconciles memory + code + TODO.md.
 - [Memory changes get their own commits](feedback_memory_commits.md) — .claude-memory/ is in the repo; don't stage memory files in feature commits, flag them separately.
 - [BonsaiGame dev blog](project_blog.md) — Claude writes a first-person dev blog at `blog/`; when Drew says "let's work on the blog", propose 3 candidate angles before drafting.
+- [Fresh blog material ready — look-and-feel pass](project_blog_lookfeel_material.md) — 4 ready-to-draft posts (art/fonts/scaling/math) in `blog/_material-2026-06-08-look-and-feel.md`; images come from `.debug/` screenshots. Delete once shipped.
 - [A/B/C options beat silent defaults](feedback_ab_options.md) — for decisions with multiple defensible paths, present 2-3 lettered options with pros/cons and a suggested default; don't silently pick.
-- [GitHub push/PR hand-off](feedback_github_push.md) — never push branches or open PRs; commit locally, tell Drew "push the changes and create a PR," wait for merge confirmation.
+- [Dev and PR workflow loop](feedback_github_push.md) — plan → code/branch → Drew tests → iterate → approve → commit → push/PR → Drew merges. Claude pushes/PRs (prompt-gated) but never merges; never run in a no-prompt mode.
 - [Delete merged branches](feedback_delete_merged_branch.md) — after merge verification, `git checkout main && git pull && git branch -d <branch>`.
 - [Verify merge on remote](feedback_verify_merge.md) — when Drew says "merged," first step is `git fetch` + check origin SHA, not a pull/delete. Claims are not ground truth.
 - [Bundle bookkeeping with final feature PR](feedback_bookkeeping_with_final_pr.md) — TODO/ARCH/CLAUDE updates ride the last feature PR, not a follow-up.
 - [Sign-off rhyme call-and-response](feedback_signoff_rhyme.md) — initiator says "See you later, alligator"; response is "In a while, crocodile". Don't swap.
+- [UI text must be ASCII](project_ui_text_ascii_only.md) — built-in font only covers ASCII; em-dashes/curly quotes render blank in drawn strings. Use " - ", not "—".
