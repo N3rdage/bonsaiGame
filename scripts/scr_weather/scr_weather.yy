@@ -1,0 +1,13 @@
+{
+  "$GMScript":"v1",
+  "%Name":"scr_weather",
+  "isCompatibility":false,
+  "isDnD":false,
+  "name":"scr_weather",
+  "parent":{
+    "name":"Bonsai",
+    "path":"folders/_Shared/Bonsai.yy",
+  },
+  "resourceType":"GMScript",
+  "resourceVersion":"2.0",
+}
