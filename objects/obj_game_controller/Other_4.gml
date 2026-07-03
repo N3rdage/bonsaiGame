@@ -35,6 +35,13 @@ for (var _wy = _y0 + _tw; _wy < _y1; _wy += _tw) {
     instance_create_layer(_x1, _wy, "Instances", obj_wall);
 }
 
+// Ambient weather -- seasonal particles outdoors, faint dust motes in the shed.
+// Non-persistent (dies on room change); self-manages via current_season() and
+// the Settings toggle. See obj_weather / scr_weather.
+if (_room_location == "shed" || _room_location == "garden") {
+    instance_create_layer(0, 0, "Instances", obj_weather);
+}
+
 // Tree sprites only live in the shed for now.
 if (_room_location != "shed") exit;
 
