@@ -40,6 +40,7 @@ scripts/
   scr_training           — Wire, clip, prune, trunk bend operations
   scr_scoring            — Aesthetic scoring of a tree; called on demand, never persisted
   scr_seasons            — Season clock (BONSAI_DAYS_PER_SEASON, current_season(), current_season_day(), season_label()); derived from global.game_day, no persisted state
+  scr_weather            — Ambient particle profiles per season (weather_profile) + the Settings gate (weather_enabled) and a rotated-quad draw helper; obj_weather owns the particles
   scr_save_load          — JSON save/load of whole game state, multi-slot + metadata helpers
   scr_math_3d            — Vector helpers, 3D vertex format, screen projection
   scr_bonsai_mesh        — Builds vertex buffers from tree morphology, including visible copper-wire coils on wired branches. Also exports trunk_frames(_tree) / trunk_frame_at(_tree, _t) — N+1 parallel-transported {pos, tangent, normal, binormal} frames sampled along the trunk's curve, derived from trunk.movement bend events. Branches get a similar helper via branch_frame_at(_tree, _branch, _t) reading branch.bend (horizontal, around world +z) and branch.bend_v (vertical, around the horizontal axis perpendicular to the initial branch direction). Horizontal-only is closed-form; mixed bends use a 12-step numerical integration. Both the mesh and the trunk-shape style scorers (informal_upright, slanting, cascade in scr_styles_data) consume the same frame walk, so what the player sees is what they're scored on.
@@ -141,6 +142,12 @@ The growth tick and water decay both scale by season:
 - `season_water_multiplier(_season)` is species-agnostic — summer pulls hardest (1.5x), winter barely (0.3x).
 
 `fertilize_tree` consults `season_growth_multiplier(...) <= 0` and refuses (returning `false`, leaving the fertilizer inventory intact) when the species is dormant — the inspector greys the button with a "Dormant" suffix as a visual cue, but the function refuses defensively regardless of UI state. This is the canonical dormancy check pattern; future season-gated operations should consult the same predicate.
+
+### Ambient weather
+
+`obj_weather` scatters cosmetic particles over the play area — the garden gets full seasonal weather (spring petals, summer fireflies, autumn leaves, winter snow) and the shed gets faint season-independent dust motes. It's spawned per-room by the controller's Room Start (same pattern as the wall ring / decor) for `rm_shed` and `rm_garden_back` only, so the 3D viewer and title screen never carry weather; being non-persistent, it cleans up on every room change.
+
+The look is data: `weather_profile(_season, _indoor)` in `scr_weather` returns a struct (kind, count, fall/sway/size ranges, palette, `rot`/`hover`/`glow` flags, wind). The object seeds a flat array of particle structs from it, advances them each Step (fall + wind drift + sine sway, toroidal wrap so the field never empties), and draws them in a foreground Draw event (`depth = -1000`, over the world but under the GUI) as tinted primitives — circles for snow/motes/fireflies, small rotated quads for petals/leaves. No sprites, so nothing here blocks on the art pass. It's pure eye-candy derived from `current_season()`: no persisted state, no save-format impact; a cheap periodic recheck rebuilds the field if the season rolls over mid-visit. The whole system is gated by `weather_enabled()` (the `weather` key in `global.settings`, default on) so the Step/Draw early-exit when the player switches it off in Settings.
 
 ### Pots, soil and vigor drift
 
@@ -275,7 +282,7 @@ When the viewer opens, `global.game_paused = true`. The game controller's step e
 
 ### Settings
 
-`scr_settings` keeps per-machine settings on `global.settings`, persisted to `settings.json` (separate from save slot data — settings are the player's preferences, not game state). The title screen loads + applies them on Create. `obj_ui_settings` saves and applies on every change so a toggle takes effect immediately and survives a restart.
+`scr_settings` keeps per-machine settings on `global.settings`, persisted to `settings.json` (separate from save slot data — settings are the player's preferences, not game state). The title screen loads + applies them on Create. `obj_ui_settings` saves and applies on every change so a toggle takes effect immediately and survives a restart. Current toggles: fullscreen, window scale, and `weather` (ambient particles, default on — see "Ambient weather"). `load_settings` copies saved keys over the defaults, so a `settings.json` written before a key existed keeps that key's default (old files just work).
 
 ### Tutorial / onboarding
 

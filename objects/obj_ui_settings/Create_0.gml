@@ -5,7 +5,7 @@ event_inherited();
 
 panel_title = "Settings";
 panel_w     = 460;
-panel_h     = 280;
+panel_h     = 320;
 panel_x = (display_get_gui_width()  - panel_w) / 2;
 panel_y = (display_get_gui_height() - panel_h) / 2;
 
@@ -42,6 +42,17 @@ draw_content = function() {
             apply_settings();
             save_settings();
         }
+    }
+    _y += _line + 8;
+
+    // Ambient weather particles (seasonal, in the garden + shed). Purely
+    // cosmetic; off for players who prefer a still scene.
+    draw_set_color(c_white);
+    draw_text(_x, _y + 6, "Weather effects");
+    var _won = weather_enabled();
+    if (ui_toggle(_x + 200, _y, 160, 28, _won ? "On" : "Off", _won)) {
+        global.settings.weather = !_won;
+        save_settings();
     }
     _y += _line + 8;
 

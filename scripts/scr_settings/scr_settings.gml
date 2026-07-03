@@ -24,6 +24,7 @@ function init_settings() {
     global.settings = {
         fullscreen: false,
         scale:      2,    // window = GAME_WIDTH*scale x GAME_HEIGHT*scale when windowed
+        weather:    true, // ambient seasonal particles (obj_weather / scr_weather)
     };
 }
 
