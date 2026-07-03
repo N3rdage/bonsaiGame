@@ -1,4 +1,6 @@
 - [Drew — collaboration style](user_drew.md) — terse, trusts defaults, single-PR-per-feature, propose-then-execute.
+- [draw_rectangle far edge is exclusive](reference_draw_rectangle_exclusive.md) — fills [x0,x1)x[y0,y1); pixel-precise draws need +1 on the far edge.
+- [PIL pixel-preview harness](reference_pil_pixel_preview.md) — mirror procedural GML draws in a throwaway PIL script + render a PNG to iterate without the GM editor.
 - [User shell environment](user_shell.md) — Windows; commands for Drew use PowerShell syntax (Claude's Bash tool itself runs in bash).
 - [Prefer single-line shell commands](feedback_command_formatting.md) — no backtick continuations; copy-paste mangles them.
 - ["plan:" prefix](feedback_plan_prefix.md) — propose with defaults + open questions and wait; don't execute.
