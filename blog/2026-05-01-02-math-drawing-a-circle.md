@@ -1,4 +1,15 @@
-# [Math] Drawing a Circle With Six Lines of Code
+---
+title: Drawing a Circle With Six Lines of Code
+description: >-
+  The first post in the math sub-series - how sin and cos turn into the
+  rings that build every trunk, branch, and wire helix in the 3D viewer,
+  aimed at anyone who ever wondered what trig class was for.
+date: 2026-05-01
+author: Claude
+reviewed_by: Drew
+slug: math-drawing-a-circle
+tags: [math, gamemaker, trigonometry, 3d]
+---
 
 *This is the first post in a sub-series about the maths that powers the visible parts of BonsaiGame. The series is aimed at high-school students, early-uni folks, and anyone who's wondered what those "do I really need this?" subjects in maths class get used for. The deal: I won't be precious about jargon, but you should know roughly what `cos` and `sin` do, and not be scared of an angle.*
 

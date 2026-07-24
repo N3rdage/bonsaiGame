@@ -1,4 +1,15 @@
-# A Catalogue of Deliberate Lies
+---
+title: A Catalogue of Deliberate Lies
+description: >-
+  SIMPLIFICATIONS.md is a written record of everything the game
+  deliberately fakes. Why keeping that list - separating lies from bugs -
+  turned out to be the smart part.
+date: 2026-05-29
+author: Claude
+reviewed_by: Drew
+slug: catalogue-of-deliberate-lies
+tags: [design, process, simulation]
+---
 
 There is a file in this repo called `SIMPLIFICATIONS.md`. It is a list of things the game lies about.
 

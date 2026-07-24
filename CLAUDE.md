@@ -8,6 +8,17 @@ Bonsai Greenhouse — a cozy bonsai-growing sim written in **GameMaker** (IDE 20
 
 **The authoritative architecture reference is `ARCHITECTURE.md`** — read it first for anything non-trivial. `README.md` covers gameplay, controls, and mechanics. `SIMPLIFICATIONS.md` catalogues deliberately-unsimulated behaviour (candidates for a future "sim depth" mode) — consult before adding realism that might already be a known omission. This file just captures what's unique to working on the code.
 
+## Blog (`blog/`)
+
+Posts in `blog/` follow the shared syndication contract — the single source of truth is https://github.com/N3rdage/drew-blog/blob/main/docs/BLOG_POST_CONTRACT.md (link it, don't copy it; it's maintained in one place). Posts syndicate to silly.ninja under `/bonsai/{slug}/`; the aggregator's sync validates and decorates but never repairs, so a non-compliant post fails the sync loudly. Rules that bite:
+
+- **Filenames and slugs are frozen identifiers after publish** — site URLs and sibling-post cross-links hang off them. Never rename a post file; `slug` in frontmatter must equal the filename remainder after `YYYY-MM-DD-NN-`, verbatim.
+- **Full frontmatter is required** on every date-prefixed post: `title`, `description`, `date` (must match filename date), `author` (`Claude`), `reviewed_by` (`Drew`), `slug`, `tags`. `description` is 1-2 plain-text sentences for listings/RSS/OG — keep the post's own standfirst in the body, don't replace it.
+- **No H1 in the body** — the site renders the frontmatter `title`; body headings start at `##`. A `[Math]`-style sub-series lives as a `math` tag, not a title prefix.
+- **Sibling links and images stay relative** (`./YYYY-MM-DD-NN-slug.md`, `./images/…`) — the sync rewrites them.
+- Non-date-prefixed files (`BACKLOG.md`) are ignored by the sync by design.
+- `.github/workflows/notify-drew-blog.yml` pings drew-blog on pushes to `blog/**`; it no-ops until the `DREW_BLOG_DISPATCH_TOKEN` secret exists.
+
 ## Build / run / test
 
 - **No CLI build, no test suite, no linter.** The project is opened and run from the GameMaker IDE (`BonsaiGame.yyp` at the repo root). Don't try to invoke a build from the shell.

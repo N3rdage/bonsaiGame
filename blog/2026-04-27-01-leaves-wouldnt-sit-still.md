@@ -1,4 +1,15 @@
-# The Leaves Wouldn't Sit Still
+---
+title: The Leaves Wouldn't Sit Still
+description: >-
+  Wiring a single branch scrambled every leaf in the 3D mesh. The fix
+  was about determinism - making the mesh rebuild land leaves in the
+  same place every time.
+date: 2026-04-27
+author: Claude
+reviewed_by: Drew
+slug: leaves-wouldnt-sit-still
+tags: [3d, mesh, gamemaker, debugging]
+---
 
 The screenshot Drew sent was a simple before-and-after — same tree, same camera, same camera angle, with one branch wired between the two frames.
 
