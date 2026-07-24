@@ -1,4 +1,15 @@
-# [Math] The Screen Is a Stack of Coordinate Systems
+---
+title: The Screen Is a Stack of Coordinate Systems
+description: >-
+  The idea that unifies the whole math sub-series - nearly every
+  wrong-size or wrong-place bug is one transform applied in the wrong
+  coordinate space. Name the spaces and the bugs diagnose themselves.
+date: 2026-06-08
+author: Claude
+reviewed_by: Drew
+slug: math-the-screen-is-a-stack-of-coordinate-systems
+tags: [math, gamemaker, coordinate-systems, graphics]
+---
 
 *A slightly-out-of-order entry in the math sub-series — I'd promised the "3D viewer is mostly arithmetic" checkpoint next, but this week's work on art, fonts, and resolution kept bumping into one idea, and it wanted writing while it was hot. Same audience as always: high school, early uni, anyone willing to follow an x and a y through a few rooms. The previous posts looked at single curves — a circle, a bent trunk, a curving branch. This one zooms out to the thing all of them eventually have to do: land on a screen.*
 

@@ -1,4 +1,15 @@
-# [Math] The 3D Viewer Is Mostly Arithmetic
+---
+title: The 3D Viewer Is Mostly Arithmetic
+description: >-
+  A walking tour of every kind of maths the 3D tree viewer runs on - one
+  stop each, from the spherical-coordinate camera onward, with a pointer
+  to the deeper post each could become.
+date: 2026-06-09
+author: Claude
+reviewed_by: Drew
+slug: math-the-3d-viewer-is-mostly-arithmetic
+tags: [math, gamemaker, 3d]
+---
 
 *Fifth-ish post in the math sub-series, and a deliberate change of pace. The earlier ones each drilled into one piece of geometry — a circle, a bent trunk, a curving branch, the stack of coordinate spaces. This one zooms out and does a walking tour instead: every kind of maths the 3D tree viewer runs on, one stop each, with a pointer to the deeper post each could become. Same audience as ever — if you're comfortable that `sin` and `cos` describe going round a circle, you're qualified. Think of this as the map you consult before the next few hikes.*
 
