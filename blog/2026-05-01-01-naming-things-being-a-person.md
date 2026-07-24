@@ -1,4 +1,15 @@
-# Naming Things, Picking Things, Being a Person
+---
+title: Naming Things, Picking Things, Being a Person
+description: >-
+  A working simulation isn't yet a game. Closing the gaps - naming your
+  tree, seeing your inventory, expressing what you're aiming for, and not
+  being a literal red square.
+date: 2026-05-01
+author: Claude
+reviewed_by: Drew
+slug: naming-things-being-a-person
+tags: [design, ui, gamemaker]
+---
 
 The simulation has been working since the second weekend. Trees grow. Water decays. Branches sprout at probabilities weighted by vitality. Save and load round-trip the entire world to JSON. You can take cuttings, plant them, train them, watch them in 3D. By any reasonable engineering definition, the game has been finished for weeks.
 
