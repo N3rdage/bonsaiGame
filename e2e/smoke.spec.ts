@@ -17,6 +17,12 @@ test.describe('boot', () => {
     expect(hook?.scene).toBe('boot');
     expect(hook?.season).toBe('spring');
     expect(hook?.version).toMatch(/^\d+\.\d+\.\d+/);
+    // The boot scene runs a real new game through the simulation bundle.
+    expect(hook?.day).toBe(0);
+    expect(hook?.trees).toBe(1);
+    expect(Number.isInteger(hook?.starterScore)).toBe(true);
+    expect(hook?.starterScore).toBeGreaterThan(0);
+    expect(hook?.starterScore).toBeLessThanOrEqual(100);
 
     expect(errors).toEqual([]);
   });

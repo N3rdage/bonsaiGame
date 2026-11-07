@@ -30,14 +30,29 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 
 | Prototype (GML) | Web project | Status |
 |---|---|---|
-| `scr_seasons` | `src/sim/seasons.ts` | Done |
-| `scr_bonsai_tree`, `scr_growth`, `scr_training` | `src/sim/tree.ts`, `src/sim/growth.ts`, `src/sim/training.ts` | Planned (R2) |
-| `scr_scoring`, `scr_styles_data`, `scr_species_data` | `src/sim/scoring.ts`, `src/sim/styles.ts`, `src/sim/species.ts` | Planned (R2) |
-| `scr_save_load`, `scr_settings` | `src/sim/save.ts` + importer for `saveN.json`; settings in `localStorage` | Planned (R2) |
-| `scr_bonsai_mesh`, `obj_viewer_3d` | `src/viewer/` (Three.js) | Planned (R3) |
-| `obj_player`, `obj_interactable`, rooms | `src/scenes/world/` | Planned (R4) |
-| `obj_ui_*`, `scr_ui` | `src/scenes/ui/` | Planned (R4) |
-| `scr_tutorial`, `scr_shop`, `scr_inventory` | `src/sim/` modules + UI scenes | Planned (R4) |
+| `scr_seasons` | `src/sim/seasons.ts` | Done (R1) |
+| `scr_math_3d` (vector helpers) | `src/sim/vec3.ts` | Done (R2) |
+| `scr_bonsai_mesh` curve helpers (`trunk_frames`, `branch_point`, ...) | `src/sim/geometry.ts` | Done (R2) |
+| `scr_bonsai_struct` | `src/sim/types.ts`, `src/sim/tree.ts` | Done (R2) |
+| `scr_species_data`, `scr_styles_data` | `src/sim/species.ts`, `src/sim/styles.ts` | Done (R2) |
+| `scr_scoring` | `src/sim/scoring.ts` | Done (R2) |
+| `scr_growth` (daily tick, water, fertilise, repot, skip) | `src/sim/growth.ts` | Done (R2) |
+| `scr_growth` (`advance_day_all_trees`, display revenue) | `src/sim/world.ts` | Done (R2) |
+| `scr_training` | `src/sim/training.ts` | Done (R2) |
+| `scr_inventory`, `scr_shop`, `scr_tutorial` | `src/sim/inventory.ts`, `src/sim/shop.ts`, `src/sim/tutorial.ts` | Done (R2) |
+| `obj_game_controller` new-game bootstrap | `src/sim/state.ts` | Done (R2) |
+| `scr_save_load` | `src/sim/save.ts` (v2 format + prototype importer), `src/platform/localStorageSaveStorage.ts` | Done (R2) |
+| `scr_settings` | settings in `localStorage` | Planned (R4) |
+| `scr_growth` `pot_palette`, `scr_bonsai_mesh` mesh builder, `obj_viewer_3d` | `src/viewer/` (Three.js) | Planned (R3) |
+| `obj_player`, `obj_interactable`, rooms, `scr_weather` | `src/scenes/world/` | Planned (R4) |
+| `obj_ui_*`, `scr_ui`, `scr_title_hero` | `src/scenes/ui/` | Planned (R4) |
+
+### How the simulation is shaped
+
+- `src/sim/types.ts` is the whole data model: plain interfaces, JSON-serialisable, no methods. `BonsaiTree.revision` replaces the prototype's `mesh_dirty` flag; every morphology mutation goes through `markDirty` or `addBranch`, and renderers rebuild when the number changes.
+- `GameState` carries what the prototype kept in globals (day, money, inventory, trees, next id, tutorial step). Simulation functions take it explicitly and mutate it in place; that is what makes them testable.
+- Randomness is injected: `treeDailyTick(tree, state, isolated, rng)` and `advanceDayAllTrees(state, days, rng)` default to `Math.random`, tests pass a constant.
+- Saves are versioned. `save.ts` writes version 2 (camelCase) and reads both version 2 and the prototype's version 1 through `importPrototypeSave`, which tolerates the trailing NUL byte the prototype wrote, GameMaker's float-typed integers, and the fields older saves lack. Two real prototype saves live in `src/sim/__fixtures__/` as importer tests. Storage is behind a three-method `SaveStorage` interface with an in-memory implementation for tests and a `localStorage` one under `src/platform/`.
 
 ## Invariants carried over
 
@@ -47,10 +62,10 @@ These were the hard-won rules of the prototype. Each names where it will live in
 - **Real units.** Trunk height in cm, girth in mm. Scaling for display happens in the viewer only. (`src/sim/`, `src/viewer/`)
 - **Scoring is derived, never persisted.** Recompute on demand from morphology, style and vitality. (`src/sim/scoring.ts`)
 - **Species and styles are data.** Keyed records, looked up by key; trees store the key. (`src/sim/species.ts`, `src/sim/styles.ts`)
-- **Seasons are a pure function of the game day.** 28-day seasons, year starts in spring on day 1, nothing persisted. (`src/sim/seasons.ts`, done)
+- **Seasons are a pure function of the game day.** 28-day seasons, year starts in spring on day 1, nothing persisted. A new game starts on day 0 as the prototype did; `seasonForDay` treats it as day 1. (`src/sim/seasons.ts`)
 - **All growth goes through the season multipliers.** `seasonGrowthMultiplier` returns 0 for dormancy; any path that adds height or girth must consult it. Fertilising refuses when it is 0. (`src/sim/seasons.ts`, `src/sim/growth.ts`)
-- **Trunk and branch shape come from one curve helper each**, shared by the mesh builder, hotspot UI and style scorers, so what you see is what you score. (`src/sim/geometry.ts`, planned)
-- **Mesh rebuilds are triggered by a dirty flag** set by every morphology mutation. (`src/viewer/`)
+- **Trunk and branch shape come from one curve helper each**, shared by the mesh builder, hotspot UI and style scorers, so what you see is what you score. (`src/sim/geometry.ts`)
+- **Mesh rebuilds are triggered by a revision counter** bumped by every morphology mutation. (`tree.revision`, read by `src/viewer/`)
 - **Consumables are really consumed.** Wire, fertiliser and pots are decremented by the action that uses them, gated on availability. (`src/sim/inventory.ts`)
 - **Fertiliser is timed.** The item is consumed; the effect lives on the tree until a day threshold. (`src/sim/growth.ts`)
 - **Location is a tagged string**, not an enum: a room name, `inventory`, `sold`, or `displayed:<pedestal-key>`. (`src/sim/tree.ts`)
@@ -66,5 +81,5 @@ These were the hard-won rules of the prototype. Each names where it will live in
 
 ## Known rough edges
 
-- The web build is a placeholder scene until R2 through R4 land.
+- The web build is a placeholder scene until R3 and R4 land; the simulation exists but nothing drives it yet.
 - Prototype rough edges (cuttings for junipers only, fancy pots stat-only) carry over until the relevant backlog items are built.
