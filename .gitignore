@@ -63,3 +63,14 @@ Build
 
 # Claude Code local settings (machine-specific; not shared)
 .claude/
+# Web build (TypeScript rewrite)
+node_modules/
+dist/
+dev-dist/
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.env
+.env.*
+*.tsbuildinfo

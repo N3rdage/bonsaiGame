@@ -26,10 +26,10 @@ body:
     attributes:
       label: GameMaker version
       description: Help → About in the IDE.
-      placeholder: "2024.14.4.222"
+      placeholder: '2024.14.4.222'
 
   - type: input
     id: os
     attributes:
       label: OS
-      placeholder: "Windows 11"
+      placeholder: 'Windows 11'
