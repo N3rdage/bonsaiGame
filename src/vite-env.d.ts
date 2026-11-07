@@ -14,6 +14,10 @@ interface BonsaiTestHook {
   readonly version: string;
   readonly scene: string;
   readonly season: string;
+  readonly day: number;
+  readonly trees: number;
+  /** Score of the starter tree in a fresh game, or -1 if there is none. */
+  readonly starterScore: number;
 }
 
 interface Window {

@@ -40,7 +40,7 @@ npm run build && npm run test:e2e   # Playwright against the production build
 
 ## Layout
 
-- `src/main.ts` boots Phaser. `src/scenes/` holds Phaser scenes (world, UI). `src/sim/` is the simulation: pure, deterministic, no rendering imports. `src/viewer/` (when it lands) is the Three.js tree viewer.
+- `src/main.ts` boots Phaser. `src/scenes/` holds Phaser scenes (world, UI). `src/sim/` is the simulation: pure, deterministic, no rendering or browser imports; `src/sim/types.ts` is its data model and `src/sim/__fixtures__/` holds real prototype saves for the importer tests. `src/platform/` is the thin browser-facing layer (storage adapters). `src/viewer/` (when it lands) is the Three.js tree viewer.
 - `e2e/` Playwright specs. `public/` static assets including `staticwebapp.config.json`, which Vite copies into `dist/`.
 - `archive/gamemaker/` the prototype. Read it, do not edit it.
 - `art/` source pixel art and the Python scripts that generate placeholder sprites.
