@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#3b5d3a" />
+    <meta
+      name="description"
+      content="A cozy bonsai-growing sim. Take cuttings, pot them, train them, and watch them take shape."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Bonsai Greenhouse</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #1d2a1c;
+        overflow: hidden;
+      }
+      #game {
+        width: 100%;
+        height: 100%;
+      }
+      #game canvas {
+        display: block;
+        image-rendering: pixelated;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

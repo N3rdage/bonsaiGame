@@ -2,19 +2,34 @@
 
 A cozy simulation game where you grow, shape, and care for bonsai trees. Take cuttings from plants in your garden, pot them up in your shed, train them with wire and clippers over the course of many simulated days, and watch them take shape in a 3D viewer.
 
-Built in **GameMaker** (LTS 2024.11+ / Monthly 2025+).
+Built as an installable **web game** in TypeScript (Vite, Phaser, Three.js). It began life as a GameMaker prototype, which is preserved whole in [`archive/gamemaker/`](./archive/gamemaker/); the decision to rewrite is recorded in [`docs/ADR-001-typescript-rewrite.md`](./docs/ADR-001-typescript-rewrite.md).
 
 ## About this repo
 
-This is a personal experiment in paired AI-assisted game development — most of the architecture, simulation, and 3D pipeline code was built collaboratively with Claude (Anthropic), with Drew as the human in the loop. It's a sibling to [the-library](https://github.com/N3rdage/the-library), which is a similar experiment with a different interaction style and a very different project (a book-tracking web app in .NET / Blazor).
+This is a personal experiment in AI-assisted game development, now moving to fully autonomous development: a controlling agent plans and builds, and Drew steers through decisions and reviews. Most of the architecture, simulation, and 3D pipeline code was built collaboratively with Claude (Anthropic). It's a sibling to [the-library](https://github.com/N3rdage/the-library), a similar experiment with a different interaction style and a very different project (a book-tracking web app in .NET / Blazor).
 
-There's a running dev blog in [`blog/`](./blog) written by Claude in first person — if you're here for the AI-collaboration angle more than the game itself, start there. If you're here for GameMaker specifically, the code is a reasonable worked example of 2D+3D hybrid rendering, procedural mesh generation, and data-driven simulation.
+There's a running dev blog in [`blog/`](./blog) written by Claude in first person. If you're here for the AI-collaboration angle more than the game itself, start there.
 
-**Contributions:** issues and suggestions are welcome. External pull requests are not being accepted at this stage — please open an issue instead.
+**Contributions:** suggestions are welcome via the discussion channels linked from the blog. External pull requests are not being accepted at this stage.
 
 ## Status
 
-**Prototype — under active development.** The core systems work end-to-end: you can take cuttings, plant them, grow them, train them, and inspect them in 3D. Art is placeholder. The game world currently consists of two rooms (shed and back garden). Planned features not yet implemented include the greenhouse, the house interiors, seed collection, wire as a visual element on trees, and trees that actually look good in the 3D viewer.
+**Rewrite in progress.** The TypeScript build currently boots to a placeholder scene; the simulation, rooms, UI and 3D viewer are being ported from the prototype one slice at a time. Until the port reaches parity, the playable game is the archived GameMaker build.
+
+The gameplay, controls and mechanics below describe the prototype and are the target for the port.
+
+## Developing
+
+Requires Node 22 (see `.nvmrc`).
+
+```
+npm ci              # install
+npm run dev         # dev server with hot reload
+npm run check       # lint, format, typecheck, unit tests, build
+npm run test:e2e    # browser tests against the production build (run npm run build first)
+```
+
+Every pull request runs the same checks in CI and deploys a preview to Azure Static Web Apps.
 
 ## Playing
 
@@ -101,7 +116,7 @@ The tree remembers when each wire was applied. If you remove a wire after 8+ wee
 
 ### Saving
 
-The game can save and load its entire state to JSON. Every tree, every branch, every training history entry, and the inventory are preserved. Press **F5** to save and **F9** to load. Saves are stored in GameMaker's default save location (`%LOCALAPPDATA%\BonsaiGame\save1.json` on Windows).
+The game can save and load its entire state to JSON. Every tree, every branch, every training history entry, and the inventory are preserved. In the prototype, press **F5** to save and **F9** to load; saves are stored at `%LOCALAPPDATA%\BonsaiGame\save1.json` on Windows. The web build will import those files so prototype trees survive the move.
 
 ## Credits
 

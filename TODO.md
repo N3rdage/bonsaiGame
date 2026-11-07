@@ -1,5 +1,17 @@
 # TODO
 
+> **Backlog is moving.** Day-to-day planning now lives as GitHub Issues on the private `agentic-gaming` repo so the autonomous orchestrator and Drew share one board. This file stays as the human-readable summary of the game's feature roadmap; the items below are engine-independent and still apply to the TypeScript rewrite.
+
+## Rewrite (TypeScript web game, see docs/ADR-001)
+
+| # | Slice | Status |
+|---|---|---|
+| R1 | Skeleton: Vite + Phaser + PWA, gates (lint, typecheck, unit, e2e), Static Web App deploy, GameMaker project archived | In PR |
+| R2 | Port the simulation as pure TypeScript under unit tests: tree model, growth, seasons, scoring, species, styles, save format + importer for prototype saves | Next |
+| R3 | Port the mesh builder and 3D viewer to Three.js, with screenshot tests | |
+| R4 | Rooms, player, interactables, UI panels, tutorial, shop in Phaser | |
+| R5 | Blog post on the rewrite decision | After R1 |
+
 Priority-ordered toward "playable." Security items always at top.
 
 **Sizes are reference only.** Anything bigger than **M** needs splitting before or during planning; anything bigger than **S** is a candidate for splitting.
