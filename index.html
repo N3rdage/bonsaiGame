@@ -39,21 +39,121 @@
       #viewer.open {
         display: block;
       }
-      #viewer-close {
+      /* Toolbar sizes and colours are custom properties set from src/viewer/toolbar.ts. */
+      #viewer-toolbar {
         position: fixed;
-        top: 12px;
-        right: 12px;
-        z-index: 11;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 12;
         display: none;
+        box-sizing: border-box;
+        min-height: var(--tb-height);
+        padding: var(--tb-info-top) var(--tb-exit-right) 0 var(--tb-info-left);
+        background: var(--tb-bg);
+        color: var(--tb-text);
         font: 14px monospace;
-        color: #d8e6c8;
-        background: #2b3a2a;
-        border: 1px solid #6e8463;
-        padding: 6px 12px;
+        pointer-events: auto;
+      }
+      #viewer-toolbar.open {
+        display: block;
+      }
+      #viewer-toolbar .toolbar-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        column-gap: var(--tb-exit-gap);
+        row-gap: var(--tb-mode-gap);
+      }
+      #viewer-toolbar .info {
+        margin-right: auto;
+        line-height: var(--tb-info-line);
+        white-space: pre;
+      }
+      #viewer-toolbar .modes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--tb-mode-gap);
+        margin-top: var(--tb-button-offset);
+      }
+      #viewer-toolbar button {
+        box-sizing: border-box;
+        padding: 0;
+        border: 1px solid var(--tb-border);
+        font: inherit;
         cursor: pointer;
       }
-      #viewer-close.open {
-        display: block;
+      #viewer-toolbar .ui-button {
+        height: var(--tb-button-height);
+        background: var(--tb-fill);
+        color: var(--tb-text);
+      }
+      #viewer-toolbar .ui-button:hover,
+      #viewer-toolbar .ui-toggle.selected:hover {
+        background: var(--tb-fill-hover);
+      }
+      #viewer-toolbar .mode {
+        width: var(--tb-mode-width);
+      }
+      #viewer-toolbar .mode.selected {
+        outline: var(--tb-selected-width) solid var(--tb-selected);
+      }
+      #viewer-toolbar .exit {
+        width: var(--tb-exit-width);
+        margin-top: var(--tb-button-offset);
+      }
+      #viewer-toolbar .sub-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        column-gap: var(--tb-subrow-separator);
+        row-gap: var(--tb-subrow-gap);
+        margin: var(--tb-subrow-offset) calc(-1 * var(--tb-exit-right)) 0
+          calc(-1 * var(--tb-info-left));
+      }
+      #viewer-toolbar .group {
+        display: flex;
+        align-items: center;
+        gap: var(--tb-subrow-gap);
+      }
+      #viewer-toolbar .label {
+        display: flex;
+        justify-content: flex-end;
+        width: var(--tb-label-width);
+        color: var(--tb-label);
+        white-space: nowrap;
+      }
+      #viewer-toolbar .ui-toggle {
+        height: var(--tb-subrow-height);
+        background: transparent;
+        color: var(--tb-toggle-text);
+      }
+      #viewer-toolbar .ui-toggle:hover {
+        background: var(--tb-toggle-hover);
+      }
+      #viewer-toolbar .ui-toggle.selected {
+        background: var(--tb-fill);
+        color: var(--tb-text);
+      }
+      #viewer-help {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: var(--tb-help-bottom);
+        z-index: 11;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        padding: 0 8px;
+        color: var(--tb-label);
+        font: 14px monospace;
+        line-height: var(--tb-help-line);
+        text-align: center;
+        white-space: pre-wrap;
+        pointer-events: none;
+      }
+      #viewer-help.open {
+        display: flex;
       }
       #viewer-hotspots {
         position: fixed;
@@ -90,6 +190,14 @@
         width: var(--hotspot-size-hover);
         height: var(--hotspot-size-hover);
         background: var(--hotspot-fill-hover);
+      }
+      /* Below the circle and click-through, so the button's hit area stays the circle. */
+      #viewer-hotspots .caption {
+        position: absolute;
+        top: calc(100% + var(--hotspot-caption-gap));
+        left: 50%;
+        transform: translateX(-50%);
+        pointer-events: none;
       }
     </style>
   </head>

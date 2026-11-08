@@ -55,6 +55,10 @@ interface BonsaiViewerHook {
   readonly showUnwired: boolean;
   /** Hotspots on screen after the last frame, one per `.hotspot` button; empty when closed. */
   readonly hotspots: readonly BonsaiViewerHotspot[];
+  /** `inventory.wire` of the game state the viewer was opened with, or 0 when closed. */
+  readonly wireStock: number;
+  /** `day` of the game state the viewer was opened with, or -1 when closed (day 0 is a real day). */
+  readonly day: number;
 }
 
 /** One on-screen hotspot, positioned in CSS px from the viewport's top left. */
@@ -66,6 +70,8 @@ interface BonsaiViewerHotspot {
   readonly label: string;
   readonly x: number;
   readonly y: number;
+  /** Wire mode, wired branch: the wire's age, e.g. '0d (early)'; '' otherwise. */
+  readonly caption: string;
 }
 
 interface Window {

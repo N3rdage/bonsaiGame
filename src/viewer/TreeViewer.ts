@@ -15,7 +15,7 @@ import {
   type Texture,
 } from 'three';
 import type { Season } from '../sim/seasons';
-import type { BonsaiTree, PotTier } from '../sim/types';
+import type { BonsaiTree, GameState, PotTier } from '../sim/types';
 import {
   FAR,
   FOV_DEGREES,
@@ -46,8 +46,10 @@ import type { MeshArrays } from './meshArrays';
 import { buildPotGeometry } from './potGeometry';
 import type { Rgb } from './potPalette';
 import { projectToScreen } from './projection';
+import { CAPTION_GAP, buildToolbarModel, type ToolbarModel, type ToolbarToggle } from './toolbar';
 import { buildTreeMesh } from './treeMesh';
 import { placeCamera } from './threeCamera';
+import { ViewerToolbar } from './ViewerToolbar';
 
 function toGeometry({ positions, colors, uvs }: MeshArrays): BufferGeometry {
   const geometry = new BufferGeometry();
@@ -77,7 +79,10 @@ const MODE_KEYS: Partial<Record<string, ViewerMode>> = {
  *
  * Hotspots are DOM buttons in an overlay above the canvas, laid out after
  * every frame from the pure `hotspots.ts` and `projectToScreen`. Clicking one
- * does nothing yet.
+ * does nothing yet. The toolbar, wire sub-row and help lines are DOM too
+ * (`ViewerToolbar`), drawn after every frame from the pure `toolbar.ts`.
+ *
+ * The game state passed to `open` is read (wire stock, day), never written.
  */
 export class TreeViewer {
   onClose?: () => void;
@@ -85,8 +90,9 @@ export class TreeViewer {
   onRender?: () => void;
 
   private readonly canvas: HTMLCanvasElement;
-  private readonly closeButton: HTMLButtonElement;
   private readonly hotspotLayer: HTMLDivElement;
+  private readonly toolbar: ViewerToolbar;
+  private state: GameState | undefined;
   private renderer: WebGLRenderer | undefined;
   private rendererFailed = false;
   private readonly scene = new Scene();
@@ -129,10 +135,6 @@ export class TreeViewer {
   constructor(parent: HTMLElement) {
     this.canvas = document.createElement('canvas');
     this.canvas.id = 'viewer';
-    this.closeButton = document.createElement('button');
-    this.closeButton.id = 'viewer-close';
-    this.closeButton.type = 'button';
-    this.closeButton.textContent = 'Close';
     this.hotspotLayer = document.createElement('div');
     this.hotspotLayer.id = 'viewer-hotspots';
     this.hotspotLayer.style.setProperty('--hotspot-size', `${String(2 * HOTSPOT_RADIUS)}px`);
@@ -140,15 +142,21 @@ export class TreeViewer {
       '--hotspot-size-hover',
       `${String(2 * HOTSPOT_RADIUS_HOVER)}px`,
     );
-    parent.append(this.canvas, this.hotspotLayer, this.closeButton);
+    this.hotspotLayer.style.setProperty('--hotspot-caption-gap', `${String(CAPTION_GAP)}px`);
+    parent.append(this.canvas, this.hotspotLayer);
+    this.toolbar = new ViewerToolbar(parent);
+    this.toolbar.onMode = (mode) => {
+      this.setMode(mode);
+    };
+    this.toolbar.onToggle = this.onToggle;
+    this.toolbar.onExit = () => {
+      this.close();
+    };
 
     this.camera.up.set(0, 0, 1);
     this.world.scale.set(1, -1, 1);
     this.scene.add(this.world);
 
-    this.closeButton.addEventListener('click', () => {
-      this.close();
-    });
     this.canvas.addEventListener('pointerdown', this.onPointerDown);
     this.canvas.addEventListener('pointermove', this.onPointerMove);
     this.canvas.addEventListener('pointerup', this.onPointerUp);
@@ -165,12 +173,14 @@ export class TreeViewer {
   }
 
   /**
-   * Shows the tree with its foliage as it looks in `season`. Returns false
-   * (and stays hidden) if WebGL is unavailable.
+   * Shows the tree with its foliage as it looks in `season`, reading the wire
+   * stock and day from `state` (never writing it). Returns false (and stays
+   * hidden) if WebGL is unavailable.
    */
-  open(tree: BonsaiTree, season: Season): boolean {
+  open(tree: BonsaiTree, season: Season, state: GameState): boolean {
     if (!this.ensureRenderer()) return false;
     this.opened = true;
+    this.state = state;
     this.potTier = tree.potTier;
     this.cam = {
       ...createOrbitCamera(),
@@ -186,7 +196,6 @@ export class TreeViewer {
     this.rebuildFoliageMesh(tree, season);
     this.canvas.classList.add('open');
     this.hotspotLayer.classList.add('open');
-    this.closeButton.classList.add('open');
     this.resize();
     this.requestRender();
     return true;
@@ -222,11 +231,12 @@ export class TreeViewer {
   close(): void {
     if (!this.opened) return;
     this.opened = false;
+    this.state = undefined;
     this.drag = undefined;
     this.clearHotspots();
     this.canvas.classList.remove('open');
     this.hotspotLayer.classList.remove('open');
-    this.closeButton.classList.remove('open');
+    this.toolbar.hide();
     this.disposeMeshes();
     this.onClose?.();
   }
@@ -243,7 +253,7 @@ export class TreeViewer {
     this.foliageTexture?.dispose();
     this.canvas.remove();
     this.hotspotLayer.remove();
-    this.closeButton.remove();
+    this.toolbar.destroy();
   }
 
   snapshot(): BonsaiViewerHook {
@@ -268,6 +278,8 @@ export class TreeViewer {
       showWired: this.ui.showWired,
       showUnwired: this.ui.showUnwired,
       hotspots: this.hotspots,
+      wireStock: this.state?.inventory.wire ?? 0,
+      day: this.state?.day ?? -1,
     };
   }
 
@@ -354,7 +366,7 @@ export class TreeViewer {
   }
 
   /** Rebuilds the overlay for the camera as just placed and rendered. */
-  private layoutHotspots(tree: BonsaiTree): void {
+  private layoutHotspots(tree: BonsaiTree, model: ToolbarModel): void {
     const width = window.innerWidth;
     const height = window.innerHeight;
     const hotspots: BonsaiViewerHotspot[] = [];
@@ -362,13 +374,20 @@ export class TreeViewer {
     for (const { kind, id, label, world, color } of hotspotWorldPoints(tree, this.ui)) {
       const screen = projectToScreen(this.camera, world, width, height);
       if (!screen) continue;
-      hotspots.push({ kind, id, label, x: screen.x, y: screen.y });
+      const caption = kind === 'branch' ? (model.branchCaptions[id] ?? '') : '';
+      hotspots.push({ kind, id, label, x: screen.x, y: screen.y, caption });
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'hotspot';
       button.dataset.kind = kind;
       button.dataset.id = String(id);
       button.textContent = label;
+      if (caption !== '') {
+        const span = document.createElement('span');
+        span.className = 'caption';
+        span.textContent = caption;
+        button.append(span);
+      }
       button.style.left = `${String(screen.x)}px`;
       button.style.top = `${String(screen.y)}px`;
       button.style.setProperty('--hotspot-fill', rgba(color, HOTSPOT_ALPHA));
@@ -402,7 +421,16 @@ export class TreeViewer {
       placeCamera(this.camera, this.cam);
       this.renderer.render(this.scene, this.camera);
       this.renders += 1;
-      if (this.tree) this.layoutHotspots(this.tree);
+      if (this.tree && this.state) {
+        const model = buildToolbarModel(
+          this.tree,
+          this.ui,
+          this.state.inventory.wire,
+          this.state.day,
+        );
+        this.layoutHotspots(this.tree, model);
+        this.toolbar.render(model);
+      }
       this.onRender?.();
     });
   }
@@ -452,12 +480,32 @@ export class TreeViewer {
     this.setCamera(zoomCamera(this.cam, e.deltaY > 0 ? 1 : -1));
   };
 
+  private readonly onToggle = (toggle: ToolbarToggle): void => {
+    switch (toggle.kind) {
+      case 'action':
+        this.setWireAction(toggle.value);
+        break;
+      case 'dir':
+        this.setBendDir(toggle.value);
+        break;
+      case 'show':
+        if (toggle.value === 'wired') this.setShowWired(!this.ui.showWired);
+        else this.setShowUnwired(!this.ui.showUnwired);
+        break;
+    }
+  };
+
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (!this.opened) return;
+    if (e.key === 'Escape') {
+      this.close();
+      return;
+    }
+    // Leave browser and OS shortcuts (Ctrl+R, Cmd+W, ...) alone.
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
     const key = e.key.toLowerCase();
     const mode = MODE_KEYS[key];
     if (mode) this.setMode(mode);
     else if (key === 'r') this.setCamera(resetCamera(this.cam));
-    else if (e.key === 'Escape') this.close();
   };
 }

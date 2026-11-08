@@ -3,7 +3,9 @@
  * (see playwright.config.ts). DOM chrome drawn with system fonts is hidden so
  * baselines contain only the WebGL frame and do not drift between machines.
  */
-#viewer-close {
+/* The toolbar and help lines are asserted through window.__bonsai and the DOM. */
+#viewer-toolbar,
+#viewer-help {
   visibility: hidden;
 }
 /* Hotspots are DOM over the canvas with system-font labels; their positions
