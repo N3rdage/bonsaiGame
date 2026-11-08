@@ -8,7 +8,7 @@
 |---|---|---|
 | R1 | Skeleton: Vite + Phaser + PWA, gates (lint, typecheck, unit, e2e), Static Web App deploy, GameMaker project archived | Done (#82) |
 | R2 | Port the simulation as pure TypeScript under unit tests: tree model, growth, seasons, scoring, species, styles, save format + importer for prototype saves | Done (#87) |
-| R3 | Port the mesh builder and 3D viewer to Three.js, with screenshot tests | In progress (R3a-c done; R3d viewer lifecycle next) |
+| R3 | Port the mesh builder and 3D viewer to Three.js, with screenshot tests | In progress (R3d-1 done; R3d-2 actions and lifecycle next) |
 | R4 | Rooms, player, interactables, UI panels, tutorial, shop in Phaser | |
 | R5 | Blog post on the rewrite decision | Done (#89) |
 

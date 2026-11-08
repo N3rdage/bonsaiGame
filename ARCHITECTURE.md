@@ -2,18 +2,18 @@
 
 How the web project is organised, the decisions behind it, and the invariants carried over from the GameMaker prototype. For why the rewrite happened, see `docs/ADR-001-typescript-rewrite.md`. For the prototype's own architecture, see `archive/gamemaker/ARCHITECTURE.md`. For deliberately-unsimulated behaviour, see `SIMPLIFICATIONS.md`.
 
-This document describes the project as it stands after slice R3c-2 (simulation done, 3D viewer scaffold plus trunk, branch, foliage and wire meshes) and the shape the port is heading toward: the viewer lifecycle (R3d) and the Phaser rooms and UI (R4) are still planned. Sections marked *planned* describe modules that do not exist yet.
+This document describes the project as it stands after slice R3d-1 (simulation done, 3D viewer scaffold plus trunk, branch, foliage and wire meshes, and read-only hotspots and modes) and the shape the port is heading toward: the viewer's training actions and lifecycle (R3d-2) and the Phaser rooms and UI (R4) are still planned. Sections marked *planned* describe modules that do not exist yet.
 
 ## High-level shape
 
-A single-page web game. Vite bundles TypeScript into a static site; Phaser renders the 2D world and UI to a canvas; Three.js renders the 3D tree viewer (pot, trunk, branch, foliage and wire meshes in place; lifecycle and training UI *planned*). The simulation is a set of pure TypeScript modules with no rendering dependency, so it runs identically in the browser, in unit tests, and in any future headless tool.
+A single-page web game. Vite bundles TypeScript into a static site; Phaser renders the 2D world and UI to a canvas; Three.js renders the 3D tree viewer (pot, trunk, branch, foliage and wire meshes and read-only hotspots in place; lifecycle and training actions *planned*). The simulation is a set of pure TypeScript modules with no rendering dependency, so it runs identically in the browser, in unit tests, and in any future headless tool.
 
 ```
 index.html
   src/main.ts            Phaser.Game config, PWA service-worker registration
   src/scenes/            Phaser scenes: boot, world rooms (planned), UI (planned)
   src/sim/               pure simulation (done, R2): tree, geometry, growth, seasons, scoring, species, styles, training, save
-  src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch/foliage/wire meshes done (R3a-c); lifecycle planned
+  src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch/foliage/wire meshes done (R3a-c); hotspots and modes done (R3d-1); actions and lifecycle planned
   e2e/                   Playwright browser tests
   public/                static assets, PWA icons, staticwebapp.config.json
 ```
@@ -47,7 +47,8 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 | `scr_bonsai_mesh` trunk and branch bark (`build_trunk`, `build_branch`, rings, `stitch_rings`) | `src/viewer/treeMesh.ts`, `meshArrays.ts` | Done (R3b) |
 | `scr_bonsai_mesh` foliage (`add_foliage_cluster`, `_add_quad_xz`/`_yz`, the `build_branch` gate), `spr_foliage` | `src/viewer/foliageMesh.ts`, `seededRandom.ts`, `foliage.png` | Done (R3c-1) |
 | `scr_bonsai_mesh` wire (`add_wire_coil`, `add_wire_anchor`, `build_oriented_ring`) | `src/viewer/treeMesh.ts` | Done (R3c-2) |
-| `obj_viewer_3d` lifecycle, hotspots, training UI | `src/viewer/`, `src/scenes/` | Planned (R3d) |
+| `obj_viewer_3d` hotspots, modes, projection (Create_0 mode state, Step_0 strip and V/W/C/P, Draw_64 hotspots and direction helpers), `project_3d_to_screen` | `src/viewer/hotspots.ts`, `projection.ts`, `TreeViewer.ts` | Done (R3d-1) |
+| `obj_viewer_3d` training actions, toolbar, modal, lifecycle | `src/viewer/`, `src/scenes/` | Planned (R3d-2) |
 | `obj_player`, `obj_interactable`, rooms, `scr_weather` | `src/scenes/world/` | Planned (R4) |
 | `obj_ui_*`, `scr_ui`, `scr_title_hero` | `src/scenes/ui/` | Planned (R4) |
 
@@ -62,7 +63,7 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 
 - A separate WebGL canvas (`#viewer`) sits fixed over the Phaser canvas and is shown only while the viewer is open.
 - The camera is plain yaw/pitch/distance data in the pure `camera.ts`; the world is z-up, as in the prototype.
-- Handedness: the prototype's look-at was left-handed, so the viewer mirrors the world's y axis (`toViewerSpace` in `camera.ts`, a y-flipped mesh group in `TreeViewer.ts`). Screen-right at yaw 45 is world (-1,-1,0), as in the prototype. Hotspot projection in R3d must go through the same helper.
+- Handedness: the prototype's look-at was left-handed, so the viewer mirrors the world's y axis (`toViewerSpace` in `camera.ts`, a y-flipped mesh group in `TreeViewer.ts`). Screen-right at yaw 45 is world (-1,-1,0), as in the prototype. Hotspot projection goes through the same helper.
 - Rendering is on demand (one frame per open, resize or input change), never a loop, without MSAA, so a still view is a deterministic screenshot.
 - Pure array builders (`potGeometry.ts`) feed Three.js `BufferGeometry`, so mesh shape is unit-tested in Node. `threeCamera.ts` uses only Three's math classes and is unit-tested too; only `TreeViewer.ts` needs WebGL.
 - The tree mesh comes from the pure `treeMesh.ts`, which reads shape only from `trunkFrames`, `branchPoint` and the `*FrameAt` lookups. `TreeViewer.ts` keeps it as one `Mesh` in the mirrored group beside the pot and rebuilds it before a render only when `tree.revision` has changed since the last build.
@@ -70,6 +71,11 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 - Foliage comes from the pure `foliageMesh.ts`: a seeded cluster of crossed, textured quads at each branch tip above 30% of trunk height, tinted by the species' seasonal colour through the vertex colour. The seed is `tree.id * 1000 + branch.id` (mulberry32 in `seededRandom.ts`), so rebuilds never reroll the leaves. `TreeViewer.ts` draws it as a second `Mesh` with its own material (sprite map, alpha test 0.5, no culling).
 - The season is an input, never derived: `open(tree, season)` and `setSeason(season)`. Nothing in the viewer reads a day counter. Foliage rebuilds before a render when `tree.revision` or the season differs from what it was built with; bark rebuilds on `revision` only.
 - Colour space: the renderer outputs `LinearSRGBColorSpace` so palette bytes pass through untouched, and the foliage sprite (`foliage.png`, the prototype's `spr_foliage` copied byte for byte) loads with `NoColorSpace`, nearest filtering and no mipmaps for the same reason. The map is bound when it finishes loading; `foliageReady` on the test hook says when.
+- Interaction state is plain data in the pure `hotspots.ts`: mode (`view`, `wire`, `clip`, `prune`, keys V/W/C/P), wire action, bend direction and the wired/unwired filters, reset on every `open`. `hotspotWorldPoints(tree, ui)` gives the hotspots for that state in world space (branch ones at 70% along each branch, trunk ones at 20-80% of the trunk in wire + bend) with the prototype's filters, labels and colours. Nothing in it mutates the tree.
+- Hotspots are a DOM overlay (`#viewer-hotspots`, one `button.hotspot` each), not drawn in WebGL: tests read their positions from the hook and the DOM, they get hover and focus for free, and `e2e/screenshot.css` hides them so baselines stay the WebGL frame. `TreeViewer.ts` lays them out again after every rendered frame, so they follow the camera.
+- `projection.ts` maps a world point to CSS px with Three's math classes only (unit-tested in Node). It goes through `toViewerSpace`, as the handedness rule demands, and drops points behind the camera or outside the near/far range.
+- The top strip (60 px, 110 px in wire mode, where the prototype's toolbar and wire sub-row sit) never starts a drag; wheel zoom works anywhere.
+- The direction helpers `trunkBendWorldAngle` (screen direction to a world bend angle at the current yaw) and `branchBendSign` (which bend sign moves a branch tip the chosen way on screen, found by projecting a perturbed copy) are pure and take the projector as an argument; R3d-2's wire actions use them.
 - Screenshot tests open fixture trees (`viewerFixtures.ts`, grown through `src/sim` actions) with a `?tree=<cutting|bent|cascade|maple|wired|fancy>` URL parameter, and choose the viewer's season with `?season=<spring|summer|autumn|winter>` (default: the game's season), both read by the boot scene. They go away with R3d's real viewer lifecycle.
 - Screenshot baselines live in `e2e/__screenshots__/` and are regenerated on Linux with `npx playwright test --update-snapshots=all`.
 
