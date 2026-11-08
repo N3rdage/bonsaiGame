@@ -125,7 +125,7 @@ test.describe('title', () => {
     expect(errors).toEqual([]);
   });
 
-  test('loads a prototype save from the slot picker', async ({ page }) => {
+  test('continues and loads a prototype save', async ({ page }) => {
     const errors = collectErrors(page);
     await page.evaluate((text) => {
       localStorage.setItem('bonsai.save.2', text);
@@ -137,14 +137,23 @@ test.describe('title', () => {
     expect(slot?.money).toBe(PROTOTYPE.money);
     expect(PROTOTYPE.game_day).toBeGreaterThan(0);
 
+    // Continue really loads: a new game would be day 0 with one 25 cm tree.
+    const expectLoaded = (h: BonsaiTestHook): void => {
+      expect(h.activeSlot).toBe(2);
+      expect(h.day).toBe(PROTOTYPE.game_day);
+      expect(h.trees).toBe(PROTOTYPE.trees.length);
+      expect(h.starterHeightCm).toBe(PROTOTYPE.trees[0]?.trunk.height_cm);
+    };
+    await toWorld(page, 'c');
+    expectLoaded(await hook(page));
+
+    // So does the load picker.
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => window.__bonsai?.scene === 'title');
     await page.keyboard.press('l');
     await page.waitForFunction(() => window.__bonsai?.picker === 'load');
     await toWorld(page, '2');
-    const h = await hook(page);
-    expect(h.activeSlot).toBe(2);
-    expect(h.day).toBe(PROTOTYPE.game_day);
-    expect(h.trees).toBe(PROTOTYPE.trees.length);
-    expect(h.starterHeightCm).toBe(PROTOTYPE.trees[0]?.trunk.height_cm);
+    expectLoaded(await hook(page));
     expect(errors).toEqual([]);
   });
 
@@ -197,8 +206,10 @@ test.describe('title', () => {
     expect(h.toast).toBe('Save slot 1 is unreadable');
     expect(h.slots).toEqual([]);
 
-    // Continue skips unreadable slots, so it has nothing to load.
+    // Continue skips unreadable slots, so it has nothing to load and stays put.
     await page.keyboard.press('c');
+    await twoFrames(page);
+    expect((await hook(page)).scene).toBe('title');
     await page.keyboard.press('l');
     await page.waitForFunction(() => window.__bonsai?.picker === 'load');
     await page.keyboard.press('1');
