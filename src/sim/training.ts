@@ -24,9 +24,10 @@ const UNSAFE_BEND_VITALITY_COST = 10;
 /**
  * The largest combined bend (degrees) a branch of `girthMm` takes without
  * costing vitality. The prototype wrote `60 - girth * 20` with girth in
- * millimetres, which made every branch in the game unsafe at any bend; by
- * decision (backlog #27, option B) the formula reads girth in centimetres, so
- * a 2 mm branch takes 56 degrees and a 3 cm branch none.
+ * millimetres, which left the starter's 2.7 to 3.6 mm branches 6 degrees or
+ * less (negative above 3 mm), so the first 15-degree click on any of them cost
+ * vitality; by decision (backlog #27, option B) the formula reads girth in
+ * centimetres, so a 2 mm branch takes 56 degrees and a 3 cm branch none.
  */
 export function maxSafeBendDeg(girthMm: number): number {
   return SAFE_BEND_BASE_DEG - (girthMm / 10) * SAFE_BEND_PER_CM_DEG;
