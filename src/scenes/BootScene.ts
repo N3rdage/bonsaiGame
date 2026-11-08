@@ -78,7 +78,9 @@ export class BootScene extends Phaser.Scene {
       starterHeightCm: starter ? starter.trunk.heightCm : -1,
     };
     const publishHook = (): void => {
-      window.__bonsai = { ...hookBase, viewer: viewer.snapshot() };
+      // `paused` is read from the game state itself, not the viewer, so a test
+      // sees what the simulation would see after the viewer has let go.
+      window.__bonsai = { ...hookBase, paused: state.paused, viewer: viewer.snapshot() };
     };
     viewer.onRender = publishHook;
     viewer.onClose = publishHook;

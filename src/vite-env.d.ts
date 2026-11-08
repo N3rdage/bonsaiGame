@@ -20,6 +20,8 @@ interface BonsaiTestHook {
   readonly starterScore: number;
   /** Trunk height of the starter tree in cm, or -1 if there is none. */
   readonly starterHeightCm: number;
+  /** The game state's own `paused` flag at the last publish: true only while the 3D viewer is open. */
+  readonly paused: boolean;
   /** The 3D tree viewer, once the scene has created it. */
   readonly viewer?: BonsaiViewerHook;
 }
