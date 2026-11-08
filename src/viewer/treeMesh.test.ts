@@ -133,6 +133,9 @@ describe('buildTreeMesh', () => {
     expect(mesh.positions.length / 3).toBe(688 * 3);
     expect(mesh.positions.length / 3).toBe(2064);
     expect(mesh.colors).toHaveLength(mesh.positions.length);
+    // Untextured: two zero UVs per vertex.
+    expect(mesh.uvs).toHaveLength((mesh.positions.length / 3) * 2);
+    expect(mesh.uvs.every((u) => u === 0)).toBe(true);
   });
 
   it('builds a fresh juniper cutting: 8 trunk segments x 10 x 2 + 2 branches x 72 = 304 triangles', () => {

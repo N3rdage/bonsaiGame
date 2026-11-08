@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { seasonForDay, seasonLabel } from '../sim/seasons';
+import { SEASONS, seasonForDay, seasonLabel } from '../sim/seasons';
 import { createNewGameState } from '../sim/state';
 import { scoreTree } from '../sim/scoring';
 import { getSpecies } from '../sim/species';
@@ -87,11 +87,17 @@ export class BootScene extends Phaser.Scene {
     });
     // `?tree=<fixture>` shows a fixture tree instead of the starter, for the
     // viewer's screenshot tests; it goes away with R3d's real viewer lifecycle.
-    const fixtureKey = new URLSearchParams(window.location.search).get('tree');
+    const params = new URLSearchParams(window.location.search);
+    const fixtureKey = params.get('tree');
     const shown = isViewerFixtureKey(fixtureKey) ? VIEWER_FIXTURES[fixtureKey]() : starter;
+    // `?season=<spring|summer|autumn|winter>` overrides the game's season in
+    // the viewer only, for the foliage screenshot tests; it goes away with R3d
+    // like `?tree=`.
+    const seasonParam = params.get('season');
+    const viewerSeason = SEASONS.find((s) => s === seasonParam) ?? season;
     viewLink.on('pointerup', () => {
       if (!shown) return;
-      viewer.open(shown);
+      viewer.open(shown, viewerSeason);
       publishHook();
     });
     publishHook();
