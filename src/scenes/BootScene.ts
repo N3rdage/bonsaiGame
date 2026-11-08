@@ -97,7 +97,7 @@ export class BootScene extends Phaser.Scene {
     const viewerSeason = SEASONS.find((s) => s === seasonParam) ?? season;
     viewLink.on('pointerup', () => {
       if (!shown) return;
-      viewer.open(shown, viewerSeason);
+      viewer.open(shown, viewerSeason, state);
       publishHook();
     });
     publishHook();

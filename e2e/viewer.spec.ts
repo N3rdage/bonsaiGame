@@ -36,7 +36,8 @@ async function closeViewer(page: Page): Promise<void> {
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
   await expect(page.locator('#viewer')).toBeHidden();
-  await expect(page.locator('#viewer-close')).toBeHidden();
+  await expect(page.locator('#viewer-toolbar')).toBeHidden();
+  await expect(page.locator('#viewer-help')).toBeHidden();
 }
 
 test.describe('3D viewer', () => {
@@ -59,10 +60,10 @@ test.describe('3D viewer', () => {
     expect(hook?.season).toBe('spring');
     expect(viewer?.season).toBe('spring');
     expect(viewer?.foliageVertices).toBe(336);
-    await expect(page.locator('#viewer-close')).toBeVisible();
+    await expect(page.locator('#viewer-toolbar')).toBeVisible();
 
-    // e2e/screenshot.css hides the Close button during capture, so the baseline
-    // is the WebGL frame alone.
+    // e2e/screenshot.css hides the toolbar and help lines during capture, so
+    // the baseline is the WebGL frame alone.
     await expect(page.locator('#viewer')).toHaveScreenshot('viewer-scaffold.png');
 
     await closeViewer(page);
@@ -255,6 +256,141 @@ test.describe('viewer hotspots', () => {
     await page.waitForFunction((y) => window.__bonsai?.viewer?.yaw !== y, yaw);
 
     await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('viewer toolbar', () => {
+  const summary = (hs: readonly BonsaiViewerHotspot[]): string[] =>
+    hs.map((h) => `${h.kind}${String(h.id)}`);
+  const branches = ['branch0', 'branch1', 'branch2', 'branch3'];
+  const trunks = ['trunk0', 'trunk1', 'trunk2', 'trunk3'];
+
+  /** Clicks a toolbar control that changes the view and returns the hook after the next frame. */
+  async function clickToolbar(page: Page, selector: string): Promise<BonsaiViewerHook> {
+    const renders = (await page.evaluate(() => window.__bonsai?.viewer?.renders)) ?? 0;
+    await page.locator(`#viewer-toolbar ${selector}`).click();
+    await page.waitForFunction((r) => (window.__bonsai?.viewer?.renders ?? 0) > r, renders);
+    const viewer = await page.evaluate(() => window.__bonsai?.viewer);
+    if (!viewer) throw new Error('viewer hook missing');
+    await expect(page.locator('#viewer-hotspots .hotspot')).toHaveCount(viewer.hotspots.length);
+    return viewer;
+  }
+
+  test('switches modes from the toolbar', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    await expect(page.locator('#viewer-toolbar .info')).toContainText('Juniper "Granny\'s"');
+    await expect(page.locator('[data-mode="view"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#viewer-toolbar .sub-row')).toHaveCount(0);
+    await expect(page.locator('#viewer-help .help-line')).toHaveText([
+      'Drag to rotate  |  Scroll to zoom  |  R to reset camera',
+    ]);
+
+    const wire = await clickToolbar(page, '[data-mode="wire"]');
+    expect(wire.mode).toBe('wire');
+    expect(summary(wire.hotspots)).toEqual([...branches, ...trunks]);
+    await expect(page.locator('[data-mode="wire"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-mode="view"]')).toHaveAttribute('aria-pressed', 'false');
+    await expect(page.locator('#viewer-toolbar .sub-row')).toBeVisible();
+    await expect(page.locator('#viewer-help .help-line').first()).toContainText('Wire: 10');
+    expect(wire.wireStock).toBe(10);
+    expect(wire.day).toBe(0);
+
+    const clip = await clickToolbar(page, '[data-mode="clip"]');
+    expect(clip.mode).toBe('clip');
+    expect(summary(clip.hotspots)).toEqual(branches);
+    await expect(page.locator('#viewer-toolbar .sub-row')).toHaveCount(0);
+
+    const prune = await clickToolbar(page, '[data-mode="prune"]');
+    expect(prune.mode).toBe('prune');
+    expect(summary(prune.hotspots)).toEqual(branches);
+
+    const view = await clickToolbar(page, '[data-mode="view"]');
+    expect(view.mode).toBe('view');
+    expect(view.hotspots).toEqual([]);
+
+    await closeViewer(page);
+    const closed = await page.evaluate(() => window.__bonsai?.viewer);
+    expect(closed?.wireStock).toBe(0);
+    expect(closed?.day).toBe(-1);
+    expect(errors).toEqual([]);
+  });
+
+  test('drives the wire action, direction and filters from the sub-row', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/?tree=wired');
+    const wire = await clickToolbar(page, '[data-mode="wire"]');
+    expect(summary(wire.hotspots)).toEqual([...branches, ...trunks]);
+    await expect(page.locator('#viewer-toolbar [data-action]')).toHaveCount(2);
+    await expect(page.locator('#viewer-toolbar [data-dir]')).toHaveCount(4);
+    await expect(page.locator('#viewer-toolbar [data-show]')).toHaveCount(2);
+
+    // The fixture's wire went on at day 0 and the game is on day 0.
+    const wired = wire.hotspots.filter((h) => h.caption !== '');
+    expect(wired.map((h) => [h.kind, h.id, h.caption])).toEqual([['branch', 1, '0d (early)']]);
+    await expect(page.locator('#viewer-hotspots .hotspot[data-id="1"] .caption')).toHaveText(
+      '0d (early)',
+    );
+
+    const remove = await clickToolbar(page, '[data-action="remove"]');
+    expect(remove.wireAction).toBe('remove');
+    expect(summary(remove.hotspots)).toEqual(['branch1']);
+    await expect(page.locator('#viewer-toolbar [data-dir]')).toHaveCount(0);
+    await expect(page.locator('#viewer-toolbar [data-show]')).toHaveCount(0);
+    await expect(page.locator('#viewer-help .help-line').first()).toHaveText(
+      'Click a wired branch to remove its wire  |  Wire: 10',
+    );
+
+    const bend = await clickToolbar(page, '[data-action="bend"]');
+    expect(bend.wireAction).toBe('bend');
+    await expect(page.locator('#viewer-toolbar [data-dir]')).toHaveCount(4);
+    await expect(page.locator('#viewer-help .help-line').first()).toHaveText(
+      'Click branch or trunk to bend (15° per click on branches, 20° on trunks)  |  Wire: 10',
+    );
+
+    expect((await clickToolbar(page, '[data-dir="up"]')).bendDir).toBe('up');
+    await expect(page.locator('[data-dir="up"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-dir="left"]')).toHaveAttribute('aria-pressed', 'false');
+
+    const noUnwired = await clickToolbar(page, '[data-show="unwired"]');
+    expect(noUnwired.showUnwired).toBe(false);
+    expect(summary(noUnwired.hotspots)).toEqual(['branch1', ...trunks]);
+
+    const noWired = await clickToolbar(page, '[data-show="wired"]');
+    expect(noWired.showWired).toBe(false);
+    expect(summary(noWired.hotspots)).toEqual(trunks);
+
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('ignores mode keys held with a modifier', async ({ page }) => {
+    await openViewer(page, '/');
+    await page.keyboard.press('Alt+c');
+    // Two frames give any render the key requested time to land.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        }),
+    );
+    expect(await page.evaluate(() => window.__bonsai?.viewer?.mode)).toBe('view');
+  });
+
+  test('closes from the Exit button', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    await expect(page.locator('[data-exit]')).toHaveText('Exit (Esc)');
+    await page.locator('[data-exit]').click();
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
+    await expect(page.locator('#viewer')).toBeHidden();
+    await expect(page.locator('#viewer-toolbar')).toBeHidden();
+    await expect(page.locator('#viewer-help')).toBeHidden();
     expect(errors).toEqual([]);
   });
 });
