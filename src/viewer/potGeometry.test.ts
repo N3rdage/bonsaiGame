@@ -65,6 +65,7 @@ describe('buildPotGeometry (obj_viewer_3d _draw_pot)', () => {
     const pot = buildPotGeometry(0);
     expect(pot.positions.length).toBe(tier0Triangles * 3 * 3);
     expect(pot.colors.length).toBe(pot.positions.length);
+    expect(pot.uvs.length).toBe((pot.positions.length / 3) * 2);
   });
 
   it('adds four feet to the fancy pot', () => {
