@@ -11,7 +11,7 @@ import { TUTORIAL_TRAIN, tutorialAdvanceIf } from './tutorial';
 import type { BonsaiTree, GameState, WireRecord } from './types';
 
 /** A wire removed sooner than this many days springs the bend back. */
-const WIRE_SET_DAYS = 56;
+export const WIRE_SET_DAYS = 56;
 /** Fraction of the bend kept when a wire comes off before it set. */
 const WIRE_SPRING_BACK = 0.3;
 /** Degrees of bend a branch of zero girth takes safely. */
