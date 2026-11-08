@@ -14,11 +14,28 @@ import type { BonsaiTree, GameState, WireRecord } from './types';
 const WIRE_SET_DAYS = 56;
 /** Fraction of the bend kept when a wire comes off before it set. */
 const WIRE_SPRING_BACK = 0.3;
+/** Degrees of bend a branch of zero girth takes safely. */
+const SAFE_BEND_BASE_DEG = 60;
+/** Degrees of safe bend lost per centimetre of branch girth. */
+const SAFE_BEND_PER_CM_DEG = 20;
+/** Vitality lost the moment a wire takes a branch past its safe bend. */
+const UNSAFE_BEND_VITALITY_COST = 10;
+
+/**
+ * The largest combined bend (degrees) a branch of `girthMm` takes without
+ * costing vitality. The prototype wrote `60 - girth * 20` with girth in
+ * millimetres, which made every branch in the game unsafe at any bend; by
+ * decision (backlog #27, option B) the formula reads girth in centimetres, so
+ * a 2 mm branch takes 56 degrees and a 3 cm branch none.
+ */
+export function maxSafeBendDeg(girthMm: number): number {
+  return SAFE_BEND_BASE_DEG - (girthMm / 10) * SAFE_BEND_PER_CM_DEG;
+}
 
 /**
  * Wire a branch to a target bend (horizontal and vertical, degrees). Consumes
  * 1 wire. Costs 10 vitality only when the combined bend magnitude crosses into
- * the unsafe zone (above 60 - girth * 20), not for staying there.
+ * the unsafe zone (above `maxSafeBendDeg`), not for staying there.
  */
 export function applyWire(
   tree: BonsaiTree,
@@ -45,11 +62,11 @@ export function applyWire(
     bendTargetV: targetBendVDeg,
   });
 
-  const maxSafe = 60 - branch.girth * 20;
+  const maxSafe = maxSafeBendDeg(branch.girth);
   const oldMag = Math.sqrt(oldBend * oldBend + oldBendV * oldBendV);
   const newMag = Math.sqrt(targetBendDeg * targetBendDeg + targetBendVDeg * targetBendVDeg);
   if (oldMag <= maxSafe && newMag > maxSafe) {
-    tree.vitality -= 10;
+    tree.vitality -= UNSAFE_BEND_VITALITY_COST;
   }
 
   markDirty(tree);

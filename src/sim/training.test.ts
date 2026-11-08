@@ -5,6 +5,7 @@ import {
   activeWireForBranch,
   applyWire,
   clipBranch,
+  maxSafeBendDeg,
   pruneBranch,
   removeWire,
   wireTrunk,
@@ -16,7 +17,7 @@ function fixture(): { state: GameState; tree: BonsaiTree } {
   const state = createNewGameState();
   state.day = 10;
   const tree = createTree('juniper', 'seed', 99);
-  // girth = max(2, length * 0.3) = 2, so maxSafe = 60 - 2 * 20 = 20.
+  // girth = max(2, length * 0.3) = 2 mm, so maxSafe = 60 - 0.2 * 20 = 56.
   addBranch(tree, -1, 1, 0, 5);
   addBranch(tree, -1, 1.5, 180, 4);
   addBranch(tree, -1, 1.8, 90, 6);
@@ -56,18 +57,37 @@ describe('applyWire', () => {
 
   it('costs 10 vitality on crossing the safe threshold, once', () => {
     const { state, tree } = fixture();
-    applyWire(tree, state, 0, 15);
+    applyWire(tree, state, 0, 56);
     expect(tree.vitality).toBe(100);
-    applyWire(tree, state, 0, 25);
+    applyWire(tree, state, 0, 57);
     expect(tree.vitality).toBe(90);
-    applyWire(tree, state, 0, 40);
+    applyWire(tree, state, 0, 80);
     expect(tree.vitality).toBe(90);
   });
 
   it('judges the threshold on the combined magnitude', () => {
     const { state, tree } = fixture();
-    // sqrt(15^2 + 15^2) ~ 21.2 > 20
-    applyWire(tree, state, 0, 15, 15);
+    // sqrt(40^2 + 40^2) ~ 56.6 > 56
+    applyWire(tree, state, 0, 40, 40);
+    expect(tree.vitality).toBe(90);
+  });
+
+  it('lets a young branch take the first 15-degree click without cost', () => {
+    const { state, tree } = fixture();
+    applyWire(tree, state, 0, 15);
+    applyWire(tree, state, 0, 30);
+    applyWire(tree, state, 0, 45);
+    expect(tree.vitality).toBe(100);
+  });
+
+  it('tightens the safe bend as the branch thickens', () => {
+    const { state, tree } = fixture();
+    const branch = tree.branches[0];
+    if (branch === undefined) throw new Error('fixture has no branch 0');
+    branch.girth = 25; // 2.5 cm: maxSafe = 60 - 2.5 * 20 = 10
+    applyWire(tree, state, 0, 10);
+    expect(tree.vitality).toBe(100);
+    applyWire(tree, state, 0, 11);
     expect(tree.vitality).toBe(90);
   });
 
@@ -76,6 +96,20 @@ describe('applyWire', () => {
     state.tutorialStep = TUTORIAL_TRAIN;
     applyWire(tree, state, 0, 10);
     expect(state.tutorialStep).toBe(TUTORIAL_TAKE_CUTTING);
+  });
+});
+
+describe('maxSafeBendDeg', () => {
+  it('reads girth in centimetres: 60 minus 20 per cm', () => {
+    expect(maxSafeBendDeg(0)).toBe(60);
+    expect(maxSafeBendDeg(2)).toBe(56);
+    expect(maxSafeBendDeg(3.6)).toBeCloseTo(52.8, 10);
+    expect(maxSafeBendDeg(25)).toBe(10);
+    expect(maxSafeBendDeg(30)).toBe(0);
+  });
+
+  it('is negative past 3 cm, so any wire there costs vitality', () => {
+    expect(maxSafeBendDeg(40)).toBeLessThan(0);
   });
 });
 
