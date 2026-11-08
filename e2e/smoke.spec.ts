@@ -12,13 +12,15 @@ test.describe('boot', () => {
     await expect(page).toHaveTitle('Bonsai Greenhouse');
     await expect(page.locator('#game canvas')).toBeVisible();
 
-    await page.waitForFunction(() => window.__bonsai?.ready === true);
+    // Boot hands over to the title; Enter starts a new game in the world.
+    await page.waitForFunction(() => window.__bonsai?.scene === 'title');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__bonsai?.scene === 'world');
     const hook = await page.evaluate(() => window.__bonsai);
-    // The boot scene hands over to the world, which publishes the hook.
-    expect(hook?.scene).toBe('world');
+    expect(hook?.ready).toBe(true);
     expect(hook?.season).toBe('spring');
     expect(hook?.version).toMatch(/^\d+\.\d+\.\d+/);
-    // The boot scene runs a real new game through the simulation bundle.
+    // New Game runs a real new game through the simulation bundle.
     expect(hook?.day).toBe(0);
     expect(hook?.trees).toBe(1);
     expect(Number.isInteger(hook?.starterScore)).toBe(true);

@@ -1,13 +1,12 @@
 import Phaser from 'phaser';
-import { SEASONS, seasonForDay } from '../sim/seasons';
-import { createNewGameState } from '../sim/state';
-import { scoreTree } from '../sim/scoring';
+import { LocalStorageSaveStorage } from '../platform/localStorageSaveStorage';
+import { SEASONS } from '../sim/seasons';
 import { VIEWER_FIXTURES, isViewerFixtureKey } from '../viewer/viewerFixtures';
-import type { WorldSceneData } from './WorldScene';
+import type { TitleSceneData } from './sceneData';
 
 /**
- * Entry scene: creates a real new game, reads the viewer's test parameters
- * and hands both to the world, which publishes the test hook.
+ * Entry scene: creates the one save storage the game uses, reads the viewer's
+ * test parameters and hands both to the title.
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -15,34 +14,22 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    const state = createNewGameState();
-    const season = seasonForDay(state.day);
-    const starter = state.trees[0];
-
     // `?tree=<fixture>` makes the viewer show a fixture tree instead of the
     // starter, for its screenshot tests; it stays until R4's interactables give
     // a real way to pick a tree.
     const params = new URLSearchParams(window.location.search);
     const fixtureKey = params.get('tree');
-    const viewTree = isViewerFixtureKey(fixtureKey) ? VIEWER_FIXTURES[fixtureKey]() : starter;
     // `?season=<spring|summer|autumn|winter>` overrides the game's season in
     // the viewer only, for the foliage screenshot tests; it stays like `?tree=`.
     const seasonParam = params.get('season');
-    const viewerSeason = SEASONS.find((s) => s === seasonParam) ?? season;
 
-    const data: WorldSceneData = {
-      state,
-      viewTree,
-      viewerSeason,
-      hookBase: {
-        version: __APP_VERSION__,
-        season,
-        day: state.day,
-        trees: state.trees.length,
-        starterScore: starter ? scoreTree(starter).total : -1,
-        starterHeightCm: starter ? starter.trunk.heightCm : -1,
+    const data: TitleSceneData = {
+      storage: new LocalStorageSaveStorage(),
+      overrides: {
+        tree: isViewerFixtureKey(fixtureKey) ? VIEWER_FIXTURES[fixtureKey] : undefined,
+        season: SEASONS.find((s) => s === seasonParam),
       },
     };
-    this.scene.start('world', data);
+    this.scene.start('title', data);
   }
 }

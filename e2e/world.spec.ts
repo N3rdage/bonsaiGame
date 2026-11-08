@@ -11,6 +11,9 @@ function collectErrors(page: Page): string[] {
 
 async function bootWorld(page: Page): Promise<void> {
   await page.goto('/');
+  // Each test has a fresh browser context, so no saves: Enter starts a new game in slot 1.
+  await page.waitForFunction(() => window.__bonsai?.scene === 'title');
+  await page.keyboard.press('Enter');
   await page.waitForFunction(() => window.__bonsai?.scene === 'world');
 }
 

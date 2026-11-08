@@ -16,7 +16,7 @@ interface BonsaiTestHook {
   readonly season: string;
   readonly day: number;
   readonly trees: number;
-  /** Score of the starter tree in a fresh game, or -1 if there is none. */
+  /** Score of the first tree in the state played, or -1 if there is none (always on the title). */
   readonly starterScore: number;
   /** Trunk height of the starter tree in cm, or -1 if there is none. */
   readonly starterHeightCm: number;
@@ -32,6 +32,19 @@ interface BonsaiTestHook {
   readonly hud: string;
   /** Fixed 60 Hz world steps run so far; the world does not step while the viewer is open. */
   readonly frames: number;
+  /** Save slot the world saves to (F5) and loads from (F9); 0 on the title. */
+  readonly activeSlot: number;
+  /** Readable saves (empty and corrupt slots left out), read when the title shows and after each save. */
+  readonly slots: readonly {
+    readonly slot: number;
+    readonly day: number;
+    readonly money: number;
+    readonly savedAt: string;
+  }[];
+  /** World: the save toast (e.g. 'Saved to slot 1') while shown. Title: its message line. '' when none. */
+  readonly toast: string;
+  /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
+  readonly picker: string;
 }
 
 /** Snapshot of the 3D viewer: camera pose, pot and tree mesh shown, and frames drawn so far. */
