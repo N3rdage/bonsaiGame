@@ -20,6 +20,8 @@ interface BonsaiTestHook {
   readonly starterScore: number;
   /** Trunk height of the starter tree in cm, or -1 if there is none. */
   readonly starterHeightCm: number;
+  /** The game state's own `paused` flag at the last publish: true only while the 3D viewer is open. */
+  readonly paused: boolean;
   /** The 3D tree viewer, once the scene has created it. */
   readonly viewer?: BonsaiViewerHook;
 }
@@ -61,6 +63,8 @@ interface BonsaiViewerHook {
   readonly day: number;
   /** Branch the wire-removal confirmation (`#viewer-modal`) is open for, or -1 when none. */
   readonly modal: number;
+  /** `paused` of the game state the viewer was opened with (true while open), or false when closed. */
+  readonly paused: boolean;
   /** Branches on the tree shown, or 0 when closed. */
   readonly branchCount: number;
   /** Each branch's length in cm, by index; empty when closed. */

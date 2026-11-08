@@ -200,6 +200,11 @@ export interface GameState {
   nextTreeId: number;
   /** See tutorial.ts; TUTORIAL_DONE (-1) when finished or skipped. */
   tutorialStep: number;
+  /**
+   * The prototype's `global.game_paused`: true while the 3D viewer is open, and
+   * `advanceDayAllTrees` does nothing while it is. Transient, never persisted.
+   */
+  paused: boolean;
 }
 
 /** Random source in [0, 1). Defaults to Math.random; tests pass a seeded one. */

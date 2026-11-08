@@ -25,6 +25,7 @@ export function createNewGameState(): GameState {
     trees: [],
     nextTreeId: 0,
     tutorialStep: TUTORIAL_WATER,
+    paused: false,
   };
 
   // Granny's juniper, the player's inherited starting tree. "Granny's" is short

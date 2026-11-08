@@ -20,8 +20,11 @@ export const FANCY_POT_REVENUE_MULT = 1.25;
  * Advance the world `days` days: move the calendar first (as the prototype
  * did), tick every tree `days` times non-isolated, then credit display revenue
  * for each tree on a pedestal. Returns the revenue added to `state.money`.
+ * While `state.paused` (the 3D viewer is open) it changes nothing and returns
+ * 0, as the prototype's controller Step exited early on `global.game_paused`.
  */
 export function advanceDayAllTrees(state: GameState, days: number, rng: Rng = Math.random): number {
+  if (state.paused) return 0;
   state.day += days;
   for (const tree of state.trees) {
     for (let d = 0; d < days; d++) {

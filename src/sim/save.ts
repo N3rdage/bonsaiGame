@@ -92,6 +92,7 @@ export function formatSaveTimestamp(date: Date): string {
   );
 }
 
+/** Writes a version-2 save. `state.paused` is transient and never written; loads start unpaused. */
 export function serializeState(state: GameState, now: Date): string {
   const file: SaveFileV2 = {
     version: SAVE_VERSION,
@@ -313,6 +314,7 @@ export function importPrototypeSave(raw: unknown): GameState {
     tutorialStep: tutorialStepFromSave(
       raw.tutorial_step === undefined ? undefined : int(raw.tutorial_step, -1),
     ),
+    paused: false,
   };
 }
 
@@ -329,6 +331,7 @@ function readV2Save(raw: Record<string, unknown>): GameState {
     tutorialStep: tutorialStepFromSave(
       typeof raw.tutorialStep === 'number' ? raw.tutorialStep : undefined,
     ),
+    paused: false,
   };
 }
 
