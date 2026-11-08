@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { trunkFrames } from '../sim/geometry';
+import { SEASONS, type Season } from '../sim/seasons';
+import { createNewGameState } from '../sim/state';
+import type { BonsaiTree } from '../sim/types';
 import { darccos } from '../sim/vec3';
+import { branchCarriesFoliage, buildFoliageMesh } from './foliageMesh';
 import { buildTreeMesh } from './treeMesh';
-import { VIEWER_FIXTURES, isViewerFixtureKey } from './viewerFixtures';
+import {
+  MAPLE_BRANCHES,
+  MAPLE_HEIGHT_CM,
+  VIEWER_FIXTURES,
+  isViewerFixtureKey,
+} from './viewerFixtures';
 
 const vertices = (key: keyof typeof VIEWER_FIXTURES): number =>
   buildTreeMesh(VIEWER_FIXTURES[key]()).positions.length / 3;
@@ -12,6 +21,7 @@ describe('viewer fixtures', () => {
     expect(isViewerFixtureKey('cutting')).toBe(true);
     expect(isViewerFixtureKey('bent')).toBe(true);
     expect(isViewerFixtureKey('cascade')).toBe(true);
+    expect(isViewerFixtureKey('maple')).toBe(true);
     expect(isViewerFixtureKey('starter')).toBe(false);
     expect(isViewerFixtureKey('toString')).toBe(false);
     expect(isViewerFixtureKey(null)).toBe(false);
@@ -65,5 +75,44 @@ describe('viewer fixtures', () => {
     }
     // 30 cm -> arc 1.2 -> 24 segments: 24 x 10 x 2 + 4 x 72 = 768 triangles.
     expect(vertices('cascade')).toBe(2304);
+  });
+
+  it('maple is a young seed-grown maple with three branches above the foliage gate', () => {
+    const tree = VIEWER_FIXTURES.maple();
+    expect(tree.speciesKey).toBe('maple');
+    expect(tree.origin).toBe('seed');
+    expect(tree.trunk.heightCm).toBe(MAPLE_HEIGHT_CM);
+    expect(tree.foliageDensity).toBe(0.5);
+    expect(tree.branches.map((b) => b.originY)).toEqual(MAPLE_BRANCHES.map(([y]) => y));
+    expect(tree.branches.every((b) => branchCarriesFoliage(tree, b))).toBe(true);
+    // 20 cm -> arc 0.8 -> 16 segments: 16 x 10 x 2 + 3 x 72 = 536 triangles.
+    expect(vertices('maple')).toBe(1608);
+  });
+});
+
+// The e2e suite pins the same counts through window.__bonsai.viewer.foliageVertices.
+describe('viewer fixture foliage', () => {
+  const foliage = (tree: BonsaiTree, season: Season): number =>
+    buildFoliageMesh(tree, season).positions.length / 3;
+
+  it('the starter juniper (four branches above the gate, density 0.5) leafs out in every season', () => {
+    const tree = createNewGameState().trees[0];
+    if (!tree) throw new Error('no starter');
+    expect(tree.foliageDensity).toBe(0.5);
+    // 4 branches x 7 leaves x 12 vertices.
+    for (const season of SEASONS) expect(foliage(tree, season)).toBe(336);
+  });
+
+  it('maple is bare in winter and carries 3 clusters of 7 leaves in autumn', () => {
+    expect(foliage(VIEWER_FIXTURES.maple(), 'winter')).toBe(0);
+    expect(foliage(VIEWER_FIXTURES.maple(), 'autumn')).toBe(252);
+  });
+
+  it('cutting, bent and cascade foliage counts', () => {
+    // Cutting: 2 branches (3 and 5 of 8 cm), density 0.25 -> 5 leaves.
+    expect(foliage(VIEWER_FIXTURES.cutting(), 'spring')).toBe(2 * 5 * 12);
+    expect(foliage(VIEWER_FIXTURES.bent(), 'spring')).toBe(336);
+    // Cascade: at 30 cm the 8 cm branch sits at 0.27, below the gate.
+    expect(foliage(VIEWER_FIXTURES.cascade(), 'spring')).toBe(3 * 7 * 12);
   });
 });
