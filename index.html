@@ -55,6 +55,42 @@
       #viewer-close.open {
         display: block;
       }
+      #viewer-hotspots {
+        position: fixed;
+        inset: 0;
+        z-index: 11;
+        display: none;
+        pointer-events: none;
+      }
+      #viewer-hotspots.open {
+        display: block;
+      }
+      #viewer-hotspots .hotspot {
+        position: absolute;
+        transform: translate(-50%, -50%);
+        box-sizing: border-box;
+        width: var(--hotspot-size);
+        height: var(--hotspot-size);
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: visible;
+        border: 1px solid #fff;
+        border-radius: 50%;
+        background: var(--hotspot-fill);
+        color: #fff;
+        font: 10px monospace;
+        line-height: 1;
+        white-space: nowrap;
+        pointer-events: auto;
+        cursor: pointer;
+      }
+      #viewer-hotspots .hotspot:hover {
+        width: var(--hotspot-size-hover);
+        height: var(--hotspot-size-hover);
+        background: var(--hotspot-fill-hover);
+      }
     </style>
   </head>
   <body>
