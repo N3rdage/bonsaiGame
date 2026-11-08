@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 // Runs against the production build so what is tested is what gets deployed.
@@ -8,6 +9,15 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
+  // Baselines are generated on Linux (as CI runs); no OS suffix keeps the path stable.
+  snapshotPathTemplate: '{testDir}/__screenshots__/{testFileName}/{arg}-{projectName}{ext}',
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.005,
+      animations: 'disabled',
+      stylePath: path.join(import.meta.dirname, 'e2e/screenshot.css'),
+    },
+  },
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'retain-on-failure',

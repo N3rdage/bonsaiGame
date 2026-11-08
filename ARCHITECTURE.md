@@ -6,14 +6,14 @@ This document describes the skeleton as it stands after slice R1 and the shape t
 
 ## High-level shape
 
-A single-page web game. Vite bundles TypeScript into a static site; Phaser renders the 2D world and UI to a canvas; Three.js (*planned*) renders the 3D tree viewer. The simulation is a set of pure TypeScript modules with no rendering dependency, so it runs identically in the browser, in unit tests, and in any future headless tool.
+A single-page web game. Vite bundles TypeScript into a static site; Phaser renders the 2D world and UI to a canvas; Three.js renders the 3D tree viewer (scaffold in place, tree meshes *planned*). The simulation is a set of pure TypeScript modules with no rendering dependency, so it runs identically in the browser, in unit tests, and in any future headless tool.
 
 ```
 index.html
   src/main.ts            Phaser.Game config, PWA service-worker registration
   src/scenes/            Phaser scenes: boot, world rooms (planned), UI (planned)
   src/sim/               pure simulation: seasons (done), tree, growth, scoring, species, styles, save (planned)
-  src/viewer/            Three.js tree viewer (planned)
+  src/viewer/            Three.js tree viewer: scaffold done (R3a), meshes planned
   e2e/                   Playwright browser tests
   public/                static assets, PWA icons, staticwebapp.config.json
 ```
@@ -43,7 +43,8 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 | `obj_game_controller` new-game bootstrap | `src/sim/state.ts` | Done (R2) |
 | `scr_save_load` | `src/sim/save.ts` (v2 format + prototype importer), `src/platform/localStorageSaveStorage.ts` | Done (R2) |
 | `scr_settings` | settings in `localStorage` | Planned (R4) |
-| `scr_growth` `pot_palette`, `scr_bonsai_mesh` mesh builder, `obj_viewer_3d` | `src/viewer/` (Three.js) | Planned (R3) |
+| `scr_growth` `pot_palette`, `obj_viewer_3d` camera + pot | `src/viewer/potPalette.ts`, `potGeometry.ts`, `camera.ts`, `TreeViewer.ts` | Done (R3a) |
+| `scr_bonsai_mesh` mesh builder, `obj_viewer_3d` hotspots | `src/viewer/` | Planned (R3b-d) |
 | `obj_player`, `obj_interactable`, rooms, `scr_weather` | `src/scenes/world/` | Planned (R4) |
 | `obj_ui_*`, `scr_ui`, `scr_title_hero` | `src/scenes/ui/` | Planned (R4) |
 
@@ -53,6 +54,15 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 - `GameState` carries what the prototype kept in globals (day, money, inventory, trees, next id, tutorial step). Simulation functions take it explicitly and mutate it in place; that is what makes them testable.
 - Randomness is injected: `treeDailyTick(tree, state, isolated, rng)` and `advanceDayAllTrees(state, days, rng)` default to `Math.random`, tests pass a constant.
 - Saves are versioned. `save.ts` writes version 2 (camelCase) and reads both version 2 and the prototype's version 1 through `importPrototypeSave`, which tolerates the trailing NUL byte the prototype wrote, GameMaker's float-typed integers, and the fields older saves lack. Two real prototype saves live in `src/sim/__fixtures__/` as importer tests. Storage is behind a three-method `SaveStorage` interface with an in-memory implementation for tests and a `localStorage` one under `src/platform/`.
+
+### How the viewer is shaped
+
+- A separate WebGL canvas (`#viewer`) sits fixed over the Phaser canvas and is shown only while the viewer is open.
+- The camera is plain yaw/pitch/distance data in the pure `camera.ts`; the world is z-up, as in the prototype.
+- Handedness: the prototype's look-at was left-handed, so the viewer mirrors the world's y axis (`toViewerSpace` in `camera.ts`, a y-flipped mesh group in `TreeViewer.ts`). Screen-right at yaw 45 is world (-1,-1,0), as in the prototype. Hotspot projection in R3d must go through the same helper.
+- Rendering is on demand (one frame per open, resize or input change), never a loop, without MSAA, so a still view is a deterministic screenshot.
+- Pure array builders (`potGeometry.ts`) feed Three.js `BufferGeometry`, so mesh shape is unit-tested in Node. `threeCamera.ts` uses only Three's math classes and is unit-tested too; only `TreeViewer.ts` needs WebGL.
+- Screenshot baselines live in `e2e/__screenshots__/` and are regenerated on Linux with `npx playwright test --update-snapshots=all`.
 
 ## Invariants carried over
 
@@ -81,5 +91,5 @@ These were the hard-won rules of the prototype. Each names where it will live in
 
 ## Known rough edges
 
-- The web build is a placeholder scene until R3 and R4 land; the simulation exists but nothing drives it yet.
+- The web build is a placeholder boot scene until R3 and R4 land; it boots a real new game and can open the 3D viewer scaffold on the starter tree, but nothing else drives the simulation yet.
 - Prototype rough edges (cuttings for junipers only, fancy pots stat-only) carry over until the relevant backlog items are built.

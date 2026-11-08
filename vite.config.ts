@@ -40,7 +40,11 @@ export default defineConfig({
       output: {
         // Phaser changes rarely; keeping it in its own chunk lets browsers cache it across app updates.
         advancedChunks: {
-          groups: [{ name: 'phaser', test: 'node_modules/phaser/' }],
+          groups: [
+            { name: 'phaser', test: 'node_modules/phaser/' },
+            // Three.js likewise changes rarely and gets its own cacheable chunk.
+            { name: 'three', test: 'node_modules/three/' },
+          ],
         },
       },
     },
@@ -51,7 +55,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/main.ts', 'src/scenes/**'],
+      exclude: ['src/**/*.test.ts', 'src/main.ts', 'src/scenes/**', 'src/viewer/TreeViewer.ts'],
     },
   },
 });
