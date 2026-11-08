@@ -37,6 +37,12 @@ interface BonsaiViewerHook {
   readonly revision: number;
   /** Vertex count of the tree (trunk and branch) mesh, or 0 when closed. */
   readonly meshVertices: number;
+  /** Season the foliage is drawn for (passed in by the caller), or '' when closed. */
+  readonly season: string;
+  /** Vertex count of the foliage mesh, or 0 when closed or the species is bare this season. */
+  readonly foliageVertices: number;
+  /** True once the foliage sprite has loaded and is bound to the foliage material. */
+  readonly foliageReady: boolean;
 }
 
 interface Window {

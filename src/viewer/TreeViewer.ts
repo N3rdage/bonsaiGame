@@ -6,10 +6,15 @@ import {
   LinearSRGBColorSpace,
   Mesh,
   MeshBasicMaterial,
+  NearestFilter,
+  NoColorSpace,
   PerspectiveCamera,
   Scene,
+  TextureLoader,
   WebGLRenderer,
+  type Texture,
 } from 'three';
+import type { Season } from '../sim/seasons';
 import type { BonsaiTree, PotTier } from '../sim/types';
 import {
   FAR,
@@ -22,15 +27,18 @@ import {
   zoomCamera,
   type OrbitCamera,
 } from './camera';
+import foliageUrl from './foliage.png';
+import { buildFoliageMesh } from './foliageMesh';
 import type { MeshArrays } from './meshArrays';
 import { buildPotGeometry } from './potGeometry';
 import { buildTreeMesh } from './treeMesh';
 import { placeCamera } from './threeCamera';
 
-function toGeometry({ positions, colors }: MeshArrays): BufferGeometry {
+function toGeometry({ positions, colors, uvs }: MeshArrays): BufferGeometry {
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
+  geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
   return geometry;
 }
 
@@ -55,11 +63,25 @@ export class TreeViewer {
   private readonly camera = new PerspectiveCamera(FOV_DEGREES, 1, NEAR, FAR);
   // Unlit vertex colours with no culling: what the prototype drew.
   private readonly material = new MeshBasicMaterial({ vertexColors: true, side: DoubleSide });
+  // The prototype's foliage pass: alpha test at 128 of 255, no culling, and
+  // the vertex colour tinting the neutral sprite into each species' seasonal
+  // colour. The map is assigned once the sprite has loaded.
+  private readonly foliageMaterial = new MeshBasicMaterial({
+    vertexColors: true,
+    side: DoubleSide,
+    alphaTest: 0.5,
+  });
+  private foliageTexture: Texture | undefined;
   private pot: Mesh | undefined;
   private tree: BonsaiTree | undefined;
   private treeMesh: Mesh | undefined;
+  private foliageMesh: Mesh | undefined;
   /** `tree.revision` the current tree mesh was built from, -1 when none. */
   private builtRevision = -1;
+  /** Season shown: an input from the caller, never derived from the tree or a day counter. */
+  private season: Season | undefined;
+  /** `tree.revision` and season the current foliage mesh was built from. */
+  private foliageBuilt: { revision: number; season: Season } | undefined;
   private cam: OrbitCamera = createOrbitCamera();
   private potTier: PotTier = 0;
   private renders = 0;
@@ -67,6 +89,7 @@ export class TreeViewer {
   private wheelHandled = false;
   private drag: { pointerId: number; x: number; y: number } | undefined;
   private opened = false;
+  private destroyed = false;
 
   constructor(parent: HTMLElement) {
     this.canvas = document.createElement('canvas');
@@ -91,14 +114,19 @@ export class TreeViewer {
     this.canvas.addEventListener('wheel', this.onWheel, { passive: false });
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('resize', this.onResize);
+
+    new TextureLoader().load(foliageUrl, this.onFoliageLoaded);
   }
 
   get isOpen(): boolean {
     return this.opened;
   }
 
-  /** Shows the tree. Returns false (and stays hidden) if WebGL is unavailable. */
-  open(tree: BonsaiTree): boolean {
+  /**
+   * Shows the tree with its foliage as it looks in `season`. Returns false
+   * (and stays hidden) if WebGL is unavailable.
+   */
+  open(tree: BonsaiTree, season: Season): boolean {
     if (!this.ensureRenderer()) return false;
     this.opened = true;
     this.potTier = tree.potTier;
@@ -110,12 +138,21 @@ export class TreeViewer {
     this.pot = new Mesh(toGeometry(buildPotGeometry(tree.potTier)), this.material);
     this.world.add(this.pot);
     this.tree = tree;
+    this.season = season;
     this.rebuildTreeMesh(tree);
+    this.rebuildFoliageMesh(tree, season);
     this.canvas.classList.add('open');
     this.closeButton.classList.add('open');
     this.resize();
     this.requestRender();
     return true;
+  }
+
+  /** Changes the season shown; while open, the foliage is rebuilt before the next frame. */
+  setSeason(season: Season): void {
+    if (!this.opened || season === this.season) return;
+    this.season = season;
+    this.requestRender();
   }
 
   close(): void {
@@ -130,11 +167,14 @@ export class TreeViewer {
 
   destroy(): void {
     this.close();
+    this.destroyed = true;
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('resize', this.onResize);
     if (this.frame !== undefined) cancelAnimationFrame(this.frame);
     this.renderer?.dispose();
     this.material.dispose();
+    this.foliageMaterial.dispose();
+    this.foliageTexture?.dispose();
     this.canvas.remove();
     this.closeButton.remove();
   }
@@ -150,6 +190,11 @@ export class TreeViewer {
       renders: this.renders,
       revision: this.builtRevision,
       meshVertices: this.treeMesh ? this.treeMesh.geometry.getAttribute('position').count : 0,
+      season: this.season ?? '',
+      foliageVertices: this.foliageMesh
+        ? this.foliageMesh.geometry.getAttribute('position').count
+        : 0,
+      foliageReady: this.foliageTexture !== undefined,
     };
   }
 
@@ -180,10 +225,14 @@ export class TreeViewer {
   private disposeMeshes(): void {
     this.disposeMesh(this.pot);
     this.disposeMesh(this.treeMesh);
+    this.disposeMesh(this.foliageMesh);
     this.pot = undefined;
     this.treeMesh = undefined;
+    this.foliageMesh = undefined;
     this.tree = undefined;
+    this.season = undefined;
     this.builtRevision = -1;
+    this.foliageBuilt = undefined;
   }
 
   /** Replaces the tree mesh with one built from the tree as it is now. */
@@ -193,6 +242,30 @@ export class TreeViewer {
     this.world.add(this.treeMesh);
     this.builtRevision = tree.revision;
   }
+
+  /** Replaces the foliage mesh with one built from the tree as it is now, in `season`. */
+  private rebuildFoliageMesh(tree: BonsaiTree, season: Season): void {
+    this.disposeMesh(this.foliageMesh);
+    this.foliageMesh = new Mesh(toGeometry(buildFoliageMesh(tree, season)), this.foliageMaterial);
+    this.world.add(this.foliageMesh);
+    this.foliageBuilt = { revision: tree.revision, season };
+  }
+
+  private readonly onFoliageLoaded = (texture: Texture): void => {
+    if (this.destroyed) {
+      texture.dispose();
+      return;
+    }
+    // Sprite bytes pass through untouched, like the palette colours, and stay crisp.
+    texture.colorSpace = NoColorSpace;
+    texture.magFilter = NearestFilter;
+    texture.minFilter = NearestFilter;
+    texture.generateMipmaps = false;
+    this.foliageTexture = texture;
+    this.foliageMaterial.map = texture;
+    this.foliageMaterial.needsUpdate = true;
+    if (this.opened) this.requestRender();
+  };
 
   private setCamera(cam: OrbitCamera): void {
     this.cam = cam;
@@ -206,6 +279,14 @@ export class TreeViewer {
       this.wheelHandled = false;
       if (!this.opened || !this.renderer) return;
       if (this.tree && this.tree.revision !== this.builtRevision) this.rebuildTreeMesh(this.tree);
+      const built = this.foliageBuilt;
+      if (
+        this.tree &&
+        this.season &&
+        (this.tree.revision !== built?.revision || this.season !== built.season)
+      ) {
+        this.rebuildFoliageMesh(this.tree, this.season);
+      }
       placeCamera(this.camera, this.cam);
       this.renderer.render(this.scene, this.camera);
       this.renders += 1;
