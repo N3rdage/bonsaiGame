@@ -43,6 +43,29 @@ interface BonsaiViewerHook {
   readonly foliageVertices: number;
   /** True once the foliage sprite has loaded and is bound to the foliage material. */
   readonly foliageReady: boolean;
+  /** Interaction mode: 'view', 'wire', 'clip' or 'prune'. Reset to 'view' on open. */
+  readonly mode: string;
+  /** What a wire-mode click does: 'bend' or 'remove'. */
+  readonly wireAction: string;
+  /** Screen-relative bend direction: 'up', 'left', 'down' or 'right'. */
+  readonly bendDir: string;
+  /** Wire + bend: hotspots shown on branches that already carry wire. */
+  readonly showWired: boolean;
+  /** Wire + bend: hotspots shown on branches without wire. */
+  readonly showUnwired: boolean;
+  /** Hotspots on screen after the last frame, one per `.hotspot` button; empty when closed. */
+  readonly hotspots: readonly BonsaiViewerHotspot[];
+}
+
+/** One on-screen hotspot, positioned in CSS px from the viewport's top left. */
+interface BonsaiViewerHotspot {
+  readonly kind: 'branch' | 'trunk';
+  /** Branch index, or the trunk slot 0..3 from the base up. */
+  readonly id: number;
+  /** Text drawn on it: the branch index, or the trunk height in whole cm. */
+  readonly label: string;
+  readonly x: number;
+  readonly y: number;
 }
 
 interface Window {
