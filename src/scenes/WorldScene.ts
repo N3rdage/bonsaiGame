@@ -26,7 +26,7 @@ const PLAYER_H = 24;
 const LABEL_STYLE = { fontFamily: 'monospace', fontSize: '8px', color: '#d8e6c8' };
 
 type MoveKeys = Record<
-  'left' | 'right' | 'up' | 'down' | 'a' | 'd' | 'w' | 's' | 'v',
+  'left' | 'right' | 'up' | 'down' | 'a' | 'd' | 'w' | 's',
   Phaser.Input.Keyboard.Key
 >;
 
@@ -106,8 +106,12 @@ export class WorldScene extends Phaser.Scene {
       d: key(K.D),
       w: key(K.W),
       s: key(K.S),
-      v: key(K.V),
     };
+    // A keydown event, not a polled key: a quick tap can go down and up within
+    // one frame. While the viewer is open V is its View mode, so it is ignored here.
+    keyboard.on('keydown-V', () => {
+      this.openViewer();
+    });
 
     this.input.on(
       'pointerdown',
@@ -136,18 +140,11 @@ export class WorldScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
-    // Always consume the V press, so one made while the viewer had the keyboard
-    // (where V is its View mode) does not reopen it after Escape.
-    const vPressed = Phaser.Input.Keyboard.JustDown(this.keys.v);
     const viewerOpen = this.viewer.isOpen;
     this.hud.setVisible(!viewerOpen);
     if (viewerOpen) {
       this.joystick = undefined;
       this.accumulatorMs = 0;
-      return;
-    }
-    if (vPressed) {
-      this.openViewer();
       return;
     }
 
