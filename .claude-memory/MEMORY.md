@@ -22,3 +22,4 @@
 - [Azure subscription check](feedback_azure_subscription.md) — only "Sponge Box Consulting - Business Sub" ("Bikini Bottom"); verify `az account show` before any Azure action.
 - [agentic-gaming infra repo](project_agentic_gaming_infra.md) — private repo N3rdage/agentic-gaming (F:gentic-gaming): Bicep/scripts/orchestrator/backlog, two GitHub Apps (agent + reviewer), autonomous merge loop, bonsai.silly.ninja; in-flight items as of 2026-11-08.
 - [Git Bash path conversion](reference_git_bash_pathconv.md) — `!`/Bash on Windows mangles `/subscriptions/...` args; prefix az with `MSYS_NO_PATHCONV=1` or use PowerShell.
+- [Azure from a cloud session](reference_cloud_session_azure.md) — start on the "Bonsai Greenhouse (Azure ops)" environment, pip-install az into a venv, device-code login as the operator account, az logout after.
