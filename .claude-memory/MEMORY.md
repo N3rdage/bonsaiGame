@@ -20,4 +20,4 @@
 - [Sign-off rhyme call-and-response](feedback_signoff_rhyme.md) — initiator says "See you later, alligator"; response is "In a while, crocodile". Don't swap.
 - [UI text must be ASCII](project_ui_text_ascii_only.md) — built-in font only covers ASCII; em-dashes/curly quotes render blank in drawn strings. Use " - ", not "—".
 - [Azure subscription check](feedback_azure_subscription.md) — only "Sponge Box Consulting - Business Sub" ("Bikini Bottom"); verify `az account show` before any Azure action.
-- [agentic-gaming infra repo](project_agentic_gaming_infra.md) — private repo N3rdage/agentic-gaming (F:\agentic-gaming) holds Bicep/scripts/orchestrator/backlog for the autonomous TS rewrite; GM project to be archived.
+- [agentic-gaming infra repo](project_agentic_gaming_infra.md) — private repo N3rdage/agentic-gaming (F:gentic-gaming): Bicep/scripts/orchestrator/backlog, two GitHub Apps (agent + reviewer), autonomous merge loop, bonsai.silly.ninja; in-flight items as of 2026-11-08.
