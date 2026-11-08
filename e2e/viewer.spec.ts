@@ -70,18 +70,23 @@ test.describe('3D viewer', () => {
   });
 
   // Vertex counts are pinned in src/viewer/viewerFixtures.test.ts.
+  // `wired` carries one copper coil and trunk anchor (2064 bark + 6408 + 576);
+  // `fancy` is the starter repotted into the tier-1 pot.
   const fixtures = [
-    { key: 'cutting', meshVertices: 912, foliageVertices: 120 },
-    { key: 'bent', meshVertices: 2064, foliageVertices: 336 },
-    { key: 'cascade', meshVertices: 2304, foliageVertices: 252 },
+    { key: 'cutting', meshVertices: 912, foliageVertices: 120, potTier: 0 },
+    { key: 'bent', meshVertices: 2064, foliageVertices: 336, potTier: 0 },
+    { key: 'cascade', meshVertices: 2304, foliageVertices: 252, potTier: 0 },
+    { key: 'wired', meshVertices: 9048, foliageVertices: 336, potTier: 0 },
+    { key: 'fancy', meshVertices: 2064, foliageVertices: 336, potTier: 1 },
   ];
-  for (const { key, meshVertices, foliageVertices } of fixtures) {
+  for (const { key, meshVertices, foliageVertices, potTier } of fixtures) {
     test(`shows the ${key} fixture tree and matches the baseline`, async ({ page }) => {
       const errors = collectErrors(page);
       await openViewer(page, `/?tree=${key}`);
       const viewer = await page.evaluate(() => window.__bonsai?.viewer);
       expect(viewer?.meshVertices).toBe(meshVertices);
       expect(viewer?.foliageVertices).toBe(foliageVertices);
+      expect(viewer?.potTier).toBe(potTier);
       await expect(page.locator('#viewer')).toHaveScreenshot(`viewer-${key}.png`);
       await closeViewer(page);
       expect(errors).toEqual([]);
