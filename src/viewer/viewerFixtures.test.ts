@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { trunkFrames } from '../sim/geometry';
-import { SEASONS, type Season } from '../sim/seasons';
+import { REPOT_COOLDOWN_DAYS } from '../sim/growth';
+import { SEASONS, seasonForDay, type Season } from '../sim/seasons';
 import { createNewGameState } from '../sim/state';
 import type { BonsaiTree } from '../sim/types';
 import { darccos } from '../sim/vec3';
 import { branchCarriesFoliage, buildFoliageMesh } from './foliageMesh';
 import { buildTreeMesh } from './treeMesh';
 import {
+  FANCY_REPOT_DAY,
   MAPLE_BRANCHES,
   MAPLE_HEIGHT_CM,
   VIEWER_FIXTURES,
+  WIRED_BEND_DEG,
+  WIRED_BRANCH_ID,
   isViewerFixtureKey,
 } from './viewerFixtures';
 
@@ -22,6 +26,8 @@ describe('viewer fixtures', () => {
     expect(isViewerFixtureKey('bent')).toBe(true);
     expect(isViewerFixtureKey('cascade')).toBe(true);
     expect(isViewerFixtureKey('maple')).toBe(true);
+    expect(isViewerFixtureKey('wired')).toBe(true);
+    expect(isViewerFixtureKey('fancy')).toBe(true);
     expect(isViewerFixtureKey('starter')).toBe(false);
     expect(isViewerFixtureKey('toString')).toBe(false);
     expect(isViewerFixtureKey(null)).toBe(false);
@@ -88,6 +94,34 @@ describe('viewer fixtures', () => {
     // 20 cm -> arc 0.8 -> 16 segments: 16 x 10 x 2 + 3 x 72 = 536 triangles.
     expect(vertices('maple')).toBe(1608);
   });
+
+  it('wired is the starter with its 210-degree branch wired to a 40-degree bend', () => {
+    // The fixture throws if applyWire refuses, so getting a tree means it returned true.
+    const tree = VIEWER_FIXTURES.wired();
+    const branch = tree.branches[WIRED_BRANCH_ID];
+    expect(branch?.angle).toBe(210);
+    expect(branch?.wired).toBe(true);
+    expect(branch?.bend).toBe(WIRED_BEND_DEG);
+    expect(tree.branches.filter((b) => b.wired)).toHaveLength(1);
+    expect(tree.wiresApplied).toHaveLength(1);
+    // The bend sweeps the tip from 210 round to 250 degrees, toward the camera
+    // side of the default yaw-45 view (world (+1, -1)).
+    expect(WIRED_BEND_DEG).toBe(40);
+    // 2064 bark + coil 178 bands x 36 = 6408 + anchor 16 bands x 36 = 576 (treeMesh.test.ts).
+    expect(vertices('wired')).toBe(9048);
+  });
+
+  it('fancy is the starter repotted into a bought fancy pot on the first day it can be', () => {
+    expect(FANCY_REPOT_DAY).toBe(113);
+    expect(seasonForDay(FANCY_REPOT_DAY)).toBe('spring');
+    expect(FANCY_REPOT_DAY).toBeGreaterThanOrEqual(REPOT_COOLDOWN_DAYS);
+    // The fixture throws if the purchase or the repot is refused.
+    const tree = VIEWER_FIXTURES.fancy();
+    expect(tree.potTier).toBe(1);
+    expect(tree.repotsHistory).toEqual([{ day: 113, toTier: 1, soilTier: 0 }]);
+    // Same tree as the starter: 688 triangles.
+    expect(vertices('fancy')).toBe(2064);
+  });
 });
 
 // The e2e suite pins the same counts through window.__bonsai.viewer.foliageVertices.
@@ -114,5 +148,10 @@ describe('viewer fixture foliage', () => {
     expect(foliage(VIEWER_FIXTURES.bent(), 'spring')).toBe(336);
     // Cascade: at 30 cm the 8 cm branch sits at 0.27, below the gate.
     expect(foliage(VIEWER_FIXTURES.cascade(), 'spring')).toBe(3 * 7 * 12);
+  });
+
+  it('wired and fancy keep the starter foliage (wire and pot add no leaves)', () => {
+    expect(foliage(VIEWER_FIXTURES.wired(), 'spring')).toBe(336);
+    expect(foliage(VIEWER_FIXTURES.fancy(), 'spring')).toBe(336);
   });
 });
