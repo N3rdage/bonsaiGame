@@ -3,12 +3,15 @@
  * simulation's own actions so the pictures show reachable morphology.
  */
 
+import { repotTree } from '../sim/growth';
+import { DAYS_PER_SEASON, SEASONS } from '../sim/seasons';
+import { SHOP_CATALOGUE, shopBuy } from '../sim/shop';
 import { createNewGameState } from '../sim/state';
-import { wireTrunk } from '../sim/training';
+import { applyWire, wireTrunk } from '../sim/training';
 import { addBranch, createTree, markDirty } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 
-export type ViewerFixtureKey = 'cutting' | 'bent' | 'cascade' | 'maple';
+export type ViewerFixtureKey = 'cutting' | 'bent' | 'cascade' | 'maple' | 'wired' | 'fancy';
 
 /** Screen-right at the default yaw of 45 (world (-1,-1,0)), as the prototype's trunk wiring UI used. */
 export const SCREEN_RIGHT_ANGLE = -135;
@@ -37,6 +40,19 @@ export const MAPLE_BRANCHES: readonly (readonly [number, number, number])[] = [
   [13, 200, 8],
   [17, 120, 6],
 ];
+
+/**
+ * The starter's 210-degree branch (14 cm up, 11 cm long) lies in the screen-right
+ * half at yaw 45; a +40 degree wire sweeps its tip round to 250 degrees, toward
+ * the camera, so both the coil and the trunk anchor face the default view.
+ */
+export const WIRED_BRANCH_ID = 1;
+export const WIRED_BEND_DEG = 40;
+/**
+ * Repotting is spring-only and the starter was last repotted on day 0, so the
+ * first day it can go into a fancy pot is the first day of the second spring.
+ */
+export const FANCY_REPOT_DAY = DAYS_PER_SEASON * SEASONS.length + 1;
 
 function starter(): { state: GameState; tree: BonsaiTree } {
   const state = createNewGameState();
@@ -71,6 +87,24 @@ export const VIEWER_FIXTURES: Record<ViewerFixtureKey, () => BonsaiTree> = {
     tree.foliageDensity = MAPLE_FOLIAGE_DENSITY;
     markDirty(tree);
     for (const [y, angle, length] of MAPLE_BRANCHES) addBranch(tree, -1, y, angle, length);
+    return tree;
+  },
+
+  wired: () => {
+    const { state, tree } = starter();
+    if (!applyWire(tree, state, WIRED_BRANCH_ID, WIRED_BEND_DEG)) {
+      throw new Error('wired fixture: applyWire refused');
+    }
+    return tree;
+  },
+
+  fancy: () => {
+    const { state, tree } = starter();
+    state.day = FANCY_REPOT_DAY;
+    const price = SHOP_CATALOGUE.find((item) => item.key === 'fancy_pot')?.price ?? Infinity;
+    if (!shopBuy(state, 'fancy_pot', 1, price) || !repotTree(tree, state, 1)) {
+      throw new Error('fancy fixture: could not buy a fancy pot and repot');
+    }
     return tree;
   },
 };
