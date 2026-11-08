@@ -7,10 +7,10 @@
 | # | Slice | Status |
 |---|---|---|
 | R1 | Skeleton: Vite + Phaser + PWA, gates (lint, typecheck, unit, e2e), Static Web App deploy, GameMaker project archived | Done (#82) |
-| R2 | Port the simulation as pure TypeScript under unit tests: tree model, growth, seasons, scoring, species, styles, save format + importer for prototype saves | In PR |
-| R3 | Port the mesh builder and 3D viewer to Three.js, with screenshot tests | Next |
+| R2 | Port the simulation as pure TypeScript under unit tests: tree model, growth, seasons, scoring, species, styles, save format + importer for prototype saves | Done (#87) |
+| R3 | Port the mesh builder and 3D viewer to Three.js, with screenshot tests | In progress (R3a) |
 | R4 | Rooms, player, interactables, UI panels, tutorial, shop in Phaser | |
-| R5 | Blog post on the rewrite decision | Assigned to the orchestrator |
+| R5 | Blog post on the rewrite decision | Done (#89) |
 
 Priority-ordered toward "playable." Security items always at top.
 

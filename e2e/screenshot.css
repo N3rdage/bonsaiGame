@@ -1,0 +1,8 @@
+/*
+ * Applied only while Playwright captures a toHaveScreenshot baseline
+ * (see playwright.config.ts). DOM chrome drawn with system fonts is hidden so
+ * baselines contain only the WebGL frame and do not drift between machines.
+ */
+#viewer-close {
+  visibility: hidden;
+}
