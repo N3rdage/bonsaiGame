@@ -56,6 +56,23 @@ describe('advanceDayAllTrees', () => {
     expect(state.money - money).toBe(revenue);
   });
 
+  it('does nothing while paused, and resumes once unpaused', () => {
+    const state = stateWith('shed', 'displayed:shed_main');
+    state.paused = true;
+    const trees = structuredClone(state.trees);
+    const money = state.money;
+    expect(advanceDayAllTrees(state, 3, rng)).toBe(0);
+    expect(state.day).toBe(10);
+    expect(state.trees).toEqual(trees);
+    expect(state.money).toBe(money);
+
+    state.paused = false;
+    expect(advanceDayAllTrees(state, 3, rng)).toBeGreaterThan(0);
+    expect(state.day).toBe(13);
+    expect(must(state.trees[0]).ageDays).toBe(must(trees[0]).ageDays + 3);
+    expect(state.money).toBeGreaterThan(money);
+  });
+
   it('pays nothing for trees that are not displayed', () => {
     const state = stateWith('shed', 'inventory', 'sold');
     const money = state.money;

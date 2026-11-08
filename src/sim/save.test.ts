@@ -86,6 +86,17 @@ describe('v2 round trip', () => {
     expect(loadGame(storage, 2)).toBeUndefined();
   });
 
+  it('never writes paused and always loads unpaused', () => {
+    const state = createNewGameState();
+    expect(state.paused).toBe(false);
+    state.paused = true;
+    const text = serializeState(state, NOW);
+    expect(JSON.parse(text)).not.toHaveProperty('paused');
+    const loaded = deserializeSave(text);
+    expect(loaded.paused).toBe(false);
+    expect(loaded).toEqual({ ...state, paused: false });
+  });
+
   it('tolerates a trailing NUL byte', () => {
     const state = createNewGameState();
     expect(deserializeSave(serializeState(state, NOW) + '\0')).toEqual(state);
@@ -116,6 +127,7 @@ describe('prototype import: day 14', () => {
     expect(state.inventory.soil_premium).toBe(0);
     expect(state.inventory.wire).toBe(3);
     expect(state.trees).toHaveLength(2);
+    expect(state.paused).toBe(false);
     expectIntegerIds(state);
   });
 
@@ -154,6 +166,7 @@ describe('prototype import: day 730', () => {
     expect(state.trees.map((t) => t.wiresApplied.length)).toEqual([18, 17]);
     expect(state.trees.map((t) => t.soilTier)).toEqual([1, 1]);
     expect(state.inventory.soil_premium).toBe(3);
+    expect(state.paused).toBe(false);
     expectIntegerIds(state);
   });
 

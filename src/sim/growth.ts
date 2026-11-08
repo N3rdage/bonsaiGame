@@ -176,6 +176,7 @@ export function repotTree(
 /**
  * Spend fertiliser to fast-forward one tree by `days` isolated ticks (no water
  * decay; the world day does not advance). Cost max(1, ceil(days * 0.5)).
+ * Ignores `state.paused`: an inspector action the prototype could not reach from the viewer.
  */
 export function skipTreeTime(
   tree: BonsaiTree,
