@@ -64,7 +64,7 @@ test.describe('3D viewer', () => {
   const fixtures = [
     { key: 'cutting', meshVertices: 912 },
     { key: 'bent', meshVertices: 2064 },
-    { key: 'cascade', meshVertices: 3024 },
+    { key: 'cascade', meshVertices: 2304 },
   ];
   for (const { key, meshVertices } of fixtures) {
     test(`shows the ${key} fixture tree and matches the baseline`, async ({ page }) => {

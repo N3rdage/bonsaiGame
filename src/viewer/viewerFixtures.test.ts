@@ -46,17 +46,24 @@ describe('viewer fixtures', () => {
 
   it('cascade carries the trunk past horizontal so the tip descends below the soil line', () => {
     const tree = VIEWER_FIXTURES.cascade();
-    expect(tree.trunk.heightCm).toBe(45);
-    expect(tree.trunk.movement.map((m) => m.y)).toEqual([0, 5, 10, 15, 20, 25, 30, 35]);
+    expect(tree.trunk.heightCm).toBe(30);
+    expect(tree.trunk.movement.map((m) => m.y)).toEqual([0, 2.5, 5, 7.5, 10, 12.5, 15, 17.5, 20]);
     expect(tree.trunk.movement.every((m) => m.angleDeg === -135)).toBe(true);
     const frames = trunkFrames(tree);
     const tip = frames.at(-1);
-    // 8 events x 20 degrees: the tangent points 160 degrees from straight up.
-    expect(darccos(tip?.tangent.z ?? 1)).toBeCloseTo(160, 9);
-    expect(tip?.pos.z ?? 0).toBeLessThan(0);
-    // Inside the default framing: target z 0.9, distance 2.5, fov 60 sees about 1.44 either side.
-    for (const f of frames) expect(Math.abs(f.pos.z - 0.9)).toBeLessThan(1.2);
-    // 45 cm -> arc 1.8 -> 36 segments: 36 x 10 x 2 + 4 x 72 = 1008 triangles.
-    expect(vertices('cascade')).toBe(3024);
+    // 9 events x 20 degrees = 180: the tangent points straight down.
+    expect(tip?.tangent.z ?? 0).toBeCloseTo(-1, 9);
+    // The last 10 cm (0.4 units) hang below the soil line.
+    expect(tip?.pos.z ?? 0).toBeLessThan(-0.3);
+    // Inside the default framing: target z 0.6, distance 2.5, fov 60 sees about 1.44 above and below.
+    for (const f of frames) expect(Math.abs(f.pos.z - 0.6)).toBeLessThan(1.2);
+    // Inside the portrait phone frame (about 0.65 units either side at yaw 45):
+    // the 0.57-unit sweep along (-1,-1) is 0.40 per axis.
+    for (const f of frames) {
+      expect(Math.abs(f.pos.x)).toBeLessThan(0.46);
+      expect(Math.abs(f.pos.y)).toBeLessThan(0.46);
+    }
+    // 30 cm -> arc 1.2 -> 24 segments: 24 x 10 x 2 + 4 x 72 = 768 triangles.
+    expect(vertices('cascade')).toBe(2304);
   });
 });

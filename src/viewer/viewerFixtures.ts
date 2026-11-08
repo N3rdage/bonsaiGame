@@ -13,10 +13,16 @@ export type ViewerFixtureKey = 'cutting' | 'bent' | 'cascade';
 /** Screen-right at the default yaw of 45 (world (-1,-1,0)), as the prototype's trunk wiring UI used. */
 export const SCREEN_RIGHT_ANGLE = -135;
 export const BENT_EVENT_HEIGHTS_CM = [5, 12];
-export const CASCADE_HEIGHT_CM = 45;
+/**
+ * Nine 20-degree bends every 2.5 cm sweep the trunk through 180 degrees on a
+ * tight curve (radius about 0.29 units), so it turns over within about 0.57
+ * units of the pot centre and the last 10 cm hang straight down. A wider
+ * spacing swings the trunk out of the portrait phone frame.
+ */
+export const CASCADE_HEIGHT_CM = 30;
 /** One bend every this many cm from the soil line. */
-export const CASCADE_EVENT_SPACING_CM = 5;
-export const CASCADE_EVENTS = 8;
+export const CASCADE_EVENT_SPACING_CM = 2.5;
+export const CASCADE_EVENTS = 9;
 
 function starter(): { state: GameState; tree: BonsaiTree } {
   const state = createNewGameState();
