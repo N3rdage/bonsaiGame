@@ -9,8 +9,15 @@ function collectErrors(page: Page): string[] {
   return errors;
 }
 
-async function openViewer(page: Page, url: string): Promise<void> {
+/** Boots to the title and starts a new game (a fresh browser context has no saves). */
+async function startNewGame(page: Page, url: string): Promise<void> {
   await page.goto(url);
+  await page.waitForFunction(() => window.__bonsai?.scene === 'title');
+  await page.keyboard.press('Enter');
+}
+
+async function openViewer(page: Page, url: string): Promise<void> {
+  await startNewGame(page, url);
   await page.waitForFunction(
     () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
   );
@@ -401,8 +408,8 @@ test.describe('viewer lifecycle', () => {
 
   test('pauses the simulation while open and resumes on Escape', async ({ page }) => {
     const errors = collectErrors(page);
-    await page.goto('/');
-    await page.waitForFunction(() => window.__bonsai?.ready === true);
+    await startNewGame(page, '/');
+    await page.waitForFunction(() => window.__bonsai?.scene === 'world');
     expect(await paused(page)).toBe(false);
     expect(await page.evaluate(() => window.__bonsai?.viewer?.paused)).toBe(false);
     await openViewer(page, '/');

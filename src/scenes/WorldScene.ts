@@ -1,26 +1,17 @@
 import Phaser from 'phaser';
-import type { Season } from '../sim/seasons';
+import { loadGame, saveGame } from '../sim/save';
+import { seasonForDay } from '../sim/seasons';
+import { scoreTree } from '../sim/scoring';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
 import { hudText } from '../world/hud';
 import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
 import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../world/player';
+import { occupiedSlots, readSlotRows } from '../world/saveSlots';
 import { SHED_ROOM } from '../world/shedRoom';
+import type { TitleSceneData, WorldSceneData } from './sceneData';
 
-/** What the boot scene hands the world. */
-export interface WorldSceneData {
-  readonly state: GameState;
-  /** Tree the V key and the View button open: the starter, or a `?tree=` fixture. */
-  readonly viewTree: BonsaiTree | undefined;
-  /** Season the viewer draws foliage for. */
-  readonly viewerSeason: Season;
-  /** Hook fields fixed at boot. */
-  readonly hookBase: Pick<
-    BonsaiTestHook,
-    'version' | 'season' | 'day' | 'trees' | 'starterScore' | 'starterHeightCm'
-  >;
-}
-
+const TOAST_MS = 2000;
 const PLAYER_W = 16;
 const PLAYER_H = 24;
 const LABEL_STYLE = { fontFamily: 'monospace', fontSize: '8px', color: '#d8e6c8' };
@@ -38,10 +29,24 @@ type MoveKeys = Record<
  *
  * The 3D viewer is a DOM canvas over this one. While it is open the world
  * ignores its own keys and pointers and does not step.
+ *
+ * F5 saves to the active slot, F9 reloads it, Escape goes back to the title
+ * without saving (all through src/sim/save.ts and the storage from boot).
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
+  private viewTree: BonsaiTree | undefined;
+  /** Hook fields read once from the state the world was started with (new or loaded). */
+  private base!: Pick<
+    BonsaiTestHook,
+    'version' | 'season' | 'day' | 'trees' | 'starterScore' | 'starterHeightCm'
+  >;
   private viewer!: TreeViewer;
+  private slots: BonsaiTestHook['slots'] = [];
+  private toast!: Phaser.GameObjects.Text;
+  private toastTimer: Phaser.Time.TimerEvent | undefined;
+  /** performance.now() of the last viewer close, so the Escape that closed it never leaves the room. */
+  private viewerClosedAt = -1;
   private keys!: MoveKeys;
   private player!: PlayerState;
   private playerRect!: Phaser.GameObjects.Rectangle;
@@ -56,6 +61,19 @@ export class WorldScene extends Phaser.Scene {
 
   create(data: WorldSceneData): void {
     this.ctx = data;
+    this.viewTree = data.overrides.tree?.() ?? data.state.trees[0];
+    const first = data.state.trees[0];
+    this.base = {
+      version: __APP_VERSION__,
+      season: seasonForDay(data.state.day),
+      day: data.state.day,
+      trees: data.state.trees.length,
+      starterScore: first ? scoreTree(first).total : -1,
+      starterHeightCm: first ? first.trunk.heightCm : -1,
+    };
+    this.slots = occupiedSlots(readSlotRows(data.storage));
+    this.toastTimer = undefined;
+    this.viewerClosedAt = -1;
     this.accumulatorMs = 0;
     this.frames = 0;
     this.joystick = undefined;
@@ -91,6 +109,9 @@ export class WorldScene extends Phaser.Scene {
     viewButton.on('pointerup', () => {
       this.openViewer();
     });
+    this.toast = this.add
+      .text(6, 2, '', { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' })
+      .setDepth(10_000);
 
     const keyboard = this.input.keyboard;
     if (!keyboard) throw new Error('WorldScene needs the keyboard plugin');
@@ -112,6 +133,22 @@ export class WorldScene extends Phaser.Scene {
     keyboard.on('keydown-V', () => {
       this.openViewer();
     });
+    // Captured so the browser's own F5 (reload) never fires in the room.
+    keyboard.addCapture([K.F5, K.F9]);
+    keyboard.on('keydown-F5', () => {
+      if (!this.viewer.isOpen) this.save();
+    });
+    keyboard.on('keydown-F9', () => {
+      if (!this.viewer.isOpen) this.reload();
+    });
+    // Keyboard events reach Phaser after the viewer's own window listener, so
+    // the Escape that closed the viewer is seen here with the viewer already
+    // closed; its timestamp tells them apart.
+    keyboard.on('keydown-ESC', (event: KeyboardEvent) => {
+      if (this.viewer.isOpen || event.timeStamp <= this.viewerClosedAt) return;
+      const data: TitleSceneData = { storage: this.ctx.storage, overrides: this.ctx.overrides };
+      this.scene.start('title', data);
+    });
 
     this.input.on(
       'pointerdown',
@@ -132,9 +169,56 @@ export class WorldScene extends Phaser.Scene {
 
     this.viewer = new TreeViewer(document.body);
     this.viewer.onRender = this.publishHook;
-    this.viewer.onClose = this.publishHook;
+    this.viewer.onClose = () => {
+      this.viewerClosedAt = performance.now();
+      this.publishHook();
+    };
     this.events.once('shutdown', () => {
       this.viewer.destroy();
+      keyboard.removeCapture([K.F5, K.F9]);
+    });
+    this.publishHook();
+  }
+
+  private save(): void {
+    const { storage, state, slot } = this.ctx;
+    try {
+      saveGame(storage, state, slot);
+      this.slots = occupiedSlots(readSlotRows(storage));
+      this.showToast(`Saved to slot ${String(slot)}`);
+    } catch {
+      this.showToast(`Could not save to slot ${String(slot)}`);
+    }
+  }
+
+  /**
+   * F9: the active slot as last saved. The prototype opened the load picker
+   * over the running room for an empty slot; here the world stays put with a
+   * toast, so the unsaved game is kept. The in-room picker comes with the
+   * world UI panels (R4b).
+   */
+  private reload(): void {
+    const { storage, slot } = this.ctx;
+    let state: GameState | undefined;
+    try {
+      state = loadGame(storage, slot);
+    } catch {
+      this.showToast(`Could not load slot ${String(slot)}`);
+      return;
+    }
+    if (state) {
+      this.scene.restart({ ...this.ctx, state });
+    } else {
+      this.showToast(`Slot ${String(slot)} is empty`);
+    }
+  }
+
+  private showToast(text: string): void {
+    this.toast.setText(text);
+    this.toastTimer?.remove();
+    this.toastTimer = this.time.delayedCall(TOAST_MS, () => {
+      this.toast.setText('');
+      this.publishHook();
     });
     this.publishHook();
   }
@@ -176,18 +260,23 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private openViewer(): void {
-    const { viewTree, viewerSeason, state } = this.ctx;
+    const { overrides, state } = this.ctx;
+    const viewTree = this.viewTree;
     if (!viewTree || this.viewer.isOpen) return;
     this.joystick = undefined;
-    this.viewer.open(viewTree, viewerSeason, state);
+    this.viewer.open(viewTree, overrides.season ?? seasonForDay(state.day), state);
     this.hud.setVisible(false);
     this.publishHook();
   }
 
   private readonly publishHook = (): void => {
-    const { state, hookBase } = this.ctx;
+    const { state, slot } = this.ctx;
     window.__bonsai = {
-      ...hookBase,
+      ...this.base,
+      activeSlot: slot,
+      slots: this.slots,
+      toast: this.toast.text,
+      picker: '',
       ready: true,
       scene: this.scene.key,
       // The game state's own flag, not the viewer's, so a test sees what the
