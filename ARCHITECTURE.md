@@ -2,18 +2,18 @@
 
 How the web project is organised, the decisions behind it, and the invariants carried over from the GameMaker prototype. For why the rewrite happened, see `docs/ADR-001-typescript-rewrite.md`. For the prototype's own architecture, see `archive/gamemaker/ARCHITECTURE.md`. For deliberately-unsimulated behaviour, see `SIMPLIFICATIONS.md`.
 
-This document describes the project as it stands after slice R3d-2b (simulation done, 3D viewer scaffold plus trunk, branch, foliage and wire meshes, hotspots and modes, the toolbar, and the training actions with the wire-removal confirmation) and the shape the port is heading toward: the viewer's lifecycle (R3d-2c) and the Phaser rooms and UI (R4) are still planned. Sections marked *planned* describe modules that do not exist yet.
+This document describes the project as it stands after slice R3d-2c, which completes R3 (simulation done; the 3D viewer done: scaffold, trunk, branch, foliage and wire meshes, hotspots and modes, the toolbar, the training actions with the wire-removal confirmation, and the lifecycle that pauses the simulation while it is open) and the shape the port is heading toward: the Phaser rooms and UI (R4) are next. Sections marked *planned* describe modules that do not exist yet.
 
 ## High-level shape
 
-A single-page web game. Vite bundles TypeScript into a static site; Phaser renders the 2D world and UI to a canvas; Three.js renders the 3D tree viewer (pot, trunk, branch, foliage and wire meshes, hotspots and training actions in place; lifecycle *planned*). The simulation is a set of pure TypeScript modules with no rendering dependency, so it runs identically in the browser, in unit tests, and in any future headless tool.
+A single-page web game. Vite bundles TypeScript into a static site; Phaser renders the 2D world and UI to a canvas; Three.js renders the 3D tree viewer (pot, trunk, branch, foliage and wire meshes, hotspots, training actions and the pause-while-open lifecycle). The simulation is a set of pure TypeScript modules with no rendering dependency, so it runs identically in the browser, in unit tests, and in any future headless tool.
 
 ```
 index.html
   src/main.ts            Phaser.Game config, PWA service-worker registration
   src/scenes/            Phaser scenes: boot, world rooms (planned), UI (planned)
   src/sim/               pure simulation (done, R2): tree, geometry, growth, seasons, scoring, species, styles, training, save
-  src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch/foliage/wire meshes done (R3a-c); hotspots and modes done (R3d-1); toolbar done (R3d-2a); actions done (R3d-2b); lifecycle planned
+  src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch/foliage/wire meshes done (R3a-c); hotspots and modes done (R3d-1); toolbar done (R3d-2a); actions done (R3d-2b); lifecycle done (R3d-2c)
   e2e/                   Playwright browser tests
   public/                static assets, PWA icons, staticwebapp.config.json
 ```
@@ -50,7 +50,7 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 | `obj_viewer_3d` hotspots, modes, projection (Create_0 mode state, Step_0 strip and V/W/C/P, Draw_64 hotspots and direction helpers), `project_3d_to_screen` | `src/viewer/hotspots.ts`, `projection.ts`, `TreeViewer.ts` | Done (R3d-1) |
 | `obj_viewer_3d` toolbar, wire sub-row, help text, wire-age caption (Draw_64), `ui_button`, `ui_toggle` | `src/viewer/toolbar.ts`, `ViewerToolbar.ts` | Done (R3d-2a) |
 | `obj_viewer_3d` training actions and wire-removal modal (Draw_64 hotspot clicks, `_draw_wire_removal_modal`, Step_0 modal input) | `src/viewer/TreeViewer.ts`, `hotspots.ts`, `modal.ts`, `ViewerModal.ts` | Done (R3d-2b) |
-| `obj_viewer_3d` lifecycle | `src/viewer/`, `src/scenes/` | Planned (R3d-2c) |
+| `obj_viewer_3d` lifecycle (`global.game_paused`, the controller Step's early exit, Exit and Escape) | `src/sim/types.ts`, `world.ts`, `save.ts`, `src/viewer/TreeViewer.ts` | Done (R3d-2c) |
 | `obj_player`, `obj_interactable`, rooms, `scr_weather` | `src/scenes/world/` | Planned (R4) |
 | `obj_ui_*`, `scr_ui`, `scr_title_hero` | `src/scenes/ui/` | Planned (R4) |
 
@@ -76,12 +76,13 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 - Colour space: the renderer outputs `LinearSRGBColorSpace` so palette bytes pass through untouched, and the foliage sprite (`foliage.png`, the prototype's `spr_foliage` copied byte for byte) loads with `NoColorSpace`, nearest filtering and no mipmaps for the same reason. The map is bound when it finishes loading; `foliageReady` on the test hook says when.
 - Interaction state is plain data in the pure `hotspots.ts`: mode (`view`, `wire`, `clip`, `prune`, keys V/W/C/P), wire action, bend direction and the wired/unwired filters, reset on every `open`. `hotspotWorldPoints(tree, ui)` gives the hotspots for that state in world space (branch ones at 70% along each branch, trunk ones at 20-80% of the trunk in wire + bend) with the prototype's filters, labels and colours. Nothing in it mutates the tree.
 - Hotspots are a DOM overlay (`#viewer-hotspots`, one `button.hotspot` each), not drawn in WebGL: tests read their positions from the hook and the DOM, they get hover and focus for free, and `e2e/screenshot.css` hides them so baselines stay the WebGL frame. `TreeViewer.ts` lays them out again after every rendered frame, so they follow the camera. Each button's hit circle is the prototype's 16 px radius. The overlay sits above the canvas, so a press on a hotspot never starts a camera drag.
-- Clicking a hotspot acts through `src/sim/training.ts`: clip mode calls `clipBranch(tree, state, id, 1)`, prune mode `pruneBranch`, wire + bend `applyWire` with the targets from `branchBendTarget` (one 15 degree step on `bend` for left/right or `bendV` for up/down, its sign from `branchBendSign` with the hotspots' own projection), and a trunk hotspot `wireTrunk` at `t * trunk height` toward `trunkBendWorldAngle(bendDir, yaw)`. Wire + remove opens the confirmation (`#viewer-modal`: the pure `modal.ts` holds the prototype's sizes, colours and strings, `ViewerModal.ts` draws it); its Remove calls `removeWire`. While it is open its dim takes every pointer event, the toolbar and hotspots are inert, Escape closes the modal (not the viewer) and other keys do nothing. The viewer still never writes the tree or state itself: the sim functions do, consuming wire from the inventory and refusing when there is none (the help line then reads `(out)`); a successful action bumps `tree.revision`, so the next frame rebuilds the mesh and the toolbar.
+- Clicking a hotspot acts through `src/sim/training.ts`: clip mode calls `clipBranch(tree, state, id, 1)`, prune mode `pruneBranch`, wire + bend `applyWire` with the targets from `branchBendTarget` (one 15 degree step on `bend` for left/right or `bendV` for up/down, its sign from `branchBendSign` with the hotspots' own projection), and a trunk hotspot `wireTrunk` at `t * trunk height` toward `trunkBendWorldAngle(bendDir, yaw)`. Wire + remove opens the confirmation (`#viewer-modal`: the pure `modal.ts` holds the prototype's sizes, colours and strings, `ViewerModal.ts` draws it); its Remove calls `removeWire`. While it is open its dim takes every pointer event, the toolbar and hotspots are inert, Escape closes the modal (not the viewer) and other keys do nothing. Hotspot clicks are ignored while a frame is pending, so a second click before the buttons are rebuilt cannot hit a branch a prune just renumbered. Apart from `state.paused` (below), the viewer never writes the tree or state itself: the sim functions do, consuming wire from the inventory and refusing when there is none (the help line then reads `(out)`); a successful action bumps `tree.revision`, so the next frame rebuilds the mesh and the toolbar.
 - The toolbar is DOM too: `#viewer-toolbar` (tree info, View/Wire/Clip/Prune and Exit buttons, and in wire mode the action, bend-direction and show sub-row) and `#viewer-help` (the bottom help lines, with the wire stock in wire mode). The pure `toolbar.ts` builds a plain-data model from the tree, interaction state, wire stock and day, holds the prototype's sizes, colours and strings, and gives the wire-age caption under wired hotspots; `ViewerToolbar.ts` draws it after every frame (skipping an unchanged model) and reports clicks to `TreeViewer`'s setters and `close()`. `open(tree, season, state)` takes the `GameState` so it can read the wire stock and day and pass it to the training functions. Mode and camera keys ignore Ctrl, Meta and Alt chords; Escape closes the viewer unless the confirmation is open.
+- The viewer pauses the simulation, as the prototype did with `global.game_paused`: `open` sets `state.paused = true` (only once WebGL is available) and `close` (Escape, the Exit button, or the owner) sets it back to false on the state it was opened with. `advanceDayAllTrees` is a no-op while paused. The flag is transient: `serializeState` never writes it and every load starts unpaused. `paused` on the test hook mirrors it.
 - `projection.ts` maps a world point to CSS px with Three's math classes only (unit-tested in Node). It goes through `toViewerSpace`, as the handedness rule demands, and drops points behind the camera or outside the near/far range.
 - The top strip (60 px, 110 px in wire mode, the prototype's toolbar and wire sub-row) never starts a drag; on a phone the DOM toolbar wraps taller and takes the press itself. Wheel zoom works anywhere.
 - The direction helpers `trunkBendWorldAngle` (screen direction to a world bend angle at the current yaw) and `branchBendSign` (which bend sign moves a branch tip the chosen way on screen, found by projecting a perturbed copy) are pure and take the projector as an argument; the wire actions use them.
-- Screenshot tests open fixture trees (`viewerFixtures.ts`, grown through `src/sim` actions) with a `?tree=<cutting|bent|cascade|maple|wired|fancy>` URL parameter, and choose the viewer's season with `?season=<spring|summer|autumn|winter>` (default: the game's season), both read by the boot scene. They go away with R3d's real viewer lifecycle.
+- Screenshot tests open fixture trees (`viewerFixtures.ts`, grown through `src/sim` actions) with a `?tree=<cutting|bent|cascade|maple|wired|fancy>` URL parameter, and choose the viewer's season with `?season=<spring|summer|autumn|winter>` (default: the game's season), both read by the boot scene. They, and the boot scene's "View tree (3D)" link, stay until R4's rooms give a real way to pick a tree.
 - Screenshot baselines live in `e2e/__screenshots__/` and are regenerated on Linux with `npx playwright test --update-snapshots=all`.
 
 ## Invariants carried over
@@ -100,6 +101,7 @@ These were the hard-won rules of the prototype. Each names where it will live in
 - **Fertiliser is timed.** The item is consumed; the effect lives on the tree until a day threshold. (`src/sim/growth.ts`)
 - **Location is a tagged string**, not an enum: a room name, `inventory`, `sold`, or `displayed:<pedestal-key>`. (`src/sim/tree.ts`)
 - **Tutorial state is one step counter** advanced idempotently from gameplay call sites. (`src/sim/tutorial.ts`)
+- **The 3D viewer pauses the simulation.** `state.paused` (the prototype's `global.game_paused`) is true while the viewer is open; the day advance does nothing while it is. Transient, never saved. (`src/sim/world.ts`, `src/viewer/TreeViewer.ts`)
 - **Saves carry a version** and old shapes migrate forward. Prototype saves import one way. (`src/sim/save.ts`)
 
 ## Build, test, deploy
@@ -111,5 +113,5 @@ These were the hard-won rules of the prototype. Each names where it will live in
 
 ## Known rough edges
 
-- The web build is a placeholder boot scene until R3 and R4 land; it boots a real new game and can open the 3D viewer scaffold on the starter tree, but nothing else drives the simulation yet.
+- The web build is a placeholder boot scene until R4 lands; it boots a real new game and opens the fully interactive 3D viewer on the starter tree (or a `?tree=` fixture), but nothing else drives the simulation yet.
 - Prototype rough edges (cuttings for junipers only, fancy pots stat-only) carry over until the relevant backlog items are built.
