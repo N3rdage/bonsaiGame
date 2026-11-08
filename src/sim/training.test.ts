@@ -90,6 +90,13 @@ describe('applyWire', () => {
     applyWire(tree, state, 0, 11);
     expect(tree.vitality).toBe(90);
   });
+
+  it('advances the tutorial from the train step', () => {
+    const { state, tree } = fixture();
+    state.tutorialStep = TUTORIAL_TRAIN;
+    applyWire(tree, state, 0, 10);
+    expect(state.tutorialStep).toBe(TUTORIAL_TAKE_CUTTING);
+  });
 });
 
 describe('maxSafeBendDeg', () => {
@@ -103,13 +110,6 @@ describe('maxSafeBendDeg', () => {
 
   it('is negative past 3 cm, so any wire there costs vitality', () => {
     expect(maxSafeBendDeg(40)).toBeLessThan(0);
-  });
-
-  it('advances the tutorial from the train step', () => {
-    const { state, tree } = fixture();
-    state.tutorialStep = TUTORIAL_TRAIN;
-    applyWire(tree, state, 0, 10);
-    expect(state.tutorialStep).toBe(TUTORIAL_TAKE_CUTTING);
   });
 });
 
