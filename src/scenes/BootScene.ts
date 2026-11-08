@@ -3,6 +3,7 @@ import { seasonForDay, seasonLabel } from '../sim/seasons';
 import { createNewGameState } from '../sim/state';
 import { scoreTree } from '../sim/scoring';
 import { getSpecies } from '../sim/species';
+import { TreeViewer } from '../viewer/TreeViewer';
 
 /**
  * Placeholder first scene: proves the pipeline end to end while the port lands.
@@ -55,7 +56,17 @@ export class BootScene extends Phaser.Scene {
       })
       .setOrigin(1, 1);
 
-    window.__bonsai = {
+    const viewer = new TreeViewer(document.body);
+    const viewLink = this.add
+      .text(width / 2, height / 2 + 48, 'View tree (3D)', {
+        fontFamily: 'monospace',
+        fontSize: '14px',
+        color: '#d8e6c8',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    const hookBase = {
       ready: true,
       version: __APP_VERSION__,
       scene: this.scene.key,
@@ -63,6 +74,21 @@ export class BootScene extends Phaser.Scene {
       day: state.day,
       trees: state.trees.length,
       starterScore: starter ? scoreTree(starter).total : -1,
+      starterHeightCm: starter ? starter.trunk.heightCm : -1,
     };
+    const publishHook = (): void => {
+      window.__bonsai = { ...hookBase, viewer: viewer.snapshot() };
+    };
+    viewer.onRender = publishHook;
+    viewer.onClose = publishHook;
+    this.events.once('shutdown', () => {
+      viewer.destroy();
+    });
+    viewLink.on('pointerup', () => {
+      if (!starter) return;
+      viewer.open(starter);
+      publishHook();
+    });
+    publishHook();
   }
 }
