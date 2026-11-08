@@ -1,0 +1,44 @@
+# Keeps dependencies current without a human in the loop for the routine cases.
+# Dependabot opens the PR, CI runs, and if the update is a minor or patch bump
+# this approves it and enables auto-merge; GitHub merges once every required
+# check is green. Major bumps are left for a person (or the orchestrator's
+# `decision` issue), because they are the ones that break things.
+# Requires "Allow auto-merge" in the repository settings.
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Read update metadata
+        id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Approve and enable auto-merge (minor and patch only)
+        if: steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr review --approve "$PR_URL" --body "Auto-approved: ${{ steps.meta.outputs.update-type }} update of ${{ steps.meta.outputs.dependency-names }}."
+          gh pr merge --auto --squash "$PR_URL"
+
+      - name: Leave majors for a person
+        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR_URL" --body "Major update of ${{ steps.meta.outputs.dependency-names }} is not auto-merged. The orchestrator will assess it and open a decision issue if it needs one."

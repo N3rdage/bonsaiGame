@@ -17,7 +17,8 @@ Read in this order for anything non-trivial:
 
 A controlling agent builds this game on a schedule, with Drew reviewing PRs and answering questions asynchronously. The infrastructure, orchestrator prompt and the **backlog (GitHub Issues)** live in the private `N3rdage/agentic-gaming` repo. Rules that apply to every session, human-driven or not:
 
-- Never merge. Never push to `main`. One PR per backlog issue, small enough to review on a phone. PR body: Summary, Changes, How it was verified, Backlog link, Decisions needed.
+- `main` changes only through pull requests. The orchestrator merges its own PRs once an independent reviewer agent, acting as a second GitHub App, has approved the latest commit and every required check is green (`docs/ADR-002-autonomous-merge.md` in the private repo). It never merges anyone else's PR. Human-driven sessions never merge; Drew does. One PR per backlog issue, small enough to review on a phone. PR body: Summary, Changes, How it was verified, Backlog link, Decisions needed.
+- The `needs-drew` label, a changes-requested review from Drew, or `hold` in a comment from Drew means that PR waits for him, however green it is.
 - Questions for Drew go to a `decision` issue in the backlog repo with A/B/C options and a recommendation, not into PR descriptions.
 - Milestones, major blockers and design decisions each get a blog post (see below) in their own PR.
 
