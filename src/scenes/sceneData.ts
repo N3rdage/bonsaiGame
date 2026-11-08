@@ -16,12 +16,7 @@ export interface SharedSceneData {
   readonly overrides: ViewerOverrides;
 }
 
-export interface TitleSceneData extends SharedSceneData {
-  /** Open the slot picker in load mode at once (the world's F9 on an empty slot). */
-  readonly openLoadPicker?: boolean;
-  /** Message to show on arrival. */
-  readonly message?: string;
-}
+export type TitleSceneData = SharedSceneData;
 
 export interface WorldSceneData extends SharedSceneData {
   /** The state the world plays: a new game or the one loaded from `slot`. */

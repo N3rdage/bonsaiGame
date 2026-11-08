@@ -42,8 +42,8 @@ export class TitleScene extends Phaser.Scene {
   create(data: TitleSceneData): void {
     this.ctx = data;
     this.rows = readSlotRows(data.storage);
-    this.message = data.message ?? corruptSlotsMessage(this.rows);
-    this.view = data.openLoadPicker ? { kind: 'picker', mode: 'load' } : { kind: 'menu' };
+    this.message = corruptSlotsMessage(this.rows);
+    this.view = { kind: 'menu' };
     this.layer = this.add.container(0, 0);
 
     const keyboard = this.input.keyboard;

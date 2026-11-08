@@ -146,7 +146,8 @@ export class WorldScene extends Phaser.Scene {
     // closed; its timestamp tells them apart.
     keyboard.on('keydown-ESC', (event: KeyboardEvent) => {
       if (this.viewer.isOpen || event.timeStamp <= this.viewerClosedAt) return;
-      this.scene.start('title', this.titleData());
+      const data: TitleSceneData = { storage: this.ctx.storage, overrides: this.ctx.overrides };
+      this.scene.start('title', data);
     });
 
     this.input.on(
@@ -179,10 +180,6 @@ export class WorldScene extends Phaser.Scene {
     this.publishHook();
   }
 
-  private titleData(extra: Partial<TitleSceneData> = {}): TitleSceneData {
-    return { storage: this.ctx.storage, overrides: this.ctx.overrides, ...extra };
-  }
-
   private save(): void {
     const { storage, state, slot } = this.ctx;
     try {
@@ -194,7 +191,12 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** F9: the active slot as last saved; an empty slot opens the title's load picker, as the prototype did. */
+  /**
+   * F9: the active slot as last saved. The prototype opened the load picker
+   * over the running room for an empty slot; here the world stays put with a
+   * toast, so the unsaved game is kept. The in-room picker comes with the
+   * world UI panels (R4b).
+   */
   private reload(): void {
     const { storage, slot } = this.ctx;
     let state: GameState | undefined;
@@ -207,10 +209,7 @@ export class WorldScene extends Phaser.Scene {
     if (state) {
       this.scene.restart({ ...this.ctx, state });
     } else {
-      this.scene.start(
-        'title',
-        this.titleData({ openLoadPicker: true, message: `Slot ${String(slot)} is empty` }),
-      );
+      this.showToast(`Slot ${String(slot)} is empty`);
     }
   }
 
