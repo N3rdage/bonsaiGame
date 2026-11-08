@@ -6,3 +6,8 @@
 #viewer-close {
   visibility: hidden;
 }
+/* Hotspots are DOM over the canvas with system-font labels; their positions
+ * are asserted through window.__bonsai instead, so baselines stay the frame. */
+#viewer-hotspots {
+  visibility: hidden;
+}

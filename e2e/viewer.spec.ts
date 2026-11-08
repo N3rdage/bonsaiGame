@@ -129,3 +129,132 @@ test.describe('3D viewer', () => {
     expect(await page.evaluate(() => window.__bonsai?.viewer?.season)).toBe('spring');
   });
 });
+
+test.describe('viewer hotspots', () => {
+  type Hotspot = BonsaiViewerHotspot;
+
+  /** Presses a mode key and waits for the frame that lays out its hotspots. */
+  async function pressMode(page: Page, key: string, mode: string): Promise<Hotspot[]> {
+    const renders = (await page.evaluate(() => window.__bonsai?.viewer?.renders)) ?? 0;
+    await page.keyboard.press(key);
+    await page.waitForFunction(
+      ([m, r]) => window.__bonsai?.viewer?.mode === m && window.__bonsai.viewer.renders > r,
+      [mode, renders] as const,
+    );
+    const hotspots = (await page.evaluate(() => window.__bonsai?.viewer?.hotspots)) ?? [];
+    await expect(page.locator('#viewer-hotspots .hotspot')).toHaveCount(hotspots.length);
+    return [...hotspots];
+  }
+
+  const summary = (hs: Hotspot[]): string[] => hs.map((h) => `${h.kind}${String(h.id)}`);
+  const branches = ['branch0', 'branch1', 'branch2', 'branch3'];
+  const trunks = ['trunk0', 'trunk1', 'trunk2', 'trunk3'];
+
+  test('shows branch and trunk hotspots per mode on the starter', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const hook = await page.evaluate(() => window.__bonsai);
+    expect(hook?.viewer?.mode).toBe('view');
+    expect(hook?.viewer?.wireAction).toBe('bend');
+    expect(hook?.viewer?.bendDir).toBe('left');
+    expect(hook?.viewer?.showWired).toBe(true);
+    expect(hook?.viewer?.showUnwired).toBe(true);
+    expect(hook?.viewer?.hotspots).toEqual([]);
+    await expect(page.locator('#viewer-hotspots .hotspot')).toHaveCount(0);
+
+    const clip = await pressMode(page, 'c', 'clip');
+    expect(summary(clip)).toEqual(branches);
+    expect(clip.map((h) => h.label)).toEqual(['0', '1', '2', '3']);
+    await expect(page.locator('#viewer-hotspots .hotspot').first()).toHaveAttribute(
+      'data-kind',
+      'branch',
+    );
+
+    expect(summary(await pressMode(page, 'p', 'prune'))).toEqual(branches);
+
+    const wire = await pressMode(page, 'w', 'wire');
+    expect(summary(wire)).toEqual([...branches, ...trunks]);
+    // Trunk hotspots at 0.2..0.8 of the trunk, labelled in whole cm.
+    const heightCm = hook?.starterHeightCm ?? NaN;
+    const labels = [0, 1, 2, 3].map((i) => String(Math.round((0.2 + (0.6 * i) / 3) * heightCm)));
+    expect(wire.filter((h) => h.kind === 'trunk').map((h) => h.label)).toEqual(labels);
+    await expect(page.locator('#viewer-hotspots .hotspot[data-kind="trunk"]')).toHaveText(labels);
+
+    expect(await pressMode(page, 'v', 'view')).toEqual([]);
+
+    await closeViewer(page);
+    await expect(page.locator('#viewer-hotspots')).toBeHidden();
+    expect(await page.evaluate(() => window.__bonsai?.viewer?.hotspots)).toEqual([]);
+    expect(errors).toEqual([]);
+  });
+
+  test('shows the wired fixture branch and trunk hotspots in wire mode', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/?tree=wired');
+    expect(summary(await pressMode(page, 'w', 'wire'))).toEqual([...branches, ...trunks]);
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('keeps hotspots on screen and moves them with the camera', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const before = await pressMode(page, 'w', 'wire');
+    const size = page.viewportSize();
+    const width = size?.width ?? 0;
+    const height = size?.height ?? 0;
+    expect(before).toHaveLength(8);
+    for (const h of before) {
+      expect(h.x).toBeGreaterThan(0);
+      expect(h.x).toBeLessThan(width);
+      expect(h.y).toBeGreaterThan(0);
+      expect(h.y).toBeLessThan(height);
+    }
+
+    // Start low on the canvas, below the wire strip and clear of the tree's
+    // hotspots. 80 px at 0.4 degrees per pixel turns the camera from 45 to 13.
+    await page.mouse.move(width / 2 - 40, height * 0.9);
+    await page.mouse.down();
+    await page.mouse.move(width / 2 + 40, height * 0.9, { steps: 4 });
+    await page.mouse.up();
+    await page.waitForFunction(() => Math.abs((window.__bonsai?.viewer?.yaw ?? 0) - 13) < 1e-9);
+    // The hook is published after each frame's hotspot layout, so these match yaw 13.
+    const after = (await page.evaluate(() => window.__bonsai?.viewer?.hotspots)) ?? [];
+    expect(summary([...after])).toEqual(summary(before));
+    after.forEach((h, i) => {
+      expect(h.x).not.toBe(before[i]?.x);
+    });
+
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('never starts a drag in the top strip', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const size = page.viewportSize();
+    const width = size?.width ?? 0;
+    const height = size?.height ?? 0;
+    const yaw = (await page.evaluate(() => window.__bonsai?.viewer?.yaw)) ?? NaN;
+
+    const drag = async (y: number): Promise<void> => {
+      await page.mouse.move(width / 2 - 40, y);
+      await page.mouse.down();
+      await page.mouse.move(width / 2 + 40, y, { steps: 4 });
+      await page.mouse.up();
+    };
+
+    // View mode: the strip is 60 px.
+    await drag(30);
+    // Wire mode: the strip grows to 110 px, so 80 px is inside it.
+    await pressMode(page, 'w', 'wire');
+    await drag(80);
+    expect(await page.evaluate(() => window.__bonsai?.viewer?.yaw)).toBe(yaw);
+
+    await drag(height * 0.9);
+    await page.waitForFunction((y) => window.__bonsai?.viewer?.yaw !== y, yaw);
+
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+});
