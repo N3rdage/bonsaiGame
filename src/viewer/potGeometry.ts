@@ -10,13 +10,8 @@
 import type { PotTier, Vec3 } from '../sim/types';
 import { DISPLAY_SCALE } from '../sim/geometry';
 import { dcos, dsin } from '../sim/vec3';
+import { TriangleList, type MeshArrays } from './meshArrays';
 import { SOIL_RGB, potPalette, type Rgb } from './potPalette';
-
-export interface MeshArrays {
-  positions: Float32Array;
-  /** sRGB channels as 0..1 floats, three per vertex. */
-  colors: Float32Array;
-}
 
 const S = DISPLAY_SCALE;
 export const POT_R_TOP = 0.1 * S;
@@ -36,46 +31,31 @@ export const TRIANGLES_PER_SEGMENT = 8;
 export const TRIANGLES_PER_FOOT = 10;
 export const FOOT_COUNT = 4;
 
-class TriangleList {
-  private readonly positions: number[] = [];
-  private readonly colors: number[] = [];
-
-  vertex(p: Vec3, c: Rgb): void {
-    this.positions.push(p.x, p.y, p.z);
-    this.colors.push(c.r / 255, c.g / 255, c.b / 255);
-  }
-
-  /** Two-triangle quad in a single colour (`_pot_quad`). */
-  quad(p1: Vec3, p2: Vec3, p3: Vec3, p4: Vec3, c: Rgb): void {
-    this.vertex(p1, c);
-    this.vertex(p2, c);
-    this.vertex(p3, c);
-    this.vertex(p1, c);
-    this.vertex(p3, c);
-    this.vertex(p4, c);
-  }
-
-  /** A foot hanging from (cx, cy, topZ): four sides and a base (`_pot_box`). */
-  box(cx: number, cy: number, topZ: number, half: number, h: number, side: Rgb, base: Rgb): void {
-    const z1 = topZ - h;
-    const a = { x: cx - half, y: cy - half, z: topZ };
-    const b = { x: cx + half, y: cy - half, z: topZ };
-    const c = { x: cx + half, y: cy + half, z: topZ };
-    const d = { x: cx - half, y: cy + half, z: topZ };
-    const a2 = { ...a, z: z1 };
-    const b2 = { ...b, z: z1 };
-    const c2 = { ...c, z: z1 };
-    const d2 = { ...d, z: z1 };
-    this.quad(a, b, b2, a2, side);
-    this.quad(b, c, c2, b2, side);
-    this.quad(c, d, d2, c2, side);
-    this.quad(d, a, a2, d2, side);
-    this.quad(a2, b2, c2, d2, base);
-  }
-
-  build(): MeshArrays {
-    return { positions: new Float32Array(this.positions), colors: new Float32Array(this.colors) };
-  }
+/** A foot hanging from (cx, cy, topZ): four sides and a base (`_pot_box`). */
+function box(
+  list: TriangleList,
+  cx: number,
+  cy: number,
+  topZ: number,
+  half: number,
+  h: number,
+  side: Rgb,
+  base: Rgb,
+): void {
+  const z1 = topZ - h;
+  const a = { x: cx - half, y: cy - half, z: topZ };
+  const b = { x: cx + half, y: cy - half, z: topZ };
+  const c = { x: cx + half, y: cy + half, z: topZ };
+  const d = { x: cx - half, y: cy + half, z: topZ };
+  const a2 = { ...a, z: z1 };
+  const b2 = { ...b, z: z1 };
+  const c2 = { ...c, z: z1 };
+  const d2 = { ...d, z: z1 };
+  list.quad(a, b, b2, a2, side);
+  list.quad(b, c, c2, b2, side);
+  list.quad(c, d, d2, c2, side);
+  list.quad(d, a, a2, d2, side);
+  list.quad(a2, b2, c2, d2, base);
 }
 
 const ring = (c: number, s: number, r: number, z: number): Vec3 => ({ x: c * r, y: s * r, z });
@@ -129,7 +109,16 @@ export function buildPotGeometry(tier: PotTier): MeshArrays {
     const fr = POT_R_BOT * 0.62;
     for (let f = 0; f < FOOT_COUNT; f++) {
       const fa = 45 + f * 90;
-      list.box(dcos(fa) * fr, dsin(fa) * fr, -POT_DEPTH, FOOT_HALF, FOOT_H, pal.body, pal.bodyLine);
+      box(
+        list,
+        dcos(fa) * fr,
+        dsin(fa) * fr,
+        -POT_DEPTH,
+        FOOT_HALF,
+        FOOT_H,
+        pal.body,
+        pal.bodyLine,
+      );
     }
   }
 

@@ -4,6 +4,7 @@ import { createNewGameState } from '../sim/state';
 import { scoreTree } from '../sim/scoring';
 import { getSpecies } from '../sim/species';
 import { TreeViewer } from '../viewer/TreeViewer';
+import { VIEWER_FIXTURES, isViewerFixtureKey } from '../viewer/viewerFixtures';
 
 /**
  * Placeholder first scene: proves the pipeline end to end while the port lands.
@@ -84,9 +85,13 @@ export class BootScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       viewer.destroy();
     });
+    // `?tree=<fixture>` shows a fixture tree instead of the starter, for the
+    // viewer's screenshot tests; it goes away with R3d's real viewer lifecycle.
+    const fixtureKey = new URLSearchParams(window.location.search).get('tree');
+    const shown = isViewerFixtureKey(fixtureKey) ? VIEWER_FIXTURES[fixtureKey]() : starter;
     viewLink.on('pointerup', () => {
-      if (!starter) return;
-      viewer.open(starter);
+      if (!shown) return;
+      viewer.open(shown);
       publishHook();
     });
     publishHook();

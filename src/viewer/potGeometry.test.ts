@@ -16,8 +16,8 @@ import {
   TRIANGLES_PER_FOOT,
   TRIANGLES_PER_SEGMENT,
   buildPotGeometry,
-  type MeshArrays,
 } from './potGeometry';
+import type { MeshArrays } from './meshArrays';
 
 const tier0Triangles = POT_SEGMENTS * TRIANGLES_PER_SEGMENT;
 

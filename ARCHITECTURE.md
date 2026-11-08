@@ -2,18 +2,18 @@
 
 How the web project is organised, the decisions behind it, and the invariants carried over from the GameMaker prototype. For why the rewrite happened, see `docs/ADR-001-typescript-rewrite.md`. For the prototype's own architecture, see `archive/gamemaker/ARCHITECTURE.md`. For deliberately-unsimulated behaviour, see `SIMPLIFICATIONS.md`.
 
-This document describes the skeleton as it stands after slice R1 and the shape the port is heading toward. Sections marked *planned* describe modules that do not exist yet.
+This document describes the project as it stands after slice R3b (simulation done, 3D viewer scaffold plus trunk and branch meshes) and the shape the port is heading toward: foliage and wire (R3c), the viewer lifecycle (R3d) and the Phaser rooms and UI (R4) are still planned. Sections marked *planned* describe modules that do not exist yet.
 
 ## High-level shape
 
-A single-page web game. Vite bundles TypeScript into a static site; Phaser renders the 2D world and UI to a canvas; Three.js renders the 3D tree viewer (scaffold in place, tree meshes *planned*). The simulation is a set of pure TypeScript modules with no rendering dependency, so it runs identically in the browser, in unit tests, and in any future headless tool.
+A single-page web game. Vite bundles TypeScript into a static site; Phaser renders the 2D world and UI to a canvas; Three.js renders the 3D tree viewer (pot, trunk and branch meshes in place; foliage and wire *planned*). The simulation is a set of pure TypeScript modules with no rendering dependency, so it runs identically in the browser, in unit tests, and in any future headless tool.
 
 ```
 index.html
   src/main.ts            Phaser.Game config, PWA service-worker registration
   src/scenes/            Phaser scenes: boot, world rooms (planned), UI (planned)
-  src/sim/               pure simulation: seasons (done), tree, growth, scoring, species, styles, save (planned)
-  src/viewer/            Three.js tree viewer: scaffold done (R3a), meshes planned
+  src/sim/               pure simulation (done, R2): tree, geometry, growth, seasons, scoring, species, styles, training, save
+  src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch meshes done (R3a-b); foliage, wire, lifecycle planned
   e2e/                   Playwright browser tests
   public/                static assets, PWA icons, staticwebapp.config.json
 ```
@@ -44,7 +44,9 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 | `scr_save_load` | `src/sim/save.ts` (v2 format + prototype importer), `src/platform/localStorageSaveStorage.ts` | Done (R2) |
 | `scr_settings` | settings in `localStorage` | Planned (R4) |
 | `scr_growth` `pot_palette`, `obj_viewer_3d` camera + pot | `src/viewer/potPalette.ts`, `potGeometry.ts`, `camera.ts`, `TreeViewer.ts` | Done (R3a) |
-| `scr_bonsai_mesh` mesh builder, `obj_viewer_3d` hotspots | `src/viewer/` | Planned (R3b-d) |
+| `scr_bonsai_mesh` trunk and branch bark (`build_trunk`, `build_branch`, rings, `stitch_rings`) | `src/viewer/treeMesh.ts`, `meshArrays.ts` | Done (R3b) |
+| `scr_bonsai_mesh` foliage and wire (`add_foliage_cluster`, `add_wire_coil`, `add_wire_anchor`) | `src/viewer/` | Planned (R3c) |
+| `obj_viewer_3d` lifecycle, hotspots, training UI | `src/viewer/`, `src/scenes/` | Planned (R3d) |
 | `obj_player`, `obj_interactable`, rooms, `scr_weather` | `src/scenes/world/` | Planned (R4) |
 | `obj_ui_*`, `scr_ui`, `scr_title_hero` | `src/scenes/ui/` | Planned (R4) |
 
@@ -62,6 +64,8 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 - Handedness: the prototype's look-at was left-handed, so the viewer mirrors the world's y axis (`toViewerSpace` in `camera.ts`, a y-flipped mesh group in `TreeViewer.ts`). Screen-right at yaw 45 is world (-1,-1,0), as in the prototype. Hotspot projection in R3d must go through the same helper.
 - Rendering is on demand (one frame per open, resize or input change), never a loop, without MSAA, so a still view is a deterministic screenshot.
 - Pure array builders (`potGeometry.ts`) feed Three.js `BufferGeometry`, so mesh shape is unit-tested in Node. `threeCamera.ts` uses only Three's math classes and is unit-tested too; only `TreeViewer.ts` needs WebGL.
+- The tree mesh comes from the pure `treeMesh.ts`, which reads shape only from `trunkFrames` and `branchPoint`. `TreeViewer.ts` keeps it as one `Mesh` in the mirrored group beside the pot and rebuilds it before a render only when `tree.revision` has changed since the last build.
+- Screenshot tests open fixture trees (`viewerFixtures.ts`, grown through `src/sim` actions) with a `?tree=<cutting|bent|cascade>` URL parameter read by the boot scene. It goes away with R3d's real viewer lifecycle.
 - Screenshot baselines live in `e2e/__screenshots__/` and are regenerated on Linux with `npx playwright test --update-snapshots=all`.
 
 ## Invariants carried over
