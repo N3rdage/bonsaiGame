@@ -395,6 +395,31 @@ test.describe('viewer toolbar', () => {
   });
 });
 
+test.describe('viewer lifecycle', () => {
+  test('pauses the simulation while open and resumes on Escape', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.goto('/');
+    await page.waitForFunction(() => window.__bonsai?.ready === true);
+    expect(await page.evaluate(() => window.__bonsai?.viewer?.paused)).toBe(false);
+    await openViewer(page, '/');
+    await page.waitForFunction(() => window.__bonsai?.viewer?.paused === true);
+    await closeViewer(page);
+    await page.waitForFunction(() => window.__bonsai?.viewer?.paused === false);
+    expect(errors).toEqual([]);
+  });
+
+  test('resumes the simulation from the Exit button', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    await page.waitForFunction(() => window.__bonsai?.viewer?.paused === true);
+    await page.locator('[data-exit]').click();
+    await page.waitForFunction(
+      () => window.__bonsai?.viewer?.open === false && !window.__bonsai.viewer.paused,
+    );
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('viewer actions', () => {
   async function viewerHook(page: Page): Promise<BonsaiViewerHook> {
     const viewer = await page.evaluate(() => window.__bonsai?.viewer);

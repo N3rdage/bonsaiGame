@@ -94,8 +94,11 @@ const MODE_KEYS: Partial<Record<string, ViewerMode>> = {
  * help lines are DOM too (`ViewerToolbar`), drawn after every frame from the
  * pure `toolbar.ts`.
  *
- * The viewer never writes the tree or the game state passed to `open` itself:
- * the training functions do (they consume wire and bump `tree.revision`).
+ * The viewer's only write to the game state passed to `open` is
+ * `state.paused`: true while open, false again on close, so the simulation
+ * stands still while the player trains (the prototype's `global.game_paused`).
+ * Everything else, tree included, is written by the training functions (they
+ * consume wire and bump `tree.revision`).
  */
 export class TreeViewer {
   onClose?: () => void;
@@ -202,13 +205,16 @@ export class TreeViewer {
 
   /**
    * Shows the tree with its foliage as it looks in `season`, reading the wire
-   * stock and day from `state` (never writing it). Returns false (and stays
-   * hidden) if WebGL is unavailable.
+   * stock and day from `state` and pausing it (`state.paused = true`, the
+   * viewer's only write to it) until `close`. Returns false, stays hidden and
+   * leaves the state unpaused if WebGL is unavailable.
    */
   open(tree: BonsaiTree, season: Season, state: GameState): boolean {
     if (!this.ensureRenderer()) return false;
     this.opened = true;
+    if (this.state) this.state.paused = false;
     this.state = state;
+    state.paused = true;
     this.potTier = tree.potTier;
     this.cam = {
       ...createOrbitCamera(),
@@ -257,9 +263,11 @@ export class TreeViewer {
     this.updateUi({ showUnwired });
   }
 
+  /** Hides the viewer and unpauses the state it was opened with. */
   close(): void {
     if (!this.opened) return;
     this.opened = false;
+    if (this.state) this.state.paused = false;
     this.state = undefined;
     this.drag = undefined;
     this.pendingWireRemoval = -1;
@@ -314,6 +322,7 @@ export class TreeViewer {
       wireStock: this.state?.inventory.wire ?? 0,
       day: this.state?.day ?? -1,
       modal: this.pendingWireRemoval,
+      paused: this.state?.paused ?? false,
       branchCount: branches.length,
       lengths: branches.map((b) => b.length),
       bends: branches.map(({ bend, bendV, wired }) => ({ bend, bendV, wired })),
@@ -565,6 +574,8 @@ export class TreeViewer {
   private onHotspot({ kind, id, t }: WorldHotspot): void {
     const { tree, state, ui } = this;
     if (!tree || !state || this.pendingWireRemoval >= 0) return;
+    // A pending frame means the buttons may be stale (a prune renumbers branches): wait for it.
+    if (this.frame !== undefined) return;
     if (kind === 'trunk') {
       wireTrunk(
         tree,

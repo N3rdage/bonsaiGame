@@ -61,6 +61,8 @@ interface BonsaiViewerHook {
   readonly day: number;
   /** Branch the wire-removal confirmation (`#viewer-modal`) is open for, or -1 when none. */
   readonly modal: number;
+  /** `paused` of the game state the viewer was opened with (true while open), or false when closed. */
+  readonly paused: boolean;
   /** Branches on the tree shown, or 0 when closed. */
   readonly branchCount: number;
   /** Each branch's length in cm, by index; empty when closed. */
