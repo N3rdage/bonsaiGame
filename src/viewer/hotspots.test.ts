@@ -21,7 +21,9 @@ import {
   WIRE_BEND_UNWIRED_HOTSPOT_COLOR,
   WIRE_BEND_WIRED_HOTSPOT_COLOR,
   WIRE_REMOVE_HOTSPOT_COLOR,
+  bendAxis,
   branchBendSign,
+  branchBendTarget,
   createViewerUiState,
   hotspotWorldPoints,
   trunkBendWorldAngle,
@@ -245,5 +247,42 @@ describe('branchBendSign', () => {
     branchBendSign(tree, branch, 'up', 'v', screenUp);
     branchBendSign(tree, branch, 'right', 'h', screenX);
     expect(JSON.stringify(tree)).toBe(before);
+  });
+});
+
+describe('branchBendTarget', () => {
+  // Draw_64 `_draw_branch_hotspots`: delta = sign * 15 on the axis the
+  // direction names; the other bend is passed through unchanged.
+  const branch = { ...firstBranch(starter()), bend: 40, bendV: -10 };
+
+  it('bends vertically for up and down, leaving bend alone', () => {
+    expect(bendAxis('up')).toBe('v');
+    expect(bendAxis('down')).toBe('v');
+    expect(branchBendTarget(branch, 'up', 1)).toEqual({ bend: 40, bendV: 5 });
+    expect(branchBendTarget(branch, 'down', -1)).toEqual({ bend: 40, bendV: -25 });
+  });
+
+  it('bends horizontally for left and right, leaving bendV alone', () => {
+    expect(bendAxis('left')).toBe('h');
+    expect(bendAxis('right')).toBe('h');
+    expect(branchBendTarget(branch, 'left', 1)).toEqual({ bend: 55, bendV: -10 });
+    expect(branchBendTarget(branch, 'right', -1)).toEqual({ bend: 25, bendV: -10 });
+  });
+
+  it('never changes the branch', () => {
+    const copy = { ...branch };
+    branchBendTarget(copy, 'up', 1);
+    expect(copy).toEqual(branch);
+  });
+});
+
+describe('hotspot arc fractions', () => {
+  it('carries t for the trunk height a click wires at', () => {
+    const hs = hotspotWorldPoints(starter(), ui({ mode: 'wire' }));
+    expect(hs.filter((h) => h.kind === 'branch').map((h) => h.t)).toEqual(Array(4).fill(0.7));
+    const trunk = hs.filter((h) => h.kind === 'trunk').map((h) => h.t);
+    [0.2, 0.4, 0.6, 0.8].forEach((t, i) => {
+      expect(trunk[i]).toBeCloseTo(t, 12);
+    });
   });
 });

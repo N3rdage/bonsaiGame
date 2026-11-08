@@ -13,3 +13,7 @@
 #viewer-hotspots {
   visibility: hidden;
 }
+/* The wire-removal confirmation is asserted through window.__bonsai and the DOM. */
+#viewer-modal {
+  visibility: hidden;
+}

@@ -15,7 +15,8 @@ import {
   type Texture,
 } from 'three';
 import type { Season } from '../sim/seasons';
-import type { BonsaiTree, GameState, PotTier } from '../sim/types';
+import { applyWire, clipBranch, pruneBranch, removeWire, wireTrunk } from '../sim/training';
+import type { BonsaiTree, GameState, PotTier, Vec3 } from '../sim/types';
 import {
   FAR,
   FOV_DEGREES,
@@ -32,23 +33,32 @@ import { buildFoliageMesh } from './foliageMesh';
 import {
   HOTSPOT_ALPHA,
   HOTSPOT_ALPHA_HOVER,
+  HOTSPOT_HIT_RADIUS,
   HOTSPOT_RADIUS,
   HOTSPOT_RADIUS_HOVER,
+  bendAxis,
+  branchBendSign,
+  branchBendTarget,
   createViewerUiState,
   hotspotWorldPoints,
+  trunkBendWorldAngle,
   uiStripHeight,
   type BendDir,
+  type ScreenPoint,
   type ViewerMode,
   type ViewerUiState,
   type WireAction,
+  type WorldHotspot,
 } from './hotspots';
 import type { MeshArrays } from './meshArrays';
+import { wireRemovalModel } from './modal';
 import { buildPotGeometry } from './potGeometry';
 import type { Rgb } from './potPalette';
 import { projectToScreen } from './projection';
 import { CAPTION_GAP, buildToolbarModel, type ToolbarModel, type ToolbarToggle } from './toolbar';
 import { buildTreeMesh } from './treeMesh';
 import { placeCamera } from './threeCamera';
+import { ViewerModal } from './ViewerModal';
 import { ViewerToolbar } from './ViewerToolbar';
 
 function toGeometry({ positions, colors, uvs }: MeshArrays): BufferGeometry {
@@ -79,10 +89,13 @@ const MODE_KEYS: Partial<Record<string, ViewerMode>> = {
  *
  * Hotspots are DOM buttons in an overlay above the canvas, laid out after
  * every frame from the pure `hotspots.ts` and `projectToScreen`. Clicking one
- * does nothing yet. The toolbar, wire sub-row and help lines are DOM too
- * (`ViewerToolbar`), drawn after every frame from the pure `toolbar.ts`.
+ * clips, prunes, wires or bends through `src/sim/training.ts`, or opens the
+ * wire-removal confirmation (`ViewerModal`). The toolbar, wire sub-row and
+ * help lines are DOM too (`ViewerToolbar`), drawn after every frame from the
+ * pure `toolbar.ts`.
  *
- * The game state passed to `open` is read (wire stock, day), never written.
+ * The viewer never writes the tree or the game state passed to `open` itself:
+ * the training functions do (they consume wire and bump `tree.revision`).
  */
 export class TreeViewer {
   onClose?: () => void;
@@ -92,6 +105,9 @@ export class TreeViewer {
   private readonly canvas: HTMLCanvasElement;
   private readonly hotspotLayer: HTMLDivElement;
   private readonly toolbar: ViewerToolbar;
+  private readonly modal: ViewerModal;
+  /** Branch the wire-removal confirmation is open for, -1 when none. */
+  private pendingWireRemoval = -1;
   private state: GameState | undefined;
   private renderer: WebGLRenderer | undefined;
   private rendererFailed = false;
@@ -142,6 +158,10 @@ export class TreeViewer {
       '--hotspot-size-hover',
       `${String(2 * HOTSPOT_RADIUS_HOVER)}px`,
     );
+    this.hotspotLayer.style.setProperty(
+      '--hotspot-hit-size',
+      `${String(2 * HOTSPOT_HIT_RADIUS)}px`,
+    );
     this.hotspotLayer.style.setProperty('--hotspot-caption-gap', `${String(CAPTION_GAP)}px`);
     parent.append(this.canvas, this.hotspotLayer);
     this.toolbar = new ViewerToolbar(parent);
@@ -151,6 +171,14 @@ export class TreeViewer {
     this.toolbar.onToggle = this.onToggle;
     this.toolbar.onExit = () => {
       this.close();
+    };
+    this.modal = new ViewerModal(parent);
+    this.modal.onCancel = () => {
+      this.setPendingWireRemoval(-1);
+    };
+    this.modal.onRemove = (branchId) => {
+      if (this.tree && this.state) removeWire(this.tree, this.state, branchId);
+      this.setPendingWireRemoval(-1);
     };
 
     this.camera.up.set(0, 0, 1);
@@ -187,6 +215,7 @@ export class TreeViewer {
       target: { x: 0, y: 0, z: targetZForTree(tree.trunk.heightCm) },
     };
     this.ui = createViewerUiState();
+    this.pendingWireRemoval = -1;
     this.disposeMeshes();
     this.pot = new Mesh(toGeometry(buildPotGeometry(tree.potTier)), this.material);
     this.world.add(this.pot);
@@ -233,10 +262,12 @@ export class TreeViewer {
     this.opened = false;
     this.state = undefined;
     this.drag = undefined;
+    this.pendingWireRemoval = -1;
     this.clearHotspots();
     this.canvas.classList.remove('open');
     this.hotspotLayer.classList.remove('open');
     this.toolbar.hide();
+    this.modal.render(undefined);
     this.disposeMeshes();
     this.onClose?.();
   }
@@ -254,9 +285,11 @@ export class TreeViewer {
     this.canvas.remove();
     this.hotspotLayer.remove();
     this.toolbar.destroy();
+    this.modal.destroy();
   }
 
   snapshot(): BonsaiViewerHook {
+    const branches = this.tree?.branches ?? [];
     return {
       open: this.opened,
       yaw: this.cam.yaw,
@@ -280,6 +313,12 @@ export class TreeViewer {
       hotspots: this.hotspots,
       wireStock: this.state?.inventory.wire ?? 0,
       day: this.state?.day ?? -1,
+      modal: this.pendingWireRemoval,
+      branchCount: branches.length,
+      lengths: branches.map((b) => b.length),
+      bends: branches.map(({ bend, bendV, wired }) => ({ bend, bendV, wired })),
+      trunkEvents: this.tree?.trunk.movement.length ?? 0,
+      vitality: this.tree?.vitality ?? 0,
     };
   }
 
@@ -371,7 +410,8 @@ export class TreeViewer {
     const height = window.innerHeight;
     const hotspots: BonsaiViewerHotspot[] = [];
     const buttons: HTMLButtonElement[] = [];
-    for (const { kind, id, label, world, color } of hotspotWorldPoints(tree, this.ui)) {
+    for (const hotspot of hotspotWorldPoints(tree, this.ui)) {
+      const { kind, id, label, world, color } = hotspot;
       const screen = projectToScreen(this.camera, world, width, height);
       if (!screen) continue;
       const caption = kind === 'branch' ? (model.branchCaptions[id] ?? '') : '';
@@ -379,6 +419,9 @@ export class TreeViewer {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'hotspot';
+      button.addEventListener('click', () => {
+        this.onHotspot(hotspot);
+      });
       button.dataset.kind = kind;
       button.dataset.id = String(id);
       button.textContent = label;
@@ -430,6 +473,14 @@ export class TreeViewer {
         );
         this.layoutHotspots(this.tree, model);
         this.toolbar.render(model);
+        const modalOpen = this.pendingWireRemoval >= 0;
+        this.hotspotLayer.inert = modalOpen;
+        this.toolbar.setInert(modalOpen);
+        this.modal.render(
+          modalOpen
+            ? wireRemovalModel(this.tree, this.pendingWireRemoval, this.state.day)
+            : undefined,
+        );
       }
       this.onRender?.();
     });
@@ -495,8 +546,57 @@ export class TreeViewer {
     }
   };
 
+  private setPendingWireRemoval(branchId: number): void {
+    // A drag cannot outlive the modal opening (Step_0).
+    this.drag = undefined;
+    this.pendingWireRemoval = branchId;
+    this.requestRender();
+  }
+
+  /** The screen projection the hotspots were laid out with, for `branchBendSign`. */
+  private readonly project = (p: Vec3): ScreenPoint | undefined =>
+    projectToScreen(this.camera, p, window.innerWidth, window.innerHeight);
+
+  /**
+   * A hotspot click (Draw_64 `_draw_branch_hotspots`, `_draw_trunk_hotspots`).
+   * The training functions refuse without wire; a successful one bumps
+   * `tree.revision`, so the next frame rebuilds the mesh and the toolbar.
+   */
+  private onHotspot({ kind, id, t }: WorldHotspot): void {
+    const { tree, state, ui } = this;
+    if (!tree || !state || this.pendingWireRemoval >= 0) return;
+    if (kind === 'trunk') {
+      wireTrunk(
+        tree,
+        state,
+        t * tree.trunk.heightCm,
+        trunkBendWorldAngle(ui.bendDir, this.cam.yaw),
+      );
+    } else if (ui.mode === 'clip') {
+      clipBranch(tree, state, id, 1);
+    } else if (ui.mode === 'prune') {
+      pruneBranch(tree, state, id);
+    } else if (ui.mode === 'wire') {
+      const branch = tree.branches[id];
+      if (!branch) return;
+      if (ui.wireAction === 'remove') {
+        if (branch.wired) this.setPendingWireRemoval(id);
+        return;
+      }
+      const sign = branchBendSign(tree, branch, ui.bendDir, bendAxis(ui.bendDir), this.project);
+      const { bend, bendV } = branchBendTarget(branch, ui.bendDir, sign);
+      applyWire(tree, state, id, bend, bendV);
+    }
+    this.requestRender();
+  }
+
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (!this.opened) return;
+    // The confirmation takes the keyboard: Escape closes it, nothing else acts (Step_0).
+    if (this.pendingWireRemoval >= 0) {
+      if (e.key === 'Escape') this.setPendingWireRemoval(-1);
+      return;
+    }
     if (e.key === 'Escape') {
       this.close();
       return;

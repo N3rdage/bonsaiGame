@@ -9,7 +9,7 @@
  * here mutates the tree.
  */
 
-import { branchPoint, trunkFrameAt } from '../sim/geometry';
+import { BRANCH_BEND_PER_CLICK, branchPoint, trunkFrameAt } from '../sim/geometry';
 import type { BonsaiTree, Branch, Vec3 } from '../sim/types';
 import type { Rgb } from './potPalette';
 
@@ -52,7 +52,7 @@ export const TRUNK_HOTSPOT_T_HI = 0.8;
 /** Hotspot circle radius in CSS px, idle and hovered. */
 export const HOTSPOT_RADIUS = 8;
 export const HOTSPOT_RADIUS_HOVER = 12;
-/** The prototype's hover distance in px; R3d-2 uses it for click targets. */
+/** The prototype's hover and click distance in px: each hotspot's hit circle. */
 export const HOTSPOT_HIT_RADIUS = 16;
 export const HOTSPOT_ALPHA = 0.6;
 export const HOTSPOT_ALPHA_HOVER = 0.9;
@@ -80,6 +80,8 @@ export interface WorldHotspot {
   /** Branch index for a branch hotspot; 0-based slot up the trunk for a trunk one. */
   id: number;
   label: string;
+  /** Fraction along the branch or the trunk's arc where it sits. */
+  t: number;
   /** World position in display units (not yet mirrored into viewer space). */
   world: Vec3;
   color: Rgb;
@@ -112,6 +114,7 @@ export function hotspotWorldPoints(tree: BonsaiTree, ui: ViewerUiState): WorldHo
       kind: 'branch',
       id: i,
       label: String(i),
+      t: BRANCH_HOTSPOT_T,
       world: branchPoint(tree, branch, BRANCH_HOTSPOT_T),
       color: branchColor(branch, ui),
     });
@@ -123,6 +126,7 @@ export function hotspotWorldPoints(tree: BonsaiTree, ui: ViewerUiState): WorldHo
         kind: 'trunk',
         id: i,
         label: String(Math.round(t * tree.trunk.heightCm)),
+        t,
         world: trunkFrameAt(tree, t).pos,
         color: TRUNK_HOTSPOT_COLOR,
       });
@@ -181,4 +185,25 @@ export function branchBendSign(
   const target = SCREEN_DIRECTION[dir];
   const dot = (after.x - before.x) * target.x + (after.y - before.y) * target.y;
   return dot >= 0 ? 1 : -1;
+}
+
+/** Up and down bend the branch vertically (`bendV`); left and right horizontally (`bend`). */
+export function bendAxis(dir: BendDir): 'h' | 'v' {
+  return dir === 'up' || dir === 'down' ? 'v' : 'h';
+}
+
+/**
+ * The bends a wire-mode click asks `applyWire` for: one `BRANCH_BEND_PER_CLICK`
+ * step of `sign` (from `branchBendSign`) on the axis `dir` names, the other
+ * bend kept as it is.
+ */
+export function branchBendTarget(
+  branch: Branch,
+  dir: BendDir,
+  sign: 1 | -1,
+): { bend: number; bendV: number } {
+  const delta = sign * BRANCH_BEND_PER_CLICK;
+  return bendAxis(dir) === 'v'
+    ? { bend: branch.bend, bendV: branch.bendV + delta }
+    : { bend: branch.bend + delta, bendV: branch.bendV };
 }

@@ -82,6 +82,11 @@ export class ViewerToolbar {
     this.help.replaceChildren(...model.help.map((line) => div('help-line', line)));
   }
 
+  /** While a modal is open the toolbar takes no clicks, focus or keyboard activation. */
+  setInert(inert: boolean): void {
+    this.bar.inert = inert;
+  }
+
   hide(): void {
     this.bar.classList.remove('open');
     this.help.classList.remove('open');

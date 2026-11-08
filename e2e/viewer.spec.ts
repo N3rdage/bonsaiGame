@@ -394,3 +394,258 @@ test.describe('viewer toolbar', () => {
     expect(errors).toEqual([]);
   });
 });
+
+test.describe('viewer actions', () => {
+  async function viewerHook(page: Page): Promise<BonsaiViewerHook> {
+    const viewer = await page.evaluate(() => window.__bonsai?.viewer);
+    if (!viewer) throw new Error('viewer hook missing');
+    return viewer;
+  }
+
+  /** Runs `act` and returns the hook after the frame it requested. */
+  async function afterFrame(page: Page, act: () => Promise<void>): Promise<BonsaiViewerHook> {
+    const { renders } = await viewerHook(page);
+    await act();
+    await page.waitForFunction((r) => (window.__bonsai?.viewer?.renders ?? 0) > r, renders);
+    return viewerHook(page);
+  }
+
+  /** Two animation frames: time for any render a non-action requested to land. */
+  async function twoFrames(page: Page): Promise<void> {
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        }),
+    );
+  }
+
+  async function hotspotAt(
+    page: Page,
+    kind: 'branch' | 'trunk',
+    id: number,
+  ): Promise<BonsaiViewerHotspot> {
+    const hotspot = (await viewerHook(page)).hotspots.find((h) => h.kind === kind && h.id === id);
+    if (!hotspot) throw new Error(`no ${kind} hotspot ${String(id)} on screen`);
+    return hotspot;
+  }
+
+  /** Clicks a hotspot where the hook says it is and returns the hook after the next frame. */
+  async function clickHotspot(
+    page: Page,
+    kind: 'branch' | 'trunk',
+    id: number,
+  ): Promise<BonsaiViewerHook> {
+    const { x, y } = await hotspotAt(page, kind, id);
+    return afterFrame(page, () => page.mouse.click(x, y));
+  }
+
+  const pressMode = (page: Page, key: string): Promise<BonsaiViewerHook> =>
+    afterFrame(page, () => page.keyboard.press(key));
+
+  const clickToolbar = (page: Page, selector: string): Promise<BonsaiViewerHook> =>
+    afterFrame(page, () => page.locator(`#viewer-toolbar ${selector}`).click());
+
+  async function drag(page: Page, x: number, y: number): Promise<void> {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 80, y, { steps: 4 });
+    await page.mouse.up();
+    await twoFrames(page);
+  }
+
+  test('clips a branch by 1 cm', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const before = await pressMode(page, 'c');
+    const after = await clickHotspot(page, 'branch', 0);
+    expect(after.revision).toBe(before.revision + 1);
+    expect(after.lengths[0]).toBeCloseTo((before.lengths[0] ?? NaN) - 1);
+    expect(after.lengths.slice(1)).toEqual(before.lengths.slice(1));
+    expect(after.wireStock).toBe(10);
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('prunes a branch', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const before = await pressMode(page, 'p');
+    expect(before.branchCount).toBe(4);
+    expect(before.hotspots).toHaveLength(4);
+    const after = await clickHotspot(page, 'branch', 0);
+    expect(after.branchCount).toBe(3);
+    expect(after.hotspots).toHaveLength(3);
+    await expect(page.locator('#viewer-hotspots .hotspot')).toHaveCount(3);
+    expect(after.revision).toBe(before.revision + 1);
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('bends a branch one step per click on the chosen axis', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const start = await pressMode(page, 'w');
+    expect(start.bendDir).toBe('left');
+    const b0 = start.bends[1];
+
+    const left = await clickHotspot(page, 'branch', 1);
+    const b1 = left.bends[1];
+    expect(Math.abs((b1?.bend ?? NaN) - (b0?.bend ?? NaN))).toBe(15);
+    expect(b1?.bendV).toBe(b0?.bendV);
+    expect(b1?.wired).toBe(true);
+    expect(left.wireStock).toBe(9);
+    expect(left.revision).toBe(start.revision + 1);
+    expect(left.hotspots.find((h) => h.kind === 'branch' && h.id === 1)?.caption).toBe(
+      '0d (early)',
+    );
+    await expect(page.locator('#viewer-help .help-line').first()).toContainText('Wire: 9');
+
+    expect((await clickToolbar(page, '[data-dir="up"]')).bendDir).toBe('up');
+    const up = await clickHotspot(page, 'branch', 1);
+    const b2 = up.bends[1];
+    expect(Math.abs((b2?.bendV ?? NaN) - (b1?.bendV ?? NaN))).toBe(15);
+    expect(b2?.bend).toBe(b1?.bend);
+    expect(up.wireStock).toBe(8);
+
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('wires the trunk at a hotspot', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const before = await pressMode(page, 'w');
+    expect(before.trunkEvents).toBe(0);
+    const after = await clickHotspot(page, 'trunk', 0);
+    expect(after.trunkEvents).toBe(1);
+    expect(after.wireStock).toBe(9);
+    expect(after.revision).toBe(before.revision + 1);
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('removes a wire through the confirmation', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/?tree=wired');
+    await pressMode(page, 'w');
+    const remove = await clickToolbar(page, '[data-action="remove"]');
+    expect(remove.bends[1]).toEqual({ bend: 40, bendV: 0, wired: true });
+    expect(remove.modal).toBe(-1);
+    await expect(page.locator('#viewer-modal')).toBeHidden();
+
+    const openModal = async (): Promise<void> => {
+      const opened = await clickHotspot(page, 'branch', 1);
+      expect(opened.modal).toBe(1);
+      await expect(page.locator('#viewer-modal')).toBeVisible();
+      await expect(page.locator('#viewer-modal .title')).toHaveText('Remove wire from branch 1?');
+      await expect(page.locator('#viewer-modal .detail')).toHaveText(
+        'Wire age: 0d (early)Bend will spring back to 30%.',
+      );
+      await expect(page.locator('#viewer-modal .detail > div')).toHaveText([
+        'Wire age: 0d (early)',
+        'Bend will spring back to 30%.',
+      ]);
+    };
+
+    await openModal();
+    // Other keys are ignored while the modal is open.
+    await page.keyboard.press('c');
+    await twoFrames(page);
+    expect((await viewerHook(page)).mode).toBe('wire');
+    // Escape closes the modal only.
+    const escaped = await afterFrame(page, () => page.keyboard.press('Escape'));
+    expect(escaped.modal).toBe(-1);
+    expect(escaped.open).toBe(true);
+    await expect(page.locator('#viewer-modal')).toBeHidden();
+
+    await openModal();
+    const cancelled = await afterFrame(page, () =>
+      page.locator('#viewer-modal [data-modal="cancel"]').click(),
+    );
+    expect(cancelled.modal).toBe(-1);
+    expect(cancelled.bends[1]?.wired).toBe(true);
+    expect(cancelled.revision).toBe(remove.revision);
+
+    await openModal();
+    await expect(page.locator('#viewer-modal .ui-button')).toHaveText(['Cancel', 'Remove']);
+    const removed = await afterFrame(page, () =>
+      page.locator('#viewer-modal [data-modal="remove"]').click(),
+    );
+    expect(removed.modal).toBe(-1);
+    expect(removed.bends[1]?.wired).toBe(false);
+    // Off before it set: the bend springs back to 30% of the fixture's 40.
+    expect(removed.bends[1]?.bend).toBeCloseTo(12);
+    expect(removed.revision).toBe(remove.revision + 1);
+    expect(removed.hotspots).toEqual([]);
+    expect(removed.wireStock).toBe(10);
+    await expect(page.locator('#viewer-modal')).toBeHidden();
+
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('refuses to wire with none left', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    await pressMode(page, 'w');
+    // Ten wires: every branch left, every branch right, branch 0 up and down.
+    const plan: [string, number[]][] = [
+      ['left', [0, 1, 2, 3]],
+      ['right', [0, 1, 2, 3]],
+      ['up', [0]],
+      ['down', [0]],
+    ];
+    let stock = 10;
+    for (const [dir, ids] of plan) {
+      if (dir !== 'left') await clickToolbar(page, `[data-dir="${dir}"]`);
+      for (const id of ids) {
+        stock -= 1;
+        expect((await clickHotspot(page, 'branch', id)).wireStock).toBe(stock);
+      }
+    }
+    expect(stock).toBe(0);
+
+    const before = await viewerHook(page);
+    const after = await clickHotspot(page, 'branch', 1);
+    expect(after.wireStock).toBe(0);
+    expect(after.revision).toBe(before.revision);
+    expect(after.bends).toEqual(before.bends);
+    const trunk = await clickHotspot(page, 'trunk', 0);
+    expect(trunk.trunkEvents).toBe(0);
+    expect(trunk.revision).toBe(before.revision);
+    await expect(page.locator('#viewer-help .help-line').first()).toHaveText(
+      / {2}Wire: 0 {2}\(out\)$/,
+    );
+
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('never drags from a hotspot or under the modal', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const before = await pressMode(page, 'c');
+    const { x, y } = await hotspotAt(page, 'branch', 0);
+    await drag(page, x, y);
+    let now = await viewerHook(page);
+    expect(now.yaw).toBe(before.yaw);
+    expect(now.revision).toBe(before.revision);
+
+    await openViewer(page, '/?tree=wired');
+    await pressMode(page, 'w');
+    await clickToolbar(page, '[data-action="remove"]');
+    expect((await clickHotspot(page, 'branch', 1)).modal).toBe(1);
+    const size = page.viewportSize();
+    await drag(page, (size?.width ?? 0) / 2 - 40, (size?.height ?? 0) * 0.9);
+    now = await viewerHook(page);
+    expect(now.yaw).toBe(before.yaw);
+    expect(now.modal).toBe(1);
+
+    expect(errors).toEqual([]);
+  });
+});
