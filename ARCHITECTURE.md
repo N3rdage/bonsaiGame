@@ -2,7 +2,7 @@
 
 How the web project is organised, the decisions behind it, and the invariants carried over from the GameMaker prototype. For why the rewrite happened, see `docs/ADR-001-typescript-rewrite.md`. For the prototype's own architecture, see `archive/gamemaker/ARCHITECTURE.md`. For deliberately-unsimulated behaviour, see `SIMPLIFICATIONS.md`.
 
-This document describes the project as it stands after slice R4a-1 (simulation done; the 3D viewer done in R3; the world shell: the shed as a placeholder room, player movement, the HUD badge and the viewer opened from the room) and the shape the port is heading toward: the rest of the Phaser rooms and UI (R4). Sections marked *planned* describe modules that do not exist yet.
+This document describes the project as it stands after slice R4a-2 (simulation done; the 3D viewer done in R3; the world shell: the shed as a placeholder room, player movement, the HUD badge and the viewer opened from the room; the title scene with new game, continue, the slot picker and F5/F9 save and load) and the shape the port is heading toward: the rest of the Phaser rooms and UI (R4). Sections marked *planned* describe modules that do not exist yet.
 
 ## High-level shape
 
@@ -11,7 +11,7 @@ A single-page web game. Vite bundles TypeScript into a static site; Phaser rende
 ```
 index.html
   src/main.ts            Phaser.Game config, PWA service-worker registration
-  src/scenes/            Phaser scenes: boot, world (the shed, R4a-1), more rooms and UI (planned)
+  src/scenes/            Phaser scenes: boot, title (R4a-2), world (the shed, R4a-1), more rooms and UI (planned)
   src/world/             pure room data, player movement, input and HUD text for the world scene (R4a-1)
   src/sim/               pure simulation (done, R2): tree, geometry, growth, seasons, scoring, species, styles, training, save
   src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch/foliage/wire meshes done (R3a-c); hotspots and modes done (R3d-1); toolbar done (R3d-2a); actions done (R3d-2b); lifecycle done (R3d-2c)
@@ -53,6 +53,7 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 | `obj_viewer_3d` training actions and wire-removal modal (Draw_64 hotspot clicks, `_draw_wire_removal_modal`, Step_0 modal input) | `src/viewer/TreeViewer.ts`, `hotspots.ts`, `modal.ts`, `ViewerModal.ts` | Done (R3d-2b) |
 | `obj_viewer_3d` lifecycle (`global.game_paused`, the controller Step's early exit, Exit and Escape) | `src/sim/types.ts`, `world.ts`, `save.ts`, `src/viewer/TreeViewer.ts` | Done (R3d-2c) |
 | `obj_player_2d` movement, `rm_shed` layout, controller HUD badge (Draw_64) | `src/world/player.ts`, `input.ts`, `shedRoom.ts`, `hud.ts`, `src/scenes/WorldScene.ts` | Done (R4a-1) |
+| `obj_title` buttons (Draw_64), `obj_ui_save_slots`, controller F5/F9 (Step_0) | `src/scenes/TitleScene.ts`, `src/world/saveSlots.ts`, `src/scenes/WorldScene.ts` | Done (R4a-2) |
 | `obj_interactable`, other rooms, `scr_weather` | `src/world/`, `src/scenes/` | Planned (R4) |
 | `obj_ui_*`, `scr_ui`, `scr_title_hero` | `src/scenes/ui/` | Planned (R4) |
 
@@ -66,13 +67,15 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 
 ### How the scenes are shaped
 
-- `BootScene` (`boot`) is the entry: it creates a new game (`createNewGameState`), reads the viewer's `?tree=` and `?season=` test parameters and the hook's fixed fields, and starts `WorldScene` (`world`) with them. The world creates the `TreeViewer`, owns it until shutdown and publishes the test hook.
+- `BootScene` (`boot`) is the entry: it creates the one `LocalStorageSaveStorage` the game uses, reads the viewer's `?tree=` and `?season=` test parameters, and starts `TitleScene` (`title`) with both. Every later scene receives the storage and those overrides through scene data (`src/scenes/sceneData.ts`), so a test could swap the storage; no scene creates its own.
+- `TitleScene` (`title`, obj_title) shows the title, the version and three buttons: **New Game** (Enter) starts `createNewGameState()` in slot 1 when every slot is empty, otherwise opens the slot picker in "new" mode, where an occupied slot asks to confirm the overwrite (Y/N); **Continue** (C) loads `mostRecentSaveSlot` through `loadGame`, greyed out with no save; **Load Game** (L) opens the picker in "load" mode, where only slots with a save can be picked. Picker rows (keys 1-3, Escape to cancel) come from the pure `src/world/saveSlots.ts` (`readSlotRows`, the prototype's row text). An unreadable slot counts as occupied: the title says so on arrival, and loading it shows the error and stays on the title. Placeholder-styled like the world; the prototype's 3D hero tree, Settings and Quit are not ported yet.
+- The world plays one `GameState` (new, or the one loaded) with an **active slot**. F5 saves it there (`saveGame`, captured so the browser does not reload) and shows `Saved to slot N` for 2 seconds; F9 reloads the slot and restarts the world with it, or, if the slot is empty, goes to the title's load picker as the prototype did. Escape with the viewer closed returns to the title without saving; there is no autosave. The world creates the `TreeViewer`, owns it until shutdown and publishes the test hook, whose `day`, `trees`, `starterScore` and `starterHeightCm` come from the state actually played.
 - **Halved coordinates.** Prototype rooms are 960x540 and the logical canvas is 480x270, so every prototype position and distance halves (`fromPrototype` in `src/world/shedRoom.ts`, pinned in its tests). The player starts at (240, 135); the clamp is 4 px from the edges; speed is 1.25 px per step.
 - The room, movement and HUD are pure modules in `src/world/`: `shedRoom.ts` (room size, props at their halved `rm_shed` positions, edge walls 2 px thick, thinner than the clamp margin, so the clamp holds the player in at the edges as in Step_0 and wall collision is for interior walls), `player.ts` (`stepPlayer`: input clamped to -1..1, normalised above length 1, per-axis wall collision, clamp, facing with the 0.5 thresholds, the 0.14 walk-animation counter), `input.ts` (keys to input, the touch joystick, the fixed 60 Hz `fixedSteps` accumulator, at most 5 steps a frame) and `hud.ts` (the badge text, e.g. `Spring 1/28  |  Day 0  |  $100`; the raw day is shown, as in the prototype).
 - Placeholder art: the floor (the room's background colour), walls and labelled props are Phaser rectangles and monospace text; the player is a 16x24 rectangle with its origin at its feet, depth-sorted by y against the props' bottom edges.
 - Input: arrows and WASD through Phaser's keyboard plugin, without key capture. On touch (or a mouse), pressing anywhere on the canvas except a button sets a joystick origin; the drag gives the input, with a 4 px dead zone, saturating at 24 px.
 - The viewer opens from the room with V (a keydown event) or the `View tree (V)` button, on the first tree in `state.trees` (or the `?tree=` fixture) in `seasonForDay(state.day)` (or `?season=`). While it is open the world ignores its keys and pointers, does not step and hides the HUD; the viewer's Escape and Exit close it and the world resumes.
-- Hook fields the world adds: `scene` (`world`), `room` (`shed`), `player` (`x`, `y`, `facing`), `hud` (the badge text) and `frames` (fixed steps run so far). It republishes after every frame that stepped and on viewer render and close.
+- Hook fields the world adds: `scene` (`world`), `room` (`shed`), `player` (`x`, `y`, `facing`), `hud` (the badge text), `frames` (fixed steps run so far), `activeSlot`, `slots` (readable saves) and `toast`. It republishes after every frame that stepped and on viewer render and close. The title publishes `scene` (`title`), `slots`, `toast` (its message line), `picker` (`new`, `load`, `confirm` or '') and idle values for the world's fields.
 
 ### How the viewer is shaped
 
@@ -94,7 +97,7 @@ Logical resolution is 480x270, scaled to fit the window with pixel-art rendering
 - `projection.ts` maps a world point to CSS px with Three's math classes only (unit-tested in Node). It goes through `toViewerSpace`, as the handedness rule demands, and drops points behind the camera or outside the near/far range.
 - The top strip (60 px, 110 px in wire mode, the prototype's toolbar and wire sub-row) never starts a drag; on a phone the DOM toolbar wraps taller and takes the press itself. Wheel zoom works anywhere.
 - The direction helpers `trunkBendWorldAngle` (screen direction to a world bend angle at the current yaw) and `branchBendSign` (which bend sign moves a branch tip the chosen way on screen, found by projecting a perturbed copy) are pure and take the projector as an argument; the wire actions use them.
-- Screenshot tests open fixture trees (`viewerFixtures.ts`, grown through `src/sim` actions) with a `?tree=<cutting|bent|cascade|maple|wired|fancy>` URL parameter, and choose the viewer's season with `?season=<spring|summer|autumn|winter>` (default: the game's season), both read by the boot scene; the tests open the viewer with V in the world. The parameters stay until R4's interactables give a real way to pick a tree.
+- Screenshot tests open fixture trees (`viewerFixtures.ts`, grown through `src/sim` actions) with a `?tree=<cutting|bent|cascade|maple|wired|fancy>` URL parameter, and choose the viewer's season with `?season=<spring|summer|autumn|winter>` (default: the game's season), both read by the boot scene; the tests start a new game from the title with Enter and open the viewer with V in the world. The parameters stay until R4's interactables give a real way to pick a tree.
 - Screenshot baselines live in `e2e/__screenshots__/` and are regenerated on Linux with `npx playwright test --update-snapshots=all`.
 
 ## Invariants carried over
@@ -125,5 +128,5 @@ These were the hard-won rules of the prototype. Each names where it will live in
 
 ## Known rough edges
 
-- The world is a placeholder shed: rectangles for art and no interactables yet (R4b). It boots a real new game, you can walk around, and V opens the fully interactive 3D viewer on the starter tree (or a `?tree=` fixture), but nothing else drives the simulation yet.
+- The world is a placeholder shed: rectangles for art and no interactables yet (R4b). The title starts a real new game or continues a save, you can walk around and save with F5, and V opens the fully interactive 3D viewer on the starter tree (or a `?tree=` fixture), but nothing else drives the simulation yet.
 - Prototype rough edges (cuttings for junipers only, fancy pots stat-only) carry over until the relevant backlog items are built.
