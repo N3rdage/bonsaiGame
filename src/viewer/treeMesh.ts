@@ -6,7 +6,7 @@
  * `build_ring_with_basis`, `build_ring` and `stitch_rings` in
  * archive/gamemaker/scripts/scr_bonsai_mesh/scr_bonsai_mesh.gml. Shape comes
  * from `trunkFrames` and `branchPoint` only, so what you see is what you score.
- * Wire and foliage are not built here yet.
+ * Foliage is built separately in `foliageMesh.ts`; wire is not built yet.
  */
 
 import type { BonsaiTree, Branch, Vec3 } from '../sim/types';
