@@ -14,7 +14,8 @@ test.describe('boot', () => {
 
     await page.waitForFunction(() => window.__bonsai?.ready === true);
     const hook = await page.evaluate(() => window.__bonsai);
-    expect(hook?.scene).toBe('boot');
+    // The boot scene hands over to the world, which publishes the hook.
+    expect(hook?.scene).toBe('world');
     expect(hook?.season).toBe('spring');
     expect(hook?.version).toMatch(/^\d+\.\d+\.\d+/);
     // The boot scene runs a real new game through the simulation bundle.
