@@ -22,7 +22,8 @@ import {
   zoomCamera,
   type OrbitCamera,
 } from './camera';
-import { buildPotGeometry, type MeshArrays } from './potGeometry';
+import type { MeshArrays } from './meshArrays';
+import { buildPotGeometry } from './potGeometry';
 import { placeCamera } from './threeCamera';
 
 function toGeometry({ positions, colors }: MeshArrays): BufferGeometry {
