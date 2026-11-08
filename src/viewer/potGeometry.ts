@@ -109,7 +109,16 @@ export function buildPotGeometry(tier: PotTier): MeshArrays {
     const fr = POT_R_BOT * 0.62;
     for (let f = 0; f < FOOT_COUNT; f++) {
       const fa = 45 + f * 90;
-      box(list, dcos(fa) * fr, dsin(fa) * fr, -POT_DEPTH, FOOT_HALF, FOOT_H, pal.body, pal.bodyLine);
+      box(
+        list,
+        dcos(fa) * fr,
+        dsin(fa) * fr,
+        -POT_DEPTH,
+        FOOT_HALF,
+        FOOT_H,
+        pal.body,
+        pal.bodyLine,
+      );
     }
   }
 

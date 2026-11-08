@@ -24,6 +24,7 @@ import {
 } from './camera';
 import type { MeshArrays } from './meshArrays';
 import { buildPotGeometry } from './potGeometry';
+import { buildTreeMesh } from './treeMesh';
 import { placeCamera } from './threeCamera';
 
 function toGeometry({ positions, colors }: MeshArrays): BufferGeometry {
@@ -55,6 +56,10 @@ export class TreeViewer {
   // Unlit vertex colours with no culling: what the prototype drew.
   private readonly material = new MeshBasicMaterial({ vertexColors: true, side: DoubleSide });
   private pot: Mesh | undefined;
+  private tree: BonsaiTree | undefined;
+  private treeMesh: Mesh | undefined;
+  /** `tree.revision` the current tree mesh was built from, -1 when none. */
+  private builtRevision = -1;
   private cam: OrbitCamera = createOrbitCamera();
   private potTier: PotTier = 0;
   private renders = 0;
@@ -101,9 +106,11 @@ export class TreeViewer {
       ...createOrbitCamera(),
       target: { x: 0, y: 0, z: targetZForTree(tree.trunk.heightCm) },
     };
-    this.disposePot();
+    this.disposeMeshes();
     this.pot = new Mesh(toGeometry(buildPotGeometry(tree.potTier)), this.material);
     this.world.add(this.pot);
+    this.tree = tree;
+    this.rebuildTreeMesh(tree);
     this.canvas.classList.add('open');
     this.closeButton.classList.add('open');
     this.resize();
@@ -117,7 +124,7 @@ export class TreeViewer {
     this.drag = undefined;
     this.canvas.classList.remove('open');
     this.closeButton.classList.remove('open');
-    this.disposePot();
+    this.disposeMeshes();
     this.onClose?.();
   }
 
@@ -141,6 +148,8 @@ export class TreeViewer {
       targetZ: this.cam.target.z,
       potTier: this.potTier,
       renders: this.renders,
+      revision: this.builtRevision,
+      meshVertices: this.treeMesh ? this.treeMesh.geometry.getAttribute('position').count : 0,
     };
   }
 
@@ -162,11 +171,27 @@ export class TreeViewer {
     return true;
   }
 
-  private disposePot(): void {
-    if (!this.pot) return;
-    this.world.remove(this.pot);
-    this.pot.geometry.dispose();
+  private disposeMesh(mesh: Mesh | undefined): void {
+    if (!mesh) return;
+    this.world.remove(mesh);
+    mesh.geometry.dispose();
+  }
+
+  private disposeMeshes(): void {
+    this.disposeMesh(this.pot);
+    this.disposeMesh(this.treeMesh);
     this.pot = undefined;
+    this.treeMesh = undefined;
+    this.tree = undefined;
+    this.builtRevision = -1;
+  }
+
+  /** Replaces the tree mesh with one built from the tree as it is now. */
+  private rebuildTreeMesh(tree: BonsaiTree): void {
+    this.disposeMesh(this.treeMesh);
+    this.treeMesh = new Mesh(toGeometry(buildTreeMesh(tree)), this.material);
+    this.world.add(this.treeMesh);
+    this.builtRevision = tree.revision;
   }
 
   private setCamera(cam: OrbitCamera): void {
@@ -180,6 +205,7 @@ export class TreeViewer {
       this.frame = undefined;
       this.wheelHandled = false;
       if (!this.opened || !this.renderer) return;
+      if (this.tree && this.tree.revision !== this.builtRevision) this.rebuildTreeMesh(this.tree);
       placeCamera(this.camera, this.cam);
       this.renderer.render(this.scene, this.camera);
       this.renders += 1;

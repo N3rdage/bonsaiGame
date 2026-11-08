@@ -24,7 +24,7 @@ interface BonsaiTestHook {
   readonly viewer?: BonsaiViewerHook;
 }
 
-/** Snapshot of the 3D viewer: camera pose, pot shown, and frames drawn so far. */
+/** Snapshot of the 3D viewer: camera pose, pot and tree mesh shown, and frames drawn so far. */
 interface BonsaiViewerHook {
   readonly open: boolean;
   readonly yaw: number;
@@ -33,6 +33,10 @@ interface BonsaiViewerHook {
   readonly targetZ: number;
   readonly potTier: number;
   readonly renders: number;
+  /** `tree.revision` the current tree mesh was built from, or -1 when closed. */
+  readonly revision: number;
+  /** Vertex count of the tree (trunk and branch) mesh, or 0 when closed. */
+  readonly meshVertices: number;
 }
 
 interface Window {
