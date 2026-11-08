@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { registerSW } from 'virtual:pwa-register';
 import { BootScene } from './scenes/BootScene';
+import { WorldScene } from './scenes/WorldScene';
 
 // Logical resolution of the pixel-art world. Phaser scales this to fit the window.
 export const GAME_WIDTH = 480;
@@ -19,5 +20,5 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene],
+  scene: [BootScene, WorldScene],
 });

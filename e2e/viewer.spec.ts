@@ -11,16 +11,13 @@ function collectErrors(page: Page): string[] {
 
 async function openViewer(page: Page, url: string): Promise<void> {
   await page.goto(url);
-  await page.waitForFunction(() => window.__bonsai?.ready === true);
+  await page.waitForFunction(
+    () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
+  );
   expect(await page.evaluate(() => window.__bonsai?.viewer?.open)).toBe(false);
 
-  // The logical 480x270 world is scaled to fit and centred, so a click relative
-  // to the canvas box lands on the "View tree (3D)" text at (240, 135 + 48).
-  const box = await page.locator('#game canvas').boundingBox();
-  expect(box).not.toBeNull();
-  await page.locator('#game canvas').click({
-    position: { x: (box?.width ?? 0) * 0.5, y: ((box?.height ?? 0) * (135 + 48)) / 270 },
-  });
+  // V in the room opens the viewer on the starter (or the `?tree=` fixture).
+  await page.keyboard.press('v');
 
   // The foliage sprite loads asynchronously; once it has, the viewer redraws
   // with it, so screenshots taken after this always show textured leaves.
