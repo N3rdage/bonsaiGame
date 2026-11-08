@@ -203,11 +203,11 @@ export function buildToolbarModel(
   };
 }
 
-function rgb({ r, g, b }: Rgb): string {
+export function rgb({ r, g, b }: Rgb): string {
   return `rgb(${String(r)}, ${String(g)}, ${String(b)})`;
 }
 
-function px(n: number): string {
+export function px(n: number): string {
   return `${String(n)}px`;
 }
 

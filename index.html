@@ -76,19 +76,22 @@
         gap: var(--tb-mode-gap);
         margin-top: var(--tb-button-offset);
       }
-      #viewer-toolbar button {
+      #viewer-toolbar button,
+      #viewer-modal button {
         box-sizing: border-box;
         padding: 0;
         border: 1px solid var(--tb-border);
         font: inherit;
         cursor: pointer;
       }
-      #viewer-toolbar .ui-button {
+      #viewer-toolbar .ui-button,
+      #viewer-modal .ui-button {
         height: var(--tb-button-height);
         background: var(--tb-fill);
         color: var(--tb-text);
       }
       #viewer-toolbar .ui-button:hover,
+      #viewer-modal .ui-button:hover,
       #viewer-toolbar .ui-toggle.selected:hover {
         background: var(--tb-fill-hover);
       }
@@ -191,13 +194,78 @@
         height: var(--hotspot-size-hover);
         background: var(--hotspot-fill-hover);
       }
-      /* Below the circle and click-through, so the button's hit area stays the circle. */
+      /* The hover and click circle: the prototype's 16 px hit radius round the centre. */
+      #viewer-hotspots .hotspot::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: var(--hotspot-hit-size);
+        height: var(--hotspot-hit-size);
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+      }
+      /* Below the circle and click-through, so the button's hit area stays the hit circle. */
       #viewer-hotspots .caption {
         position: absolute;
         top: calc(100% + var(--hotspot-caption-gap));
         left: 50%;
         transform: translateX(-50%);
         pointer-events: none;
+      }
+      /* The wire-removal confirmation; sizes and colours set from src/viewer/modal.ts.
+       * The dim covers the viewport and takes every pointer event, so nothing beneath reacts. */
+      #viewer-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 13;
+        display: none;
+        background: var(--modal-dim);
+        font: 14px monospace;
+        touch-action: none;
+      }
+      #viewer-modal.open {
+        display: block;
+      }
+      #viewer-modal .box {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        box-sizing: border-box;
+        width: min(var(--modal-width), 100%);
+        height: var(--modal-height);
+        border: 1px solid var(--modal-border);
+        background: var(--modal-fill);
+        text-align: center;
+      }
+      #viewer-modal .title {
+        position: absolute;
+        top: var(--modal-title-top);
+        left: 0;
+        right: 0;
+        color: var(--modal-title);
+      }
+      #viewer-modal .detail {
+        position: absolute;
+        top: var(--modal-detail-top);
+        left: 0;
+        right: 0;
+        color: var(--modal-detail);
+        line-height: var(--tb-info-line);
+      }
+      #viewer-modal .buttons {
+        position: absolute;
+        bottom: var(--modal-button-bottom);
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: center;
+        gap: var(--modal-button-gap);
+      }
+      #viewer-modal .ui-button {
+        width: var(--modal-button-width);
+        height: var(--modal-button-height);
       }
     </style>
   </head>

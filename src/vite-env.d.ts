@@ -59,6 +59,22 @@ interface BonsaiViewerHook {
   readonly wireStock: number;
   /** `day` of the game state the viewer was opened with, or -1 when closed (day 0 is a real day). */
   readonly day: number;
+  /** Branch the wire-removal confirmation (`#viewer-modal`) is open for, or -1 when none. */
+  readonly modal: number;
+  /** Branches on the tree shown, or 0 when closed. */
+  readonly branchCount: number;
+  /** Each branch's length in cm, by index; empty when closed. */
+  readonly lengths: readonly number[];
+  /** Each branch's horizontal and vertical bend in degrees and whether it carries wire, by index; empty when closed. */
+  readonly bends: readonly {
+    readonly bend: number;
+    readonly bendV: number;
+    readonly wired: boolean;
+  }[];
+  /** Trunk bend events (`tree.trunk.movement.length`), or 0 when closed. */
+  readonly trunkEvents: number;
+  /** The tree's vitality, or 0 when closed. */
+  readonly vitality: number;
 }
 
 /** One on-screen hotspot, positioned in CSS px from the viewport's top left. */
