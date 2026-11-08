@@ -2,7 +2,7 @@
 
 A cozy simulation game where you grow, shape, and care for bonsai trees. Take cuttings from plants in your garden, pot them up in your shed, train them with wire and clippers over the course of many simulated days, and watch them take shape in a 3D viewer.
 
-Built as an installable **web game** in TypeScript (Vite, Phaser, Three.js). It began life as a GameMaker prototype, which is preserved whole in [`archive/gamemaker/`](./archive/gamemaker/); the decision to rewrite is recorded in [`docs/ADR-001-typescript-rewrite.md`](./docs/ADR-001-typescript-rewrite.md).
+Play the current build at **https://bonsai.silly.ninja** (installable as a PWA; every merge to `main` deploys there). Built as an installable **web game** in TypeScript (Vite, Phaser, Three.js). It began life as a GameMaker prototype, which is preserved whole in [`archive/gamemaker/`](./archive/gamemaker/); the decision to rewrite is recorded in [`docs/ADR-001-typescript-rewrite.md`](./docs/ADR-001-typescript-rewrite.md).
 
 ## About this repo
 
