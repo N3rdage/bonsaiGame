@@ -78,7 +78,9 @@ export class BootScene extends Phaser.Scene {
       starterHeightCm: starter ? starter.trunk.heightCm : -1,
     };
     const publishHook = (): void => {
-      window.__bonsai = { ...hookBase, viewer: viewer.snapshot() };
+      // `paused` is read from the game state itself, not the viewer, so a test
+      // sees what the simulation would see after the viewer has let go.
+      window.__bonsai = { ...hookBase, paused: state.paused, viewer: viewer.snapshot() };
     };
     viewer.onRender = publishHook;
     viewer.onClose = publishHook;
@@ -86,12 +88,13 @@ export class BootScene extends Phaser.Scene {
       viewer.destroy();
     });
     // `?tree=<fixture>` shows a fixture tree instead of the starter, for the
-    // viewer's screenshot tests; it goes away with R3d's real viewer lifecycle.
+    // viewer's screenshot tests; it stays until R4's rooms give a real way to
+    // pick a tree.
     const params = new URLSearchParams(window.location.search);
     const fixtureKey = params.get('tree');
     const shown = isViewerFixtureKey(fixtureKey) ? VIEWER_FIXTURES[fixtureKey]() : starter;
     // `?season=<spring|summer|autumn|winter>` overrides the game's season in
-    // the viewer only, for the foliage screenshot tests; it goes away with R3d
+    // the viewer only, for the foliage screenshot tests; it stays until R4
     // like `?tree=`.
     const seasonParam = params.get('season');
     const viewerSeason = SEASONS.find((s) => s === seasonParam) ?? season;

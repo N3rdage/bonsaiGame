@@ -395,6 +395,39 @@ test.describe('viewer toolbar', () => {
   });
 });
 
+test.describe('viewer lifecycle', () => {
+  // `__bonsai.paused` is the game state's own flag, published by the scene that
+  // owns it; `viewer.paused` only mirrors it while the viewer holds the state.
+  // Asserting on the former is what proves close() really let the simulation go.
+  const paused = (page: Page): Promise<boolean | undefined> =>
+    page.evaluate(() => window.__bonsai?.paused);
+
+  test('pauses the simulation while open and resumes on Escape', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.goto('/');
+    await page.waitForFunction(() => window.__bonsai?.ready === true);
+    expect(await paused(page)).toBe(false);
+    expect(await page.evaluate(() => window.__bonsai?.viewer?.paused)).toBe(false);
+    await openViewer(page, '/');
+    await page.waitForFunction(() => window.__bonsai?.paused === true);
+    expect(await page.evaluate(() => window.__bonsai?.viewer?.paused)).toBe(true);
+    await closeViewer(page);
+    expect(await paused(page)).toBe(false);
+    expect(await page.evaluate(() => window.__bonsai?.viewer?.paused)).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
+  test('resumes the simulation from the Exit button', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    await page.waitForFunction(() => window.__bonsai?.paused === true);
+    await page.locator('[data-exit]').click();
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
+    expect(await paused(page)).toBe(false);
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe('viewer actions', () => {
   async function viewerHook(page: Page): Promise<BonsaiViewerHook> {
     const viewer = await page.evaluate(() => window.__bonsai?.viewer);

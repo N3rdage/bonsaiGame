@@ -11,6 +11,7 @@ function makeState(money: number): GameState {
     trees: [],
     nextTreeId: 0,
     tutorialStep: -1,
+    paused: false,
   };
 }
 
