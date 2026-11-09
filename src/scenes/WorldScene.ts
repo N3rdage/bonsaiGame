@@ -100,7 +100,9 @@ import {
   type TutorialPanelModel,
 } from '../world/tutorialPanel';
 import { tutorialSkip, tutorialStepLabel } from '../sim/tutorial';
+import { SETTINGS_KEY, settingsPanel } from '../world/settingsPanel';
 import { crispText, fitCamera, sceneZoom } from './crisp';
+import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 
 const TOAST_MS = 2000;
@@ -150,10 +152,11 @@ const BAR_H = 6;
  * The 3D viewer is a DOM canvas over this one. While it is open the world
  * ignores its own keys and pointers and does not step.
  *
- * The Menu button (top-left) opens a panel with Save, Load and Title; F5, F9
- * and Escape are their shortcuts: save to the active slot, reload it, go back
- * to the title without saving (all through src/sim/save.ts and the storage
- * from boot).
+ * The Menu button (top-left) opens a panel with Save, Load, Settings and
+ * Title; F5, F9 and Escape are the shortcuts of Save, Load and Title: save to
+ * the active slot, reload it, go back to the title without saving (all through
+ * src/sim/save.ts and the storage from boot). Settings opens the Settings
+ * panel (src/world/settingsPanel.ts) as a modal.
  *
  * Within range of a prop the player shows its prompt and an Interact button
  * (E); interacting opens a modal panel (obj_ui_panel) over the dimmed room.
@@ -395,6 +398,9 @@ export class WorldScene extends Phaser.Scene {
       this.viewerClosedAt = performance.now();
       this.publishHook();
     };
+    onFullscreenChange(this, () => {
+      if (this.panel?.key === SETTINGS_KEY) this.openSettings();
+    });
     this.events.once('shutdown', () => {
       this.panel?.dispose?.();
       this.viewer.destroy();
@@ -450,6 +456,9 @@ export class WorldScene extends Phaser.Scene {
       load: () => {
         this.closePanel();
         this.reload();
+      },
+      settings: () => {
+        this.openSettings();
       },
       title: () => {
         this.toTitle();
@@ -520,6 +529,15 @@ export class WorldScene extends Phaser.Scene {
     this.panel = { key: model.key, modal: true, parts, buttons };
     this.publishHook();
     return texts;
+  }
+
+  /** obj_ui_settings from the HUD menu; a toggle applies and saves, then reopens it in place. */
+  private openSettings(): void {
+    const model = settingsPanel(this.ctx.settings, fullscreenState(this));
+    this.openPanel(model, (i) => {
+      toggleSetting(this, this.ctx, model.rows[i]?.id ?? '');
+      this.openSettings();
+    });
   }
 
   /** obj_ui_tree_repot_confirm; the soil toggle reopens it with the flag flipped. */
@@ -982,7 +1000,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private toTitle(): void {
-    const data: TitleSceneData = { storage: this.ctx.storage, overrides: this.ctx.overrides };
+    const { storage, overrides, settings, settingsStorage } = this.ctx;
+    const data: TitleSceneData = { storage, overrides, settings, settingsStorage };
     this.scene.start('title', data);
   }
 
@@ -1169,6 +1188,7 @@ export class WorldScene extends Phaser.Scene {
       toast: this.toast.text,
       picker: '',
       panel: this.panel?.key ?? '',
+      settings: { ...this.ctx.settings },
       near: this.near?.key ?? '',
       carrying: carried ? treeLabel(carried) : '',
       treeLocations: state.trees.map((t) => ({

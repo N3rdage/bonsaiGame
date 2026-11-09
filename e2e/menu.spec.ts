@@ -31,7 +31,13 @@ test.describe('world menu', () => {
     await bootWorld(page);
     expect(ids(await hook(page))).toEqual(HUD);
     await openMenu(page);
-    expect(ids(await hook(page))).toEqual([...HUD, 'menu-save', 'menu-load', 'menu-title']);
+    expect(ids(await hook(page))).toEqual([
+      ...HUD,
+      'menu-save',
+      'menu-load',
+      'menu-settings',
+      'menu-title',
+    ]);
 
     await tapControl(page, 'menu-save');
     await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
@@ -154,7 +160,7 @@ test.describe('world menu', () => {
     await tapControl(page, 'menu-title');
     await page.waitForFunction(() => window.__bonsai?.scene === 'title');
     const h = await hook(page);
-    expect(ids(h)).toEqual(['new', 'continue', 'load']);
+    expect(ids(h)).toEqual(['new', 'continue', 'load', 'settings']);
     expect(h.panel).toBe('');
     expect(errors).toEqual([]);
   });
