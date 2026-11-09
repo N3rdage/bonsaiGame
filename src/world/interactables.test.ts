@@ -39,7 +39,7 @@ describe('interactables', () => {
       ['shop_kiosk', 'E: Shop'],
       ['pedestal_1', 'E: Use Pedestal'],
       ['pedestal_2', 'E: Use Pedestal'],
-      ['door', 'E: Enter'],
+      ['door', 'E: To Garden'],
     ]);
   });
 });

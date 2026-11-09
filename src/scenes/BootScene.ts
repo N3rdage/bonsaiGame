@@ -22,12 +22,15 @@ export class BootScene extends Phaser.Scene {
     // `?season=<spring|summer|autumn|winter>` overrides the game's season in
     // the viewer only, for the foliage screenshot tests; it stays like `?tree=`.
     const seasonParam = params.get('season');
+    // `?timeScale=<n>` speeds the day clock up for the day-passing tests.
+    const timeScale = Number(params.get('timeScale'));
 
     const data: TitleSceneData = {
       storage: new LocalStorageSaveStorage(),
       overrides: {
         tree: isViewerFixtureKey(fixtureKey) ? VIEWER_FIXTURES[fixtureKey] : undefined,
         season: SEASONS.find((s) => s === seasonParam),
+        timeScale: timeScale > 0 ? timeScale : undefined,
       },
     };
     this.scene.start('title', data);

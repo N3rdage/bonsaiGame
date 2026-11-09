@@ -1,5 +1,6 @@
 /**
- * The shed, the room a new game starts in, as pure data.
+ * The shed, the room a new game starts in, as pure data, and the shape every
+ * room shares (the garden is in gardenRoom.ts).
  *
  * The prototype's rooms are 960x540; the web build's logical canvas is 480x270
  * (`GAME_WIDTH`/`GAME_HEIGHT` in resolution.ts), so every prototype coordinate and
@@ -9,6 +10,8 @@
  * instance list). The prototype's `obj_wall` instances are not in the shed, so
  * its edges are the bounds; here they are thin wall strips along the edges.
  */
+
+import type { SpeciesKey } from '../sim/types';
 
 /** Prototype room px per logical px. */
 export const PROTOTYPE_SCALE = 2;
@@ -24,6 +27,16 @@ export interface Rect {
   readonly h: number;
 }
 
+/** The rooms the world can show; also the `location` of a tree on that room's floor. */
+export type RoomKey = 'shed' | 'garden';
+
+/** Where a door leads (obj_door's `target_room`, `target_x`, `target_y`), logical px. */
+export interface DoorTarget {
+  readonly room: RoomKey;
+  readonly x: number;
+  readonly y: number;
+}
+
 export interface Prop {
   readonly key: string;
   readonly label: string;
@@ -36,10 +49,14 @@ export interface Prop {
   readonly h: number;
   /** Display pedestals only: the prototype's `pedestal_key` (instance creation code), as in `displayed:<pedestalKey>`. */
   readonly pedestalKey?: string;
+  /** Doors only: the room and spot E takes the player to. */
+  readonly target?: DoorTarget;
+  /** Garden source plants only (obj_source_plant's `species_key`): what a cutting is of. */
+  readonly speciesKey?: SpeciesKey;
 }
 
 export interface Room {
-  readonly key: string;
+  readonly key: RoomKey;
   readonly width: number;
   readonly height: number;
   /** The player is kept at least this far inside the room's edges. */
@@ -61,7 +78,8 @@ export const WALL_THICKNESS = 2;
 const WIDTH = fromPrototype(960);
 const HEIGHT = fromPrototype(540);
 
-function prop(
+/** A prop centred on prototype (px, py), `w` x `h` logical px. */
+export function prop(
   key: string,
   label: string,
   prompt: string,
@@ -99,7 +117,11 @@ export const SHED_ROOM: Room = {
       ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 700, 170, 16, 16),
       pedestalKey: 'shed_window',
     },
-    prop('door', 'Door', 'Enter', 464, 416, 24, 32),
+    // inst_52E224DC's creation code: target_room = rm_garden_back, (100, 450).
+    {
+      ...prop('door', 'Door', 'To Garden', 464, 416, 24, 32),
+      target: { room: 'garden', x: fromPrototype(100), y: fromPrototype(450) },
+    },
   ],
   // rm_shed's background colour 4279770660 is ABGR 0xff181e24.
   floor: 0x241e18,
