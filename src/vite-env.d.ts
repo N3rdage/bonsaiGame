@@ -15,7 +15,9 @@ interface BonsaiTestHook {
   readonly scene: string;
   /** Device pixels per logical pixel the scene's camera renders at (canvas width / 480); 1 would mean the camera is not fitted. */
   readonly zoom: number;
+  /** World: the season of the game day at the last publish. Title: ''. */
   readonly season: string;
+  /** World: the game day at the last publish (the day clock moves it). Title: -1. */
   readonly day: number;
   readonly trees: number;
   /** Score of the first tree in the state played, or -1 if there is none (always on the title). */
@@ -26,7 +28,7 @@ interface BonsaiTestHook {
   readonly paused: boolean;
   /** The 3D tree viewer, once the scene has created it. */
   readonly viewer?: BonsaiViewerHook;
-  /** Key of the room the world is showing, e.g. 'shed'. */
+  /** Key of the room the world is showing, 'shed' or 'garden'; '' on the title. */
   readonly room: string;
   /** The 2D player in logical px (feet position) and its facing: 'right', 'left', 'down' or 'up'. */
   readonly player: { readonly x: number; readonly y: number; readonly facing: string };
@@ -53,7 +55,7 @@ interface BonsaiTestHook {
   readonly near: string;
   /** World only: label (name, or species display name) of the tree carried (location 'inventory'), or '' (always on the title). */
   readonly carrying: string;
-  /** World only: every tree in the state, in order, with its label and `location` ('shed', 'inventory', 'sold', 'displayed:<pedestalKey>'); empty on the title. */
+  /** World only: every tree in the state, in order, with its label and `location` ('shed', 'garden', 'inventory', 'sold', 'displayed:<pedestalKey>'); empty on the title. */
   readonly treeLocations: readonly {
     readonly id: number;
     readonly name: string;

@@ -74,7 +74,7 @@ describe('world panels', () => {
   it('titles the placeholders with the prop label', () => {
     expect(
       SHED_ROOM.props
-        .filter((p) => p.pedestalKey === undefined)
+        .filter((p) => p.pedestalKey === undefined && p.target === undefined)
         .map((p) => {
           const m = placeholderPanel(p);
           return [m.key, m.title, m.rows.map((r) => r.text)];
@@ -83,7 +83,6 @@ describe('world panels', () => {
       ['placeholder:workbench', 'Workbench', ['Coming in a later slice.']],
       ['placeholder:planting_table', 'Planting', ['Coming in a later slice.']],
       ['placeholder:shop_kiosk', 'Shop', ['Coming in a later slice.']],
-      ['placeholder:door', 'Door', ['Coming in a later slice.']],
     ]);
   });
 

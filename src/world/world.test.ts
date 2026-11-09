@@ -18,6 +18,7 @@ import {
   type MoveInput,
   type PlayerState,
 } from './player';
+import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
 import { SHED_ROOM, WALL_THICKNESS, fromPrototype, hitsWall, type Room } from './shedRoom';
 
 describe('shed room', () => {
@@ -45,6 +46,43 @@ describe('shed room', () => {
     expect(hitsWall(SHED_ROOM, 240, 1)).toBe(true);
     expect(hitsWall(SHED_ROOM, 240, 269)).toBe(true);
     expect(hitsWall(SHED_ROOM, 240, 135)).toBe(false);
+  });
+});
+
+describe('garden room', () => {
+  it('halves rm_garden_back onto the 480x270 canvas with its green floor', () => {
+    expect([GARDEN_ROOM.key, GARDEN_ROOM.width, GARDEN_ROOM.height]).toEqual(['garden', 480, 270]);
+    expect(GARDEN_ROOM.floor).toBe(0x30502c);
+    expect(
+      GARDEN_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.speciesKey]),
+    ).toEqual([
+      ['source_juniper', 'Juniper', 'Take Cutting', 140, 90, 24, 24, 'juniper'],
+      ['source_maple', 'Japanese Maple', 'Take Cutting', 260, 80, 24, 24, 'maple'],
+      ['source_pine', 'Pine', 'Take Cutting', 380, 100, 24, 24, 'pine'],
+      ['door', 'Door', 'Back to Shed', 16, 228, 16, 16, undefined],
+    ]);
+  });
+
+  it('links the shed door and the garden door both ways', () => {
+    const shedDoor = SHED_ROOM.props.find((p) => p.key === 'door');
+    const gardenDoor = GARDEN_ROOM.props.find((p) => p.key === 'door');
+    expect(shedDoor?.prompt).toBe('To Garden');
+    expect(shedDoor?.target).toEqual({ room: 'garden', x: 50, y: 225 });
+    expect(gardenDoor?.target).toEqual({ room: 'shed', x: 240, y: 190 });
+    expect(ROOMS[shedDoor?.target?.room ?? 'shed']).toBe(GARDEN_ROOM);
+    expect(ROOMS.shed).toBe(SHED_ROOM);
+  });
+
+  it('fences every edge but the doorway at logical y 208..240 on the left', () => {
+    expect(DOORWAY).toEqual({ top: 208, bottom: 240 });
+    expect(hitsWall(GARDEN_ROOM, 1, 100)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 1, 207)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 1, 208)).toBe(false);
+    expect(hitsWall(GARDEN_ROOM, 1, 239)).toBe(false);
+    expect(hitsWall(GARDEN_ROOM, 1, 240)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 479, 220)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 240, 1)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 240, 269)).toBe(true);
   });
 });
 
