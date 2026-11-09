@@ -37,4 +37,5 @@ export const IDLE_HOOK = {
   player: { x: 0, y: 0, facing: '' },
   hud: '',
   frames: 0,
+  panel: '',
 } as const;

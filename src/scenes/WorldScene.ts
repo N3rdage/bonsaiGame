@@ -5,6 +5,7 @@ import { scoreTree } from '../sim/scoring';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
 import { hudText } from '../world/hud';
+import { HUD_BADGE, MENU_BUTTON, MENU_PANEL, TOAST_X, VIEW_BUTTON, menuItems } from '../world/menu';
 import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
 import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../world/player';
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
@@ -30,8 +31,10 @@ type MoveKeys = Record<
  * The 3D viewer is a DOM canvas over this one. While it is open the world
  * ignores its own keys and pointers and does not step.
  *
- * F5 saves to the active slot, F9 reloads it, Escape goes back to the title
- * without saving (all through src/sim/save.ts and the storage from boot).
+ * The Menu button (top-left) opens a panel with Save, Load and Title; F5, F9
+ * and Escape are their shortcuts: save to the active slot, reload it, go back
+ * to the title without saving (all through src/sim/save.ts and the storage
+ * from boot).
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
@@ -51,6 +54,15 @@ export class WorldScene extends Phaser.Scene {
   private player!: PlayerState;
   private playerRect!: Phaser.GameObjects.Rectangle;
   private hud!: Phaser.GameObjects.Text;
+  private viewButton!: Phaser.GameObjects.Text;
+  private menuButton!: Phaser.GameObjects.Text;
+  /** The open menu panel's background and rows; undefined while closed. */
+  private panel:
+    | {
+        bg: Phaser.GameObjects.Rectangle;
+        rows: { id: string; text: Phaser.GameObjects.Text }[];
+      }
+    | undefined;
   private accumulatorMs = 0;
   private frames = 0;
   private joystick: { id: number; x: number; y: number; input: MoveInput } | undefined;
@@ -77,6 +89,7 @@ export class WorldScene extends Phaser.Scene {
     this.accumulatorMs = 0;
     this.frames = 0;
     this.joystick = undefined;
+    this.panel = undefined;
     const room = SHED_ROOM;
 
     this.add.rectangle(0, 0, room.width, room.height, room.floor).setOrigin(0).setDepth(-1);
@@ -94,23 +107,22 @@ export class WorldScene extends Phaser.Scene {
     this.drawPlayer();
 
     this.hud = this.add
-      .text(room.width - 8, 2, hudText(data.state), {
+      .text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), {
         ...LABEL_STYLE,
         fontSize: '10px',
         color: '#ffffff',
       })
       .setOrigin(1, 0)
       .setDepth(10_000);
-    const viewButton = this.add
-      .text(6, room.height - 6, 'View tree (V)', { ...LABEL_STYLE, fontSize: '10px' })
-      .setOrigin(0, 1)
-      .setDepth(10_000)
-      .setInteractive({ useHandCursor: true });
-    viewButton.on('pointerup', () => {
+    this.viewButton = this.hudButton(VIEW_BUTTON.left, VIEW_BUTTON.bottom, 'View tree (V)', () => {
       this.openViewer();
+    }).setOrigin(0, 1);
+    this.menuButton = this.hudButton(MENU_BUTTON.left, MENU_BUTTON.top, 'Menu', () => {
+      if (this.panel) this.closePanel();
+      else this.openPanel();
     });
     this.toast = this.add
-      .text(6, 2, '', { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' })
+      .text(TOAST_X, 2, '', { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' })
       .setDepth(10_000);
 
     const keyboard = this.input.keyboard;
@@ -146,14 +158,25 @@ export class WorldScene extends Phaser.Scene {
     // closed; its timestamp tells them apart.
     keyboard.on('keydown-ESC', (event: KeyboardEvent) => {
       if (this.viewer.isOpen || event.timeStamp <= this.viewerClosedAt) return;
-      const data: TitleSceneData = { storage: this.ctx.storage, overrides: this.ctx.overrides };
-      this.scene.start('title', data);
+      if (this.panel) this.closePanel();
+      else this.toTitle();
     });
 
     this.input.on(
       'pointerdown',
       (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
-        if (this.viewer.isOpen || over.length > 0 || this.joystick) return;
+        if (this.viewer.isOpen) return;
+        if (this.panel) {
+          // A press outside the panel and its button closes it and starts no joystick.
+          const inside: Phaser.GameObjects.GameObject[] = [
+            this.menuButton,
+            this.panel.bg,
+            ...this.panel.rows.map((r) => r.text),
+          ];
+          if (!over.some((o) => inside.includes(o))) this.closePanel();
+          return;
+        }
+        if (over.length > 0 || this.joystick) return;
         this.joystick = { id: pointer.id, x: pointer.x, y: pointer.y, input: { x: 0, y: 0 } };
       },
     );
@@ -178,6 +201,62 @@ export class WorldScene extends Phaser.Scene {
       keyboard.removeCapture([K.F5, K.F9]);
     });
     this.publishHook();
+  }
+
+  private hudButton(
+    x: number,
+    y: number,
+    label: string,
+    onTap: () => void,
+  ): Phaser.GameObjects.Text {
+    const button = this.add
+      .text(x, y, label, { ...LABEL_STYLE, fontSize: '10px' })
+      .setDepth(10_000)
+      .setInteractive({ useHandCursor: true });
+    button.on('pointerup', onTap);
+    return button;
+  }
+
+  private openPanel(): void {
+    const { x, y, w, h } = MENU_PANEL;
+    const bg = this.add
+      .rectangle(x, y, w, h, 0x28322a)
+      .setOrigin(0)
+      .setStrokeStyle(1, 0x8ca078)
+      .setDepth(10_000)
+      .setInteractive();
+    const actions = {
+      save: () => {
+        this.save();
+        this.closePanel();
+      },
+      load: () => {
+        this.reload();
+        this.closePanel();
+      },
+      title: () => {
+        this.toTitle();
+      },
+    };
+    const rows = menuItems().map((item) => ({
+      id: `menu-${item.id}`,
+      text: this.hudButton(item.x, item.y, item.label, actions[item.id]).setOrigin(0, 0.5),
+    }));
+    this.panel = { bg, rows };
+    this.publishHook();
+  }
+
+  private closePanel(): void {
+    if (!this.panel) return;
+    this.panel.bg.destroy();
+    for (const row of this.panel.rows) row.text.destroy();
+    this.panel = undefined;
+    this.publishHook();
+  }
+
+  private toTitle(): void {
+    const data: TitleSceneData = { storage: this.ctx.storage, overrides: this.ctx.overrides };
+    this.scene.start('title', data);
   }
 
   private save(): void {
@@ -226,6 +305,7 @@ export class WorldScene extends Phaser.Scene {
   override update(_time: number, delta: number): void {
     const viewerOpen = this.viewer.isOpen;
     this.hud.setVisible(!viewerOpen);
+    this.menuButton.setVisible(!viewerOpen);
     if (viewerOpen) {
       this.joystick = undefined;
       this.accumulatorMs = 0;
@@ -264,9 +344,22 @@ export class WorldScene extends Phaser.Scene {
     const viewTree = this.viewTree;
     if (!viewTree || this.viewer.isOpen) return;
     this.joystick = undefined;
+    this.closePanel();
     this.viewer.open(viewTree, overrides.season ?? seasonForDay(state.day), state);
     this.hud.setVisible(false);
+    this.menuButton.setVisible(false);
     this.publishHook();
+  }
+
+  /** Centres of the tappable controls on screen, for the test hook; none under the viewer. */
+  private controls(): BonsaiTestHook['controls'] {
+    if (this.viewer.isOpen) return [];
+    const at = (id: string, text: Phaser.GameObjects.Text) => {
+      const c = text.getCenter();
+      return { id, x: c.x, y: c.y };
+    };
+    const rows = this.panel?.rows.map((r) => at(r.id, r.text)) ?? [];
+    return [at('view', this.viewButton), at('menu', this.menuButton), ...rows];
   }
 
   private readonly publishHook = (): void => {
@@ -277,6 +370,8 @@ export class WorldScene extends Phaser.Scene {
       slots: this.slots,
       toast: this.toast.text,
       picker: '',
+      panel: this.panel ? 'menu' : '',
+      controls: this.controls(),
       ready: true,
       scene: this.scene.key,
       // The game state's own flag, not the viewer's, so a test sees what the

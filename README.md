@@ -37,11 +37,12 @@ Every pull request runs the same checks in CI and deploys a preview to Azure Sta
 
 | Input | Action |
 |-------|--------|
-| WASD or Arrow Keys | Move player |
+| Drag anywhere (joystick) or WASD / arrows | Move player |
 | E | Interact with nearby object |
-| Esc | Close panel / exit 3D viewer |
-| F5 | Save game |
-| F9 | Load game |
+| View tree button or V | Open the 3D viewer |
+| Menu button → Save, or F5 | Save game |
+| Menu button → Load, or F9 | Load game |
+| Menu button → Title, or Esc | Back to title (Esc first closes an open panel or the 3D viewer) |
 | F1 | Debug: skip 7 days on tree 0 |
 
 **In the 3D viewer:**

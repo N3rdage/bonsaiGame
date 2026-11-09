@@ -34,6 +34,8 @@ export class TitleScene extends Phaser.Scene {
   private view: View = { kind: 'menu' };
   private message = '';
   private layer!: Phaser.GameObjects.Container;
+  /** The enabled buttons of the current view, by id, for the test hook. */
+  private buttons: { id: string; text: Phaser.GameObjects.Text }[] = [];
 
   constructor() {
     super('title');
@@ -130,6 +132,7 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private button(
+    id: string,
     x: number,
     y: number,
     label: string,
@@ -142,6 +145,7 @@ export class TitleScene extends Phaser.Scene {
     if (enabled) {
       text.setInteractive({ useHandCursor: true });
       text.on('pointerup', onClick);
+      this.buttons.push({ id, text });
     }
     this.layer.add(text);
     return text;
@@ -153,6 +157,7 @@ export class TitleScene extends Phaser.Scene {
 
   private draw(): void {
     this.layer.removeAll(true);
+    this.buttons = [];
     this.layer.add(
       this.add
         .text(CENTER_X, 34, 'Bonsai Greenhouse', { ...TEXT, fontSize: '20px', color: '#ffffff' })
@@ -166,13 +171,13 @@ export class TitleScene extends Phaser.Scene {
     const view = this.view;
     if (view.kind === 'menu') {
       const anySave = this.rows.some((r) => r.status !== 'empty');
-      this.button(CENTER_X, 110, 'New Game (Enter)', true, () => {
+      this.button('new', CENTER_X, 110, 'New Game (Enter)', true, () => {
         this.newGame();
       });
-      this.button(CENTER_X, 136, 'Continue (C)', this.continueSlot > 0, () => {
+      this.button('continue', CENTER_X, 136, 'Continue (C)', this.continueSlot > 0, () => {
         this.continueGame();
       });
-      this.button(CENTER_X, 162, 'Load Game (L)', anySave, () => {
+      this.button('load', CENTER_X, 162, 'Load Game (L)', anySave, () => {
         this.openPicker('load');
       });
     } else if (view.kind === 'picker') {
@@ -189,6 +194,7 @@ export class TitleScene extends Phaser.Scene {
         const action =
           view.mode === 'new' ? (row.status === 'empty' ? 'Use' : 'Overwrite') : 'Load';
         this.button(
+          `slot-${String(row.slot)}`,
           CENTER_X,
           112 + i * 24,
           `${String(row.slot)}: ${slotRowText(row)}  [${action}]`,
@@ -198,7 +204,7 @@ export class TitleScene extends Phaser.Scene {
           },
         ).setFontSize(10);
       });
-      this.button(CENTER_X, 200, 'Cancel (Esc)', true, () => {
+      this.button('cancel', CENTER_X, 200, 'Cancel (Esc)', true, () => {
         this.show({ kind: 'menu' });
       });
     } else {
@@ -209,10 +215,10 @@ export class TitleScene extends Phaser.Scene {
       this.label(CENTER_X, 96, `Slot ${String(view.slot)} already has a save:`, '#ffffff');
       if (row) this.label(CENTER_X, 116, slotRowText(row), '#dcc878');
       this.label(CENTER_X, 140, 'Overwriting starts a new game and erases this save.', '#dca0a0');
-      this.button(CENTER_X - 60, 190, 'Cancel (N)', true, () => {
+      this.button('confirm-no', CENTER_X - 60, 190, 'Cancel (N)', true, () => {
         this.show({ kind: 'picker', mode: 'new' });
       });
-      this.button(CENTER_X + 60, 190, 'Overwrite (Y)', true, () => {
+      this.button('confirm-yes', CENTER_X + 60, 190, 'Overwrite (Y)', true, () => {
         this.startGame(view.slot, createNewGameState());
       });
     }
@@ -229,6 +235,10 @@ export class TitleScene extends Phaser.Scene {
       activeSlot: 0,
       slots: occupiedSlots(this.rows),
       toast: this.message,
+      controls: this.buttons.map(({ id, text }) => {
+        const c = text.getCenter();
+        return { id, x: c.x, y: c.y };
+      }),
       picker:
         this.view.kind === 'menu' ? '' : this.view.kind === 'confirm' ? 'confirm' : this.view.mode,
     };
