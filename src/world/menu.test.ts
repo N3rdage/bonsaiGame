@@ -21,10 +21,11 @@ const panelRight = MENU_PANEL.x + MENU_PANEL.w;
 const panelBottom = MENU_PANEL.y + MENU_PANEL.h;
 
 describe('world HUD menu layout', () => {
-  it('has Save, Load and Title, in that order', () => {
+  it('has Save, Load, Settings and Title, in that order', () => {
     expect(menuItems(false).map((i) => [i.id, i.label])).toEqual([
       ['save', 'Save (F5)'],
       ['load', 'Load (F9)'],
+      ['settings', 'Settings'],
       ['title', 'Title (Esc)'],
     ]);
   });
@@ -34,6 +35,7 @@ describe('world HUD menu layout', () => {
       ['putdown', 'Put down'],
       ['save', 'Save (F5)'],
       ['load', 'Load (F9)'],
+      ['settings', 'Settings'],
       ['title', 'Title (Esc)'],
     ]);
   });

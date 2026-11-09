@@ -80,6 +80,12 @@ export const pickSlot = (page: Page, n: number): Promise<void> =>
 export const confirmOverwrite = (page: Page, yes: boolean): Promise<void> =>
   phaser(page, yes ? 'y' : 'n', yes ? 'confirm-yes' : 'confirm-no');
 
+/** Opens the title's Settings panel: S, or its `Settings (S)` button on the tap route. */
+export async function openSettingsFromTitle(page: Page): Promise<void> {
+  await phaser(page, 's', 'settings');
+  await page.waitForFunction(() => window.__bonsai?.panel === 'settings');
+}
+
 /** Title, New Game, world. Each test has a fresh browser context, so no saves: New Game starts slot 1. */
 export async function bootWorld(page: Page, url = '/'): Promise<void> {
   await toTitle(page, url);
@@ -112,6 +118,13 @@ async function menuRow(page: Page, key: string, row: string): Promise<void> {
 export const saveGame = (page: Page): Promise<void> => menuRow(page, 'F5', 'menu-save');
 export const loadGame = (page: Page): Promise<void> => menuRow(page, 'F9', 'menu-load');
 export const backToTitle = (page: Page): Promise<void> => menuRow(page, 'Escape', 'menu-title');
+
+/** Opens the HUD menu and taps its Settings row (it has no key), on every project. */
+export async function openSettingsFromMenu(page: Page): Promise<void> {
+  await openMenu(page);
+  await tapControl(page, 'menu-settings');
+  await page.waitForFunction(() => window.__bonsai?.panel === 'settings');
+}
 
 /** Uses the prop in range: E, or the Interact button on the tap route. */
 export const interact = (page: Page): Promise<void> => phaser(page, 'e', 'interact');

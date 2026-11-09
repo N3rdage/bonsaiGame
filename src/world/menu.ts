@@ -1,6 +1,6 @@
 /**
  * Layout of the world HUD: the badge, the View tree and Notebook buttons, the toast and the
- * Menu button with its panel (Put down while carrying, Save, Load, Title), the
+ * Menu button with its panel (Put down while carrying, Save, Load, Settings, Title), the
  * carry line, in logical px on the 480x270
  * canvas. Pure data; WorldScene draws it.
  */
@@ -18,7 +18,7 @@ export const INTERACT_BUTTON = { right: 474, bottom: 264 } as const;
 /** Left edge of the toast, to the right of the Menu button. */
 export const TOAST_X = 52;
 /** The open panel's rectangle (top-left and size), just under the Menu button. */
-export const MENU_PANEL = { x: 4, y: 16, w: 80, h: 70 } as const;
+export const MENU_PANEL = { x: 4, y: 16, w: 80, h: 86 } as const;
 /** Left inset of the row labels inside the panel. */
 export const MENU_ROW_INSET = 6;
 /** Vertical distance between row centres; each row's tap band is this tall. */
@@ -27,7 +27,7 @@ export const MENU_ROW_SPACING = 16;
 /** Top-right anchor of the `Carrying: <label>` line under the badge (text origin 1, 0). */
 export const CARRY_TEXT = { right: 472, top: 14 } as const;
 
-export type MenuItemId = 'putdown' | 'save' | 'load' | 'title';
+export type MenuItemId = 'putdown' | 'save' | 'load' | 'settings' | 'title';
 
 export interface MenuItem {
   readonly id: MenuItemId;
@@ -41,6 +41,7 @@ export interface MenuItem {
 const ITEMS: readonly { id: MenuItemId; label: string }[] = [
   { id: 'save', label: 'Save (F5)' },
   { id: 'load', label: 'Load (F9)' },
+  { id: 'settings', label: 'Settings' },
   { id: 'title', label: 'Title (Esc)' },
 ];
 

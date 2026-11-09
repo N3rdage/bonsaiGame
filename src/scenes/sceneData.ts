@@ -1,3 +1,4 @@
+import type { Settings, SettingsStorage } from '../platform/settings';
 import type { SaveStorage } from '../sim/save';
 import type { Season } from '../sim/seasons';
 import type { BonsaiTree, GameState } from '../sim/types';
@@ -12,10 +13,13 @@ export interface ViewerOverrides {
   readonly timeScale: number | undefined;
 }
 
-/** What every scene after boot carries: the one save storage and the viewer overrides. */
+/** What every scene after boot carries: the one save storage, the settings and the viewer overrides. */
 export interface SharedSceneData {
   readonly storage: SaveStorage;
   readonly overrides: ViewerOverrides;
+  /** Loaded once at boot; the one object every scene reads and the Settings panel mutates. */
+  readonly settings: Settings;
+  readonly settingsStorage: SettingsStorage;
 }
 
 export type TitleSceneData = SharedSceneData;

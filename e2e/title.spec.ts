@@ -200,7 +200,7 @@ test.describe('title', () => {
   test('tapping New Game starts the world', async ({ page }) => {
     const errors = collectErrors(page);
     await toTitle(page);
-    expect((await hook(page)).controls.map((c) => c.id)).toEqual(['new']);
+    expect((await hook(page)).controls.map((c) => c.id)).toEqual(['new', 'settings']);
     await tapControl(page, 'new');
     await page.waitForFunction(() => window.__bonsai?.scene === 'world');
     expect((await hook(page)).activeSlot).toBe(1);
