@@ -481,7 +481,7 @@ export class TreeViewer {
           this.state.day,
         );
         this.layoutHotspots(this.tree, model);
-        this.toolbar.render(model);
+        this.toolbar.render(model, window.innerWidth);
         const modalOpen = this.pendingWireRemoval >= 0;
         this.hotspotLayer.inert = modalOpen;
         this.toolbar.setInert(modalOpen);

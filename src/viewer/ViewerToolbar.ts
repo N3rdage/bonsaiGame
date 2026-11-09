@@ -1,6 +1,8 @@
 import type { ViewerMode } from './hotspots';
 import {
   EXIT_LABEL,
+  px,
+  subRowSeparator,
   toolbarCssVars,
   type SubRowGroup,
   type ToolbarModel,
@@ -50,9 +52,11 @@ export class ViewerToolbar {
     parent.append(this.bar, this.help);
   }
 
-  render(model: ToolbarModel): void {
+  /** Draws `model` for a viewport `viewportWidth` CSS px wide. */
+  render(model: ToolbarModel, viewportWidth: number): void {
     this.bar.classList.add('open');
     this.help.classList.add('open');
+    this.bar.style.setProperty('--tb-subrow-separator', px(subRowSeparator(viewportWidth)));
     const key = JSON.stringify(model);
     if (key === this.drawn) return;
     this.drawn = key;
@@ -71,8 +75,7 @@ export class ViewerToolbar {
     const top = div(
       'toolbar-row',
       div('info', div('', name), div('', stats)),
-      div('modes', ...modes),
-      exit,
+      div('modes', ...modes, exit),
     );
     const rows: HTMLDivElement[] = [top];
     if (model.subRow.length > 0) {
