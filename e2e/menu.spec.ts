@@ -16,6 +16,8 @@ import {
 // The menu by tap is what these tests test, so it is tapped on every project.
 
 const ids = (h: BonsaiTestHook): string[] => h.controls.map((c) => c.id);
+/** The room's controls on a new game: the HUD buttons and the tutorial's Skip. */
+const HUD = ['view', 'notebook', 'menu', 'tutorial-skip'];
 
 async function saveByMenu(page: Page): Promise<void> {
   await openMenu(page);
@@ -27,16 +29,16 @@ test.describe('world menu', () => {
   test('opens the panel and saves by tap', async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
-    expect(ids(await hook(page))).toEqual(['view', 'menu']);
+    expect(ids(await hook(page))).toEqual(HUD);
     await openMenu(page);
-    expect(ids(await hook(page))).toEqual(['view', 'menu', 'menu-save', 'menu-load', 'menu-title']);
+    expect(ids(await hook(page))).toEqual([...HUD, 'menu-save', 'menu-load', 'menu-title']);
 
     await tapControl(page, 'menu-save');
     await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
     const h = await hook(page);
     expect(h.slots.map((s) => s.slot)).toEqual([1]);
     expect(h.panel).toBe('');
-    expect(ids(h)).toEqual(['view', 'menu']);
+    expect(ids(h)).toEqual(HUD);
     expect(errors).toEqual([]);
   });
 

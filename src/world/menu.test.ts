@@ -7,6 +7,7 @@ import {
   MENU_BUTTON,
   MENU_PANEL,
   MENU_ROW_SPACING,
+  NOTEBOOK_BUTTON,
   TOAST_X,
   VIEW_BUTTON,
   menuItems,
@@ -82,6 +83,15 @@ describe('world HUD menu layout', () => {
     expect(badgeLeft).toBeGreaterThan(panelRight);
     expect(badgeLeft).toBeGreaterThan(TOAST_X + 'Could not save to slot 3'.length * GLYPH_W);
     expect(VIEW_BUTTON.bottom - LINE_H).toBeGreaterThan(panelBottom);
+  });
+
+  it('puts the Notebook button beside View tree, clear of it and of Interact', () => {
+    const right = NOTEBOOK_BUTTON.left + 'Notebook (J)'.length * GLYPH_W;
+    expect(NOTEBOOK_BUTTON.bottom).toBe(VIEW_BUTTON.bottom);
+    expect(NOTEBOOK_BUTTON.left).toBeGreaterThan(
+      VIEW_BUTTON.left + 'View tree (V)'.length * GLYPH_W,
+    );
+    expect(right).toBeLessThan(INTERACT_BUTTON.right - 'Interact (E)'.length * GLYPH_W);
   });
 
   it('puts the Interact button bottom-right, clear of the View tree button and the badge', () => {

@@ -49,7 +49,7 @@ interface BonsaiTestHook {
   readonly toast: string;
   /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
   readonly picker: string;
-  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
+  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'notebook', 'tutorial-skip' (the Skip confirmation) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
   readonly panel: string;
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
@@ -65,6 +65,11 @@ interface BonsaiTestHook {
   readonly inventory: Readonly<Record<string, number>>;
   /** World: `state.tutorialStep` (0 Water, 1 Skip a week, ..., -1 done). Title: -1. */
   readonly tutorialStep: number;
+  /** World only: the step label the tutorial corner panel shows, '' while it is not shown (tutorial done, or under the viewer). */
+  readonly tutorialLabel?: string;
+  /** World only: the open notebook page's indicator ('Page 1 / 5'), title and badge ('done', 'in progress', 'not yet', '' on the finale); undefined while the notebook is closed. */
+  readonly notebook?:
+    { readonly indicator: string; readonly title: string; readonly badge: string } | undefined;
   /** World only: the tree whose inspector (panel 'tree:<id>') is open, or undefined. */
   readonly inspected:
     | {
@@ -94,7 +99,9 @@ interface BonsaiTestHook {
    * and 'panel-view', and its second row's 'panel-rename', 'panel-style', 'panel-sell' and 'panel-repot' (a greyed one is
    * not listed); the sub-panels' 'panel-soil', 'panel-repot-standard', 'panel-repot-fancy' (each only with a pot in stock),
    * 'panel-rename-save', 'panel-style-<key>', 'panel-style-none' and 'panel-sell'; 'panel-place' (an empty pedestal's
-   * panel while carrying) and 'menu-putdown' (the HUD menu while carrying).
+   * panel while carrying) and 'menu-putdown' (the HUD menu while carrying); 'notebook' (the HUD's Notebook (J)) and
+   * 'tutorial-skip' (the tutorial corner panel's Skip, with no modal open); the notebook's 'panel-prev' and 'panel-next'
+   * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'.
    */
   readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }

@@ -26,6 +26,7 @@ import {
   INTERACT_BUTTON,
   MENU_BUTTON,
   MENU_PANEL,
+  NOTEBOOK_BUTTON,
   TOAST_X,
   VIEW_BUTTON,
   menuItems,
@@ -76,6 +77,19 @@ import {
   stylePanel,
 } from '../world/treePanels';
 import { SHOP_KIOSK_KEY, shopItemFor, shopPanel } from '../world/shopPanel';
+import {
+  NOTEBOOK_KEY,
+  notebookHeader,
+  notebookOpeningPage,
+  notebookPanel,
+} from '../world/notebook';
+import {
+  TUTORIAL_HEADING_COLOR,
+  skipConfirmPanel,
+  tutorialPanel,
+  type TutorialPanelModel,
+} from '../world/tutorialPanel';
+import { tutorialSkip, tutorialStepLabel } from '../sim/tutorial';
 import { crispText, fitCamera, sceneZoom } from './crisp';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 
@@ -103,6 +117,8 @@ interface OpenPanel {
   /** Removes what the panel put outside Phaser (the rename input). */
   readonly dispose?: () => void;
 }
+
+type HudPart = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Visible;
 
 /** Text colours of the inspector's lines and enabled buttons. */
 const INSPECTOR_TEXT = '#ffffff';
@@ -145,6 +161,12 @@ const BAR_H = 6;
  *
  * The day clock (src/world/clock.ts) runs from the frame loop while the viewer
  * is closed; `?timeScale=` speeds it up.
+ *
+ * While the tutorial runs, its corner panel (src/world/tutorialPanel.ts) sits
+ * in the HUD under the badge, redrawn on any publish after the step or the
+ * modal state changed it; its Skip opens a confirmation. J or `Notebook (J)`
+ * opens Granny's notebook (src/world/notebook.ts), whose Prev and Next reopen
+ * it on the new page.
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
@@ -169,6 +191,13 @@ export class WorldScene extends Phaser.Scene {
   private playerRect!: Phaser.GameObjects.Rectangle;
   private hud!: Phaser.GameObjects.Text;
   private viewButton!: Phaser.GameObjects.Text;
+  private notebookButton!: Phaser.GameObjects.Text;
+  /** The tutorial corner panel's parts, the model they show (JSON, '' for none) and its Skip while enabled. */
+  private tutorialParts: HudPart[] = [];
+  private tutorialDrawn = '';
+  private tutorialSkipButton: Phaser.GameObjects.Text | undefined;
+  /** The notebook page shown while it is open; scene state, never saved. */
+  private notebookPage = 0;
   private menuButton!: Phaser.GameObjects.Text;
   private interactButton!: Phaser.GameObjects.Text;
   private promptText!: Phaser.GameObjects.Text;
@@ -209,6 +238,9 @@ export class WorldScene extends Phaser.Scene {
     this.room = SHED_ROOM;
     this.roomParts = [];
     this.plants.clear();
+    this.tutorialParts = [];
+    this.tutorialDrawn = '';
+    this.tutorialSkipButton = undefined;
     fitCamera(this, this.publishHook);
 
     this.drawRoom();
@@ -237,6 +269,14 @@ export class WorldScene extends Phaser.Scene {
     this.viewButton = this.hudButton(VIEW_BUTTON.left, VIEW_BUTTON.bottom, 'View tree (V)', () => {
       this.openViewer();
     }).setOrigin(0, 1);
+    this.notebookButton = this.hudButton(
+      NOTEBOOK_BUTTON.left,
+      NOTEBOOK_BUTTON.bottom,
+      'Notebook (J)',
+      () => {
+        this.toggleNotebook();
+      },
+    ).setOrigin(0, 1);
     this.menuButton = this.hudButton(MENU_BUTTON.left, MENU_BUTTON.top, 'Menu', () => {
       if (this.panel?.modal) return;
       if (this.panel) this.closePanel();
@@ -279,6 +319,9 @@ export class WorldScene extends Phaser.Scene {
     });
     onKeyDown(keyboard, 'E', () => {
       this.interact();
+    });
+    onKeyDown(keyboard, 'J', () => {
+      this.toggleNotebook();
     });
     (['ONE', 'TWO', 'THREE'] as const).forEach((name, i) => {
       onKeyDown(keyboard, name, () => {
@@ -512,6 +555,72 @@ export class WorldScene extends Phaser.Scene {
       this.hud.setText(hudText(state));
       this.openShop();
     });
+  }
+
+  /** obj_game_controller Step_0's J: closes the notebook if open, else opens it unless another modal is up. */
+  private toggleNotebook(): void {
+    if (this.panel?.key === NOTEBOOK_KEY) this.closePanel();
+    else if (this.roomKeysLive()) this.openNotebook();
+  }
+
+  /** obj_ui_notebook on `page`, the active step's by default; Prev and Next reopen it on their page. */
+  private openNotebook(page = notebookOpeningPage(this.ctx.state.tutorialStep)): void {
+    const model = notebookPanel(this.ctx.state, page);
+    this.notebookPage = page;
+    this.openPanel(model, (i) => {
+      this.openNotebook(model.rows[i]?.id === 'panel-prev' ? page - 1 : page + 1);
+    });
+  }
+
+  /** obj_ui_tutorial_skip_confirm: Skip ends the tutorial, Cancel keeps it; both close. */
+  private openSkipConfirm(): void {
+    const model = skipConfirmPanel();
+    this.openPanel(model, (i) => {
+      if (model.rows[i]?.id === 'panel-skip') tutorialSkip(this.ctx.state);
+      this.closePanel();
+    });
+  }
+
+  /**
+   * The corner panel for the current step and modal state, redrawn only when
+   * its model changed (gone once the tutorial is done); hidden under the viewer.
+   */
+  private drawTutorial(): void {
+    const model = tutorialPanel(this.ctx.state.tutorialStep, this.panel?.modal === true);
+    const drawn = model ? JSON.stringify(model) : '';
+    if (drawn !== this.tutorialDrawn) {
+      for (const part of this.tutorialParts) part.destroy();
+      this.tutorialSkipButton = undefined;
+      this.tutorialParts = model ? this.tutorialPartsFor(model) : [];
+      this.tutorialDrawn = drawn;
+    }
+    for (const part of this.tutorialParts) part.setVisible(!this.viewer.isOpen);
+  }
+
+  /** The box (interactive, so a press on it starts no joystick), the texts and Skip, greyed while disabled. */
+  private tutorialPartsFor(m: TutorialPanelModel): HudPart[] {
+    const { x, y, w, h } = m.box;
+    const bg = this.add
+      .rectangle(x, y, w, h, 0x1c221a, 0.85)
+      .setOrigin(0)
+      .setStrokeStyle(1, Phaser.Display.Color.HexStringToColor(TUTORIAL_HEADING_COLOR).color)
+      .setInteractive();
+    const texts = m.texts.map((t) =>
+      this.text(t.x, t.y, t.text, { ...LABEL_STYLE, color: t.color }),
+    );
+    const skip = m.skip.enabled
+      ? this.hudButton(m.skip.x, m.skip.y, 'Skip', () => {
+          this.openSkipConfirm();
+        })
+      : this.text(m.skip.x, m.skip.y, 'Skip', {
+          ...LABEL_STYLE,
+          fontSize: '10px',
+          color: PANEL_DISABLED_COLOR,
+        });
+    if (m.skip.enabled) this.tutorialSkipButton = skip;
+    const parts = [bg, ...texts, skip.setOrigin(1, 0)];
+    for (const part of parts) part.setDepth(HUD_DEPTH);
+    return parts;
   }
 
   /** obj_ui_tree_style_picker, one tap per pick. */
@@ -886,6 +995,7 @@ export class WorldScene extends Phaser.Scene {
     this.hud.setVisible(!viewerOpen);
     this.carryText.setVisible(!viewerOpen);
     this.menuButton.setVisible(!viewerOpen && !modal);
+    this.notebookButton.setVisible(!viewerOpen && !modal);
     this.promptText.setVisible(showInteract);
     this.interactButton.setVisible(showInteract);
     if (viewerOpen) {
@@ -958,6 +1068,7 @@ export class WorldScene extends Phaser.Scene {
     this.hud.setVisible(false);
     this.carryText.setVisible(false);
     this.menuButton.setVisible(false);
+    this.notebookButton.setVisible(false);
     this.promptText.setVisible(false);
     this.interactButton.setVisible(false);
     this.publishHook();
@@ -973,19 +1084,34 @@ export class WorldScene extends Phaser.Scene {
     const rows = this.panel?.buttons.map((b) => at(b.id, b.text)) ?? [];
     if (this.panel?.modal) return rows;
     const interact = this.near ? [at('interact', this.interactButton)] : [];
-    return [at('view', this.viewButton), at('menu', this.menuButton), ...interact, ...rows];
+    const skip = this.tutorialSkipButton ? [at('tutorial-skip', this.tutorialSkipButton)] : [];
+    return [
+      at('view', this.viewButton),
+      at('notebook', this.notebookButton),
+      at('menu', this.menuButton),
+      ...interact,
+      ...skip,
+      ...rows,
+    ];
   }
 
   private readonly publishHook = (): void => {
     const { state, slot } = this.ctx;
     const carried = carriedTree(state);
     const inspected = this.panel?.tree;
+    this.drawTutorial();
     window.__bonsai = {
       ...this.base,
       season: seasonForDay(state.day),
       day: state.day,
       inventory: { ...state.inventory },
       tutorialStep: state.tutorialStep,
+      tutorialLabel:
+        this.tutorialParts.length > 0 && !this.viewer.isOpen
+          ? tutorialStepLabel(state.tutorialStep)
+          : '',
+      notebook:
+        this.panel?.key === NOTEBOOK_KEY ? notebookHeader(state, this.notebookPage) : undefined,
       inspected: inspected && {
         id: inspected.id,
         waterLevel: inspected.waterLevel,
