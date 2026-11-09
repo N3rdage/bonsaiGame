@@ -169,6 +169,27 @@ export async function openShop(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__bonsai?.panel === 'shop');
 }
 
+/** Opens Granny's notebook: J, or its `Notebook (J)` HUD button on the tap route. */
+export async function openNotebook(page: Page): Promise<void> {
+  await phaser(page, 'j', 'notebook');
+  await page.waitForFunction(() => window.__bonsai?.panel === 'notebook');
+}
+
+/** Taps the notebook's `< Prev` or `Next >` (no keys, as in the prototype) and waits for the page to change. */
+export async function turnNotebookPage(page: Page, id: 'panel-prev' | 'panel-next'): Promise<void> {
+  const before = (await hook(page)).notebook?.indicator;
+  await tapControl(page, id);
+  await page.waitForFunction((b) => window.__bonsai?.notebook?.indicator !== b, before);
+}
+
+/** Taps the tutorial corner panel's Skip, then the confirmation's Skip (`confirm`) or Cancel. */
+export async function skipTutorial(page: Page, confirm: boolean): Promise<void> {
+  await tapControl(page, 'tutorial-skip');
+  await page.waitForFunction(() => window.__bonsai?.panel === 'tutorial-skip');
+  await tapControl(page, confirm ? 'panel-skip' : 'panel-cancel');
+  await page.waitForFunction(() => window.__bonsai?.panel === '');
+}
+
 /** Types `name` into the Rename panel's DOM input and taps its Save row. */
 export async function fillRename(page: Page, name: string): Promise<void> {
   await page.fill('#rename-input', name);

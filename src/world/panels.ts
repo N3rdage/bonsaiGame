@@ -79,6 +79,24 @@ export function rows(items: readonly Omit<PanelRow, 'y'>[], box: PanelBox = PANE
   return items.map((item, i) => ({ ...item, y: rowY(box, i) }));
 }
 
+/**
+ * `text` broken at spaces into lines of at most `maxChars` characters (a
+ * longer word gets a line of its own), since a row is a single line.
+ */
+export function wrapLines(text: string, maxChars: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    if (line && line.length + 1 + word.length > maxChars) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  return line ? [...lines, line] : lines;
+}
+
 /** The stand-in for a prop whose own panel comes in a later slice. */
 export function placeholderPanel(prop: Prop): PanelModel {
   return {

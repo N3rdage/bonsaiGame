@@ -9,6 +9,7 @@ import {
   loadSlotsPanel,
   pedestalPanel,
   placeholderPanel,
+  wrapLines,
   type PanelModel,
 } from './panels';
 import { createNewGameState } from '../sim/state';
@@ -99,6 +100,18 @@ describe('world panels', () => {
       ['This pedestal is empty. Carry a tree here to display it.', ''],
     ]);
     expect(fits(carrying) && fits(empty)).toBe(true);
+  });
+});
+
+describe('wrapLines', () => {
+  it('breaks at spaces into lines no longer than the limit', () => {
+    expect(wrapLines('the quick brown fox jumps', 10)).toEqual(['the quick', 'brown fox', 'jumps']);
+    expect(wrapLines('short', 10)).toEqual(['short']);
+    expect(wrapLines('', 10)).toEqual([]);
+  });
+
+  it('gives a word longer than the limit a line of its own', () => {
+    expect(wrapLines('a extraordinarily b', 5)).toEqual(['a', 'extraordinarily', 'b']);
   });
 });
 
