@@ -17,6 +17,14 @@ async function canvasBox(page: Page): Promise<{ width: number; height: number }>
   return { width: box?.width ?? 0, height: box?.height ?? 0 };
 }
 
+/** The canvas backing in device px and the zoom the world's camera reports. */
+async function backing(page: Page): Promise<{ width: number; height: number; zoom: number }> {
+  return page.evaluate(() => {
+    const c = document.querySelector<HTMLCanvasElement>('#game canvas');
+    return { width: c?.width ?? 0, height: c?.height ?? 0, zoom: window.__bonsai?.zoom ?? 0 };
+  });
+}
+
 test.describe('orientation change', () => {
   test('refits the world canvas at 16:9 without a reload', async ({ page }) => {
     const errors = collectErrors(page);
@@ -24,12 +32,24 @@ test.describe('orientation change', () => {
     const portrait = await canvasBox(page);
     expect(portrait.width).toBeCloseTo(PORTRAIT.width, 0);
     expect(portrait.height).toBeCloseTo((PORTRAIT.width * 9) / 16, 0);
+    // The backing follows the device px of the fitted display (never below
+    // 480x270), the camera zoom with it: 1080x608 at 2.25 on the S22 Ultra.
+    const dpr = await page.evaluate(() => window.devicePixelRatio);
+    const expectBacking = async (view: { width: number; height: number }): Promise<void> => {
+      const scale = Math.max(1, Math.min((view.width * dpr) / 480, (view.height * dpr) / 270));
+      const width = Math.round(480 * scale);
+      const height = Math.round(270 * scale);
+      await expect.poll(() => backing(page)).toEqual({ width, height, zoom: width / 480 });
+    };
+    await expectBacking(PORTRAIT);
 
     await page.setViewportSize(LANDSCAPE);
     await expect.poll(async () => (await canvasBox(page)).height).toBeCloseTo(LANDSCAPE.height, 0);
     const landscape = await canvasBox(page);
     expect(landscape.width).toBeGreaterThanOrEqual(682);
     expect(landscape.width).toBeLessThanOrEqual(683);
+    // 1920x1080 at 4 on the S22 Ultra; the resize this sets off settles there.
+    await expectBacking(LANDSCAPE);
     expect(await page.evaluate(() => window.__bonsai?.scene)).toBe('world');
     expect(errors).toEqual([]);
   });
