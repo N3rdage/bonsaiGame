@@ -101,9 +101,10 @@
       #viewer-toolbar .mode.selected {
         outline: var(--tb-selected-width) solid var(--tb-selected);
       }
+      /* Exit sits in the mode group's flex flow, so on a narrow phone it wraps beside Prune. */
       #viewer-toolbar .exit {
         width: var(--tb-exit-width);
-        margin-top: var(--tb-button-offset);
+        margin-left: calc(var(--tb-exit-gap) - var(--tb-mode-gap));
       }
       #viewer-toolbar .sub-row {
         display: flex;
@@ -188,6 +189,10 @@
         white-space: nowrap;
         pointer-events: auto;
         cursor: pointer;
+      }
+      /* Where a branch and a trunk hotspot overlap (a short viewport), the branch takes the tap. */
+      #viewer-hotspots .hotspot[data-kind='branch'] {
+        z-index: 1;
       }
       #viewer-hotspots .hotspot:hover {
         width: var(--hotspot-size-hover);
