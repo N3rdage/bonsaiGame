@@ -1,10 +1,10 @@
 /**
  * The world's modal panels (obj_ui_panel and its children) as plain data: the
  * box, title, rows and Close button, in logical px on the 480x270 canvas.
- * Pure; WorldScene draws them and maps row ids to actions.
+ * Pure; WorldScene draws them and maps row ids to actions. A tree's panel is
+ * the inspector (inspector.ts).
  */
 
-import { getSpecies } from '../sim/species';
 import type { BonsaiTree } from '../sim/types';
 import { slotRowText, type SlotRow } from './saveSlots';
 import type { Prop } from './shedRoom';
@@ -32,7 +32,7 @@ export interface PanelRow {
 }
 
 export interface PanelModel {
-  /** The hook's `panel`: 'slots', 'tree:<id>', 'pedestal:<pedestalKey>' or 'placeholder:<propKey>'. */
+  /** The hook's `panel`: 'slots', 'pedestal:<pedestalKey>' or 'placeholder:<propKey>'. */
   readonly key: string;
   readonly title: string;
   readonly rows: readonly PanelRow[];
@@ -48,19 +48,6 @@ export function placeholderPanel(prop: Prop): PanelModel {
     key: `placeholder:${prop.key}`,
     title: prop.label,
     rows: rows([{ text: 'Coming in a later slice.', id: '' }]),
-  };
-}
-
-/** A tree on the floor or a pedestal: what it is, and `Pick up`. */
-export function treePanel(tree: BonsaiTree): PanelModel {
-  return {
-    key: `tree:${String(tree.id)}`,
-    title: treeLabel(tree),
-    rows: rows([
-      { text: `Species: ${getSpecies(tree.speciesKey).displayName}`, id: '' },
-      { text: `Height: ${tree.trunk.heightCm.toFixed(1)} cm`, id: '' },
-      { text: 'Pick up', id: 'panel-pickup' },
-    ]),
   };
 }
 

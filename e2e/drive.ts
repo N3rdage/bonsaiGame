@@ -148,11 +148,23 @@ export async function walkTo(
   await page.keyboard.up(horizontal);
 }
 
-/** Interacts with the tree in range (on the floor or a pedestal) and taps its panel's Pick up. */
-export async function pickUpTree(page: Page): Promise<void> {
+/** Interacts with the tree in range (on the floor or a pedestal) and waits for its inspector. */
+export async function openInspector(page: Page): Promise<void> {
   await interact(page);
   await page.waitForFunction(() => window.__bonsai?.panel.startsWith('tree:') === true);
-  await tapControl(page, 'panel-pickup');
+}
+
+/**
+ * Taps an inspector button ('water', 'fertilise', 'skip', 'pickup', 'view') on
+ * every project: panel buttons have no keyboard route.
+ */
+export const inspectorAction = (page: Page, id: string): Promise<void> =>
+  tapControl(page, `panel-${id}`);
+
+/** Opens the inspector of the tree in range and taps its Pick up. */
+export async function pickUpTree(page: Page): Promise<void> {
+  await openInspector(page);
+  await inspectorAction(page, 'pickup');
   await page.waitForFunction(() => window.__bonsai?.panel === '');
 }
 

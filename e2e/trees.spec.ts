@@ -56,7 +56,14 @@ test.describe('trees in the room', () => {
     await toFloorTree(page, 0);
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.panel === 'tree:0');
-    expect(ids(await hook(page))).toEqual(['panel-pickup', 'panel-close']);
+    expect(ids(await hook(page))).toEqual([
+      'panel-water',
+      'panel-fertilise',
+      'panel-skip',
+      'panel-pickup',
+      'panel-view',
+      'panel-close',
+    ]);
     await tapControl(page, 'panel-pickup');
     await page.waitForFunction(() => window.__bonsai?.panel === '');
     h = await hook(page);
