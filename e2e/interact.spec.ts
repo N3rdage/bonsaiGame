@@ -72,11 +72,11 @@ test.describe('interactables and panels', () => {
     await bootWorld(page);
     let h = await hook(page);
     expect(h.near).toBe('');
-    expect(ids(h)).toEqual(['view', 'menu']);
+    expect(ids(h)).toEqual(['view', 'notebook', 'menu', 'tutorial-skip']);
 
     await walkToWorkbench(page);
     h = await hook(page);
-    expect(ids(h)).toEqual(['view', 'menu', 'interact']);
+    expect(ids(h)).toEqual(['view', 'notebook', 'menu', 'interact', 'tutorial-skip']);
 
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.panel === 'placeholder:workbench');
@@ -93,7 +93,7 @@ test.describe('interactables and panels', () => {
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
     h = await hook(page);
-    expect(ids(h)).toEqual(['view', 'menu', 'interact']);
+    expect(ids(h)).toEqual(['view', 'notebook', 'menu', 'interact', 'tutorial-skip']);
     expect(errors).toEqual([]);
   });
 
