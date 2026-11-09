@@ -76,7 +76,23 @@
         gap: var(--tb-mode-gap);
         margin-top: var(--tb-button-offset);
       }
+      /* Zoom in, zoom out and reset: the touch way to what the wheel and R do. */
+      #viewer-camera {
+        position: fixed;
+        right: var(--tb-camera-right);
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 12;
+        display: none;
+        flex-direction: column;
+        gap: var(--tb-camera-gap);
+        font: 18px monospace;
+      }
+      #viewer-camera.open {
+        display: flex;
+      }
       #viewer-toolbar button,
+      #viewer-camera button,
       #viewer-modal button {
         box-sizing: border-box;
         padding: 0;
@@ -85,15 +101,21 @@
         cursor: pointer;
       }
       #viewer-toolbar .ui-button,
+      #viewer-camera .ui-button,
       #viewer-modal .ui-button {
         height: var(--tb-button-height);
         background: var(--tb-fill);
         color: var(--tb-text);
       }
       #viewer-toolbar .ui-button:hover,
+      #viewer-camera .ui-button:hover,
       #viewer-modal .ui-button:hover,
       #viewer-toolbar .ui-toggle.selected:hover {
         background: var(--tb-fill-hover);
+      }
+      #viewer-camera .ui-button {
+        width: var(--tb-camera-size);
+        height: var(--tb-camera-size);
       }
       #viewer-toolbar .mode {
         width: var(--tb-mode-width);

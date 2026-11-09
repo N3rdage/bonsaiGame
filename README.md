@@ -48,9 +48,9 @@ Every pull request runs the same checks in CI and deploys a preview to Azure Sta
 
 | Input | Action |
 |-------|--------|
-| Click and drag | Orbit camera |
-| Scroll wheel | Zoom |
-| R | Reset camera |
+| Drag (mouse or one finger) | Orbit camera |
+| Pinch, scroll wheel, or the + / − buttons | Zoom |
+| Reset button or R | Reset camera |
 | V / W / C / P | Switch to View / Wire / Clip / Prune mode |
 | Click on a coloured circle | Perform the current mode's action on that branch |
 

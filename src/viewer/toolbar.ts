@@ -37,6 +37,13 @@ export const EXIT_BUTTON_WIDTH = 100;
 export const EXIT_GAP = 16;
 /** Exit sits at `width - 120` and is 100 wide, so 20 px from the right edge. */
 export const EXIT_RIGHT = 20;
+/**
+ * The camera column (zoom in, zoom out, reset) at the right edge, vertically
+ * centred: square buttons as tall as the toolbar's, in line with Exit.
+ */
+export const CAMERA_BUTTON_SIZE = BUTTON_HEIGHT;
+export const CAMERA_BUTTON_GAP = 8;
+export const CAMERA_BUTTONS_RIGHT = EXIT_RIGHT;
 export const SELECTED_OUTLINE: Rgb = { r: 100, g: 140, b: 80 };
 export const SELECTED_OUTLINE_WIDTH = 2;
 
@@ -88,7 +95,16 @@ export const HELP_FROM_BOTTOM = 24;
 export const CAPTION_GAP = 4;
 
 export const EXIT_LABEL = 'Exit (Esc)';
-export const CAMERA_HELP = 'Drag to rotate  |  Scroll to zoom  |  R to reset camera';
+export const CAMERA_HELP = 'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R';
+
+export type CameraAction = 'in' | 'out' | 'reset';
+
+/** The camera column, top to bottom: label, accessible name and `data-camera` value. */
+export const CAMERA_BUTTONS: readonly (readonly [CameraAction, string, string])[] = [
+  ['in', '+', 'Zoom in'],
+  ['out', '−', 'Zoom out'],
+  ['reset', 'R', 'Reset camera'],
+];
 
 export interface ModeButton {
   mode: ViewerMode;
@@ -247,6 +263,9 @@ export function toolbarCssVars(): Record<string, string> {
     '--tb-exit-width': px(EXIT_BUTTON_WIDTH),
     '--tb-exit-gap': px(EXIT_GAP),
     '--tb-exit-right': px(EXIT_RIGHT),
+    '--tb-camera-size': px(CAMERA_BUTTON_SIZE),
+    '--tb-camera-gap': px(CAMERA_BUTTON_GAP),
+    '--tb-camera-right': px(CAMERA_BUTTONS_RIGHT),
     '--tb-selected': rgb(SELECTED_OUTLINE),
     '--tb-selected-width': px(SELECTED_OUTLINE_WIDTH),
     '--tb-fill': rgb(BUTTON_FILL),
