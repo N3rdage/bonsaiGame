@@ -1,13 +1,15 @@
 import Phaser from 'phaser';
 import { LocalStorageSaveStorage } from '../platform/localStorageSaveStorage';
+import { LocalStorageSettingsStorage } from '../platform/localStorageSettingsStorage';
+import { loadSettings } from '../platform/settings';
 import { SEASONS } from '../sim/seasons';
 import { VIEWER_FIXTURES, isViewerFixtureKey } from '../viewer/viewerFixtures';
 import { parseTimeScale } from '../world/clock';
 import type { TitleSceneData } from './sceneData';
 
 /**
- * Entry scene: creates the one save storage the game uses, reads the viewer's
- * test parameters and hands both to the title.
+ * Entry scene: creates the one save storage the game uses, loads the settings,
+ * reads the viewer's test parameters and hands them to the title.
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -26,8 +28,12 @@ export class BootScene extends Phaser.Scene {
     // `?timeScale=<n>` speeds the day clock up for the day-passing tests.
     const timeScale = parseTimeScale(params.get('timeScale'));
 
+    // Loaded only: a stored fullscreen is not re-applied, browsers refuse it outside a tap.
+    const settingsStorage = new LocalStorageSettingsStorage();
     const data: TitleSceneData = {
       storage: new LocalStorageSaveStorage(),
+      settings: loadSettings(settingsStorage),
+      settingsStorage,
       overrides: {
         tree: isViewerFixtureKey(fixtureKey) ? VIEWER_FIXTURES[fixtureKey] : undefined,
         season: SEASONS.find((s) => s === seasonParam),

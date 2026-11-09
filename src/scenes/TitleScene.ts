@@ -12,23 +12,31 @@ import {
   type PickerMode,
   type SlotRow,
 } from '../world/saveSlots';
+import { PANEL, PANEL_CLOSE_LABEL, PANEL_INSET, panelClose, panelTitleY } from '../world/panels';
+import { SETTINGS_KEY, settingsPanel } from '../world/settingsPanel';
 import { crispText, fitCamera, sceneZoom } from './crisp';
+import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { IDLE_HOOK, type TitleSceneData, type WorldSceneData } from './sceneData';
 
 const TEXT = { fontFamily: 'monospace', fontSize: '10px', color: '#d8e6c8' };
 const DISABLED = '#5f6b58';
 const CENTER_X = 240;
 
-/** Which panel is up: the menu, the slot picker, or the overwrite confirmation for a slot. */
+/** Which panel is up: the menu, the slot picker, the overwrite confirmation for a slot, or Settings. */
 type View =
-  { kind: 'menu' } | { kind: 'picker'; mode: PickerMode } | { kind: 'confirm'; slot: number };
+  | { kind: 'menu' }
+  | { kind: 'picker'; mode: PickerMode }
+  | { kind: 'confirm'; slot: number }
+  | { kind: 'settings' };
 
 /**
  * Title (obj_title): New Game, Continue and Load Game over src/sim/save.ts,
- * with the slot picker of obj_ui_save_slots. Placeholder-styled like the
- * world; the prototype's 3D hero tree, Settings and Quit are not ported yet.
- * Every button also has a key (Enter, C, L; 1-3 in the picker; Y/N to
- * confirm; Escape to back out) so tests drive it without canvas coordinates.
+ * with the slot picker of obj_ui_save_slots, and Settings
+ * (src/world/settingsPanel.ts). Placeholder-styled like the world; the
+ * prototype's 3D hero tree is not ported yet and its Quit is not ported (a web
+ * page has no quit). Every button also has a key (Enter, C, L, S; 1-3 in the
+ * picker; Y/N to confirm; Escape to back out) so tests drive it without canvas
+ * coordinates.
  */
 export class TitleScene extends Phaser.Scene {
   private ctx!: TitleSceneData;
@@ -65,6 +73,9 @@ export class TitleScene extends Phaser.Scene {
     onKeyDown(keyboard, 'L', () => {
       if (this.view.kind === 'menu') this.openPicker('load');
     });
+    onKeyDown(keyboard, 'S', () => {
+      if (this.view.kind === 'menu') this.show({ kind: 'settings' });
+    });
     (['ONE', 'TWO', 'THREE'] as const).forEach((name, i) => {
       onKeyDown(keyboard, name, () => {
         if (this.view.kind === 'picker') this.pickSlot(this.view.mode, i + 1);
@@ -77,8 +88,11 @@ export class TitleScene extends Phaser.Scene {
       if (this.view.kind === 'confirm') this.show({ kind: 'picker', mode: 'new' });
     });
     onKeyDown(keyboard, 'ESC', () => {
-      if (this.view.kind === 'picker') this.show({ kind: 'menu' });
+      if (this.view.kind === 'picker' || this.view.kind === 'settings') this.show({ kind: 'menu' });
       else if (this.view.kind === 'confirm') this.show({ kind: 'picker', mode: 'new' });
+    });
+    onFullscreenChange(this, () => {
+      if (this.view.kind === 'settings') this.draw();
     });
 
     this.draw();
@@ -199,6 +213,11 @@ export class TitleScene extends Phaser.Scene {
       this.button('load', CENTER_X, 162, 'Load Game (L)', anySave, () => {
         this.openPicker('load');
       });
+      this.button('settings', CENTER_X, 188, 'Settings (S)', true, () => {
+        this.show({ kind: 'settings' });
+      });
+    } else if (view.kind === 'settings') {
+      this.drawSettings();
     } else if (view.kind === 'picker') {
       this.layer.add(
         this.add.rectangle(CENTER_X, 150, 400, 150, 0x28322a).setStrokeStyle(1, 0x8ca078),
@@ -245,6 +264,36 @@ export class TitleScene extends Phaser.Scene {
     this.publishHook();
   }
 
+  /** The Settings panel model in its box, as the world draws it; a toggle applies, saves and redraws it. */
+  private drawSettings(): void {
+    const model = settingsPanel(this.ctx.settings, fullscreenState(this));
+    this.layer.add(
+      this.add
+        .rectangle(PANEL.x, PANEL.y, PANEL.w, PANEL.h, 0x28322a)
+        .setOrigin(0)
+        .setStrokeStyle(1, 0x8ca078),
+    );
+    const left = PANEL.x + PANEL_INSET;
+    this.layer.add(
+      this.text(left, panelTitleY(PANEL), model.title, { ...TEXT, color: '#ffffff' }).setOrigin(
+        0,
+        0.5,
+      ),
+    );
+    for (const row of model.rows) {
+      this.button(row.id, left, row.y, row.text, row.enabled !== false, () => {
+        toggleSetting(this, this.ctx, row.id);
+        this.draw();
+      })
+        .setFontSize(10)
+        .setOrigin(0, 0.5);
+    }
+    const close = panelClose(PANEL);
+    this.button('panel-close', close.x, close.y, PANEL_CLOSE_LABEL, true, () => {
+      this.show({ kind: 'menu' });
+    }).setFontSize(10);
+  }
+
   private publishHook(): void {
     window.__bonsai = {
       ...IDLE_HOOK,
@@ -259,8 +308,20 @@ export class TitleScene extends Phaser.Scene {
         const c = text.getCenter();
         return { id, x: c.x, y: c.y };
       }),
-      picker:
-        this.view.kind === 'menu' ? '' : this.view.kind === 'confirm' ? 'confirm' : this.view.mode,
+      picker: this.pickerHook(),
+      panel: this.view.kind === 'settings' ? SETTINGS_KEY : '',
+      settings: { ...this.ctx.settings },
     };
+  }
+
+  private pickerHook(): string {
+    switch (this.view.kind) {
+      case 'picker':
+        return this.view.mode;
+      case 'confirm':
+        return 'confirm';
+      default:
+        return '';
+    }
   }
 }

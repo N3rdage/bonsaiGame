@@ -49,8 +49,10 @@ interface BonsaiTestHook {
   readonly toast: string;
   /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
   readonly picker: string;
-  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'plant' (Plant a Cutting), 'notebook' or 'tutorial-skip' (the Skip confirmation); '' otherwise (always on the title). */
+  /** World: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'plant' (Plant a Cutting), 'notebook', 'tutorial-skip' (the Skip confirmation) or 'settings'; '' otherwise. Title: 'settings' while its Settings panel is up, else ''. */
   readonly panel: string;
+  /** Both scenes: the stored settings (the Fullscreen row itself shows the live state, which can differ). */
+  readonly settings: { readonly fullscreen: boolean; readonly weather: boolean };
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
   /** World only: label (name, or species display name) of the tree carried (location 'inventory'), or '' (always on the title). */
@@ -102,7 +104,9 @@ interface BonsaiTestHook {
    * panel while carrying) and 'menu-putdown' (the HUD menu while carrying); 'notebook' (the HUD's Notebook (J)) and
    * 'tutorial-skip' (the tutorial corner panel's Skip, with no modal open); the notebook's 'panel-prev' and 'panel-next'
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant a Cutting's
-   * 'panel-select-<species>' (unselected cuttings), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled).
+   * 'panel-select-<species>' (unselected cuttings), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
+   * 'menu-settings' (the HUD menu's Settings row), and the Settings panel's 'panel-fullscreen' (only where the browser offers
+   * fullscreen), 'panel-weather' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    */
   readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }
