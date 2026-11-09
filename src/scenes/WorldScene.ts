@@ -61,7 +61,11 @@ import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
 import { onKeyDown } from '../world/keys';
 import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../world/player';
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
-import { SHED_ROOM, type Prop } from '../world/shedRoom';
+import { createSourcePlant, takeCutting, type SourcePlantState } from '../sim/sourcePlant';
+import type { SpeciesKey } from '../sim/types';
+import { BASE_TIME_SCALE, tickClock } from '../world/clock';
+import { ROOMS } from '../world/gardenRoom';
+import { SHED_ROOM, type DoorTarget, type Prop, type Room } from '../world/shedRoom';
 import { treeSprites, treeTargets, treeLabel, type TreeTarget } from '../world/treeSprites';
 import {
   RENAME_INPUT,
@@ -109,8 +113,10 @@ const BAR_TRACK = 0x282828;
 const BAR_H = 6;
 
 /**
- * The shed with placeholder art: floor, walls and labelled prop rectangles,
- * and the player as a rectangle depth-sorted by y against the props. Room data,
+ * The rooms with placeholder art: floor, walls and labelled prop rectangles,
+ * and the player as a rectangle depth-sorted by y against the props. A new or
+ * loaded game starts in the shed; a door redraws the scene as its target room
+ * (src/world/gardenRoom.ts) with the player at its target spot. Room data,
  * movement and the HUD text come from the pure modules in src/world/; this
  * scene only reads input, draws and publishes the test hook.
  *
@@ -135,15 +141,22 @@ const BAR_H = 6;
  * scene's, and Rename, Set Style, Sell and Repot open their sub-panels
  * (src/world/treePanels.ts), which act through src/sim/. Pedestal panels place the carried tree and the menu puts it down,
  * all through the location helpers in src/sim/tree.ts.
+ *
+ * The day clock (src/world/clock.ts) runs from the frame loop while the viewer
+ * is closed; `?timeScale=` speeds it up.
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
   private viewTree: BonsaiTree | undefined;
   /** Hook fields read once from the state the world was started with (new or loaded). */
-  private base!: Pick<
-    BonsaiTestHook,
-    'version' | 'season' | 'day' | 'trees' | 'starterScore' | 'starterHeightCm'
-  >;
+  private base!: Pick<BonsaiTestHook, 'version' | 'trees' | 'starterScore' | 'starterHeightCm'>;
+  /** The room shown, and what its floor, walls and props were drawn as. */
+  private room: Room = SHED_ROOM;
+  private roomParts: Phaser.GameObjects.GameObject[] = [];
+  /** obj_source_plant's counters, per plant key for this visit to the room. */
+  private readonly plants = new Map<string, SourcePlantState>();
+  /** The day clock's accumulator in seconds (src/world/clock.ts); transient. */
+  private clockS = 0;
   private viewer!: TreeViewer;
   private slots: BonsaiTestHook['slots'] = [];
   private toast!: Phaser.GameObjects.Text;
@@ -180,8 +193,6 @@ export class WorldScene extends Phaser.Scene {
     const first = data.state.trees[0];
     this.base = {
       version: __APP_VERSION__,
-      season: seasonForDay(data.state.day),
-      day: data.state.day,
       trees: data.state.trees.length,
       starterScore: first ? scoreTree(first).total : -1,
       starterHeightCm: first ? first.trunk.heightCm : -1,
@@ -193,19 +204,14 @@ export class WorldScene extends Phaser.Scene {
     this.frames = 0;
     this.joystick = undefined;
     this.panel = undefined;
-    const room = SHED_ROOM;
+    this.clockS = 0;
+    this.room = SHED_ROOM;
+    this.roomParts = [];
+    this.plants.clear();
     fitCamera(this, this.publishHook);
 
-    this.add.rectangle(0, 0, room.width, room.height, room.floor).setOrigin(0).setDepth(-1);
-    for (const w of room.walls) {
-      this.add.rectangle(w.x, w.y, w.w, w.h, 0x5b4a36).setOrigin(0).setDepth(-1);
-    }
-    for (const p of room.props) {
-      const bottom = p.y + p.h / 2;
-      this.add.rectangle(p.x, p.y, p.w, p.h, 0x7a6248).setStrokeStyle(1, 0xb39a74).setDepth(bottom);
-      this.text(p.x, p.y, p.label, LABEL_STYLE).setOrigin(0.5).setDepth(bottom);
-    }
-    this.player = createPlayer(room);
+    this.drawRoom();
+    this.player = createPlayer(SHED_ROOM);
     this.playerRect = this.add.rectangle(0, 0, PLAYER_W, PLAYER_H, 0xc9d8a8).setOrigin(0.5, 1);
     this.promptText = this.text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
       .setOrigin(0.5, 1)
@@ -396,7 +402,7 @@ export class WorldScene extends Phaser.Scene {
       },
       putdown: () => {
         const tree = carriedTree(this.ctx.state);
-        if (tree) putDownTree(tree, SHED_ROOM.key);
+        if (tree) putDownTree(tree, this.room.key);
         this.closePanel();
         this.relocated();
       },
@@ -421,7 +427,7 @@ export class WorldScene extends Phaser.Scene {
     this.joystick = undefined;
     const box = model.box ?? PANEL;
     const dim = this.add
-      .rectangle(0, 0, SHED_ROOM.width, SHED_ROOM.height, 0x000000, 0.5)
+      .rectangle(0, 0, this.room.width, this.room.height, 0x000000, 0.5)
       .setOrigin(0)
       .setDepth(MODAL_DEPTH)
       .setInteractive();
@@ -526,8 +532,8 @@ export class WorldScene extends Phaser.Scene {
     input.style.fontFamily = 'monospace';
     const place = (): void => {
       const r = this.game.canvas.getBoundingClientRect();
-      const sx = r.width / SHED_ROOM.width;
-      const sy = r.height / SHED_ROOM.height;
+      const sx = r.width / this.room.width;
+      const sy = r.height / this.room.height;
       const box = RENAME_INPUT;
       input.style.left = `${String(r.left + box.x * sx)}px`;
       input.style.top = `${String(r.top + (box.y - box.h / 2) * sy)}px`;
@@ -578,7 +584,7 @@ export class WorldScene extends Phaser.Scene {
     const big = { ...LABEL_STYLE, fontSize: '10px', color: INSPECTOR_TEXT };
     const parts: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Depth)[] = [
       this.add
-        .rectangle(0, 0, SHED_ROOM.width, SHED_ROOM.height, 0x000000, 0.5)
+        .rectangle(0, 0, this.room.width, this.room.height, 0x000000, 0.5)
         .setOrigin(0)
         .setInteractive(),
       this.panelBox(box, MODAL_DEPTH),
@@ -686,20 +692,20 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * E or the Interact button: a floor tree or an occupied pedestal opens the
-   * tree's inspector, an empty pedestal the Display Pedestal panel, any other
-   * prop its placeholder.
+   * tree's inspector, an empty pedestal the Display Pedestal panel, a door
+   * leads to its room, a source plant gives a cutting, any other prop opens
+   * its placeholder.
    */
   private interact(): void {
     const near = this.near;
     if (!this.roomKeysLive() || !near) return;
     const { state } = this.ctx;
-    const pedestalKey = 'pedestalKey' in near ? near.pedestalKey : undefined;
-    const tree =
-      'tree' in near
-        ? near.tree
-        : pedestalKey === undefined
-          ? undefined
-          : treeOnPedestal(state, pedestalKey);
+    if ('tree' in near) {
+      this.openInspector(near.tree);
+      return;
+    }
+    const { pedestalKey, target, speciesKey } = near;
+    const tree = pedestalKey === undefined ? undefined : treeOnPedestal(state, pedestalKey);
     if (tree) {
       this.openInspector(tree);
     } else if (pedestalKey !== undefined) {
@@ -709,9 +715,54 @@ export class WorldScene extends Phaser.Scene {
         this.closePanel();
         this.relocated();
       });
-    } else if ('label' in near) {
+    } else if (target) {
+      this.enterRoom(target);
+    } else if (speciesKey) {
+      this.takeCutting(near.key, speciesKey);
+    } else {
       this.openPanel(placeholderPanel(near));
     }
+  }
+
+  /**
+   * obj_door: the player stands at the target spot of the target room, whose
+   * floor, walls, props and trees are drawn afresh. The source plants start a
+   * new visit, as the prototype's room instances were recreated on entry.
+   */
+  private enterRoom(target: DoorTarget): void {
+    this.room = ROOMS[target.room];
+    this.plants.clear();
+    this.joystick = undefined;
+    this.drawRoom();
+    this.player = { ...this.player, x: target.x, y: target.y };
+    this.relocated();
+  }
+
+  /** obj_source_plant: the cutting rule in src/sim/sourcePlant.ts, its message as a toast. */
+  private takeCutting(plantKey: string, speciesKey: SpeciesKey): void {
+    const plant = this.plants.get(plantKey) ?? createSourcePlant();
+    this.plants.set(plantKey, plant);
+    this.showToast(takeCutting(this.ctx.state, plant, speciesKey));
+  }
+
+  /** The room's floor, walls and labelled prop rectangles (source plants green), replacing the last room's. */
+  private drawRoom(): void {
+    for (const part of this.roomParts) part.destroy();
+    const room = this.room;
+    this.roomParts = [
+      this.add.rectangle(0, 0, room.width, room.height, room.floor).setOrigin(0).setDepth(-1),
+      ...room.walls.map((w) =>
+        this.add.rectangle(w.x, w.y, w.w, w.h, 0x5b4a36).setOrigin(0).setDepth(-1),
+      ),
+      ...room.props.flatMap((p) => {
+        const bottom = p.y + p.h / 2;
+        const [fill, stroke] = p.speciesKey ? [0x4f7a3c, 0x8fbf6a] : [0x7a6248, 0xb39a74];
+        return [
+          this.add.rectangle(p.x, p.y, p.w, p.h, fill).setStrokeStyle(1, stroke).setDepth(bottom),
+          this.text(p.x, p.y, p.label, LABEL_STYLE).setOrigin(0.5).setDepth(bottom),
+        ];
+      }),
+    ];
   }
 
   /** The inspector's Pick up: refused with a toast while another tree is carried. */
@@ -732,7 +783,7 @@ export class WorldScene extends Phaser.Scene {
   /** Placeholder obj_tree_sprite: a pot, a canopy circle scaled from trunk height, the label. */
   private drawTrees(): void {
     for (const part of this.treeParts) part.destroy();
-    const sprites = treeSprites(this.ctx.state, SHED_ROOM);
+    const sprites = treeSprites(this.ctx.state, this.room);
     this.treeParts = sprites.flatMap((s) => {
       const pot = s.size * 0.3;
       const r = s.size * 0.35;
@@ -742,7 +793,7 @@ export class WorldScene extends Phaser.Scene {
         this.text(s.x, s.y - s.size - 1, s.label, LABEL_STYLE).setOrigin(0.5, 1),
       ].map((part) => part.setDepth(s.depth));
     });
-    this.targets = [...SHED_ROOM.props, ...treeTargets(sprites)];
+    this.targets = [...this.room.props, ...treeTargets(sprites)];
     const carried = carriedTree(this.ctx.state);
     this.carryText.setText(carried ? `Carrying: ${treeLabel(carried)}` : '');
   }
@@ -828,18 +879,38 @@ export class WorldScene extends Phaser.Scene {
       return;
     }
 
+    this.runClock(delta);
     const { steps, accumulatorMs } = fixedSteps(this.accumulatorMs, delta);
     this.accumulatorMs = accumulatorMs;
     if (steps === 0) return;
     const input = this.joystick?.input ?? this.keyboardMove();
     for (let i = 0; i < steps; i += 1) {
       // obj_player_2d/Step_0: no movement while a UI panel is open.
-      if (!modal) this.player = stepPlayer(this.player, input, SHED_ROOM);
+      if (!modal) this.player = stepPlayer(this.player, input, this.room);
       this.frames += 1;
     }
     this.drawPlayer();
     this.hud.setText(hudText(this.ctx.state));
     this.publishHook();
+  }
+
+  /**
+   * The day clock (obj_game_controller Step_0), run while the viewer is closed,
+   * modal panels or not. A passing day regrows the sprites, refreshes an open
+   * inspector and the HUD, and toasts the display revenue it paid.
+   */
+  private runClock(deltaMs: number): void {
+    const { state, overrides } = this.ctx;
+    const timeScale = overrides.timeScale ?? BASE_TIME_SCALE;
+    const tick = tickClock(state, this.clockS, deltaMs / 1000, timeScale);
+    this.clockS = tick.accumulatorS;
+    if (tick.days === 0) return;
+    this.drawTrees();
+    this.drawPlayer();
+    if (this.panel?.tree) this.openInspector(this.panel.tree);
+    this.hud.setText(hudText(state));
+    if (tick.revenue > 0) this.showToast(`Display revenue: +$${String(tick.revenue)}`);
+    else this.publishHook();
   }
 
   private keyboardMove(): MoveInput {
@@ -896,6 +967,8 @@ export class WorldScene extends Phaser.Scene {
     const inspected = this.panel?.tree;
     window.__bonsai = {
       ...this.base,
+      season: seasonForDay(state.day),
+      day: state.day,
       inventory: { ...state.inventory },
       tutorialStep: state.tutorialStep,
       inspected: inspected && {
@@ -934,7 +1007,7 @@ export class WorldScene extends Phaser.Scene {
       // simulation would see after the viewer has let go.
       paused: state.paused,
       viewer: this.viewer.snapshot(),
-      room: SHED_ROOM.key,
+      room: this.room.key,
       player: { x: this.player.x, y: this.player.y, facing: this.player.facing },
       hud: hudText(state),
       frames: this.frames,

@@ -2,12 +2,14 @@ import type { SaveStorage } from '../sim/save';
 import type { Season } from '../sim/seasons';
 import type { BonsaiTree, GameState } from '../sim/types';
 
-/** The viewer's test parameters (`?tree=`, `?season=`), read once by the boot scene. */
+/** The test parameters (`?tree=`, `?season=`, `?timeScale=`), read once by the boot scene. */
 export interface ViewerOverrides {
   /** Builds the fixture tree the viewer shows instead of the first tree. */
   readonly tree: (() => BonsaiTree) | undefined;
   /** Season the viewer draws instead of the game's. */
   readonly season: Season | undefined;
+  /** The day clock's `base_time_scale` instead of 1, so a test sees a day pass in seconds. */
+  readonly timeScale: number | undefined;
 }
 
 /** What every scene after boot carries: the one save storage and the viewer overrides. */
