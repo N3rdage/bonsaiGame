@@ -129,6 +129,19 @@ describe('inspector panel model', () => {
     ]);
   });
 
+  it('hides the low-vigor nudge while repotting is out of season or on cooldown', () => {
+    const { state, tree } = starter();
+    tree.vigor = 30;
+    state.day = 85; // winter: dormant, repot out of season
+    expect(texts(inspectorPanel(tree, state).notes)).toEqual([
+      'Dormant - Winter operations limited',
+      'Repot: requires spring',
+    ]);
+    state.day = 120; // spring, year 2, 20 days after a repot
+    tree.lastRepotDay = 100;
+    expect(texts(inspectorPanel(tree, state).notes)).toEqual(['Repot: cooldown - wait 40d']);
+  });
+
   it('greys Fertilise in dormancy and without fertiliser, Skip below its cost', () => {
     const { state, tree } = starter();
     state.day = 85;
@@ -156,8 +169,10 @@ describe('inspector layout', () => {
     inspectorPanel(starter().tree, starter().state),
     inspectorPanel(day730().tree, day730().state),
   ];
+  // Winter with low vigor: the two notes that can show together, never a third.
   const winter = starter();
   winter.state.day = 85;
+  winter.tree.vigor = 30;
   models.push(inspectorPanel(winter.tree, winter.state));
 
   it('centres a box larger than the 400x150 panel inside 480x270', () => {

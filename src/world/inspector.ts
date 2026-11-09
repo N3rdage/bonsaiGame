@@ -101,7 +101,7 @@ export interface InspectorModel {
   readonly key: string;
   readonly title: string;
   readonly stats: readonly InspectorText[];
-  /** Why a button is greyed, drawn in NOTE_COLOR. */
+  /** The prototype's status notes (dormancy, repot season or cooldown, low vigor), drawn in NOTE_COLOR; at most NOTE_ROWS. */
   readonly notes: readonly InspectorText[];
   readonly score: InspectorText;
   readonly breakdown: readonly { readonly label: InspectorText; readonly value: InspectorText }[];
