@@ -10,18 +10,41 @@ import { slotRowText, type SlotRow } from './saveSlots';
 import type { Prop } from './shedRoom';
 import { treeLabel } from './treeSprites';
 
+/** A panel's box in logical px and the pitch of its rows. */
+export interface PanelBox {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+  readonly rowSpacing: number;
+}
+
 /** The box, centred on the canvas (obj_ui_panel auto-centres); wide enough for a full slot row. */
-export const PANEL = { x: 40, y: 60, w: 400, h: 150 } as const;
+export const PANEL = { x: 40, y: 60, w: 400, h: 150, rowSpacing: 22 } as const;
+/** The taller box, also centred, for the repot, sell and style panels' longer lists. */
+export const TALL_PANEL = { x: 40, y: 10, w: 400, h: 250, rowSpacing: 20 } as const;
 /** Left inset of the title and the rows (text origin 0, 0.5). */
 export const PANEL_INSET = 10;
-/** Vertical centre of the title. */
-export const PANEL_TITLE_Y = PANEL.y + 12;
-/** Vertical centre of the first row; each row's band is `PANEL_ROW_SPACING` tall. */
-export const PANEL_ROW_TOP = PANEL.y + 36;
-export const PANEL_ROW_SPACING = 22;
+/** Vertical centre of PANEL's title. */
+export const PANEL_TITLE_Y = panelTitleY(PANEL);
+/** Each row's band in PANEL; the first row's centre is 36 px below the top. */
+export const PANEL_ROW_SPACING = PANEL.rowSpacing;
 /** Centre of the `Close (Esc)` button (text origin 0.5). */
-export const PANEL_CLOSE = { x: PANEL.x + PANEL.w / 2, y: PANEL.y + PANEL.h - 16 } as const;
+export const PANEL_CLOSE = panelClose(PANEL);
 export const PANEL_CLOSE_LABEL = 'Close (Esc)';
+/** Plain rows' text colour, and a greyed button's. */
+export const PANEL_TEXT_COLOR = '#a0b496';
+export const PANEL_DISABLED_COLOR = '#6e7a68';
+
+/** Vertical centre of `box`'s title. */
+export function panelTitleY(box: PanelBox): number {
+  return box.y + 12;
+}
+
+/** Centre of `box`'s `Close (Esc)` button. */
+export function panelClose(box: PanelBox): { readonly x: number; readonly y: number } {
+  return { x: box.x + box.w / 2, y: box.y + box.h - 16 };
+}
 
 export interface PanelRow {
   readonly text: string;
@@ -29,17 +52,24 @@ export interface PanelRow {
   readonly id: string;
   /** Vertical centre. */
   readonly y: number;
+  /** False for a greyed button: drawn in PANEL_DISABLED_COLOR and not a control. */
+  readonly enabled?: boolean;
+  /** Text colour overriding the default. */
+  readonly color?: string;
 }
 
 export interface PanelModel {
-  /** The hook's `panel`: 'slots', 'pedestal:<pedestalKey>' or 'placeholder:<propKey>'. */
+  /** The hook's `panel`: 'slots', 'pedestal:<pedestalKey>', 'placeholder:<propKey>' or a tree's sub-panel ('repot:<id>', ...). */
   readonly key: string;
   readonly title: string;
   readonly rows: readonly PanelRow[];
+  /** The box the rows are laid out in; PANEL when absent. */
+  readonly box?: PanelBox;
 }
 
-function rows(items: readonly { text: string; id: string }[]): PanelRow[] {
-  return items.map((item, i) => ({ ...item, y: PANEL_ROW_TOP + i * PANEL_ROW_SPACING }));
+/** Lays `items` out as rows of `box`, one `rowSpacing` apart from 36 px below its top. */
+export function rows(items: readonly Omit<PanelRow, 'y'>[], box: PanelBox = PANEL): PanelRow[] {
+  return items.map((item, i) => ({ ...item, y: box.y + 36 + i * box.rowSpacing }));
 }
 
 /** The stand-in for a prop whose own panel comes in a later slice. */

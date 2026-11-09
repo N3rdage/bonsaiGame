@@ -4,8 +4,10 @@ import { deserializeSave } from '../sim/save';
 import { createNewGameState } from '../sim/state';
 import { TUTORIAL_DONE, TUTORIAL_SKIP_WEEK, TUTORIAL_TRAIN, TUTORIAL_WATER } from '../sim/tutorial';
 import type { BonsaiTree, GameState } from '../sim/types';
+import { MAX_TREE_NAME_LENGTH } from '../sim/tree';
 import {
   GLYPH_W,
+  INSPECTOR_CLOSE_LABEL,
   INSPECTOR_INSET,
   INSPECTOR_LINE,
   INSPECTOR_PANEL,
@@ -38,6 +40,9 @@ function day730(): { state: GameState; tree: BonsaiTree } {
   return { state, tree };
 }
 
+const CARE = ['water', 'fertilise', 'skip', 'pickup', 'view'];
+/** The sub-panel buttons a tree whose repot is refused shows: Repot greyed. */
+const SUB = ['rename', 'style', 'sell'];
 const texts = (lines: readonly { text: string }[]): string[] => lines.map((l) => l.text);
 const enabled = (m: InspectorModel): string[] =>
   m.buttons.filter((b) => b.enabled).map((b) => b.id);
@@ -67,8 +72,12 @@ describe('inspector panel model', () => {
       'Skip 7d (4f)',
       'Pick up',
       'View in 3D',
+      'Rename',
+      'Set Style',
+      'Sell',
+      'Repot',
     ]);
-    expect(enabled(m)).toEqual(['water', 'fertilise', 'skip', 'pickup', 'view']);
+    expect(enabled(m)).toEqual([...CARE, ...SUB]);
     expect(m.footer.text).toBe('Fertilizer: 50  |  Wire: 10  |  Day: 0  |  $100');
   });
 
@@ -109,7 +118,7 @@ describe('inspector panel model', () => {
     expect(m.footer.text).toBe(
       `Fertilizer: 3  |  Wire: ${String(state.inventory.wire)}  |  Day: 730  |  $${String(state.money)}`,
     );
-    expect(enabled(m)).toEqual(['water', 'fertilise', 'pickup', 'view']);
+    expect(enabled(m)).toEqual(['water', 'fertilise', 'pickup', 'view', ...SUB]);
   });
 
   it('notes dormancy, cooldown and low vigor', () => {
@@ -145,12 +154,43 @@ describe('inspector panel model', () => {
   it('greys Fertilise in dormancy and without fertiliser, Skip below its cost', () => {
     const { state, tree } = starter();
     state.day = 85;
-    expect(enabled(inspectorPanel(tree, state))).toEqual(['water', 'skip', 'pickup', 'view']);
+    expect(enabled(inspectorPanel(tree, state))).toEqual([
+      'water',
+      'skip',
+      'pickup',
+      'view',
+      ...SUB,
+    ]);
     state.day = 0;
     state.inventory.fertilizer = 3;
-    expect(enabled(inspectorPanel(tree, state))).toEqual(['water', 'fertilise', 'pickup', 'view']);
+    expect(enabled(inspectorPanel(tree, state))).toEqual([
+      'water',
+      'fertilise',
+      'pickup',
+      'view',
+      ...SUB,
+    ]);
     state.inventory.fertilizer = 0;
-    expect(enabled(inspectorPanel(tree, state))).toEqual(['water', 'pickup', 'view']);
+    expect(enabled(inspectorPanel(tree, state))).toEqual(['water', 'pickup', 'view', ...SUB]);
+  });
+
+  it('offers Repot only in season, off cooldown and with a pot of either tier', () => {
+    const { state, tree } = starter();
+    const repot = (): boolean =>
+      inspectorPanel(tree, state).buttons.find((b) => b.id === 'repot')?.enabled ?? false;
+    expect(repot()).toBe(false); // day 0: cooldown
+    state.day = 85; // winter
+    expect(repot()).toBe(false);
+    state.day = 120; // spring, year 2
+    expect(state.inventory.pot).toBeGreaterThan(0);
+    expect(repot()).toBe(true);
+    state.inventory.pot = 0;
+    state.inventory.fancy_pot = 0;
+    expect(repot()).toBe(false);
+    state.inventory.fancy_pot = 1;
+    expect(repot()).toBe(true);
+    tree.lastRepotDay = 100; // 20 days ago
+    expect(repot()).toBe(false);
   });
 
   it('adds the fertilised days left to the footer', () => {
@@ -213,9 +253,18 @@ describe('inspector layout', () => {
       expect((m.bars[0]?.y ?? 0) - lowest).toBeGreaterThanOrEqual(INSPECTOR_LINE);
       const lower = [...m.bars.map((b) => b.y), ...m.breakdown.map((c) => c.label.y)];
       const button = m.buttons[0]?.y ?? 0;
+      const second = m.buttons.at(-1)?.y ?? 0;
       expect(button - Math.max(...lower)).toBeGreaterThanOrEqual(INSPECTOR_LINE);
-      expect(m.footer.y - button).toBeGreaterThanOrEqual(INSPECTOR_LINE);
+      expect(second - button).toBeGreaterThanOrEqual(INSPECTOR_LINE);
+      expect(m.footer.y - second).toBeGreaterThanOrEqual(INSPECTOR_LINE);
+      expect(m.footer.y + INSPECTOR_LINE / 2).toBeLessThanOrEqual(y + h);
     }
+  });
+
+  it('fits a 20-character name and the close hint in the title bar', () => {
+    const title = MAX_TREE_NAME_LENGTH * GLYPH_W;
+    const hint = INSPECTOR_CLOSE_LABEL.length * GLYPH_W;
+    expect(title + GLYPH_W + hint).toBeLessThanOrEqual(w - 2 * INSPECTOR_INSET);
   });
 
   it('keeps the bars column clear of the score column', () => {
@@ -233,20 +282,23 @@ describe('inspector layout', () => {
     }
   });
 
-  it('spreads the five buttons across the box, left to right, the last inside the edge', () => {
+  it('spreads each row of buttons (five, then four) across the box, the last inside the edge', () => {
     for (const m of models) {
-      const b = m.buttons;
-      expect(b).toHaveLength(5);
-      for (let i = 1; i < b.length; i++) {
-        const prev = b[i - 1];
-        const cur = b[i];
-        if (!prev || !cur) throw new Error('buttons');
-        expect(cur.x).toBeGreaterThan(prev.x + prev.label.length * GLYPH_W);
+      const rowsOf = [m.buttons.slice(0, 5), m.buttons.slice(5)];
+      expect(rowsOf.map((r) => r.length)).toEqual([5, 4]);
+      for (const b of rowsOf) {
+        expect(new Set(b.map((button) => button.y)).size).toBe(1);
+        for (let i = 1; i < b.length; i++) {
+          const prev = b[i - 1];
+          const cur = b[i];
+          if (!prev || !cur) throw new Error('buttons');
+          expect(cur.x).toBeGreaterThan(prev.x + prev.label.length * GLYPH_W);
+        }
+        const last = b.at(-1);
+        if (!last) throw new Error('buttons');
+        expect(last.x + last.label.length * GLYPH_W).toBeLessThanOrEqual(x + w - INSPECTOR_INSET);
+        expect(b[0]?.x).toBe(x + INSPECTOR_INSET);
       }
-      const last = b.at(-1);
-      if (!last) throw new Error('buttons');
-      expect(last.x + last.label.length * GLYPH_W).toBeLessThanOrEqual(x + w - INSPECTOR_INSET);
-      expect(b[0]?.x).toBe(x + INSPECTOR_INSET);
     }
   });
 });

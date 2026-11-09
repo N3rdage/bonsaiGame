@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CARRIED,
   DISPLAYED_PREFIX,
+  MAX_TREE_NAME_LENGTH,
   addBranch,
   carriedTree,
   createTree,
@@ -13,6 +14,8 @@ import {
   pickUpTree,
   placeTree,
   putDownTree,
+  renameTree,
+  setTargetStyle,
   spawnTree,
   treeOnPedestal,
   treesInRoom,
@@ -216,5 +219,28 @@ describe('carrying, placing and putting down', () => {
     pickUpTree(state, shown);
     expect(putDownTree(shown, 'shed')).toBe(true);
     expect(shown.location).toBe('shed');
+  });
+});
+
+describe('renameTree and setTargetStyle', () => {
+  it('limits a name to 20 characters, as obj_ui_tree_rename', () => {
+    expect(MAX_TREE_NAME_LENGTH).toBe(20);
+    const t = createTree('juniper', 'seed', 0);
+    expect(renameTree(t, 'Kaede')).toBe('Kaede');
+    expect(t.name).toBe('Kaede');
+    expect(renameTree(t, 'A'.repeat(20))).toBe('A'.repeat(20));
+    expect(renameTree(t, 'abcdefghijklmnopqrstuvwxy')).toBe('abcdefghijklmnopqrst');
+    expect(t.name).toBe('abcdefghijklmnopqrst');
+    expect(renameTree(t, '')).toBe('');
+  });
+
+  it('sets and clears the target style without touching the revision', () => {
+    const t = createTree('juniper', 'cutting', 0);
+    const revision = t.revision;
+    setTargetStyle(t, 'cascade');
+    expect(t.targetStyle).toBe('cascade');
+    setTargetStyle(t, '');
+    expect(t.targetStyle).toBe('');
+    expect(t.revision).toBe(revision);
   });
 });

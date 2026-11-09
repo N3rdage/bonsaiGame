@@ -62,6 +62,9 @@ test.describe('trees in the room', () => {
       'panel-skip',
       'panel-pickup',
       'panel-view',
+      'panel-rename',
+      'panel-style',
+      'panel-sell',
       'panel-close',
     ]);
     await tapControl(page, 'panel-pickup');
