@@ -12,6 +12,10 @@ import {
   BUTTON_HEIGHT,
   BUTTON_TEXT,
   BUTTON_TOP,
+  CAMERA_BUTTONS,
+  CAMERA_BUTTONS_RIGHT,
+  CAMERA_BUTTON_GAP,
+  CAMERA_BUTTON_SIZE,
   CAMERA_HELP,
   CAPTION_GAP,
   DIR_TOGGLE_WIDTH,
@@ -105,7 +109,20 @@ describe('toolbar constants', () => {
   it('pins the help lines and caption offsets', () => {
     expect([HELP_WIRE_FROM_BOTTOM, HELP_FROM_BOTTOM]).toEqual([44, 24]);
     expect(CAPTION_GAP).toBe(4);
-    expect(CAMERA_HELP).toBe('Drag to rotate  |  Scroll to zoom  |  R to reset camera');
+    expect(CAMERA_HELP).toBe('Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R');
+  });
+
+  it('pins the camera column', () => {
+    expect([CAMERA_BUTTON_SIZE, CAMERA_BUTTON_GAP, CAMERA_BUTTONS_RIGHT]).toEqual([36, 8, 20]);
+    expect(CAMERA_BUTTON_SIZE).toBe(BUTTON_HEIGHT);
+    expect(CAMERA_BUTTONS_RIGHT).toBe(EXIT_RIGHT);
+    expect(CAMERA_BUTTONS).toEqual([
+      ['in', '+', 'Zoom in'],
+      ['out', '−', 'Zoom out'],
+      ['reset', 'R', 'Reset camera'],
+    ]);
+    // A true minus sign (U+2212), not a hyphen.
+    expect(CAMERA_BUTTONS[1]?.[1].codePointAt(0)).toBe(0x2212);
   });
 
   it('exposes the numbers as CSS custom properties', () => {
@@ -115,6 +132,9 @@ describe('toolbar constants', () => {
     expect(vars['--tb-button-height']).toBe('36px');
     expect(vars['--tb-button-offset']).toBe('2px');
     expect(vars['--tb-exit-width']).toBe('100px');
+    expect(vars['--tb-camera-size']).toBe('36px');
+    expect(vars['--tb-camera-gap']).toBe('8px');
+    expect(vars['--tb-camera-right']).toBe('20px');
     expect(vars['--tb-selected']).toBe('rgb(100, 140, 80)');
     expect(vars['--tb-fill']).toBe('rgb(80, 110, 70)');
     expect(vars['--tb-fill-hover']).toBe('rgb(120, 150, 100)');

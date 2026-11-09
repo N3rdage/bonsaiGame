@@ -7,6 +7,7 @@ import {
   FAR,
   FOV_DEGREES,
   NEAR,
+  PINCH_PX_PER_NOTCH,
   PITCH_LIMIT,
   RESET_DISTANCE,
   RESET_PITCH,
@@ -16,6 +17,7 @@ import {
   ZOOM_MIN,
   cameraEye,
   createOrbitCamera,
+  pinchZoom,
   resetCamera,
   rotateCamera,
   targetZForTree,
@@ -71,6 +73,46 @@ describe('orbit camera', () => {
     expect(zoomCamera(cam, -1).distance).toBeCloseTo(2.42);
     expect(zoomCamera(cam, 1000).distance).toBe(6.0);
     expect(zoomCamera(cam, -1000).distance).toBe(0.8);
+  });
+
+  it('pins the pinch scale at 20 px of finger distance per wheel notch', () => {
+    expect(PINCH_PX_PER_NOTCH).toBe(20);
+  });
+
+  it('pinches closer with fingers apart and away with fingers together', () => {
+    const cam = createOrbitCamera();
+    expect(pinchZoom(cam, 100, 200).distance).toBeLessThan(2.5);
+    expect(pinchZoom(cam, 200, 100).distance).toBeGreaterThan(2.5);
+    expect(pinchZoom(cam, 150, 150).distance).toBe(2.5);
+  });
+
+  it('moves one wheel step for one notch of finger distance, continuously', () => {
+    const cam = createOrbitCamera();
+    expect(pinchZoom(cam, 100, 100 + PINCH_PX_PER_NOTCH).distance).toBeCloseTo(2.42);
+    expect(pinchZoom(cam, 100 + PINCH_PX_PER_NOTCH, 100).distance).toBeCloseTo(2.58);
+    // Half a notch is half a step: not rounded.
+    expect(pinchZoom(cam, 100, 110).distance).toBeCloseTo(2.46);
+  });
+
+  it('clamps pinch zoom at both ends', () => {
+    const cam = createOrbitCamera();
+    expect(pinchZoom(cam, 10, 10_000).distance).toBe(ZOOM_MIN);
+    expect(pinchZoom(cam, 10_000, 10).distance).toBe(ZOOM_MAX);
+  });
+
+  it('never rotates or retargets during a pinch', () => {
+    const cam = { ...rotateCamera(createOrbitCamera(), 30, -12), target: { x: 1, y: 2, z: 3 } };
+    const pinched = pinchZoom(cam, 120, 300);
+    expect(pinched.yaw).toBe(cam.yaw);
+    expect(pinched.pitch).toBe(cam.pitch);
+    expect(pinched.target).toEqual({ x: 1, y: 2, z: 3 });
+    expect(cam.distance).toBe(2.5);
+  });
+
+  it('leaves the camera unchanged for a zero or negative start distance', () => {
+    const cam = createOrbitCamera();
+    expect(pinchZoom(cam, 0, 200)).toEqual(cam);
+    expect(pinchZoom(cam, -5, 200)).toEqual(cam);
   });
 
   it('resets yaw, pitch and distance but keeps the target', () => {
