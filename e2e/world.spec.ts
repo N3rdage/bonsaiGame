@@ -1,27 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
-
-function collectErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on('pageerror', (err) => errors.push(err.message));
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text());
-  });
-  return errors;
-}
-
-async function bootWorld(page: Page): Promise<void> {
-  await page.goto('/');
-  // Each test has a fresh browser context, so no saves: Enter starts a new game in slot 1.
-  await page.waitForFunction(() => window.__bonsai?.scene === 'title');
-  await page.keyboard.press('Enter');
-  await page.waitForFunction(() => window.__bonsai?.scene === 'world');
-}
-
-async function hook(page: Page): Promise<BonsaiTestHook> {
-  const h = await page.evaluate(() => window.__bonsai);
-  if (!h) throw new Error('hook missing');
-  return h;
-}
+import { bootWorld, closeViewer, collectErrors, expect, hook, openViewer, test } from './drive';
 
 // Pinned in src/world/world.test.ts: 2.5 prototype px per step, halved.
 const SPEED = 1.25;
@@ -39,6 +16,7 @@ test.describe('world', () => {
     expect(errors).toEqual([]);
   });
 
+  // Movement keys are keyboard-only by design; the pointer drag test covers touch.
   test('walks right at the pinned speed per step and faces right', async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
@@ -70,11 +48,11 @@ test.describe('world', () => {
   test('opens the viewer with V, pauses, and resumes on Escape', async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
-    await page.keyboard.press('v');
+    await openViewer(page);
     await page.waitForFunction(() => window.__bonsai?.viewer?.open === true);
     expect((await hook(page)).paused).toBe(true);
 
-    // The world ignores its keys while the viewer has them.
+    // The world ignores its movement keys while the viewer has them (a key test).
     const frames = (await hook(page)).frames;
     await page.keyboard.down('ArrowRight');
     // Ten animation frames: time for the world to have stepped if it were going to.
@@ -93,7 +71,7 @@ test.describe('world', () => {
     await page.keyboard.up('ArrowRight');
     expect((await hook(page)).frames).toBe(frames);
 
-    await page.keyboard.press('Escape');
+    await closeViewer(page);
     await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
     expect((await hook(page)).paused).toBe(false);
     // The world steps again afterwards.

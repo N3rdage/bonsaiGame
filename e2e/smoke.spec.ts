@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, startNewGame, test } from './drive';
 
 test.describe('boot', () => {
   test('loads, renders a canvas, and reports ready with no page errors', async ({ page }) => {
@@ -12,9 +12,9 @@ test.describe('boot', () => {
     await expect(page).toHaveTitle('Bonsai Greenhouse');
     await expect(page.locator('#game canvas')).toBeVisible();
 
-    // Boot hands over to the title; Enter starts a new game in the world.
+    // Boot hands over to the title; New Game starts a new game in the world.
     await page.waitForFunction(() => window.__bonsai?.scene === 'title');
-    await page.keyboard.press('Enter');
+    await startNewGame(page);
     await page.waitForFunction(() => window.__bonsai?.scene === 'world');
     const hook = await page.evaluate(() => window.__bonsai);
     expect(hook?.ready).toBe(true);

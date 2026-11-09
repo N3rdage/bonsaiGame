@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
+import type { RouteOptions } from './e2e/drive';
 
 // Samsung Galaxy S22 Ultra (SM-S908B) in Chrome at its default FHD+ display
 // mode: 1080 x 2316 device px at a scale factor of 2.8125, about 384 x 824 CSS
@@ -18,7 +19,7 @@ function s22Ultra(width: number, height: number) {
 
 // Runs against the production build so what is tested is what gets deployed.
 // `npm run build` must have run first (CI does; locally `npm run build && npm run test:e2e`).
-export default defineConfig({
+export default defineConfig<RouteOptions>({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -47,7 +48,8 @@ export default defineConfig({
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
-    { name: 's22-portrait', use: s22Ultra(384, 824) },
-    { name: 's22-landscape', use: s22Ultra(824, 384) },
+    // tapRoute: every action by touch through its control (e2e/drive.ts).
+    { name: 's22-portrait', use: { ...s22Ultra(384, 824), tapRoute: true } },
+    { name: 's22-landscape', use: { ...s22Ultra(824, 384), tapRoute: true } },
   ],
 });
