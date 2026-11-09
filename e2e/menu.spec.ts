@@ -95,6 +95,39 @@ test.describe('world menu', () => {
     expect(errors).toEqual([]);
   });
 
+  test('one Escape closes the panel even when Phaser replays its queue', async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await openMenu(page);
+    // Phaser keeps key events queued until the next frame and replays the queue
+    // on every new one. With an older event still queued, Escape's keyup within
+    // the same frame replays its keydown, which must not reach the title.
+    await page.evaluate(() => {
+      const send = (type: string, key: string, code: string, keyCode: number): void => {
+        const event = new KeyboardEvent(type, { key, code, bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'keyCode', { get: () => keyCode });
+        window.dispatchEvent(event);
+      };
+      send('keyup', 'e', 'KeyE', 69);
+      send('keydown', 'Escape', 'Escape', 27);
+      send('keyup', 'Escape', 'Escape', 27);
+    });
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        }),
+    );
+    const h = await hook(page);
+    expect(h.scene).toBe('world');
+    expect(h.panel).toBe('');
+    expect(errors).toEqual([]);
+  });
+
   test('a press on the panel neither closes it nor walks', async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);

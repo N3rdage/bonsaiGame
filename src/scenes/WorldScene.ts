@@ -58,6 +58,7 @@ import {
   type InspectorText,
 } from '../world/inspector';
 import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
+import { onKeyDown } from '../world/keys';
 import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../world/player';
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
 import { SHED_ROOM, type Prop } from '../world/shedRoom';
@@ -265,14 +266,15 @@ export class WorldScene extends Phaser.Scene {
     };
     // Keydown events, not polled keys: a quick tap can go down and up within
     // one frame. While the viewer is open V is its View mode, so it is ignored here.
-    keyboard.on('keydown-V', () => {
+    // Through onKeyDown, which ignores Phaser's replays of an already handled event.
+    onKeyDown(keyboard, 'V', () => {
       this.openViewer();
     });
-    keyboard.on('keydown-E', () => {
+    onKeyDown(keyboard, 'E', () => {
       this.interact();
     });
     (['ONE', 'TWO', 'THREE'] as const).forEach((name, i) => {
-      keyboard.on(`keydown-${name}`, () => {
+      onKeyDown(keyboard, name, () => {
         if (this.panel?.buttons.some((b) => b.id === `panel-slot-${String(i + 1)}`)) {
           this.pickPanelSlot(i + 1);
         }
@@ -280,16 +282,16 @@ export class WorldScene extends Phaser.Scene {
     });
     // Captured so the browser's own F5 (reload) never fires in the room.
     keyboard.addCapture([K.F5, K.F9]);
-    keyboard.on('keydown-F5', () => {
+    onKeyDown(keyboard, 'F5', () => {
       if (this.roomKeysLive()) this.save();
     });
-    keyboard.on('keydown-F9', () => {
+    onKeyDown(keyboard, 'F9', () => {
       if (this.roomKeysLive()) this.reload();
     });
     // Keyboard events reach Phaser after the viewer's own window listener, so
     // the Escape that closed the viewer is seen here with the viewer already
     // closed; its timestamp tells them apart.
-    keyboard.on('keydown-ESC', (event: KeyboardEvent) => {
+    onKeyDown(keyboard, 'ESC', (event) => {
       if (this.viewer.isOpen || event.timeStamp <= this.viewerClosedAt) return;
       if (this.panel) this.closePanel();
       else this.toTitle();
