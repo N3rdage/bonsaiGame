@@ -1,5 +1,5 @@
 /**
- * Layout of the world HUD: the badge, the View tree button, the toast and the
+ * Layout of the world HUD: the badge, the View tree and Notebook buttons, the toast and the
  * Menu button with its panel (Put down while carrying, Save, Load, Title), the
  * carry line, in logical px on the 480x270
  * canvas. Pure data; WorldScene draws it.
@@ -9,6 +9,8 @@
 export const HUD_BADGE = { right: 472, top: 2 } as const;
 /** Bottom-left anchor of the `View tree (V)` button (text origin 0, 1). */
 export const VIEW_BUTTON = { left: 6, bottom: 264 } as const;
+/** Bottom-left anchor of the `Notebook (J)` button, right of View tree (text origin 0, 1). */
+export const NOTEBOOK_BUTTON = { left: 96, bottom: 264 } as const;
 /** Top-left of the `Menu` button (text origin 0, 0), where the toast used to start. */
 export const MENU_BUTTON = { left: 6, top: 2 } as const;
 /** Bottom-right anchor of the `Interact (E)` button (text origin 1, 1), shown while a prop is in range. */
