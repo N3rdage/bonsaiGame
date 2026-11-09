@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { hudText } from './hud';
 import {
+  CARRY_TEXT,
   HUD_BADGE,
   INTERACT_BUTTON,
   MENU_BUTTON,
@@ -20,15 +21,24 @@ const panelBottom = MENU_PANEL.y + MENU_PANEL.h;
 
 describe('world HUD menu layout', () => {
   it('has Save, Load and Title, in that order', () => {
-    expect(menuItems().map((i) => [i.id, i.label])).toEqual([
+    expect(menuItems(false).map((i) => [i.id, i.label])).toEqual([
       ['save', 'Save (F5)'],
       ['load', 'Load (F9)'],
       ['title', 'Title (Esc)'],
     ]);
   });
 
-  it('puts every row inside the panel', () => {
-    for (const item of menuItems()) {
+  it('adds Put down first while a tree is carried', () => {
+    expect(menuItems(true).map((i) => [i.id, i.label])).toEqual([
+      ['putdown', 'Put down'],
+      ['save', 'Save (F5)'],
+      ['load', 'Load (F9)'],
+      ['title', 'Title (Esc)'],
+    ]);
+  });
+
+  it('puts every row inside the panel, with or without Put down', () => {
+    for (const item of [...menuItems(false), ...menuItems(true)]) {
       expect(item.x).toBeGreaterThan(MENU_PANEL.x);
       expect(item.x + item.label.length * GLYPH_W).toBeLessThanOrEqual(panelRight);
       expect(item.y - MENU_ROW_SPACING / 2).toBeGreaterThanOrEqual(MENU_PANEL.y);
@@ -37,11 +47,22 @@ describe('world HUD menu layout', () => {
   });
 
   it('keeps rows apart by more than a line of text', () => {
-    const ys = menuItems().map((i) => i.y);
-    for (let i = 1; i < ys.length; i += 1) {
-      expect((ys[i] ?? 0) - (ys[i - 1] ?? 0)).toBeGreaterThanOrEqual(LINE_H);
+    for (const carrying of [false, true]) {
+      const ys = menuItems(carrying).map((i) => i.y);
+      for (let i = 1; i < ys.length; i += 1) {
+        expect((ys[i] ?? 0) - (ys[i - 1] ?? 0)).toBeGreaterThanOrEqual(LINE_H);
+      }
     }
     expect(MENU_ROW_SPACING).toBeGreaterThanOrEqual(LINE_H);
+  });
+
+  it('puts the carry line under the badge, clear of the menu panel and the toast', () => {
+    expect(CARRY_TEXT.right).toBe(HUD_BADGE.right);
+    expect(CARRY_TEXT.top).toBeGreaterThanOrEqual(HUD_BADGE.top + LINE_H);
+    // A long name still starts right of the open menu panel.
+    const left = CARRY_TEXT.right - 'Carrying: Japanese Maple #12'.length * GLYPH_W;
+    expect(left).toBeGreaterThan(panelRight);
+    expect(CARRY_TEXT.top).toBeGreaterThanOrEqual(2 + LINE_H);
   });
 
   it('opens the panel under the Menu button, clear of the toast', () => {

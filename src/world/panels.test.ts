@@ -7,8 +7,12 @@ import {
   PANEL_ROW_SPACING,
   PANEL_TITLE_Y,
   loadSlotsPanel,
+  pedestalPanel,
   placeholderPanel,
+  treePanel,
+  type PanelModel,
 } from './panels';
+import { createNewGameState } from '../sim/state';
 import type { SlotRow } from './saveSlots';
 import { SHED_ROOM } from './shedRoom';
 
@@ -68,19 +72,53 @@ describe('world panels', () => {
     expect(model.rows.every((r) => r.id === '')).toBe(true);
   });
 
-  it('titles the placeholders with the prop label, the pedestals as empty', () => {
+  it('titles the placeholders with the prop label', () => {
     expect(
-      SHED_ROOM.props.map((p) => {
-        const m = placeholderPanel(p);
-        return [m.key, m.title, m.rows.map((r) => r.text)];
-      }),
+      SHED_ROOM.props
+        .filter((p) => p.pedestalKey === undefined)
+        .map((p) => {
+          const m = placeholderPanel(p);
+          return [m.key, m.title, m.rows.map((r) => r.text)];
+        }),
     ).toEqual([
       ['placeholder:workbench', 'Workbench', ['Coming in a later slice.']],
       ['placeholder:planting_table', 'Planting', ['Coming in a later slice.']],
       ['placeholder:shop_kiosk', 'Shop', ['Coming in a later slice.']],
-      ['placeholder:pedestal_1', 'Pedestal (empty)', ['Coming in a later slice.']],
-      ['placeholder:pedestal_2', 'Pedestal (empty)', ['Coming in a later slice.']],
       ['placeholder:door', 'Door', ['Coming in a later slice.']],
     ]);
   });
+
+  it('shows a tree with a Pick up row', () => {
+    const tree = createNewGameState().trees[0];
+    if (!tree) throw new Error('no starter');
+    const m = treePanel(tree);
+    expect([m.key, m.title]).toEqual(['tree:0', "Granny's"]);
+    expect(m.rows.map((r) => [r.text, r.id])).toEqual([
+      ['Species: Juniper', ''],
+      ['Height: 25.0 cm', ''],
+      ['Pick up', 'panel-pickup'],
+    ]);
+    expect(fits(m)).toBe(true);
+  });
+
+  it('offers Place on an empty pedestal only while carrying', () => {
+    const tree = createNewGameState().trees[0];
+    const carrying = pedestalPanel('shed_main', tree);
+    expect([carrying.key, carrying.title]).toEqual(['pedestal:shed_main', 'Display Pedestal']);
+    expect(carrying.rows.map((r) => [r.text, r.id])).toEqual([["Place Granny's", 'panel-place']]);
+    const empty = pedestalPanel('shed_window', undefined);
+    expect(empty.key).toBe('pedestal:shed_window');
+    expect(empty.rows.map((r) => [r.text, r.id])).toEqual([
+      ['This pedestal is empty. Carry a tree here to display it.', ''],
+    ]);
+    expect(fits(carrying) && fits(empty)).toBe(true);
+  });
 });
+
+function fits(model: PanelModel): boolean {
+  return model.rows.every(
+    (row) =>
+      PANEL.x + PANEL_INSET + row.text.length * GLYPH_W <= PANEL.x + PANEL.w &&
+      row.y + PANEL_ROW_SPACING / 2 <= PANEL_CLOSE.y - LINE_H / 2,
+  );
+}
