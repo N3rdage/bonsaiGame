@@ -45,11 +45,23 @@ interface BonsaiTestHook {
   readonly toast: string;
   /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
   readonly picker: string;
-  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
+  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's panel), 'pedestal:<pedestalKey>' (an empty pedestal) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
   readonly panel: string;
-  /** World only: key of the prop within interact range of the player, or '' (always on the title). */
+  /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
-  /** Every tappable Phaser control on screen, by id, with its centre in logical px (480x270); empty under the viewer. */
+  /** World only: label (name, or species display name) of the tree carried (location 'inventory'), or '' (always on the title). */
+  readonly carrying: string;
+  /** World only: every tree in the state, in order, with its label and `location` ('shed', 'inventory', 'sold', 'displayed:<pedestalKey>'); empty on the title. */
+  readonly treeLocations: readonly {
+    readonly id: number;
+    readonly name: string;
+    readonly location: string;
+  }[];
+  /**
+   * Every tappable Phaser control on screen, by id, with its centre in logical px (480x270); empty under the viewer.
+   * Includes 'panel-pickup' (a tree's panel), 'panel-place' (an empty pedestal's panel while carrying) and
+   * 'menu-putdown' (the HUD menu while carrying).
+   */
   readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }
 

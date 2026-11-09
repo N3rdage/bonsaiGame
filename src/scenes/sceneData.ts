@@ -39,4 +39,6 @@ export const IDLE_HOOK = {
   frames: 0,
   panel: '',
   near: '',
+  carrying: '',
+  treeLocations: [],
 } as const;

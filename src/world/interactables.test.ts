@@ -15,19 +15,21 @@ describe('interactables', () => {
 
   it('finds a prop at the range and not beyond it', () => {
     const bench = prop('workbench');
-    expect(nearestInteractable({ x: bench.x, y: bench.y + 20 }, SHED_ROOM)?.key).toBe('workbench');
-    expect(nearestInteractable({ x: bench.x, y: bench.y + 20.5 }, SHED_ROOM)).toBeUndefined();
+    expect(nearestInteractable({ x: bench.x, y: bench.y + 20 }, SHED_ROOM.props)?.key).toBe(
+      'workbench',
+    );
+    expect(nearestInteractable({ x: bench.x, y: bench.y + 20.5 }, SHED_ROOM.props)).toBeUndefined();
   });
 
   it('finds nothing at the player start', () => {
-    expect(nearestInteractable(SHED_ROOM.playerStart, SHED_ROOM)).toBeUndefined();
+    expect(nearestInteractable(SHED_ROOM.playerStart, SHED_ROOM.props)).toBeUndefined();
   });
 
   it('picks the nearest when two props are in range', () => {
     // Workbench (125, 90) and planting table (165, 90) are 40 apart: both in range at x 145.
     const y = prop('workbench').y;
-    expect(nearestInteractable({ x: 144, y }, SHED_ROOM)?.key).toBe('workbench');
-    expect(nearestInteractable({ x: 146, y }, SHED_ROOM)?.key).toBe('planting_table');
+    expect(nearestInteractable({ x: 144, y }, SHED_ROOM.props)?.key).toBe('workbench');
+    expect(nearestInteractable({ x: 146, y }, SHED_ROOM.props)?.key).toBe('planting_table');
   });
 
   it("prompts with the prototype objects' prompt strings", () => {
