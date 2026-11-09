@@ -7,7 +7,6 @@
 
 import type { BonsaiTree } from '../sim/types';
 import { slotRowText, type SlotRow } from './saveSlots';
-import type { Prop } from './shedRoom';
 import { treeLabel } from './treeSprites';
 
 /** A panel's box in logical px and the pitch of its rows. */
@@ -61,7 +60,7 @@ export interface PanelRow {
 }
 
 export interface PanelModel {
-  /** The hook's `panel`: 'slots', 'shop', 'pedestal:<pedestalKey>', 'placeholder:<propKey>' or a tree's sub-panel ('repot:<id>', ...). */
+  /** The hook's `panel`: 'slots', 'shop', 'plant', 'pedestal:<pedestalKey>' or a tree's sub-panel ('repot:<id>', ...). */
   readonly key: string;
   readonly title: string;
   readonly rows: readonly PanelRow[];
@@ -95,15 +94,6 @@ export function wrapLines(text: string, maxChars: number): string[] {
     }
   }
   return line ? [...lines, line] : lines;
-}
-
-/** The stand-in for a prop whose own panel comes in a later slice. */
-export function placeholderPanel(prop: Prop): PanelModel {
-  return {
-    key: `placeholder:${prop.key}`,
-    title: prop.label,
-    rows: rows([{ text: 'Coming in a later slice.', id: '' }]),
-  };
 }
 
 /**
