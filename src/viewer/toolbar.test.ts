@@ -33,13 +33,16 @@ import {
   SUBROW_GAP,
   SUBROW_HEIGHT,
   SUBROW_LABEL_WIDTH,
+  SUBROW_ONE_LINE_WIDTH,
   SUBROW_SEPARATOR,
+  SUBROW_SEPARATOR_NARROW,
   SUBROW_TOP,
   TOGGLE_FILL_HOVER,
   TOGGLE_TEXT,
   TOOLBAR_BG,
   TOOLBAR_BG_ALPHA,
   buildToolbarModel,
+  subRowSeparator,
   toolbarCssVars,
   treeInfo,
   wireAgeCaption,
@@ -76,6 +79,17 @@ describe('toolbar constants', () => {
     expect(SUBROW_LABEL_WIDTH).toBe(50);
     expect([ACTION_TOGGLE_WIDTH, DIR_TOGGLE_WIDTH, SHOW_TOGGLE_WIDTH]).toEqual([80, 56, 92]);
     expect(LABEL_COLOR).toEqual({ r: 180, g: 180, b: 180 });
+  });
+
+  it('narrows the sub-row separator below the one-line width', () => {
+    expect(SUBROW_ONE_LINE_WIDTH).toBe(830);
+    expect(SUBROW_SEPARATOR_NARROW).toBe(12);
+    expect(subRowSeparator(1280)).toBe(SUBROW_SEPARATOR);
+    expect(subRowSeparator(SUBROW_ONE_LINE_WIDTH)).toBe(SUBROW_SEPARATOR);
+    expect(subRowSeparator(SUBROW_ONE_LINE_WIDTH - 1)).toBe(SUBROW_SEPARATOR_NARROW);
+    // The S22 Ultra in landscape is 824 wide: the narrow row (806 px) fits on one line.
+    expect(subRowSeparator(824)).toBe(SUBROW_SEPARATOR_NARROW);
+    expect(SUBROW_ONE_LINE_WIDTH - 2 * (SUBROW_SEPARATOR - SUBROW_SEPARATOR_NARROW)).toBe(806);
   });
 
   // archive/gamemaker/scripts/scr_ui/scr_ui.gml: ui_button and ui_toggle.

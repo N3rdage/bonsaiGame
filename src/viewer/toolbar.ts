@@ -57,6 +57,26 @@ export const SUBROW_LABEL_WIDTH = 50;
 export const ACTION_TOGGLE_WIDTH = 80;
 export const DIR_TOGGLE_WIDTH = 56;
 export const SHOW_TOGGLE_WIDTH = 92;
+/** The group separator on viewports narrower than `SUBROW_ONE_LINE_WIDTH`. */
+export const SUBROW_SEPARATOR_NARROW = 12;
+/**
+ * The bend sub-row (Action, Bend and Show groups) on one line at
+ * `SUBROW_SEPARATOR`, edge to edge: 830 px. Below it the narrow separator
+ * keeps the row on one line down to 806 px, so the toolbar stays 110 px tall
+ * on a phone in landscape (the S22 Ultra is 824 px wide).
+ */
+export const SUBROW_ONE_LINE_WIDTH =
+  3 * SUBROW_LABEL_WIDTH +
+  2 * (SUBROW_GAP + ACTION_TOGGLE_WIDTH) +
+  4 * (SUBROW_GAP + DIR_TOGGLE_WIDTH) +
+  2 * (SUBROW_GAP + SHOW_TOGGLE_WIDTH) +
+  2 * SUBROW_SEPARATOR;
+
+/** The sub-row's group separator for a viewport `viewportWidth` CSS px wide. */
+export function subRowSeparator(viewportWidth: number): number {
+  return viewportWidth < SUBROW_ONE_LINE_WIDTH ? SUBROW_SEPARATOR_NARROW : SUBROW_SEPARATOR;
+}
+
 /** Sub-row labels and the help lines. */
 export const LABEL_COLOR: Rgb = { r: 180, g: 180, b: 180 };
 
