@@ -70,6 +70,7 @@ import {
   sellPanel,
   stylePanel,
 } from '../world/treePanels';
+import { crispText, fitCamera, sceneZoom } from './crisp';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 
 const TOAST_MS = 2000;
@@ -192,6 +193,7 @@ export class WorldScene extends Phaser.Scene {
     this.joystick = undefined;
     this.panel = undefined;
     const room = SHED_ROOM;
+    fitCamera(this, this.publishHook);
 
     this.add.rectangle(0, 0, room.width, room.height, room.floor).setOrigin(0).setDepth(-1);
     for (const w of room.walls) {
@@ -200,25 +202,25 @@ export class WorldScene extends Phaser.Scene {
     for (const p of room.props) {
       const bottom = p.y + p.h / 2;
       this.add.rectangle(p.x, p.y, p.w, p.h, 0x7a6248).setStrokeStyle(1, 0xb39a74).setDepth(bottom);
-      this.add.text(p.x, p.y, p.label, LABEL_STYLE).setOrigin(0.5).setDepth(bottom);
+      this.text(p.x, p.y, p.label, LABEL_STYLE).setOrigin(0.5).setDepth(bottom);
     }
     this.player = createPlayer(room);
     this.playerRect = this.add.rectangle(0, 0, PLAYER_W, PLAYER_H, 0xc9d8a8).setOrigin(0.5, 1);
-    this.promptText = this.add
-      .text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
+    this.promptText = this.text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
       .setOrigin(0.5, 1)
       .setDepth(HUD_DEPTH);
 
-    this.hud = this.add
-      .text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), {
-        ...LABEL_STYLE,
-        fontSize: '10px',
-        color: '#ffffff',
-      })
+    this.hud = this.text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), {
+      ...LABEL_STYLE,
+      fontSize: '10px',
+      color: '#ffffff',
+    })
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
-    this.carryText = this.add
-      .text(CARRY_TEXT.right, CARRY_TEXT.top, '', { ...LABEL_STYLE, fontSize: '10px' })
+    this.carryText = this.text(CARRY_TEXT.right, CARRY_TEXT.top, '', {
+      ...LABEL_STYLE,
+      fontSize: '10px',
+    })
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
     this.treeParts = [];
@@ -240,9 +242,11 @@ export class WorldScene extends Phaser.Scene {
         this.interact();
       },
     ).setOrigin(1, 1);
-    this.toast = this.add
-      .text(TOAST_X, 2, '', { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' })
-      .setDepth(HUD_DEPTH);
+    this.toast = this.text(TOAST_X, 2, '', {
+      ...LABEL_STYLE,
+      fontSize: '10px',
+      color: '#ffffff',
+    }).setDepth(HUD_DEPTH);
 
     const keyboard = this.input.keyboard;
     if (!keyboard) throw new Error('WorldScene needs the keyboard plugin');
@@ -307,12 +311,15 @@ export class WorldScene extends Phaser.Scene {
           return;
         }
         if (over.length > 0 || this.joystick) return;
-        this.joystick = { id: pointer.id, x: pointer.x, y: pointer.y, input: { x: 0, y: 0 } };
+        // World px, not canvas px: the joystick's dead zone and radius are logical.
+        const { worldX: x, worldY: y } = pointer;
+        this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
       },
     );
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (pointer.id !== this.joystick?.id) return;
-      this.joystick.input = joystickInput(pointer.x - this.joystick.x, pointer.y - this.joystick.y);
+      const { worldX, worldY } = pointer;
+      this.joystick.input = joystickInput(worldX - this.joystick.x, worldY - this.joystick.y);
     });
     const release = (pointer: Phaser.Input.Pointer): void => {
       if (pointer.id === this.joystick?.id) this.joystick = undefined;
@@ -334,14 +341,22 @@ export class WorldScene extends Phaser.Scene {
     this.publishHook();
   }
 
+  private text(
+    x: number,
+    y: number,
+    text: string,
+    style: Phaser.Types.GameObjects.Text.TextStyle,
+  ): Phaser.GameObjects.Text {
+    return crispText(this, x, y, text, style);
+  }
+
   private hudButton(
     x: number,
     y: number,
     label: string,
     onTap: () => void,
   ): Phaser.GameObjects.Text {
-    const button = this.add
-      .text(x, y, label, { ...LABEL_STYLE, fontSize: '10px' })
+    const button = this.text(x, y, label, { ...LABEL_STYLE, fontSize: '10px' })
       .setDepth(HUD_DEPTH)
       .setInteractive({ useHandCursor: true });
     button.on('pointerup', onTap);
@@ -411,8 +426,7 @@ export class WorldScene extends Phaser.Scene {
     const left = box.x + PANEL_INSET;
     const style = { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' };
     const text = (y: number, label: string, color: string) =>
-      this.add
-        .text(left, y, label, { ...style, color })
+      this.text(left, y, label, { ...style, color })
         .setOrigin(0, 0.5)
         .setDepth(MODAL_DEPTH);
     const parts: Phaser.GameObjects.GameObject[] = [
@@ -558,7 +572,7 @@ export class WorldScene extends Phaser.Scene {
     const m = inspectorPanel(tree, state);
     const box = INSPECTOR_PANEL;
     const line = (l: InspectorText, color = INSPECTOR_TEXT) =>
-      this.add.text(l.x, l.y, l.text, { ...LABEL_STYLE, color }).setOrigin(0, 0.5);
+      this.text(l.x, l.y, l.text, { ...LABEL_STYLE, color }).setOrigin(0, 0.5);
     const big = { ...LABEL_STYLE, fontSize: '10px', color: INSPECTOR_TEXT };
     const parts: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Depth)[] = [
       this.add
@@ -567,9 +581,10 @@ export class WorldScene extends Phaser.Scene {
         .setInteractive(),
       this.panelBox(box, MODAL_DEPTH),
       this.add.rectangle(box.x, box.y, box.w, INSPECTOR_TITLE_H, TITLE_BAR).setOrigin(0),
-      this.add
-        .text(box.x + INSPECTOR_INSET, box.y + INSPECTOR_TITLE_H / 2, m.title, big)
-        .setOrigin(0, 0.5),
+      this.text(box.x + INSPECTOR_INSET, box.y + INSPECTOR_TITLE_H / 2, m.title, big).setOrigin(
+        0,
+        0.5,
+      ),
       ...m.stats.map((l) => line(l)),
       ...m.notes.map((l) => line(l, NOTE_COLOR)),
       line(m.score),
@@ -625,7 +640,7 @@ export class WorldScene extends Phaser.Scene {
         buttons.push({ id: `panel-${b.id}`, text: text.setOrigin(0, 0.5) });
       } else {
         parts.push(
-          this.add.text(b.x, b.y, b.label, { ...big, color: DISABLED_COLOR }).setOrigin(0, 0.5),
+          this.text(b.x, b.y, b.label, { ...big, color: DISABLED_COLOR }).setOrigin(0, 0.5),
         );
       }
     }
@@ -722,7 +737,7 @@ export class WorldScene extends Phaser.Scene {
       return [
         this.add.rectangle(s.x, s.y, s.size * 0.5, pot, 0xb06a3c).setOrigin(0.5, 1),
         this.add.circle(s.x, s.y - s.size + r, r, 0x5f8a4a).setStrokeStyle(1, 0x3c5a2e),
-        this.add.text(s.x, s.y - s.size - 1, s.label, LABEL_STYLE).setOrigin(0.5, 1),
+        this.text(s.x, s.y - s.size - 1, s.label, LABEL_STYLE).setOrigin(0.5, 1),
       ].map((part) => part.setDepth(s.depth));
     });
     this.targets = [...SHED_ROOM.props, ...treeTargets(sprites)];
@@ -912,6 +927,7 @@ export class WorldScene extends Phaser.Scene {
       controls: this.controls(),
       ready: true,
       scene: this.scene.key,
+      zoom: sceneZoom(this),
       // The game state's own flag, not the viewer's, so a test sees what the
       // simulation would see after the viewer has let go.
       paused: state.paused,

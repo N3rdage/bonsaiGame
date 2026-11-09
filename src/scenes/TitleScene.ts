@@ -11,6 +11,7 @@ import {
   type PickerMode,
   type SlotRow,
 } from '../world/saveSlots';
+import { crispText, fitCamera, sceneZoom } from './crisp';
 import { IDLE_HOOK, type TitleSceneData, type WorldSceneData } from './sceneData';
 
 const TEXT = { fontFamily: 'monospace', fontSize: '10px', color: '#d8e6c8' };
@@ -47,6 +48,9 @@ export class TitleScene extends Phaser.Scene {
     this.message = corruptSlotsMessage(this.rows);
     this.view = { kind: 'menu' };
     this.layer = this.add.container(0, 0);
+    fitCamera(this, () => {
+      this.publishHook();
+    });
 
     const keyboard = this.input.keyboard;
     if (!keyboard) throw new Error('TitleScene needs the keyboard plugin');
@@ -139,9 +143,11 @@ export class TitleScene extends Phaser.Scene {
     enabled: boolean,
     onClick: () => void,
   ): Phaser.GameObjects.Text {
-    const text = this.add
-      .text(x, y, label, { ...TEXT, fontSize: '12px', color: enabled ? '#ffffff' : DISABLED })
-      .setOrigin(0.5);
+    const text = this.text(x, y, label, {
+      ...TEXT,
+      fontSize: '12px',
+      color: enabled ? '#ffffff' : DISABLED,
+    }).setOrigin(0.5);
     if (enabled) {
       text.setInteractive({ useHandCursor: true });
       text.on('pointerup', onClick);
@@ -151,21 +157,32 @@ export class TitleScene extends Phaser.Scene {
     return text;
   }
 
+  private text(
+    x: number,
+    y: number,
+    text: string,
+    style: Phaser.Types.GameObjects.Text.TextStyle,
+  ): Phaser.GameObjects.Text {
+    return crispText(this, x, y, text, style);
+  }
+
   private label(x: number, y: number, text: string, color = TEXT.color): void {
-    this.layer.add(this.add.text(x, y, text, { ...TEXT, color }).setOrigin(0.5));
+    this.layer.add(this.text(x, y, text, { ...TEXT, color }).setOrigin(0.5));
   }
 
   private draw(): void {
     this.layer.removeAll(true);
     this.buttons = [];
     this.layer.add(
-      this.add
-        .text(CENTER_X, 34, 'Bonsai Greenhouse', { ...TEXT, fontSize: '20px', color: '#ffffff' })
-        .setOrigin(0.5),
+      this.text(CENTER_X, 34, 'Bonsai Greenhouse', {
+        ...TEXT,
+        fontSize: '20px',
+        color: '#ffffff',
+      }).setOrigin(0.5),
     );
     this.label(CENTER_X, 56, 'A cozy bonsai-growing sim', '#a0b496');
     this.layer.add(
-      this.add.text(474, 264, `v${__APP_VERSION__}`, { ...TEXT, color: DISABLED }).setOrigin(1, 1),
+      this.text(474, 264, `v${__APP_VERSION__}`, { ...TEXT, color: DISABLED }).setOrigin(1, 1),
     );
 
     const view = this.view;
@@ -232,6 +249,7 @@ export class TitleScene extends Phaser.Scene {
       version: __APP_VERSION__,
       ready: true,
       scene: this.scene.key,
+      zoom: sceneZoom(this),
       activeSlot: 0,
       slots: occupiedSlots(this.rows),
       toast: this.message,

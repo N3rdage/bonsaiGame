@@ -13,6 +13,8 @@ interface BonsaiTestHook {
   readonly ready: boolean;
   readonly version: string;
   readonly scene: string;
+  /** Device pixels per logical pixel the scene's camera renders at (canvas width / 480); 1 would mean the camera is not fitted. */
+  readonly zoom: number;
   readonly season: string;
   readonly day: number;
   readonly trees: number;
