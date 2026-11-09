@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { tapControl, tapLogical } from './controls';
+import { MENU_PANEL } from '../src/world/menu';
+import { dragLogical, tapControl } from './controls';
 
 function collectErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -35,23 +36,6 @@ async function saveByMenu(page: Page): Promise<void> {
   await openMenu(page);
   await tapControl(page, 'menu-save');
   await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
-}
-
-/** A few animation frames: time for anything a tap would have done to land. */
-async function frames(page: Page, n: number): Promise<void> {
-  await page.evaluate(
-    (count) =>
-      new Promise<void>((resolve) => {
-        let i = 0;
-        const tick = (): void => {
-          i += 1;
-          if (i >= count) resolve();
-          else requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
-      }),
-    n,
-  );
 }
 
 test.describe('world menu', () => {
@@ -101,7 +85,9 @@ test.describe('world menu', () => {
     expect(errors).toEqual([]);
   });
 
-  test('Escape and a tap outside close the panel without leaving or walking', async ({ page }) => {
+  test('Escape and a press outside close the panel without leaving or walking', async ({
+    page,
+  }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await openMenu(page);
@@ -109,13 +95,30 @@ test.describe('world menu', () => {
     await page.waitForFunction(() => window.__bonsai?.panel === '');
     expect((await hook(page)).scene).toBe('world');
 
+    // A press outside the panel closes it and starts no joystick, so the drag
+    // that follows (well past the 4 px dead zone) walks nobody.
     await openMenu(page);
     expect((await hook(page)).player.x).toBe(240);
-    await tapLogical(page, 240, 135);
+    await dragLogical(page, 240, 135, 60);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
-    await frames(page, 10);
     const h = await hook(page);
     expect(h.scene).toBe('world');
+    expect(h.player.x).toBe(240);
+    expect(h.player.y).toBe(135);
+    expect(errors).toEqual([]);
+  });
+
+  test('a press on the panel neither closes it nor walks', async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await openMenu(page);
+    // Inside the panel's background, above its first row (MENU_PANEL and
+    // menuItems() in src/world/menu.ts: the panel starts at y 16, Save at 27).
+    const x = MENU_PANEL.x + MENU_PANEL.w - 6;
+    const y = MENU_PANEL.y + 2;
+    await dragLogical(page, x, y, 60);
+    const h = await hook(page);
+    expect(h.panel).toBe('menu');
     expect(h.player.x).toBe(240);
     expect(h.player.y).toBe(135);
     expect(errors).toEqual([]);
