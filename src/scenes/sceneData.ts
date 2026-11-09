@@ -62,4 +62,5 @@ export const IDLE_HOOK = {
   tutorialStep: -1,
   inspected: undefined,
   money: 0,
+  weather: undefined,
 } as const;

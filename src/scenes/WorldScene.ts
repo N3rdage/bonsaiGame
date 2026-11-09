@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { loadGame, saveGame } from '../sim/save';
-import { seasonForDay } from '../sim/seasons';
+import { seasonForDay, type Season } from '../sim/seasons';
 import { scoreTree } from '../sim/scoring';
 import { repotTree } from '../sim/growth';
 import { inventoryHas } from '../sim/inventory';
@@ -101,6 +101,17 @@ import {
 } from '../world/tutorialPanel';
 import { tutorialSkip, tutorialStepLabel } from '../sim/tutorial';
 import { SETTINGS_KEY, settingsPanel } from '../world/settingsPanel';
+import {
+  createParticles,
+  isIndoor,
+  particleDraw,
+  stepParticles,
+  weatherArea,
+  weatherProfile,
+  type Particle,
+  type WeatherArea,
+  type WeatherProfile,
+} from '../world/weather';
 import { crispText, fitCamera, sceneZoom } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
@@ -112,6 +123,16 @@ const LABEL_STYLE = { fontFamily: 'monospace', fontSize: '8px', color: '#d8e6c8'
 const HUD_DEPTH = 10_000;
 /** Modal panels and their dimmer sit above the HUD, so a press on the HUD under them hits the dimmer. */
 const MODAL_DEPTH = 10_001;
+/** Weather falls past the room, props, trees and player (depth = bottom y, at most 270), under the HUD. */
+const WEATHER_DEPTH = 9_000;
+
+/** The particle field of the room shown, built for one season (obj_weather's instance). */
+interface WeatherField {
+  readonly season: Season;
+  readonly profile: WeatherProfile;
+  readonly area: WeatherArea;
+  readonly parts: Particle[];
+}
 
 type MoveKeys = Record<
   'left' | 'right' | 'up' | 'down' | 'a' | 'd' | 'w' | 's',
@@ -180,6 +201,10 @@ const BAR_H = 6;
  * modal state changed it; its Skip opens a confirmation. J or `Notebook (J)`
  * opens Granny's notebook (src/world/notebook.ts), whose Prev and Next reopen
  * it on the new page.
+ *
+ * Ambient weather (src/world/weather.ts) falls over the room: the season's in
+ * the garden, dust motes in the shed. It steps with the player, rebuilds on
+ * room entry and when a day changes the season, and is off with the setting.
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
@@ -191,6 +216,9 @@ export class WorldScene extends Phaser.Scene {
   private roomParts: Phaser.GameObjects.GameObject[] = [];
   /** obj_source_plant's counters, per plant key for this visit to the room. */
   private readonly plants = new Map<string, SourcePlantState>();
+  /** The weather of the room shown, undefined while the setting is off; drawn into `weatherGfx`. */
+  private weather: WeatherField | undefined;
+  private weatherGfx!: Phaser.GameObjects.Graphics;
   /** The day clock's accumulator in seconds (src/world/clock.ts); transient. */
   private clockS = 0;
   private viewer!: TreeViewer;
@@ -257,6 +285,8 @@ export class WorldScene extends Phaser.Scene {
     fitCamera(this, this.publishHook);
 
     this.drawRoom();
+    this.weatherGfx = this.add.graphics().setDepth(WEATHER_DEPTH);
+    this.buildWeather();
     this.player = createPlayer(SHED_ROOM);
     this.playerRect = this.add.rectangle(0, 0, PLAYER_W, PLAYER_H, 0xc9d8a8).setOrigin(0.5, 1);
     this.promptText = this.text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
@@ -535,7 +565,9 @@ export class WorldScene extends Phaser.Scene {
   private openSettings(): void {
     const model = settingsPanel(this.ctx.settings, fullscreenState(this));
     this.openPanel(model, (i) => {
-      toggleSetting(this, this.ctx, model.rows[i]?.id ?? '');
+      const id = model.rows[i]?.id ?? '';
+      toggleSetting(this, this.ctx, id);
+      if (id === 'panel-weather') this.buildWeather();
       this.openSettings();
     });
   }
@@ -912,8 +944,46 @@ export class WorldScene extends Phaser.Scene {
     this.plants.clear();
     this.joystick = undefined;
     this.drawRoom();
+    this.buildWeather();
     this.player = { ...this.player, x: target.x, y: target.y };
     this.relocated();
+  }
+
+  /**
+   * obj_weather's Create: a fresh field for the room shown and the season of
+   * the day, or none (and nothing drawn) while the weather setting is off.
+   */
+  private buildWeather(): void {
+    if (!this.ctx.settings.weather) {
+      this.weather = undefined;
+      this.weatherGfx.clear();
+      return;
+    }
+    const season = seasonForDay(this.ctx.state.day);
+    const profile = weatherProfile(season, isIndoor(this.room));
+    const area = weatherArea(this.room);
+    this.weather = { season, profile, area, parts: createParticles(profile, area) };
+    this.drawWeather();
+  }
+
+  /** obj_weather's Draw: circles, and rotated quads for petals and leaves, each in its colour and alpha. */
+  private drawWeather(): void {
+    const g = this.weatherGfx.clear();
+    const field = this.weather;
+    if (!field) return;
+    for (const part of field.parts) {
+      const d = particleDraw(part, field.profile);
+      for (const shape of d.shapes) {
+        g.fillStyle(d.colour, shape.alpha);
+        if (shape.kind === 'circle') {
+          g.fillCircle(d.x, d.y, shape.r);
+        } else {
+          const [p0, p1, p2, p3] = shape.points;
+          g.fillTriangle(p0.x, p0.y, p1.x, p1.y, p2.x, p2.y);
+          g.fillTriangle(p0.x, p0.y, p2.x, p2.y, p3.x, p3.y);
+        }
+      }
+    }
   }
 
   /** obj_source_plant: the cutting rule in src/sim/sourcePlant.ts, its message as a toast. */
@@ -1053,6 +1123,7 @@ export class WorldScene extends Phaser.Scene {
     this.notebookButton.setVisible(!viewerOpen && !modal);
     this.promptText.setVisible(showInteract);
     this.interactButton.setVisible(showInteract);
+    this.weatherGfx.setVisible(!viewerOpen);
     if (viewerOpen) {
       this.joystick = undefined;
       this.accumulatorMs = 0;
@@ -1067,8 +1138,11 @@ export class WorldScene extends Phaser.Scene {
     for (let i = 0; i < steps; i += 1) {
       // obj_player_2d/Step_0: no movement while a UI panel is open.
       if (!modal) this.player = stepPlayer(this.player, input, this.room);
+      // The weather keeps moving under panels, as the prototype's did.
+      if (this.weather) stepParticles(this.weather.parts, this.weather.profile, this.weather.area);
       this.frames += 1;
     }
+    this.drawWeather();
     this.drawPlayer();
     this.hud.setText(hudText(this.ctx.state));
     this.publishHook();
@@ -1087,6 +1161,8 @@ export class WorldScene extends Phaser.Scene {
     if (tick.days === 0) return;
     this.drawTrees();
     this.drawPlayer();
+    // obj_weather's season recheck: the season only changes with the day.
+    if (this.weather && this.weather.season !== seasonForDay(state.day)) this.buildWeather();
     if (this.panel?.tree) this.openInspector(this.panel.tree);
     this.hud.setText(hudText(state));
     if (tick.revenue > 0) this.showToast(`Display revenue: +$${String(tick.revenue)}`);
@@ -1126,6 +1202,7 @@ export class WorldScene extends Phaser.Scene {
     this.notebookButton.setVisible(false);
     this.promptText.setVisible(false);
     this.interactButton.setVisible(false);
+    this.weatherGfx.setVisible(false);
     this.publishHook();
   }
 
@@ -1183,6 +1260,10 @@ export class WorldScene extends Phaser.Scene {
         score: scoreTree(inspected).total,
       },
       money: state.money,
+      weather:
+        this.weather && !this.viewer.isOpen
+          ? { kind: this.weather.profile.kind, count: this.weather.profile.count }
+          : undefined,
       activeSlot: slot,
       slots: this.slots,
       toast: this.toast.text,
