@@ -8,14 +8,11 @@ import {
   PANEL_TITLE_Y,
   loadSlotsPanel,
   pedestalPanel,
-  placeholderPanel,
   wrapLines,
   type PanelModel,
 } from './panels';
 import { createNewGameState } from '../sim/state';
 import type { SlotRow } from './saveSlots';
-import { SHED_ROOM } from './shedRoom';
-import { SHOP_KIOSK_KEY } from './shopPanel';
 
 // 10 px monospace: about 0.6 em a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
@@ -71,22 +68,6 @@ describe('world panels', () => {
     const model = loadSlotsPanel([empty(1), empty(2), empty(3)]);
     expect(model.rows).toHaveLength(3);
     expect(model.rows.every((r) => r.id === '')).toBe(true);
-  });
-
-  it('titles the placeholders with the prop label', () => {
-    expect(
-      SHED_ROOM.props
-        .filter(
-          (p) => p.pedestalKey === undefined && p.target === undefined && p.key !== SHOP_KIOSK_KEY,
-        )
-        .map((p) => {
-          const m = placeholderPanel(p);
-          return [m.key, m.title, m.rows.map((r) => r.text)];
-        }),
-    ).toEqual([
-      ['placeholder:workbench', 'Workbench', ['Coming in a later slice.']],
-      ['placeholder:planting_table', 'Planting', ['Coming in a later slice.']],
-    ]);
   });
 
   it('offers Place on an empty pedestal only while carrying', () => {

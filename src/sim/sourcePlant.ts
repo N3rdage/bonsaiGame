@@ -28,8 +28,8 @@ export function createSourcePlant(): SourcePlantState {
   return { cuttingsTaken: 0, regrowDay: -1 };
 }
 
-/** The inventory key a species' cutting goes to (`"cutting_" + species_key`). */
-const CUTTING_KEYS: Partial<Record<SpeciesKey, InventoryKey>> = {
+/** The inventory key a species' cutting goes to (`"cutting_" + species_key`); pine has none. */
+export const CUTTING_KEYS: Partial<Record<SpeciesKey, InventoryKey>> = {
   juniper: 'cutting_juniper',
   maple: 'cutting_maple',
 };
