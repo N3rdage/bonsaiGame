@@ -27,6 +27,8 @@ export interface Rect {
 export interface Prop {
   readonly key: string;
   readonly label: string;
+  /** The prototype object's `prompt` (Create_0 of obj_workbench, obj_door, ...): what E does here. */
+  readonly prompt: string;
   /** Centre of the prop's footprint, logical px. */
   readonly x: number;
   readonly y: number;
@@ -57,8 +59,16 @@ export const WALL_THICKNESS = 2;
 const WIDTH = fromPrototype(960);
 const HEIGHT = fromPrototype(540);
 
-function prop(key: string, label: string, px: number, py: number, w: number, h: number): Prop {
-  return { key, label, x: fromPrototype(px), y: fromPrototype(py), w, h };
+function prop(
+  key: string,
+  label: string,
+  prompt: string,
+  px: number,
+  py: number,
+  w: number,
+  h: number,
+): Prop {
+  return { key, label, prompt, x: fromPrototype(px), y: fromPrototype(py), w, h };
 }
 
 export const SHED_ROOM: Room = {
@@ -75,12 +85,12 @@ export const SHED_ROOM: Room = {
     { x: WIDTH - WALL_THICKNESS, y: 0, w: WALL_THICKNESS, h: HEIGHT },
   ],
   props: [
-    prop('workbench', 'Workbench', 250, 180, 40, 20),
-    prop('planting_table', 'Planting', 330, 180, 32, 20),
-    prop('shop_kiosk', 'Shop', 250, 290, 28, 24),
-    prop('pedestal_1', 'Pedestal', 620, 170, 16, 16),
-    prop('pedestal_2', 'Pedestal', 700, 170, 16, 16),
-    prop('door', 'Door', 464, 416, 24, 32),
+    prop('workbench', 'Workbench', 'Make Pot', 250, 180, 40, 20),
+    prop('planting_table', 'Planting', 'Plant Cutting', 330, 180, 32, 20),
+    prop('shop_kiosk', 'Shop', 'Shop', 250, 290, 28, 24),
+    prop('pedestal_1', 'Pedestal', 'Use Pedestal', 620, 170, 16, 16),
+    prop('pedestal_2', 'Pedestal', 'Use Pedestal', 700, 170, 16, 16),
+    prop('door', 'Door', 'Enter', 464, 416, 24, 32),
   ],
   // rm_shed's background colour 4279770660 is ABGR 0xff181e24.
   floor: 0x241e18,

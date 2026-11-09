@@ -38,4 +38,5 @@ export const IDLE_HOOK = {
   hud: '',
   frames: 0,
   panel: '',
+  near: '',
 } as const;

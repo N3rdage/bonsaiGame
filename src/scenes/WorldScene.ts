@@ -5,22 +5,52 @@ import { scoreTree } from '../sim/scoring';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
 import { hudText } from '../world/hud';
-import { HUD_BADGE, MENU_BUTTON, MENU_PANEL, TOAST_X, VIEW_BUTTON, menuItems } from '../world/menu';
+import { nearestInteractable, promptFor } from '../world/interactables';
+import {
+  HUD_BADGE,
+  INTERACT_BUTTON,
+  MENU_BUTTON,
+  MENU_PANEL,
+  TOAST_X,
+  VIEW_BUTTON,
+  menuItems,
+} from '../world/menu';
+import {
+  PANEL,
+  PANEL_CLOSE,
+  PANEL_CLOSE_LABEL,
+  PANEL_INSET,
+  PANEL_TITLE_Y,
+  loadSlotsPanel,
+  placeholderPanel,
+  type PanelModel,
+} from '../world/panels';
 import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
 import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../world/player';
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
-import { SHED_ROOM } from '../world/shedRoom';
+import { SHED_ROOM, type Prop } from '../world/shedRoom';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 
 const TOAST_MS = 2000;
 const PLAYER_W = 16;
 const PLAYER_H = 24;
 const LABEL_STYLE = { fontFamily: 'monospace', fontSize: '8px', color: '#d8e6c8' };
+const HUD_DEPTH = 10_000;
+/** Modal panels and their dimmer sit above the HUD, so a press on the HUD under them hits the dimmer. */
+const MODAL_DEPTH = 10_001;
 
 type MoveKeys = Record<
   'left' | 'right' | 'up' | 'down' | 'a' | 'd' | 'w' | 's',
   Phaser.Input.Keyboard.Key
 >;
+
+/** The open panel: the HUD menu, or a modal one; `key` is the hook's `panel`. */
+interface OpenPanel {
+  readonly key: string;
+  readonly modal: boolean;
+  readonly parts: Phaser.GameObjects.GameObject[];
+  readonly buttons: { id: string; text: Phaser.GameObjects.Text }[];
+}
 
 /**
  * The shed with placeholder art: floor, walls and labelled prop rectangles,
@@ -35,6 +65,12 @@ type MoveKeys = Record<
  * and Escape are their shortcuts: save to the active slot, reload it, go back
  * to the title without saving (all through src/sim/save.ts and the storage
  * from boot).
+ *
+ * Within range of a prop the player shows its prompt and an Interact button
+ * (E); interacting opens a modal panel (obj_ui_panel) over the dimmed room.
+ * While a modal is open the player does not move and the room's keys, Menu and
+ * View tree do nothing; Escape or Close (Esc) closes it. F9 on an empty or
+ * unreadable slot opens the Load Game slot picker as such a panel.
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
@@ -56,13 +92,11 @@ export class WorldScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text;
   private viewButton!: Phaser.GameObjects.Text;
   private menuButton!: Phaser.GameObjects.Text;
-  /** The open menu panel's background and rows; undefined while closed. */
-  private panel:
-    | {
-        bg: Phaser.GameObjects.Rectangle;
-        rows: { id: string; text: Phaser.GameObjects.Text }[];
-      }
-    | undefined;
+  private interactButton!: Phaser.GameObjects.Text;
+  private promptText!: Phaser.GameObjects.Text;
+  /** The prop in interact range of the player, if any. */
+  private near: Prop | undefined;
+  private panel: OpenPanel | undefined;
   private accumulatorMs = 0;
   private frames = 0;
   private joystick: { id: number; x: number; y: number; input: MoveInput } | undefined;
@@ -104,6 +138,10 @@ export class WorldScene extends Phaser.Scene {
 
     this.player = createPlayer(room);
     this.playerRect = this.add.rectangle(0, 0, PLAYER_W, PLAYER_H, 0xc9d8a8).setOrigin(0.5, 1);
+    this.promptText = this.add
+      .text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
+      .setOrigin(0.5, 1)
+      .setDepth(HUD_DEPTH);
     this.drawPlayer();
 
     this.hud = this.add
@@ -113,17 +151,26 @@ export class WorldScene extends Phaser.Scene {
         color: '#ffffff',
       })
       .setOrigin(1, 0)
-      .setDepth(10_000);
+      .setDepth(HUD_DEPTH);
     this.viewButton = this.hudButton(VIEW_BUTTON.left, VIEW_BUTTON.bottom, 'View tree (V)', () => {
       this.openViewer();
     }).setOrigin(0, 1);
     this.menuButton = this.hudButton(MENU_BUTTON.left, MENU_BUTTON.top, 'Menu', () => {
+      if (this.panel?.modal) return;
       if (this.panel) this.closePanel();
-      else this.openPanel();
+      else this.openMenu();
     });
+    this.interactButton = this.hudButton(
+      INTERACT_BUTTON.right,
+      INTERACT_BUTTON.bottom,
+      'Interact (E)',
+      () => {
+        this.interact();
+      },
+    ).setOrigin(1, 1);
     this.toast = this.add
       .text(TOAST_X, 2, '', { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' })
-      .setDepth(10_000);
+      .setDepth(HUD_DEPTH);
 
     const keyboard = this.input.keyboard;
     if (!keyboard) throw new Error('WorldScene needs the keyboard plugin');
@@ -140,18 +187,28 @@ export class WorldScene extends Phaser.Scene {
       w: key(K.W),
       s: key(K.S),
     };
-    // A keydown event, not a polled key: a quick tap can go down and up within
+    // Keydown events, not polled keys: a quick tap can go down and up within
     // one frame. While the viewer is open V is its View mode, so it is ignored here.
     keyboard.on('keydown-V', () => {
       this.openViewer();
     });
+    keyboard.on('keydown-E', () => {
+      this.interact();
+    });
+    (['ONE', 'TWO', 'THREE'] as const).forEach((name, i) => {
+      keyboard.on(`keydown-${name}`, () => {
+        if (this.panel?.buttons.some((b) => b.id === `panel-slot-${String(i + 1)}`)) {
+          this.pickPanelSlot(i + 1);
+        }
+      });
+    });
     // Captured so the browser's own F5 (reload) never fires in the room.
     keyboard.addCapture([K.F5, K.F9]);
     keyboard.on('keydown-F5', () => {
-      if (!this.viewer.isOpen) this.save();
+      if (this.roomKeysLive()) this.save();
     });
     keyboard.on('keydown-F9', () => {
-      if (!this.viewer.isOpen) this.reload();
+      if (this.roomKeysLive()) this.reload();
     });
     // Keyboard events reach Phaser after the viewer's own window listener, so
     // the Escape that closed the viewer is seen here with the viewer already
@@ -165,13 +222,14 @@ export class WorldScene extends Phaser.Scene {
     this.input.on(
       'pointerdown',
       (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
-        if (this.viewer.isOpen) return;
+        // A modal panel ignores presses outside it (its dimmer takes them).
+        if (this.viewer.isOpen || this.panel?.modal) return;
         if (this.panel) {
-          // A press outside the panel and its button closes it and starts no joystick.
+          // A press outside the menu and its button closes it and starts no joystick.
           const inside: Phaser.GameObjects.GameObject[] = [
             this.menuButton,
-            this.panel.bg,
-            ...this.panel.rows.map((r) => r.text),
+            ...this.panel.parts,
+            ...this.panel.buttons.map((b) => b.text),
           ];
           if (!over.some((o) => inside.includes(o))) this.closePanel();
           return;
@@ -211,47 +269,129 @@ export class WorldScene extends Phaser.Scene {
   ): Phaser.GameObjects.Text {
     const button = this.add
       .text(x, y, label, { ...LABEL_STYLE, fontSize: '10px' })
-      .setDepth(10_000)
+      .setDepth(HUD_DEPTH)
       .setInteractive({ useHandCursor: true });
     button.on('pointerup', onTap);
     return button;
   }
 
-  private openPanel(): void {
-    const { x, y, w, h } = MENU_PANEL;
-    const bg = this.add
-      .rectangle(x, y, w, h, 0x28322a)
+  /** No viewer and no modal panel: the room's own keys and buttons act. */
+  private roomKeysLive(): boolean {
+    return !this.viewer.isOpen && !this.panel?.modal;
+  }
+
+  /** A panel background; interactive, so a press on it reaches nothing beneath. */
+  private panelBox(box: { x: number; y: number; w: number; h: number }, depth: number) {
+    return this.add
+      .rectangle(box.x, box.y, box.w, box.h, 0x28322a)
       .setOrigin(0)
       .setStrokeStyle(1, 0x8ca078)
-      .setDepth(10_000)
+      .setDepth(depth)
       .setInteractive();
+  }
+
+  private openMenu(): void {
+    const bg = this.panelBox(MENU_PANEL, HUD_DEPTH);
     const actions = {
       save: () => {
         this.save();
         this.closePanel();
       },
       load: () => {
-        this.reload();
         this.closePanel();
+        this.reload();
       },
       title: () => {
         this.toTitle();
       },
     };
-    const rows = menuItems().map((item) => ({
+    const buttons = menuItems().map((item) => ({
       id: `menu-${item.id}`,
       text: this.hudButton(item.x, item.y, item.label, actions[item.id]).setOrigin(0, 0.5),
     }));
-    this.panel = { bg, rows };
+    this.panel = { key: 'menu', modal: false, parts: [bg], buttons };
+    this.publishHook();
+  }
+
+  /**
+   * A modal panel over the dimmed room (obj_ui_panel): title, rows and Close.
+   * A row with an id is a button and `onRow` gets its index.
+   */
+  private openPanel(model: PanelModel, onRow: (index: number) => void = () => undefined): void {
+    this.closePanel();
+    this.joystick = undefined;
+    const dim = this.add
+      .rectangle(0, 0, SHED_ROOM.width, SHED_ROOM.height, 0x000000, 0.5)
+      .setOrigin(0)
+      .setDepth(MODAL_DEPTH)
+      .setInteractive();
+    const left = PANEL.x + PANEL_INSET;
+    const style = { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' };
+    const text = (y: number, label: string, color: string) =>
+      this.add
+        .text(left, y, label, { ...style, color })
+        .setOrigin(0, 0.5)
+        .setDepth(MODAL_DEPTH);
+    const parts: Phaser.GameObjects.GameObject[] = [
+      dim,
+      this.panelBox(PANEL, MODAL_DEPTH),
+      text(PANEL_TITLE_Y, model.title, '#ffffff'),
+    ];
+    const buttons: OpenPanel['buttons'] = [];
+    model.rows.forEach((row, i) => {
+      if (!row.id) {
+        parts.push(text(row.y, row.text, '#a0b496'));
+        return;
+      }
+      const button = this.hudButton(left, row.y, row.text, () => {
+        onRow(i);
+      });
+      buttons.push({ id: row.id, text: button.setOrigin(0, 0.5).setColor('#ffffff') });
+    });
+    const close = this.hudButton(PANEL_CLOSE.x, PANEL_CLOSE.y, PANEL_CLOSE_LABEL, () => {
+      this.closePanel();
+    });
+    buttons.push({ id: 'panel-close', text: close.setOrigin(0.5) });
+    for (const b of buttons) b.text.setDepth(MODAL_DEPTH);
+    this.panel = { key: model.key, modal: true, parts, buttons };
     this.publishHook();
   }
 
   private closePanel(): void {
     if (!this.panel) return;
-    this.panel.bg.destroy();
-    for (const row of this.panel.rows) row.text.destroy();
+    for (const part of this.panel.parts) part.destroy();
+    for (const button of this.panel.buttons) button.text.destroy();
     this.panel = undefined;
     this.publishHook();
+  }
+
+  /** E or the Interact button: the prop in range opens its panel (placeholders for now). */
+  private interact(): void {
+    if (!this.roomKeysLive() || !this.near) return;
+    this.openPanel(placeholderPanel(this.near));
+  }
+
+  /** obj_ui_save_slots in load mode over the room; Close keeps the unsaved game. */
+  private openLoadPicker(): void {
+    this.openPanel(loadSlotsPanel(readSlotRows(this.ctx.storage)), (i) => {
+      this.pickPanelSlot(i + 1);
+    });
+  }
+
+  /** Loads a slot picked in the panel and makes it the active slot. */
+  private pickPanelSlot(slot: number): void {
+    let state: GameState | undefined;
+    try {
+      state = loadGame(this.ctx.storage, slot);
+    } catch {
+      state = undefined;
+    }
+    if (state) {
+      this.scene.restart({ ...this.ctx, state, slot });
+    } else {
+      this.closePanel();
+      this.showToast(`Could not load slot ${String(slot)}`);
+    }
   }
 
   private toTitle(): void {
@@ -271,10 +411,9 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * F9: the active slot as last saved. The prototype opened the load picker
-   * over the running room for an empty slot; here the world stays put with a
-   * toast, so the unsaved game is kept. The in-room picker comes with the
-   * world UI panels (R4b).
+   * F9: the active slot as last saved. On an empty or unreadable slot the Load
+   * Game picker opens over the room instead, as the prototype's controller did
+   * (obj_game_controller/Step_0.gml lines 31-41), and Close keeps the unsaved game.
    */
   private reload(): void {
     const { storage, slot } = this.ctx;
@@ -282,14 +421,10 @@ export class WorldScene extends Phaser.Scene {
     try {
       state = loadGame(storage, slot);
     } catch {
-      this.showToast(`Could not load slot ${String(slot)}`);
-      return;
+      state = undefined;
     }
-    if (state) {
-      this.scene.restart({ ...this.ctx, state });
-    } else {
-      this.showToast(`Slot ${String(slot)} is empty`);
-    }
+    if (state) this.scene.restart({ ...this.ctx, state });
+    else this.openLoadPicker();
   }
 
   private showToast(text: string): void {
@@ -304,8 +439,12 @@ export class WorldScene extends Phaser.Scene {
 
   override update(_time: number, delta: number): void {
     const viewerOpen = this.viewer.isOpen;
+    const modal = this.panel?.modal === true;
+    const showInteract = this.near !== undefined && !viewerOpen && !modal;
     this.hud.setVisible(!viewerOpen);
-    this.menuButton.setVisible(!viewerOpen);
+    this.menuButton.setVisible(!viewerOpen && !modal);
+    this.promptText.setVisible(showInteract);
+    this.interactButton.setVisible(showInteract);
     if (viewerOpen) {
       this.joystick = undefined;
       this.accumulatorMs = 0;
@@ -317,7 +456,8 @@ export class WorldScene extends Phaser.Scene {
     if (steps === 0) return;
     const input = this.joystick?.input ?? this.keyboardMove();
     for (let i = 0; i < steps; i += 1) {
-      this.player = stepPlayer(this.player, input, SHED_ROOM);
+      // obj_player_2d/Step_0: no movement while a UI panel is open.
+      if (!modal) this.player = stepPlayer(this.player, input, SHED_ROOM);
       this.frames += 1;
     }
     this.drawPlayer();
@@ -336,30 +476,37 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private drawPlayer(): void {
-    this.playerRect.setPosition(this.player.x, this.player.y).setDepth(this.player.y);
+    const { x, y } = this.player;
+    this.playerRect.setPosition(x, y).setDepth(y);
+    this.near = nearestInteractable(this.player, SHED_ROOM);
+    this.promptText.setText(this.near ? promptFor(this.near) : '').setPosition(x, y - PLAYER_H - 2);
   }
 
   private openViewer(): void {
     const { overrides, state } = this.ctx;
     const viewTree = this.viewTree;
-    if (!viewTree || this.viewer.isOpen) return;
+    if (!viewTree || !this.roomKeysLive()) return;
     this.joystick = undefined;
     this.closePanel();
     this.viewer.open(viewTree, overrides.season ?? seasonForDay(state.day), state);
     this.hud.setVisible(false);
     this.menuButton.setVisible(false);
+    this.promptText.setVisible(false);
+    this.interactButton.setVisible(false);
     this.publishHook();
   }
 
-  /** Centres of the tappable controls on screen, for the test hook; none under the viewer. */
+  /** Centres of the tappable controls on screen, for the test hook; none under the viewer, only the panel's under a modal. */
   private controls(): BonsaiTestHook['controls'] {
     if (this.viewer.isOpen) return [];
     const at = (id: string, text: Phaser.GameObjects.Text) => {
       const c = text.getCenter();
       return { id, x: c.x, y: c.y };
     };
-    const rows = this.panel?.rows.map((r) => at(r.id, r.text)) ?? [];
-    return [at('view', this.viewButton), at('menu', this.menuButton), ...rows];
+    const rows = this.panel?.buttons.map((b) => at(b.id, b.text)) ?? [];
+    if (this.panel?.modal) return rows;
+    const interact = this.near ? [at('interact', this.interactButton)] : [];
+    return [at('view', this.viewButton), at('menu', this.menuButton), ...interact, ...rows];
   }
 
   private readonly publishHook = (): void => {
@@ -370,7 +517,8 @@ export class WorldScene extends Phaser.Scene {
       slots: this.slots,
       toast: this.toast.text,
       picker: '',
-      panel: this.panel ? 'menu' : '',
+      panel: this.panel?.key ?? '',
+      near: this.near?.key ?? '',
       controls: this.controls(),
       ready: true,
       scene: this.scene.key,

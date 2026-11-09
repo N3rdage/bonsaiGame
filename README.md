@@ -38,7 +38,7 @@ Every pull request runs the same checks in CI and deploys a preview to Azure Sta
 | Input | Action |
 |-------|--------|
 | Drag anywhere (joystick) or WASD / arrows | Move player |
-| E | Interact with nearby object |
+| Interact button or E | Interact with the nearest object |
 | View tree button or V | Open the 3D viewer |
 | Menu button → Save, or F5 | Save game |
 | Menu button → Load, or F9 | Load game |

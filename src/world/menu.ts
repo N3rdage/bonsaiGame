@@ -10,6 +10,8 @@ export const HUD_BADGE = { right: 472, top: 2 } as const;
 export const VIEW_BUTTON = { left: 6, bottom: 264 } as const;
 /** Top-left of the `Menu` button (text origin 0, 0), where the toast used to start. */
 export const MENU_BUTTON = { left: 6, top: 2 } as const;
+/** Bottom-right anchor of the `Interact (E)` button (text origin 1, 1), shown while a prop is in range. */
+export const INTERACT_BUTTON = { right: 474, bottom: 264 } as const;
 /** Left edge of the toast, to the right of the Menu button. */
 export const TOAST_X = 52;
 /** The open panel's rectangle (top-left and size), just under the Menu button. */
