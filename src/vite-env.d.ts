@@ -45,7 +45,7 @@ interface BonsaiTestHook {
   readonly toast: string;
   /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
   readonly picker: string;
-  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's panel), 'pedestal:<pedestalKey>' (an empty pedestal) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
+  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), 'pedestal:<pedestalKey>' (an empty pedestal) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
   readonly panel: string;
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
@@ -57,9 +57,27 @@ interface BonsaiTestHook {
     readonly name: string;
     readonly location: string;
   }[];
+  /** World: the game state's inventory counts by InventoryKey ('fertilizer', 'wire', ...). Title: every count 0. */
+  readonly inventory: Readonly<Record<string, number>>;
+  /** World: `state.tutorialStep` (0 Water, 1 Skip a week, ..., -1 done). Title: -1. */
+  readonly tutorialStep: number;
+  /** World only: the tree whose inspector (panel 'tree:<id>') is open, or undefined. */
+  readonly inspected:
+    | {
+        readonly id: number;
+        readonly waterLevel: number;
+        readonly fertilizedUntilDay: number;
+        readonly ageDays: number;
+        readonly vitality: number;
+        readonly vigor: number;
+        readonly heightCm: number;
+        readonly revision: number;
+      }
+    | undefined;
   /**
    * Every tappable Phaser control on screen, by id, with its centre in logical px (480x270); empty under the viewer.
-   * Includes 'panel-pickup' (a tree's panel), 'panel-place' (an empty pedestal's panel while carrying) and
+   * Includes the tree inspector's enabled buttons 'panel-water', 'panel-fertilise', 'panel-skip', 'panel-pickup'
+   * and 'panel-view' (a greyed one is not listed), 'panel-place' (an empty pedestal's panel while carrying) and
    * 'menu-putdown' (the HUD menu while carrying).
    */
   readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];

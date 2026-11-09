@@ -173,9 +173,14 @@ export function repotTree(
   return true;
 }
 
+/** Fertiliser a `days`-day time skip costs: max(1, ceil(days * 0.5)). */
+export function skipTimeCost(days: number): number {
+  return Math.max(1, Math.ceil(days * 0.5));
+}
+
 /**
  * Spend fertiliser to fast-forward one tree by `days` isolated ticks (no water
- * decay; the world day does not advance). Cost max(1, ceil(days * 0.5)).
+ * decay; the world day does not advance), at `skipTimeCost(days)`.
  * Ignores `state.paused`: an inspector action the prototype could not reach from the viewer.
  */
 export function skipTreeTime(
@@ -184,8 +189,7 @@ export function skipTreeTime(
   days: number,
   rng: Rng = Math.random,
 ): boolean {
-  const cost = Math.max(1, Math.ceil(days * 0.5));
-  if (!inventoryRemove(state.inventory, 'fertilizer', cost)) return false;
+  if (!inventoryRemove(state.inventory, 'fertilizer', skipTimeCost(days))) return false;
   for (let i = 0; i < days; i++) {
     treeDailyTick(tree, state, true, rng);
   }

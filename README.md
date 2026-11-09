@@ -39,9 +39,11 @@ Every pull request runs the same checks in CI and deploys a preview to Azure Sta
 |-------|--------|
 | Drag anywhere (joystick) or WASD / arrows | Move player |
 | Interact button or E | Interact with the nearest object |
-| Interact on a tree or a pedestal → Pick up / Place | Carry a tree (one at a time) and display it on an empty pedestal |
+| Interact on a tree (or its pedestal) | Open the tree inspector: stats, score breakdown, Water, Fertilise, Skip 7d, Pick up, View in 3D |
+| Inspector → Pick up, or Interact on an empty pedestal → Place | Carry a tree (one at a time) and display it on an empty pedestal |
 | Menu button → Put down (while carrying) | Put the carried tree back on the shed floor |
-| View tree button or V | Open the 3D viewer |
+| Inspector → View in 3D | Open the 3D viewer on that tree |
+| View tree button or V | Open the 3D viewer on the first tree |
 | Menu button → Save, or F5 | Save game |
 | Menu button → Load, or F9 | Load game |
 | Menu button → Title, or Esc | Back to title (Esc first closes an open panel or the 3D viewer) |

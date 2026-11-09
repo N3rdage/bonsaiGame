@@ -41,4 +41,18 @@ export const IDLE_HOOK = {
   near: '',
   carrying: '',
   treeLocations: [],
+  inventory: {
+    clay: 0,
+    pot: 0,
+    fancy_pot: 0,
+    soil_premium: 0,
+    wire: 0,
+    fertilizer: 0,
+    seed_juniper: 0,
+    seed_maple: 0,
+    cutting_juniper: 0,
+    cutting_maple: 0,
+  },
+  tutorialStep: -1,
+  inspected: undefined,
 } as const;
