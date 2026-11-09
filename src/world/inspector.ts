@@ -214,9 +214,11 @@ function spread(items: readonly [InspectorButtonId, string, boolean][]): Inspect
 }
 
 /**
- * The inspector's Water, Fertilise and Skip buttons; false when refused (the
- * notes and the greyed button say why). Water and a successful Skip advance
- * the tutorial as the prototype's buttons did.
+ * The inspector's Water, Fertilise and Skip buttons; false when refused. The
+ * button is already greyed in that case: the Dormant note explains a dormant
+ * Fertilise, and the footer's `Fertilizer: N` count a shortage, as in the
+ * prototype, which had no out-of-fertiliser note. Water and a successful Skip
+ * advance the tutorial as the prototype's buttons did.
  */
 export function inspectorAction(
   state: GameState,
