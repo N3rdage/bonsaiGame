@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { Page } from '@playwright/test';
 import {
+  bootWorld,
   closePanel,
   collectErrors,
   dragLogical,
@@ -9,12 +12,20 @@ import {
   loadGame,
   pickPanelSlot,
   pickSlot,
-  saveGame,
   startNewGame,
-  bootWorld,
-  backToTitle,
   test,
+  toTitle,
 } from './drive';
+
+/** A real GameMaker save (version 1) from the importer's fixtures, written as-is. */
+const PROTOTYPE_SAVE = readFileSync(
+  path.join(import.meta.dirname, '../src/sim/__fixtures__/prototype-save-v1-day14.json'),
+  'utf8',
+);
+const PROTOTYPE = JSON.parse(PROTOTYPE_SAVE.replace(/\0+$/, '')) as {
+  game_day: number;
+  trees: { trunk: { height_cm: number } }[];
+};
 
 const ids = (h: BonsaiTestHook): string[] => h.controls.map((c) => c.id);
 
@@ -104,27 +115,38 @@ test.describe('interactables and panels', () => {
     expect(errors).toEqual([]);
   });
 
-  test('Load on an empty slot 2 picks slot 1 from the in-room picker', async ({ page }) => {
+  test('Load on an empty slot 2 picks slot 1 from the in-room picker and loads it', async ({
+    page,
+  }) => {
     const errors = collectErrors(page);
-    await bootWorld(page);
-    await saveGame(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
-    await backToTitle(page);
-    await page.waitForFunction(() => window.__bonsai?.scene === 'title');
+    // Slot 1 holds a real prototype save (day 14, several trees), so a loaded
+    // game cannot be mistaken for the new day-0 game in slot 2.
+    await page.goto('/');
+    await page.evaluate((text) => {
+      localStorage.setItem('bonsai.save.1', text);
+    }, PROTOTYPE_SAVE);
+    await toTitle(page);
     await startNewGame(page);
     await page.waitForFunction(() => window.__bonsai?.picker === 'new');
     await pickSlot(page, 2);
     await page.waitForFunction(() => window.__bonsai?.scene === 'world');
-    expect((await hook(page)).activeSlot).toBe(2);
+    let h = await hook(page);
+    expect(h.activeSlot).toBe(2);
+    expect(h.day).toBe(0);
+    expect(h.trees).toBe(1);
 
     await loadGame(page);
     await page.waitForFunction(() => window.__bonsai?.panel === 'slots');
     expect(ids(await hook(page))).toEqual(['panel-slot-1', 'panel-close']);
     await pickPanelSlot(page, 1);
     await page.waitForFunction(() => window.__bonsai?.activeSlot === 1);
-    const h = await hook(page);
+    h = await hook(page);
     expect(h.scene).toBe('world');
     expect(h.panel).toBe('');
+    expect(h.day).toBe(PROTOTYPE.game_day);
+    expect(h.trees).toBe(PROTOTYPE.trees.length);
+    expect(h.starterHeightCm).toBe(PROTOTYPE.trees[0]?.trunk.height_cm);
+    expect(h.hud).toContain(`Day ${String(PROTOTYPE.game_day)}`);
     expect(errors).toEqual([]);
   });
 

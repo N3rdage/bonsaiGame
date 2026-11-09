@@ -48,16 +48,20 @@ export function placeholderPanel(prop: Prop): PanelModel {
   };
 }
 
-/** obj_ui_save_slots in load mode: one row per slot; only readable saves are tappable (an unreadable one is shown, not offered). */
+/**
+ * obj_ui_save_slots in load mode: one row per slot; only readable saves are
+ * tappable and carry the `[Load]` action (an empty or unreadable one is shown, not offered).
+ */
 export function loadSlotsPanel(slots: readonly SlotRow[]): PanelModel {
   return {
     key: 'slots',
     title: 'Load Game',
     rows: rows(
-      slots.map((row) => ({
-        text: `${slotRowText(row)}  [Load]`,
-        id: row.status === 'occupied' ? `panel-slot-${String(row.slot)}` : '',
-      })),
+      slots.map((row) =>
+        row.status === 'occupied'
+          ? { text: `${slotRowText(row)}  [Load]`, id: `panel-slot-${String(row.slot)}` }
+          : { text: slotRowText(row), id: '' },
+      ),
     ),
   };
 }

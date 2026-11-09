@@ -57,7 +57,9 @@ describe('world panels', () => {
     expect(model.key).toBe('slots');
     expect(model.title).toBe('Load Game');
     expect(model.rows.map((r) => r.id)).toEqual(['panel-slot-3', '', '']);
-    expect(model.rows[2]?.text).toBe('Slot 1  (empty)  [Load]');
+    expect(model.rows[0]?.text.endsWith('  [Load]')).toBe(true);
+    expect(model.rows[1]?.text.endsWith('[Load]')).toBe(false);
+    expect(model.rows[2]?.text).toBe('Slot 1  (empty)');
   });
 
   it('shows three empty rows when nothing is saved', () => {
