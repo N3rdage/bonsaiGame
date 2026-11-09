@@ -4,7 +4,7 @@ import { seasonForDay } from '../sim/seasons';
 import { scoreTree } from '../sim/scoring';
 import { repotTree } from '../sim/growth';
 import { inventoryHas } from '../sim/inventory';
-import { sellTree } from '../sim/shop';
+import { sellTree, shopBuy } from '../sim/shop';
 import { STYLE_KEYS, getStyle } from '../sim/styles';
 import {
   MAX_TREE_NAME_LENGTH,
@@ -75,6 +75,7 @@ import {
   sellPanel,
   stylePanel,
 } from '../world/treePanels';
+import { SHOP_KIOSK_KEY, shopItemFor, shopPanel } from '../world/shopPanel';
 import { crispText, fitCamera, sceneZoom } from './crisp';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 
@@ -433,8 +434,8 @@ export class WorldScene extends Phaser.Scene {
       .setInteractive();
     const left = box.x + PANEL_INSET;
     const style = { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' };
-    const text = (y: number, label: string, color: string) =>
-      this.text(left, y, label, { ...style, color })
+    const text = (y: number, label: string, color: string, x = left) =>
+      this.text(x, y, label, { ...style, color })
         .setOrigin(0, 0.5)
         .setDepth(MODAL_DEPTH);
     const parts: Phaser.GameObjects.GameObject[] = [
@@ -447,11 +448,11 @@ export class WorldScene extends Phaser.Scene {
     const texts = model.rows.map((row, i) => {
       if (!row.id || row.enabled === false) {
         const color = row.enabled === false ? PANEL_DISABLED_COLOR : PANEL_TEXT_COLOR;
-        const t = text(row.y, row.text, row.color ?? color);
+        const t = text(row.y, row.text, row.color ?? color, row.x);
         parts.push(t);
         return t;
       }
-      const button = this.hudButton(left, row.y, row.text, () => {
+      const button = this.hudButton(row.x ?? left, row.y, row.text, () => {
         onRow(i);
       });
       buttons.push({ id: row.id, text: button.setOrigin(0, 0.5).setColor(row.color ?? '#ffffff') });
@@ -498,6 +499,18 @@ export class WorldScene extends Phaser.Scene {
       if (price !== undefined) {
         this.showToast(`Sold ${treeLabel(tree)} for ${String(price)} coins`);
       }
+    });
+  }
+
+  /** obj_ui_shop: a Buy buys one, then the HUD and the reopened shop show the new money and count. */
+  private openShop(): void {
+    const { state } = this.ctx;
+    const model = shopPanel(state);
+    this.openPanel(model, (i) => {
+      const item = shopItemFor(model.rows[i]?.id ?? '');
+      if (item) shopBuy(state, item.key, 1, item.price);
+      this.hud.setText(hudText(state));
+      this.openShop();
     });
   }
 
@@ -693,8 +706,8 @@ export class WorldScene extends Phaser.Scene {
   /**
    * E or the Interact button: a floor tree or an occupied pedestal opens the
    * tree's inspector, an empty pedestal the Display Pedestal panel, a door
-   * leads to its room, a source plant gives a cutting, any other prop opens
-   * its placeholder.
+   * leads to its room, a source plant gives a cutting, the kiosk opens the
+   * shop, any other prop opens its placeholder.
    */
   private interact(): void {
     const near = this.near;
@@ -719,6 +732,8 @@ export class WorldScene extends Phaser.Scene {
       this.enterRoom(target);
     } else if (speciesKey) {
       this.takeCutting(near.key, speciesKey);
+    } else if (near.key === SHOP_KIOSK_KEY) {
+      this.openShop();
     } else {
       this.openPanel(placeholderPanel(near));
     }

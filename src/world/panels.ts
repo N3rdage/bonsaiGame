@@ -52,6 +52,8 @@ export interface PanelRow {
   readonly id: string;
   /** Vertical centre. */
   readonly y: number;
+  /** Left edge, for a row in a column; the box's inset when absent. */
+  readonly x?: number;
   /** False for a greyed button: drawn in PANEL_DISABLED_COLOR and not a control. */
   readonly enabled?: boolean;
   /** Text colour overriding the default. */
@@ -59,7 +61,7 @@ export interface PanelRow {
 }
 
 export interface PanelModel {
-  /** The hook's `panel`: 'slots', 'pedestal:<pedestalKey>', 'placeholder:<propKey>' or a tree's sub-panel ('repot:<id>', ...). */
+  /** The hook's `panel`: 'slots', 'shop', 'pedestal:<pedestalKey>', 'placeholder:<propKey>' or a tree's sub-panel ('repot:<id>', ...). */
   readonly key: string;
   readonly title: string;
   readonly rows: readonly PanelRow[];
@@ -67,9 +69,14 @@ export interface PanelModel {
   readonly box?: PanelBox;
 }
 
-/** Lays `items` out as rows of `box`, one `rowSpacing` apart from 36 px below its top. */
+/** Vertical centre of `box`'s line `i`: one `rowSpacing` apart from 36 px below its top. */
+export function rowY(box: PanelBox, i: number): number {
+  return box.y + 36 + i * box.rowSpacing;
+}
+
+/** Lays `items` out as rows of `box`, one per line. */
 export function rows(items: readonly Omit<PanelRow, 'y'>[], box: PanelBox = PANEL): PanelRow[] {
-  return items.map((item, i) => ({ ...item, y: box.y + 36 + i * box.rowSpacing }));
+  return items.map((item, i) => ({ ...item, y: rowY(box, i) }));
 }
 
 /** The stand-in for a prop whose own panel comes in a later slice. */

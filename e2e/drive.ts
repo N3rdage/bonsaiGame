@@ -162,6 +162,13 @@ export async function openInspector(page: Page): Promise<void> {
 export const inspectorAction = (page: Page, id: string): Promise<void> =>
   tapControl(page, `panel-${id}`);
 
+/** Walks from the shed's start down to the kiosk's row and left to it, then opens the shop. */
+export async function openShop(page: Page): Promise<void> {
+  await walkTo(page, 145, 'left', 'shop_kiosk');
+  await interact(page);
+  await page.waitForFunction(() => window.__bonsai?.panel === 'shop');
+}
+
 /** Types `name` into the Rename panel's DOM input and taps its Save row. */
 export async function fillRename(page: Page, name: string): Promise<void> {
   await page.fill('#rename-input', name);
