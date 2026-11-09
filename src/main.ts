@@ -23,6 +23,8 @@ const game = new Phaser.Game({
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
+    // The viewer and the rename input are siblings of #game, so the whole document goes fullscreen, not a wrapper around the canvas.
+    fullscreenTarget: document.documentElement,
   },
   scene: [BootScene, TitleScene, WorldScene],
 });
