@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { loadGame, mostRecentSaveSlot } from '../sim/save';
 import { createNewGameState } from '../sim/state';
 import type { GameState } from '../sim/types';
+import { onKeyDown } from '../world/keys';
 import {
   canPickSlot,
   corruptSlotsMessage,
@@ -54,27 +55,28 @@ export class TitleScene extends Phaser.Scene {
 
     const keyboard = this.input.keyboard;
     if (!keyboard) throw new Error('TitleScene needs the keyboard plugin');
-    keyboard.on('keydown-ENTER', () => {
+    // Through onKeyDown, which ignores Phaser's replays of an already handled event.
+    onKeyDown(keyboard, 'ENTER', () => {
       if (this.view.kind === 'menu') this.newGame();
     });
-    keyboard.on('keydown-C', () => {
+    onKeyDown(keyboard, 'C', () => {
       if (this.view.kind === 'menu') this.continueGame();
     });
-    keyboard.on('keydown-L', () => {
+    onKeyDown(keyboard, 'L', () => {
       if (this.view.kind === 'menu') this.openPicker('load');
     });
     (['ONE', 'TWO', 'THREE'] as const).forEach((name, i) => {
-      keyboard.on(`keydown-${name}`, () => {
+      onKeyDown(keyboard, name, () => {
         if (this.view.kind === 'picker') this.pickSlot(this.view.mode, i + 1);
       });
     });
-    keyboard.on('keydown-Y', () => {
+    onKeyDown(keyboard, 'Y', () => {
       if (this.view.kind === 'confirm') this.startGame(this.view.slot, createNewGameState());
     });
-    keyboard.on('keydown-N', () => {
+    onKeyDown(keyboard, 'N', () => {
       if (this.view.kind === 'confirm') this.show({ kind: 'picker', mode: 'new' });
     });
-    keyboard.on('keydown-ESC', () => {
+    onKeyDown(keyboard, 'ESC', () => {
       if (this.view.kind === 'picker') this.show({ kind: 'menu' });
       else if (this.view.kind === 'confirm') this.show({ kind: 'picker', mode: 'new' });
     });
