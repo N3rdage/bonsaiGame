@@ -9,7 +9,6 @@ import {
   loadSlotsPanel,
   pedestalPanel,
   placeholderPanel,
-  treePanel,
   type PanelModel,
 } from './panels';
 import { createNewGameState } from '../sim/state';
@@ -86,19 +85,6 @@ describe('world panels', () => {
       ['placeholder:shop_kiosk', 'Shop', ['Coming in a later slice.']],
       ['placeholder:door', 'Door', ['Coming in a later slice.']],
     ]);
-  });
-
-  it('shows a tree with a Pick up row', () => {
-    const tree = createNewGameState().trees[0];
-    if (!tree) throw new Error('no starter');
-    const m = treePanel(tree);
-    expect([m.key, m.title]).toEqual(['tree:0', "Granny's"]);
-    expect(m.rows.map((r) => [r.text, r.id])).toEqual([
-      ['Species: Juniper', ''],
-      ['Height: 25.0 cm', ''],
-      ['Pick up', 'panel-pickup'],
-    ]);
-    expect(fits(m)).toBe(true);
   });
 
   it('offers Place on an empty pedestal only while carrying', () => {

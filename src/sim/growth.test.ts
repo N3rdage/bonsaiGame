@@ -6,6 +6,7 @@ import {
   fertilizeTree,
   repotCheck,
   repotTree,
+  skipTimeCost,
   skipTreeTime,
   spawnBranchNaturally,
   treeDailyTick,
@@ -304,6 +305,15 @@ describe('repotTree', () => {
 });
 
 describe('skipTreeTime', () => {
+  it.each([
+    [1, 1],
+    [2, 1],
+    [3, 2],
+    [7, 4],
+  ])('skipTimeCost(%d) is %d', (days, cost) => {
+    expect(skipTimeCost(days)).toBe(cost);
+  });
+
   it.each([
     [1, 1],
     [7, 4],

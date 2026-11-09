@@ -26,9 +26,21 @@ import {
   loadSlotsPanel,
   pedestalPanel,
   placeholderPanel,
-  treePanel,
   type PanelModel,
 } from '../world/panels';
+import { clamp } from '../sim/vec3';
+import {
+  DISABLED_COLOR,
+  FOOTER_COLOR,
+  INSPECTOR_INSET,
+  INSPECTOR_PANEL,
+  INSPECTOR_TITLE_H,
+  NOTE_COLOR,
+  inspectorAction,
+  inspectorPanel,
+  type InspectorButtonId,
+  type InspectorText,
+} from '../world/inspector';
 import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
 import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../world/player';
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
@@ -55,7 +67,18 @@ interface OpenPanel {
   readonly modal: boolean;
   readonly parts: Phaser.GameObjects.GameObject[];
   readonly buttons: { id: string; text: Phaser.GameObjects.Text }[];
+  /** The tree an open inspector shows. */
+  readonly tree?: BonsaiTree;
 }
+
+/** Text colours of the inspector's lines and enabled buttons. */
+const INSPECTOR_TEXT = '#ffffff';
+const INSPECTOR_HINT = '#b4b4b4';
+/** obj_ui_panel's title bar band, rgb(60, 80, 55). */
+const TITLE_BAR = 0x3c5037;
+/** ui_bar's dark track and its height in logical px. */
+const BAR_TRACK = 0x282828;
+const BAR_H = 6;
 
 /**
  * The shed with placeholder art: floor, walls and labelled prop rectangles,
@@ -78,9 +101,11 @@ interface OpenPanel {
  * unreadable slot opens the Load Game slot picker as such a panel.
  *
  * Trees are drawn from their `location` (src/world/treeSprites.ts): on the
- * floor grid, where they are interactables, or on a pedestal. Their panels
- * pick one up, place the carried one and the menu puts it down, all through
- * the location helpers in src/sim/tree.ts.
+ * floor grid, where they are interactables, or on a pedestal. A tree opens the
+ * inspector (src/world/inspector.ts): Water, Fertilise and Skip go through its
+ * pure dispatch and redraw it in place, Pick up and View in 3D are this
+ * scene's. Pedestal panels place the carried tree and the menu puts it down,
+ * all through the location helpers in src/sim/tree.ts.
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
@@ -383,18 +408,117 @@ export class WorldScene extends Phaser.Scene {
     this.publishHook();
   }
 
+  /**
+   * obj_ui_tree_inspector over the dimmed room. Water, Fertilise and Skip
+   * rebuild it in place: the new parts are drawn before the old ones go, so
+   * the hook's `panel` stays `tree:<id>` throughout. Greyed buttons are plain
+   * text, not controls.
+   */
+  private openInspector(tree: BonsaiTree): void {
+    const { state } = this.ctx;
+    const m = inspectorPanel(tree, state);
+    const box = INSPECTOR_PANEL;
+    const line = (l: InspectorText, color = INSPECTOR_TEXT) =>
+      this.add.text(l.x, l.y, l.text, { ...LABEL_STYLE, color }).setOrigin(0, 0.5);
+    const big = { ...LABEL_STYLE, fontSize: '10px', color: INSPECTOR_TEXT };
+    const parts: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Depth)[] = [
+      this.add
+        .rectangle(0, 0, SHED_ROOM.width, SHED_ROOM.height, 0x000000, 0.5)
+        .setOrigin(0)
+        .setInteractive(),
+      this.panelBox(box, MODAL_DEPTH),
+      this.add.rectangle(box.x, box.y, box.w, INSPECTOR_TITLE_H, TITLE_BAR).setOrigin(0),
+      this.add
+        .text(box.x + INSPECTOR_INSET, box.y + INSPECTOR_TITLE_H / 2, m.title, big)
+        .setOrigin(0, 0.5),
+      ...m.stats.map((l) => line(l)),
+      ...m.notes.map((l) => line(l, NOTE_COLOR)),
+      line(m.score),
+      ...m.breakdown.flatMap((c) => [line(c.label), line(c.value)]),
+      ...m.bars.flatMap((b) => [
+        line({ text: b.label, x: b.x, y: b.y }),
+        this.add.rectangle(b.trackX, b.y, b.trackW, BAR_H, BAR_TRACK).setOrigin(0, 0.5),
+        this.add
+          .rectangle(b.trackX, b.y, b.trackW * clamp(b.value / b.max, 0, 1), BAR_H, b.color)
+          .setOrigin(0, 0.5),
+        this.add
+          .rectangle(b.trackX, b.y, b.trackW, BAR_H)
+          .setOrigin(0, 0.5)
+          .setStrokeStyle(1, 0xffffff),
+        line({ text: b.text, x: b.textX, y: b.y }),
+      ]),
+      line(m.footer, FOOTER_COLOR),
+    ];
+    const actions: Record<InspectorButtonId, () => void> = {
+      water: () => {
+        this.care(tree, 'water');
+      },
+      fertilise: () => {
+        this.care(tree, 'fertilise');
+      },
+      skip: () => {
+        this.care(tree, 'skip');
+      },
+      pickup: () => {
+        this.pickUp(tree);
+      },
+      view: () => {
+        this.closePanel();
+        this.openViewer(tree);
+      },
+    };
+    const buttons: OpenPanel['buttons'] = [];
+    for (const b of m.buttons) {
+      if (b.enabled) {
+        const text = this.hudButton(b.x, b.y, b.label, actions[b.id]).setColor(INSPECTOR_TEXT);
+        buttons.push({ id: `panel-${b.id}`, text: text.setOrigin(0, 0.5) });
+      } else {
+        parts.push(
+          this.add.text(b.x, b.y, b.label, { ...big, color: DISABLED_COLOR }).setOrigin(0, 0.5),
+        );
+      }
+    }
+    const close = this.hudButton(
+      box.x + box.w - INSPECTOR_INSET,
+      box.y + INSPECTOR_TITLE_H / 2,
+      '[ESC] Close',
+      () => {
+        this.closePanel();
+      },
+    );
+    buttons.push({ id: 'panel-close', text: close.setOrigin(1, 0.5).setColor(INSPECTOR_HINT) });
+    for (const part of parts) part.setDepth(MODAL_DEPTH);
+    for (const b of buttons) b.text.setDepth(MODAL_DEPTH);
+    this.destroyPanel();
+    this.joystick = undefined;
+    this.panel = { key: m.key, modal: true, parts, buttons, tree };
+    this.publishHook();
+  }
+
+  /** An inspector care button: the pure dispatch, then the tree sprite and the inspector redrawn. */
+  private care(tree: BonsaiTree, id: 'water' | 'fertilise' | 'skip'): void {
+    inspectorAction(this.ctx.state, tree, id);
+    this.drawTrees();
+    this.drawPlayer();
+    this.openInspector(tree);
+  }
+
   private closePanel(): void {
     if (!this.panel) return;
-    for (const part of this.panel.parts) part.destroy();
-    for (const button of this.panel.buttons) button.text.destroy();
-    this.panel = undefined;
+    this.destroyPanel();
     this.publishHook();
+  }
+
+  private destroyPanel(): void {
+    for (const part of this.panel?.parts ?? []) part.destroy();
+    for (const button of this.panel?.buttons ?? []) button.text.destroy();
+    this.panel = undefined;
   }
 
   /**
    * E or the Interact button: a floor tree or an occupied pedestal opens the
-   * tree's panel, an empty pedestal the Display Pedestal panel, any other prop
-   * its placeholder.
+   * tree's inspector, an empty pedestal the Display Pedestal panel, any other
+   * prop its placeholder.
    */
   private interact(): void {
     const near = this.near;
@@ -408,9 +532,7 @@ export class WorldScene extends Phaser.Scene {
           ? undefined
           : treeOnPedestal(state, pedestalKey);
     if (tree) {
-      this.openPanel(treePanel(tree), () => {
-        this.pickUp(tree);
-      });
+      this.openInspector(tree);
     } else if (pedestalKey !== undefined) {
       const carried = carriedTree(state);
       this.openPanel(pedestalPanel(pedestalKey, carried), () => {
@@ -423,7 +545,7 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** The panel's Pick up: refused with a toast while another tree is carried. */
+  /** The inspector's Pick up: refused with a toast while another tree is carried. */
   private pickUp(tree: BonsaiTree): void {
     const carried = carriedTree(this.ctx.state);
     this.closePanel();
@@ -568,9 +690,12 @@ export class WorldScene extends Phaser.Scene {
     this.promptText.setText(this.near ? promptFor(this.near) : '').setPosition(x, y - PLAYER_H - 2);
   }
 
-  private openViewer(): void {
+  /**
+   * The 3D viewer on `viewTree`: the inspector's View in 3D passes its tree;
+   * View tree (V) and the V key show the first tree, or the `?tree=` fixture.
+   */
+  private openViewer(viewTree = this.viewTree): void {
     const { overrides, state } = this.ctx;
-    const viewTree = this.viewTree;
     if (!viewTree || !this.roomKeysLive()) return;
     this.joystick = undefined;
     this.closePanel();
@@ -599,8 +724,21 @@ export class WorldScene extends Phaser.Scene {
   private readonly publishHook = (): void => {
     const { state, slot } = this.ctx;
     const carried = carriedTree(state);
+    const inspected = this.panel?.tree;
     window.__bonsai = {
       ...this.base,
+      inventory: { ...state.inventory },
+      tutorialStep: state.tutorialStep,
+      inspected: inspected && {
+        id: inspected.id,
+        waterLevel: inspected.waterLevel,
+        fertilizedUntilDay: inspected.fertilizedUntilDay,
+        ageDays: inspected.ageDays,
+        vitality: inspected.vitality,
+        vigor: inspected.vigor,
+        heightCm: inspected.trunk.heightCm,
+        revision: inspected.revision,
+      },
       activeSlot: slot,
       slots: this.slots,
       toast: this.toast.text,
