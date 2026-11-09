@@ -1,9 +1,11 @@
 import type { ViewerMode } from './hotspots';
 import {
+  CAMERA_BUTTONS,
   EXIT_LABEL,
   px,
   subRowSeparator,
   toolbarCssVars,
+  type CameraAction,
   type SubRowGroup,
   type ToolbarModel,
   type ToolbarToggle,
@@ -27,17 +29,21 @@ function div(className: string, ...children: (Node | string)[]): HTMLDivElement 
 
 /**
  * The viewer's DOM chrome: the top toolbar (`#viewer-toolbar`) with the wire
- * sub-row, and the bottom help lines (`#viewer-help`). Draws a `ToolbarModel`
- * and reports clicks through callbacks; it holds no state of its own beyond
- * the last model drawn, so an unchanged model leaves the DOM (and hover) alone.
+ * sub-row, the bottom help lines (`#viewer-help`), and the camera column
+ * (`#viewer-camera`: zoom in, zoom out, reset) at the right edge. Draws a
+ * `ToolbarModel` and reports clicks through callbacks; it holds no state of its
+ * own beyond the last model drawn, so an unchanged model leaves the DOM (and
+ * hover) alone. The camera column does not depend on the model: it is built once.
  */
 export class ViewerToolbar {
   onMode?: (mode: ViewerMode) => void;
   onToggle?: (toggle: ToolbarToggle) => void;
   onExit?: () => void;
+  onCamera?: (action: CameraAction) => void;
 
   private readonly bar: HTMLDivElement;
   private readonly help: HTMLDivElement;
+  private readonly camera: HTMLDivElement;
   private drawn = '';
 
   constructor(parent: HTMLElement) {
@@ -45,17 +51,25 @@ export class ViewerToolbar {
     this.bar.id = 'viewer-toolbar';
     this.help = document.createElement('div');
     this.help.id = 'viewer-help';
+    const cameraButtons = CAMERA_BUTTONS.map(([action, label, name]) => {
+      const el = button('ui-button', label, () => this.onCamera?.(action));
+      el.dataset.camera = action;
+      el.setAttribute('aria-label', name);
+      return el;
+    });
+    this.camera = div('', ...cameraButtons);
+    this.camera.id = 'viewer-camera';
     for (const [name, value] of Object.entries(toolbarCssVars())) {
-      this.bar.style.setProperty(name, value);
-      this.help.style.setProperty(name, value);
+      for (const el of [this.bar, this.help, this.camera]) el.style.setProperty(name, value);
     }
-    parent.append(this.bar, this.help);
+    parent.append(this.bar, this.help, this.camera);
   }
 
   /** Draws `model` for a viewport `viewportWidth` CSS px wide. */
   render(model: ToolbarModel, viewportWidth: number): void {
     this.bar.classList.add('open');
     this.help.classList.add('open');
+    this.camera.classList.add('open');
     this.bar.style.setProperty('--tb-subrow-separator', px(subRowSeparator(viewportWidth)));
     const key = JSON.stringify(model);
     if (key === this.drawn) return;
@@ -85,19 +99,22 @@ export class ViewerToolbar {
     this.help.replaceChildren(...model.help.map((line) => div('help-line', line)));
   }
 
-  /** While a modal is open the toolbar takes no clicks, focus or keyboard activation. */
+  /** While a modal is open the toolbar and camera column take no clicks, focus or keys. */
   setInert(inert: boolean): void {
     this.bar.inert = inert;
+    this.camera.inert = inert;
   }
 
   hide(): void {
     this.bar.classList.remove('open');
     this.help.classList.remove('open');
+    this.camera.classList.remove('open');
   }
 
   destroy(): void {
     this.bar.remove();
     this.help.remove();
+    this.camera.remove();
   }
 
   private group({ label, toggleWidth, toggles }: SubRowGroup): HTMLDivElement {

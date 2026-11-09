@@ -288,7 +288,7 @@ test.describe('viewer toolbar', () => {
     await expect(page.locator('[data-mode="view"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#viewer-toolbar .sub-row')).toHaveCount(0);
     await expect(page.locator('#viewer-help .help-line')).toHaveText([
-      'Drag to rotate  |  Scroll to zoom  |  R to reset camera',
+      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R',
     ]);
 
     const wire = await clickToolbar(page, '[data-mode="wire"]');
@@ -395,6 +395,189 @@ test.describe('viewer toolbar', () => {
     await expect(page.locator('#viewer')).toBeHidden();
     await expect(page.locator('#viewer-toolbar')).toBeHidden();
     await expect(page.locator('#viewer-help')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe('viewer camera', () => {
+  // ZOOM_MIN and ZOOM_MAX, pinned in src/viewer/camera.test.ts.
+  const zoomMin = 0.8;
+  const zoomMax = 6.0;
+
+  async function viewerHook(page: Page): Promise<BonsaiViewerHook> {
+    const viewer = await page.evaluate(() => window.__bonsai?.viewer);
+    if (!viewer) throw new Error('viewer hook missing');
+    return viewer;
+  }
+
+  /** Runs `act` and waits for the camera distance to settle on `distance`. */
+  async function zoomTo(page: Page, act: () => Promise<void>, distance: number): Promise<void> {
+    const { renders } = await viewerHook(page);
+    await act();
+    await page.waitForFunction(
+      ([d, r]) =>
+        (window.__bonsai?.viewer?.renders ?? 0) > r &&
+        Math.abs((window.__bonsai?.viewer?.distance ?? NaN) - d) < 1e-9,
+      [distance, renders] as const,
+    );
+  }
+
+  type Finger = readonly [number, number];
+
+  /** Two real touch points: down at `from`, moved to `to`, lifted. */
+  async function pinch(
+    page: Page,
+    from: readonly [Finger, Finger],
+    to: readonly [Finger, Finger],
+  ): Promise<void> {
+    const cdp = await page.context().newCDPSession(page);
+    // CDP touch input reaches the page as touch pointers even on the desktop
+    // project, where touch emulation is off.
+    const points = (fingers: readonly [Finger, Finger]) =>
+      fingers.map(([x, y], i) => ({ x, y, id: i + 1 }));
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: points(from) });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: points(to) });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await cdp.detach();
+  }
+
+  /** The canvas centre's x, and a finger height below the top strip (view mode has no hotspots). */
+  function viewport(page: Page): { height: number; cx: number; y: number } {
+    const size = page.viewportSize();
+    const width = size?.width ?? 0;
+    const height = size?.height ?? 0;
+    return { height, cx: width / 2, y: height * 0.6 };
+  }
+
+  test('pinches to zoom without rotating, inside the zoom limits', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const { cx, y } = viewport(page);
+
+    // Fingers 80 px apart spread to 240: -160 px at 20 px per notch is
+    // 8 notches of 0.08 closer, 2.5 -> 1.86.
+    const apart = (half: number): [Finger, Finger] => [
+      [cx - half, y],
+      [cx + half, y],
+    ];
+    await zoomTo(page, () => pinch(page, apart(40), apart(120)), 1.86);
+    let viewer = await viewerHook(page);
+    expect(viewer.yaw).toBe(45);
+    expect(viewer.pitch).toBe(10);
+
+    // Back together: 8 notches away again.
+    await zoomTo(page, () => pinch(page, apart(120), apart(40)), 2.5);
+    // And further together than it started: 4 notches beyond, 2.5 -> 2.82.
+    await zoomTo(page, () => pinch(page, apart(120), apart(80)), 2.82);
+    viewer = await viewerHook(page);
+    expect(viewer.yaw).toBe(45);
+    expect(viewer.pitch).toBe(10);
+
+    // Edge to edge, again and again: never past the limits.
+    const wide = cx - 10;
+    for (let i = 0; i < 6; i++) {
+      const { renders } = await viewerHook(page);
+      await pinch(page, apart(10), apart(wide));
+      await page.waitForFunction((r) => (window.__bonsai?.viewer?.renders ?? 0) > r, renders);
+      expect((await viewerHook(page)).distance).toBeGreaterThanOrEqual(zoomMin);
+    }
+    expect((await viewerHook(page)).distance).toBe(zoomMin);
+    for (let i = 0; i < 6; i++) {
+      const { renders } = await viewerHook(page);
+      await pinch(page, apart(wide), apart(10));
+      await page.waitForFunction((r) => (window.__bonsai?.viewer?.renders ?? 0) > r, renders);
+      expect((await viewerHook(page)).distance).toBeLessThanOrEqual(zoomMax);
+    }
+    viewer = await viewerHook(page);
+    expect(viewer.distance).toBe(zoomMax);
+    expect(viewer.yaw).toBe(45);
+    expect(viewer.pitch).toBe(10);
+
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('zooms one wheel step per button press', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    await expect(page.locator('#viewer-camera')).toBeVisible();
+    await expect(page.locator('#viewer-camera button')).toHaveText(['+', '−', 'R']);
+    await expect(page.locator('[data-camera="in"]')).toHaveAttribute('aria-label', 'Zoom in');
+    await expect(page.locator('[data-camera="out"]')).toHaveAttribute('aria-label', 'Zoom out');
+    await expect(page.locator('[data-camera="reset"]')).toHaveAttribute(
+      'aria-label',
+      'Reset camera',
+    );
+
+    await zoomTo(page, () => page.locator('[data-camera="in"]').click(), 2.5 - 0.08);
+    await zoomTo(page, () => page.locator('[data-camera="out"]').click(), 2.5);
+    await zoomTo(page, () => page.locator('[data-camera="out"]').click(), 2.5 + 0.08);
+    expect((await viewerHook(page)).distance).toBeCloseTo(2.58);
+
+    await closeViewer(page);
+    await expect(page.locator('#viewer-camera')).toBeHidden();
+    expect(errors).toEqual([]);
+  });
+
+  test('resets the camera from the button', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/');
+    const { cx, height } = viewport(page);
+    // Low on the canvas: 80 px at 0.4 degrees per pixel turns the camera from 45 to 13.
+    await page.mouse.move(cx - 40, height * 0.9);
+    await page.mouse.down();
+    await page.mouse.move(cx + 40, height * 0.9, { steps: 4 });
+    await page.mouse.up();
+    await page.waitForFunction(() => Math.abs((window.__bonsai?.viewer?.yaw ?? 0) - 13) < 1e-9);
+    await zoomTo(page, () => page.mouse.wheel(0, 100), 2.58);
+
+    await zoomTo(page, () => page.locator('[data-camera="reset"]').click(), 0.8);
+    const viewer = await viewerHook(page);
+    expect(viewer.yaw).toBe(45);
+    expect(viewer.pitch).toBe(20);
+    expect(viewer.distance).toBe(0.8);
+
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('takes no presses under the wire-removal confirmation', async ({ page }) => {
+    const errors = collectErrors(page);
+    await openViewer(page, '/?tree=wired');
+    let { renders } = await viewerHook(page);
+    await page.keyboard.press('w');
+    await page.waitForFunction((r) => (window.__bonsai?.viewer?.renders ?? 0) > r, renders);
+    ({ renders } = await viewerHook(page));
+    await page.locator('#viewer-toolbar [data-action="remove"]').click();
+    await page.waitForFunction((r) => (window.__bonsai?.viewer?.renders ?? 0) > r, renders);
+    const hotspot = (await viewerHook(page)).hotspots.find(
+      (h) => h.kind === 'branch' && h.id === 1,
+    );
+    if (!hotspot) throw new Error('no branch hotspot 1 on screen');
+    ({ renders } = await viewerHook(page));
+    await page.mouse.click(hotspot.x, hotspot.y);
+    await page.waitForFunction((r) => (window.__bonsai?.viewer?.renders ?? 0) > r, renders);
+    const before = await viewerHook(page);
+    expect(before.modal).toBe(1);
+    await expect(page.locator('#viewer-camera')).toHaveJSProperty('inert', true);
+
+    await page.locator('[data-camera="in"]').click({ force: true });
+    // Two animation frames: time for any render the press might have requested.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        }),
+    );
+    const after = await viewerHook(page);
+    expect(after.distance).toBe(before.distance);
+    expect(after.modal).toBe(1);
+    await expect(page.locator('#viewer-modal')).toBeVisible();
+
     expect(errors).toEqual([]);
   });
 });

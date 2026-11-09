@@ -22,6 +22,7 @@ import {
   FOV_DEGREES,
   NEAR,
   createOrbitCamera,
+  pinchZoom,
   resetCamera,
   rotateCamera,
   targetZForTree,
@@ -147,7 +148,13 @@ export class TreeViewer {
   private renders = 0;
   private frame: number | undefined;
   private wheelHandled = false;
-  private drag: { pointerId: number; x: number; y: number } | undefined;
+  /** Pointers taking part in the gesture under way, by id: their last client position. */
+  private readonly pointers = new Map<number, ScreenPoint>();
+  /** One pointer drags (orbits); two pinch (zoom from the camera as it was when the second landed). */
+  private gesture:
+    | { kind: 'drag'; pointerId: number }
+    | { kind: 'pinch'; ids: readonly [number, number]; startPx: number; cam: OrbitCamera }
+    | undefined;
   private opened = false;
   private destroyed = false;
 
@@ -174,6 +181,10 @@ export class TreeViewer {
     this.toolbar.onToggle = this.onToggle;
     this.toolbar.onExit = () => {
       this.close();
+    };
+    this.toolbar.onCamera = (action) => {
+      if (action === 'reset') this.setCamera(resetCamera(this.cam));
+      else this.setCamera(zoomCamera(this.cam, action === 'in' ? -1 : 1));
     };
     this.modal = new ViewerModal(parent);
     this.modal.onCancel = () => {
@@ -269,7 +280,7 @@ export class TreeViewer {
     this.opened = false;
     if (this.state) this.state.paused = false;
     this.state = undefined;
-    this.drag = undefined;
+    this.endGesture();
     this.pendingWireRemoval = -1;
     this.clearHotspots();
     this.canvas.classList.remove('open');
@@ -511,25 +522,52 @@ export class TreeViewer {
     this.requestRender();
   };
 
+  private endGesture(): void {
+    this.gesture = undefined;
+    this.pointers.clear();
+  }
+
+  private pinchDistance([a, b]: readonly [number, number]): number {
+    const p = this.pointers.get(a);
+    const q = this.pointers.get(b);
+    return p && q ? Math.hypot(p.x - q.x, p.y - q.y) : 0;
+  }
+
   private readonly onPointerDown = (e: PointerEvent): void => {
-    if (e.button !== 0 || !e.isPrimary) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    const { gesture } = this;
+    if (gesture?.kind === 'pinch') return;
+    const point = { x: e.clientX, y: e.clientY };
+    if (gesture?.kind === 'drag') {
+      // A second finger turns the drag into a pinch.
+      this.canvas.setPointerCapture(e.pointerId);
+      this.pointers.set(e.pointerId, point);
+      const ids = [gesture.pointerId, e.pointerId] as const;
+      this.gesture = { kind: 'pinch', ids, startPx: this.pinchDistance(ids), cam: this.cam };
+      return;
+    }
     // The top strip is the toolbar's: a press there never starts a drag (Step_0).
     if (e.clientY <= uiStripHeight(this.ui.mode)) return;
     this.canvas.setPointerCapture(e.pointerId);
-    this.drag = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
+    this.pointers.set(e.pointerId, point);
+    this.gesture = { kind: 'drag', pointerId: e.pointerId };
   };
 
   private readonly onPointerMove = (e: PointerEvent): void => {
-    if (e.pointerId !== this.drag?.pointerId) return;
-    const dx = e.clientX - this.drag.x;
-    const dy = e.clientY - this.drag.y;
-    this.drag = { pointerId: e.pointerId, x: e.clientX, y: e.clientY };
-    this.setCamera(rotateCamera(this.cam, dx, dy));
+    const last = this.pointers.get(e.pointerId);
+    const { gesture } = this;
+    if (!last || !gesture) return;
+    this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (gesture.kind === 'drag') {
+      this.setCamera(rotateCamera(this.cam, e.clientX - last.x, e.clientY - last.y));
+    } else {
+      this.setCamera(pinchZoom(gesture.cam, gesture.startPx, this.pinchDistance(gesture.ids)));
+    }
   };
 
+  // Lifting either pinch finger ends the pinch; the one left down needs a new press to drag.
   private readonly onPointerUp = (e: PointerEvent): void => {
-    if (e.pointerId !== this.drag?.pointerId) return;
-    this.drag = undefined;
+    if (this.pointers.has(e.pointerId)) this.endGesture();
   };
 
   // The prototype applied at most one zoom step per frame; so does this.
@@ -556,8 +594,8 @@ export class TreeViewer {
   };
 
   private setPendingWireRemoval(branchId: number): void {
-    // A drag cannot outlive the modal opening (Step_0).
-    this.drag = undefined;
+    // A drag or pinch cannot outlive the modal opening (Step_0).
+    this.endGesture();
     this.pendingWireRemoval = branchId;
     this.requestRender();
   }
