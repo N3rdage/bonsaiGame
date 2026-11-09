@@ -225,9 +225,12 @@ export interface Point {
   readonly y: number;
 }
 
+/** A quad's corners in order; drawn as the triangles 0-1-2 and 0-2-3. */
+export type Quad = readonly [Point, Point, Point, Point];
+
 export type WeatherShape =
   | { readonly kind: 'circle'; readonly r: number; readonly alpha: number }
-  | { readonly kind: 'quad'; readonly points: readonly Point[]; readonly alpha: number };
+  | { readonly kind: 'quad'; readonly points: Quad; readonly alpha: number };
 
 /** What one particle draws this frame, in its colour, back to front. */
 export interface ParticleDraw {
@@ -242,15 +245,11 @@ const dsin = (deg: number): number => Math.sin((deg * Math.PI) / 180);
 const dcos = (deg: number): number => Math.cos((deg * Math.PI) / 180);
 
 /** weather_draw_quad: the corners of a (2hw x 2hh) rectangle about (x, y) turned by `ang` degrees. */
-function quad(x: number, y: number, hw: number, hh: number, ang: number): Point[] {
+function quad(x: number, y: number, hw: number, hh: number, ang: number): Quad {
   const c = dcos(ang);
   const s = dsin(ang);
-  return [
-    [-hw, -hh],
-    [hw, -hh],
-    [hw, hh],
-    [-hw, hh],
-  ].map(([u = 0, v = 0]) => ({ x: x + u * c - v * s, y: y + u * s + v * c }));
+  const at = (u: number, v: number): Point => ({ x: x + u * c - v * s, y: y + u * s + v * c });
+  return [at(-hw, -hh), at(hw, -hh), at(hw, hh), at(-hw, hh)];
 }
 
 /** obj_weather Draw for one particle: sway and bob, the glow pulse, and its shapes. */

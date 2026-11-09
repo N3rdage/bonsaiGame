@@ -95,6 +95,8 @@ interface BonsaiTestHook {
     | undefined;
   /** World: `state.money`. Title: 0. */
   readonly money: number;
+  /** World: the ambient weather's kind ('motes', 'petals', 'fireflies', 'leaves', 'snow') and particle count while it steps and draws; undefined while the setting is off, under the viewer and on the title. */
+  readonly weather?: { readonly kind: string; readonly count: number } | undefined;
   /**
    * Every tappable Phaser control on screen, by id, with its centre in logical px (480x270); empty under the viewer.
    * Includes the tree inspector's enabled buttons 'panel-water', 'panel-fertilise', 'panel-skip', 'panel-pickup'

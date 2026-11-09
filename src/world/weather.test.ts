@@ -215,8 +215,8 @@ describe('particleDraw', () => {
     if (shape?.kind !== 'quad') throw new Error('leaves are quads');
     // Turned a quarter: the 2.2 px half-width now runs down y, the 4 px half-height along x.
     const [first] = shape.points;
-    expect(first?.x).toBeCloseTo(14);
-    expect(first?.y).toBeCloseTo(17.8);
+    expect(first.x).toBeCloseTo(14);
+    expect(first.y).toBeCloseTo(17.8);
     expect(shape.alpha).toBe(0.92);
   });
 });
