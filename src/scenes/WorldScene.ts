@@ -6,6 +6,7 @@ import { repotTree } from '../sim/growth';
 import { inventoryHas } from '../sim/inventory';
 import { sellTree, shopBuy } from '../sim/shop';
 import { STYLE_KEYS, getStyle } from '../sim/styles';
+import { SPECIES_KEYS, getSpecies } from '../sim/species';
 import {
   MAX_TREE_NAME_LENGTH,
   carriedTree,
@@ -41,9 +42,18 @@ import {
   panelClose,
   panelTitleY,
   pedestalPanel,
-  placeholderPanel,
   type PanelModel,
 } from '../world/panels';
+import { makePot, plantCutting } from '../sim/planting';
+import {
+  NO_SELECTION,
+  PLANTING_TABLE_KEY,
+  WORKBENCH_KEY,
+  plantPanel,
+  plantSelection,
+  selectId,
+  type PlantSelection,
+} from '../world/plantPanel';
 import { clamp } from '../sim/vec3';
 import {
   DISABLED_COLOR,
@@ -816,7 +826,7 @@ export class WorldScene extends Phaser.Scene {
    * E or the Interact button: a floor tree or an occupied pedestal opens the
    * tree's inspector, an empty pedestal the Display Pedestal panel, a door
    * leads to its room, a source plant gives a cutting, the kiosk opens the
-   * shop, any other prop opens its placeholder.
+   * shop, the workbench makes a pot and the planting table opens Plant a Cutting.
    */
   private interact(): void {
     const near = this.near;
@@ -843,9 +853,35 @@ export class WorldScene extends Phaser.Scene {
       this.takeCutting(near.key, speciesKey);
     } else if (near.key === SHOP_KIOSK_KEY) {
       this.openShop();
-    } else {
-      this.openPanel(placeholderPanel(near));
+    } else if (near.key === WORKBENCH_KEY) {
+      this.showToast(makePot(state));
+    } else if (near.key === PLANTING_TABLE_KEY) {
+      this.openPlant(NO_SELECTION);
     }
+  }
+
+  /**
+   * obj_ui_plant_cutting: Select and the toggles reopen it with the new
+   * selection; Plant plants through src/sim/planting.ts and closes it.
+   */
+  private openPlant(selection: PlantSelection): void {
+    const { state } = this.ctx;
+    const sel = plantSelection(state, selection);
+    const model = plantPanel(state, sel);
+    this.openPanel(model, (i) => {
+      const id = model.rows[i]?.id;
+      const species = SPECIES_KEYS.find((k) => selectId(k) === id);
+      if (species) this.openPlant({ ...sel, species });
+      else if (id === 'panel-fancy') this.openPlant({ ...sel, useFancyPot: !sel.useFancyPot });
+      else if (id === 'panel-soil') this.openPlant({ ...sel, usePremiumSoil: !sel.usePremiumSoil });
+      else if (id === 'panel-plant' && sel.species) {
+        const tree = plantCutting(state, sel.species, sel.useFancyPot, sel.usePremiumSoil);
+        this.closePanel();
+        this.relocated();
+        this.hud.setText(hudText(state));
+        if (tree) this.showToast(`Planted a ${getSpecies(tree.speciesKey).displayName}.`);
+      }
+    });
   }
 
   /**

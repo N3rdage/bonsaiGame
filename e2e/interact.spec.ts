@@ -10,11 +10,13 @@ import {
   hook,
   interact,
   loadGame,
+  openPlanting,
   pickPanelSlot,
   pickSlot,
   startNewGame,
   test,
   toTitle,
+  walkTo,
 } from './drive';
 
 /** A real GameMaker save (version 1) from the importer's fixtures, written as-is. */
@@ -45,27 +47,8 @@ async function frames(page: Page, n: number): Promise<void> {
   );
 }
 
-/**
- * Walks from the start (240, 135) up to the workbench's row (y 90), then left
- * past the planting table until the workbench (125, 90) is the prop in range.
- */
-async function walkToWorkbench(page: Page): Promise<void> {
-  await page.keyboard.down('ArrowUp');
-  await page.waitForFunction(() => (window.__bonsai?.player.y ?? 999) <= 91);
-  await page.keyboard.up('ArrowUp');
-  await page.keyboard.down('ArrowLeft');
-  await page.waitForFunction(() => window.__bonsai?.near === 'workbench');
-  await page.keyboard.up('ArrowLeft');
-}
-
-async function openWorkbench(page: Page): Promise<void> {
-  await walkToWorkbench(page);
-  await interact(page);
-  await page.waitForFunction(() => window.__bonsai?.panel === 'placeholder:workbench');
-}
-
 test.describe('interactables and panels', () => {
-  test('the workbench prompts, opens a modal that blocks movement, and closes', async ({
+  test('the planting table prompts, opens a modal that blocks movement, and closes', async ({
     page,
   }) => {
     const errors = collectErrors(page);
@@ -74,13 +57,15 @@ test.describe('interactables and panels', () => {
     expect(h.near).toBe('');
     expect(ids(h)).toEqual(['view', 'notebook', 'menu', 'tutorial-skip']);
 
-    await walkToWorkbench(page);
+    // From the start (240, 135) up to y 90, then left to the planting table (165, 90).
+    await walkTo(page, 90, 'left', 'planting_table');
     h = await hook(page);
     expect(ids(h)).toEqual(['view', 'notebook', 'menu', 'interact', 'tutorial-skip']);
 
     await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.panel === 'placeholder:workbench');
+    await page.waitForFunction(() => window.__bonsai?.panel === 'plant');
     h = await hook(page);
+    // A new game has no cuttings, fancy pots or premium soil: only Close is a control.
     expect(ids(h)).toEqual(['panel-close']);
     const { x, y } = h.player;
     await page.keyboard.down('ArrowRight');
@@ -155,13 +140,13 @@ test.describe('interactables and panels', () => {
   }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
-    await openWorkbench(page);
+    await openPlanting(page);
     const before = await hook(page);
     expect(ids(before)).not.toContain('menu');
-    // A press-and-drag on the dimmed room below the panel: no close, no joystick.
-    await dragLogical(page, 240, 250, 60);
+    // A press-and-drag on the dimmed room beside the panel: no close, no joystick.
+    await dragLogical(page, 10, 250, 20);
     const h = await hook(page);
-    expect(h.panel).toBe('placeholder:workbench');
+    expect(h.panel).toBe('plant');
     expect(h.player).toEqual(before.player);
     expect(ids(h)).toEqual(['panel-close']);
     expect(errors).toEqual([]);
