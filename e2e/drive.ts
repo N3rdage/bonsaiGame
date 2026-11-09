@@ -113,6 +113,14 @@ export const saveGame = (page: Page): Promise<void> => menuRow(page, 'F5', 'menu
 export const loadGame = (page: Page): Promise<void> => menuRow(page, 'F9', 'menu-load');
 export const backToTitle = (page: Page): Promise<void> => menuRow(page, 'Escape', 'menu-title');
 
+/** Uses the prop in range: E, or the Interact button on the tap route. */
+export const interact = (page: Page): Promise<void> => phaser(page, 'e', 'interact');
+/** Closes the open modal panel: Escape, or its Close button on the tap route. */
+export const closePanel = (page: Page): Promise<void> => phaser(page, 'Escape', 'panel-close');
+/** Picks slot `n` in the in-room Load Game picker: its number key, or its row on the tap route. */
+export const pickPanelSlot = (page: Page, n: number): Promise<void> =>
+  phaser(page, String(n), `panel-slot-${String(n)}`);
+
 // Viewer: DOM controls.
 
 /** Presses a DOM control: a tap on the tap route, else a click. */

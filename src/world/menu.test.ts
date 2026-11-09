@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { hudText } from './hud';
 import {
   HUD_BADGE,
+  INTERACT_BUTTON,
   MENU_BUTTON,
   MENU_PANEL,
   MENU_ROW_SPACING,
@@ -60,5 +61,14 @@ describe('world HUD menu layout', () => {
     expect(badgeLeft).toBeGreaterThan(panelRight);
     expect(badgeLeft).toBeGreaterThan(TOAST_X + 'Could not save to slot 3'.length * GLYPH_W);
     expect(VIEW_BUTTON.bottom - LINE_H).toBeGreaterThan(panelBottom);
+  });
+
+  it('puts the Interact button bottom-right, clear of the View tree button and the badge', () => {
+    const left = INTERACT_BUTTON.right - 'Interact (E)'.length * GLYPH_W;
+    expect(INTERACT_BUTTON.right).toBeLessThanOrEqual(480);
+    expect(INTERACT_BUTTON.bottom).toBeLessThanOrEqual(270);
+    expect(left).toBeGreaterThan(VIEW_BUTTON.left + 'View tree (V)'.length * GLYPH_W);
+    expect(INTERACT_BUTTON.bottom - LINE_H).toBeGreaterThan(HUD_BADGE.top + LINE_H);
+    expect(left).toBeGreaterThan(panelRight);
   });
 });

@@ -3,6 +3,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import {
   backToTitle,
+  closePanel,
   collectErrors,
   confirmOverwrite,
   continueGame,
@@ -170,12 +171,15 @@ test.describe('title', () => {
     await toWorld(page, pickSlot(page, 2));
     expect((await hook(page)).activeSlot).toBe(2);
 
-    // F9 on the empty slot 2 keeps the unsaved game and says why.
+    // F9 on the empty slot 2 opens the in-room picker; closing it keeps the unsaved game.
     await loadGame(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Slot 2 is empty');
+    await page.waitForFunction(() => window.__bonsai?.panel === 'slots');
+    await closePanel(page);
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
     let h = await hook(page);
     expect(h.scene).toBe('world');
     expect(h.activeSlot).toBe(2);
+    expect(h.panel).toBe('');
 
     // The load picker ignores the empty slot 2 and loads slot 1.
     await backToTitle(page);

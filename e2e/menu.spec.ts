@@ -59,15 +59,15 @@ test.describe('world menu', () => {
     expect(errors).toEqual([]);
   });
 
-  test('Load on an empty slot toasts and stays in the world', async ({ page }) => {
+  test('Load on an empty slot opens the slot picker and stays in the world', async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await openMenu(page);
     await tapControl(page, 'menu-load');
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Slot 1 is empty');
+    await page.waitForFunction(() => window.__bonsai?.panel === 'slots');
     const h = await hook(page);
     expect(h.scene).toBe('world');
-    expect(h.panel).toBe('');
+    expect(ids(h)).toEqual(['panel-close']);
     expect(errors).toEqual([]);
   });
 
