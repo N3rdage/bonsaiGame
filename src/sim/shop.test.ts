@@ -1,6 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createInventory } from './inventory';
-import { SHOP_CATALOGUE, shopBuy } from './shop';
+import { deserializeSave } from './save';
+import { scoreTree } from './scoring';
+import { SHOP_CATALOGUE, sellPrice, sellTree, shopBuy } from './shop';
+import { createNewGameState } from './state';
+import { carriedTree, pickUpTree } from './tree';
 import type { GameState } from './types';
 
 function makeState(money: number): GameState {
@@ -25,6 +30,51 @@ describe('SHOP_CATALOGUE', () => {
       ['fancy_pot', 'Fancy Pot', 80],
       ['soil_premium', 'Akadama Mix', 18],
     ]);
+  });
+});
+
+function day14(): GameState {
+  const text = readFileSync(
+    new URL('./__fixtures__/prototype-save-v1-day14.json', import.meta.url),
+    'utf8',
+  );
+  return deserializeSave(text);
+}
+
+describe('sellPrice and sellTree', () => {
+  it('prices a tree at twice its score, rounded half to even', () => {
+    const starter = createNewGameState().trees[0];
+    if (!starter) throw new Error('no starter');
+    expect(scoreTree(starter).total).toBe(74);
+    expect(sellPrice(starter)).toBe(148);
+    // scoreTree floors its total, so the GML's round never meets a half here.
+    expect(day14().trees.map((t) => [t.name, scoreTree(t).total, sellPrice(t)])).toEqual([
+      ['Starter', 50, 100],
+      ['Fancy #1', 63, 126],
+    ]);
+  });
+
+  it('sells once: location sold, money added; a second sale refuses and changes nothing', () => {
+    const state = day14();
+    const tree = state.trees[0];
+    if (!tree) throw new Error('no fixture tree');
+    const price = sellPrice(tree);
+    expect(sellTree(state, tree)).toBe(price);
+    expect(tree.location).toBe('sold');
+    expect(state.money).toBe(132 + price);
+    expect(state.trees).toContain(tree);
+    expect(sellTree(state, tree)).toBeUndefined();
+    expect(state.money).toBe(132 + price);
+  });
+
+  it('selling the carried tree leaves nothing carried', () => {
+    const state = createNewGameState();
+    const tree = state.trees[0];
+    if (!tree) throw new Error('no starter');
+    expect(pickUpTree(state, tree)).toBe(true);
+    expect(carriedTree(state)).toBe(tree);
+    expect(sellTree(state, tree)).toBe(sellPrice(tree));
+    expect(carriedTree(state)).toBeUndefined();
   });
 });
 

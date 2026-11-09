@@ -2,7 +2,20 @@ import Phaser from 'phaser';
 import { loadGame, saveGame } from '../sim/save';
 import { seasonForDay } from '../sim/seasons';
 import { scoreTree } from '../sim/scoring';
-import { carriedTree, pickUpTree, placeTree, putDownTree, treeOnPedestal } from '../sim/tree';
+import { repotTree } from '../sim/growth';
+import { inventoryHas } from '../sim/inventory';
+import { sellTree } from '../sim/shop';
+import { STYLE_KEYS, getStyle } from '../sim/styles';
+import {
+  MAX_TREE_NAME_LENGTH,
+  carriedTree,
+  pickUpTree,
+  placeTree,
+  putDownTree,
+  renameTree,
+  setTargetStyle,
+  treeOnPedestal,
+} from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
 import { hudText } from '../world/hud';
@@ -19,11 +32,13 @@ import {
 } from '../world/menu';
 import {
   PANEL,
-  PANEL_CLOSE,
   PANEL_CLOSE_LABEL,
+  PANEL_DISABLED_COLOR,
   PANEL_INSET,
-  PANEL_TITLE_Y,
+  PANEL_TEXT_COLOR,
   loadSlotsPanel,
+  panelClose,
+  panelTitleY,
   pedestalPanel,
   placeholderPanel,
   type PanelModel,
@@ -32,6 +47,7 @@ import { clamp } from '../sim/vec3';
 import {
   DISABLED_COLOR,
   FOOTER_COLOR,
+  INSPECTOR_CLOSE_LABEL,
   INSPECTOR_INSET,
   INSPECTOR_PANEL,
   INSPECTOR_TITLE_H,
@@ -46,6 +62,14 @@ import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../w
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
 import { SHED_ROOM, type Prop } from '../world/shedRoom';
 import { treeSprites, treeTargets, treeLabel, type TreeTarget } from '../world/treeSprites';
+import {
+  RENAME_INPUT,
+  renameCounter,
+  renamePanel,
+  repotPanel,
+  sellPanel,
+  stylePanel,
+} from '../world/treePanels';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 
 const TOAST_MS = 2000;
@@ -69,6 +93,8 @@ interface OpenPanel {
   readonly buttons: { id: string; text: Phaser.GameObjects.Text }[];
   /** The tree an open inspector shows. */
   readonly tree?: BonsaiTree;
+  /** Removes what the panel put outside Phaser (the rename input). */
+  readonly dispose?: () => void;
 }
 
 /** Text colours of the inspector's lines and enabled buttons. */
@@ -104,7 +130,8 @@ const BAR_H = 6;
  * floor grid, where they are interactables, or on a pedestal. A tree opens the
  * inspector (src/world/inspector.ts): Water, Fertilise and Skip go through its
  * pure dispatch and redraw it in place, Pick up and View in 3D are this
- * scene's. Pedestal panels place the carried tree and the menu puts it down,
+ * scene's, and Rename, Set Style, Sell and Repot open their sub-panels
+ * (src/world/treePanels.ts), which act through src/sim/. Pedestal panels place the carried tree and the menu puts it down,
  * all through the location helpers in src/sim/tree.ts.
  */
 export class WorldScene extends Phaser.Scene {
@@ -300,6 +327,7 @@ export class WorldScene extends Phaser.Scene {
       this.publishHook();
     };
     this.events.once('shutdown', () => {
+      this.panel?.dispose?.();
       this.viewer.destroy();
       keyboard.removeCapture([K.F5, K.F9]);
     });
@@ -368,15 +396,19 @@ export class WorldScene extends Phaser.Scene {
    * A modal panel over the dimmed room (obj_ui_panel): title, rows and Close.
    * A row with an id is a button and `onRow` gets its index.
    */
-  private openPanel(model: PanelModel, onRow: (index: number) => void = () => undefined): void {
+  private openPanel(
+    model: PanelModel,
+    onRow: (index: number) => void = () => undefined,
+  ): Phaser.GameObjects.Text[] {
     this.closePanel();
     this.joystick = undefined;
+    const box = model.box ?? PANEL;
     const dim = this.add
       .rectangle(0, 0, SHED_ROOM.width, SHED_ROOM.height, 0x000000, 0.5)
       .setOrigin(0)
       .setDepth(MODAL_DEPTH)
       .setInteractive();
-    const left = PANEL.x + PANEL_INSET;
+    const left = box.x + PANEL_INSET;
     const style = { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' };
     const text = (y: number, label: string, color: string) =>
       this.add
@@ -385,27 +417,134 @@ export class WorldScene extends Phaser.Scene {
         .setDepth(MODAL_DEPTH);
     const parts: Phaser.GameObjects.GameObject[] = [
       dim,
-      this.panelBox(PANEL, MODAL_DEPTH),
-      text(PANEL_TITLE_Y, model.title, '#ffffff'),
+      this.panelBox(box, MODAL_DEPTH),
+      text(panelTitleY(box), model.title, '#ffffff'),
     ];
     const buttons: OpenPanel['buttons'] = [];
-    model.rows.forEach((row, i) => {
-      if (!row.id) {
-        parts.push(text(row.y, row.text, '#a0b496'));
-        return;
+    // A greyed row is plain text, not a control.
+    const texts = model.rows.map((row, i) => {
+      if (!row.id || row.enabled === false) {
+        const color = row.enabled === false ? PANEL_DISABLED_COLOR : PANEL_TEXT_COLOR;
+        const t = text(row.y, row.text, row.color ?? color);
+        parts.push(t);
+        return t;
       }
       const button = this.hudButton(left, row.y, row.text, () => {
         onRow(i);
       });
-      buttons.push({ id: row.id, text: button.setOrigin(0, 0.5).setColor('#ffffff') });
+      buttons.push({ id: row.id, text: button.setOrigin(0, 0.5).setColor(row.color ?? '#ffffff') });
+      return button;
     });
-    const close = this.hudButton(PANEL_CLOSE.x, PANEL_CLOSE.y, PANEL_CLOSE_LABEL, () => {
+    const at = panelClose(box);
+    const close = this.hudButton(at.x, at.y, PANEL_CLOSE_LABEL, () => {
       this.closePanel();
     });
     buttons.push({ id: 'panel-close', text: close.setOrigin(0.5) });
     for (const b of buttons) b.text.setDepth(MODAL_DEPTH);
     this.panel = { key: model.key, modal: true, parts, buttons };
     this.publishHook();
+    return texts;
+  }
+
+  /** obj_ui_tree_repot_confirm; the soil toggle reopens it with the flag flipped. */
+  private openRepot(tree: BonsaiTree, premiumSoil = false): void {
+    const { state } = this.ctx;
+    const model = repotPanel(tree, state, premiumSoil);
+    this.openPanel(model, (i) => {
+      const id = model.rows[i]?.id;
+      if (id === 'panel-soil') {
+        this.openRepot(tree, !premiumSoil);
+        return;
+      }
+      const tier = id === 'panel-repot-fancy' ? 1 : 0;
+      const soil = premiumSoil && inventoryHas(state.inventory, 'soil_premium', 1) ? 1 : 0;
+      const done = repotTree(tree, state, tier, soil);
+      this.closePanel();
+      this.relocated();
+      this.showToast(
+        done ? `Repotted into a ${tier === 1 ? 'fancy' : 'standard'} pot` : 'Could not repot',
+      );
+    });
+  }
+
+  /** obj_ui_tree_sell_confirm: the tree leaves the room for good. */
+  private openSell(tree: BonsaiTree): void {
+    this.openPanel(sellPanel(tree), () => {
+      const price = sellTree(this.ctx.state, tree);
+      this.closePanel();
+      this.relocated();
+      if (price !== undefined) {
+        this.showToast(`Sold ${treeLabel(tree)} for ${String(price)} coins`);
+      }
+    });
+  }
+
+  /** obj_ui_tree_style_picker, one tap per pick. */
+  private openStyle(tree: BonsaiTree): void {
+    const model = stylePanel(tree);
+    this.openPanel(model, (i) => {
+      const key = model.rows[i]?.id.replace('panel-style-', '') ?? '';
+      const style = STYLE_KEYS.find((k) => k === key);
+      setTargetStyle(tree, style ?? '');
+      this.closePanel();
+      this.showToast(style ? `Style: ${getStyle(style).displayName}` : 'Style cleared');
+    });
+  }
+
+  /**
+   * obj_ui_tree_rename with a DOM input over the canvas where the panel's
+   * input box is. Enter in it saves; Escape reaches the scene's handler,
+   * which closes the panel (and the input with it). The room's keys are dead
+   * under the modal, so typing reaches nothing else.
+   */
+  private openRename(tree: BonsaiTree): void {
+    const input = document.createElement('input');
+    input.id = 'rename-input';
+    input.maxLength = MAX_TREE_NAME_LENGTH;
+    input.value = tree.name;
+    input.style.position = 'fixed';
+    input.style.boxSizing = 'border-box';
+    input.style.background = '#141914';
+    input.style.color = '#ffffff';
+    input.style.border = '1px solid #8ca078';
+    input.style.fontFamily = 'monospace';
+    const place = (): void => {
+      const r = this.game.canvas.getBoundingClientRect();
+      const sx = r.width / SHED_ROOM.width;
+      const sy = r.height / SHED_ROOM.height;
+      const box = RENAME_INPUT;
+      input.style.left = `${String(r.left + box.x * sx)}px`;
+      input.style.top = `${String(r.top + (box.y - box.h / 2) * sy)}px`;
+      input.style.width = `${String(box.w * sx)}px`;
+      input.style.height = `${String(box.h * sy)}px`;
+      input.style.fontSize = `${String(10 * sy)}px`;
+    };
+    const save = (): void => {
+      const name = renameTree(tree, input.value);
+      this.closePanel();
+      this.relocated();
+      this.showToast(`Renamed to ${name}`);
+    };
+    const texts = this.openPanel(renamePanel(tree, input.value), save);
+    input.addEventListener('input', () => {
+      texts[2]?.setText(renameCounter(input.value));
+    });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') save();
+    });
+    place();
+    this.scale.on('resize', place);
+    document.body.appendChild(input);
+    input.focus();
+    if (this.panel) {
+      this.panel = {
+        ...this.panel,
+        dispose: () => {
+          this.scale.off('resize', place);
+          input.remove();
+        },
+      };
+    }
   }
 
   /**
@@ -466,6 +605,18 @@ export class WorldScene extends Phaser.Scene {
         this.closePanel();
         this.openViewer(tree);
       },
+      rename: () => {
+        this.openRename(tree);
+      },
+      style: () => {
+        this.openStyle(tree);
+      },
+      sell: () => {
+        this.openSell(tree);
+      },
+      repot: () => {
+        this.openRepot(tree);
+      },
     };
     const buttons: OpenPanel['buttons'] = [];
     for (const b of m.buttons) {
@@ -481,7 +632,7 @@ export class WorldScene extends Phaser.Scene {
     const close = this.hudButton(
       box.x + box.w - INSPECTOR_INSET,
       box.y + INSPECTOR_TITLE_H / 2,
-      '[ESC] Close',
+      INSPECTOR_CLOSE_LABEL,
       () => {
         this.closePanel();
       },
@@ -510,6 +661,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private destroyPanel(): void {
+    this.panel?.dispose?.();
     for (const part of this.panel?.parts ?? []) part.destroy();
     for (const button of this.panel?.buttons ?? []) button.text.destroy();
     this.panel = undefined;
@@ -738,7 +890,13 @@ export class WorldScene extends Phaser.Scene {
         vigor: inspected.vigor,
         heightCm: inspected.trunk.heightCm,
         revision: inspected.revision,
+        name: inspected.name,
+        targetStyle: inspected.targetStyle,
+        potTier: inspected.potTier,
+        soilTier: inspected.soilTier,
+        score: scoreTree(inspected).total,
       },
+      money: state.money,
       activeSlot: slot,
       slots: this.slots,
       toast: this.toast.text,

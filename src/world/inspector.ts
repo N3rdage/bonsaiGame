@@ -30,7 +30,7 @@ import { treeLabel } from './treeSprites';
 export const SKIP_DAYS = 7;
 
 /** The box, centred on the canvas; the 400x150 PANEL stays for the other panels. */
-export const INSPECTOR_PANEL = { x: 20, y: 10, w: 440, h: 250 } as const;
+export const INSPECTOR_PANEL = { x: 20, y: 4, w: 440, h: 262 } as const;
 /** Height of the title bar (obj_ui_panel's darker band). */
 export const INSPECTOR_TITLE_H = 22;
 /** Left and right inset of the content. */
@@ -54,8 +54,13 @@ const BAR_TEXT_X = BAR_TRACK_X + BAR_TRACK_W + 6;
 /** Score column, and the breakdown's value column within it. */
 const SCORE_X = INSPECTOR_PANEL.x + 220;
 const SCORE_VALUE_X = SCORE_X + 125;
-const BUTTON_Y = INSPECTOR_PANEL.y + INSPECTOR_PANEL.h - 30;
+/** Two button rows: care and carrying, then the sub-panels. */
+const BUTTON_Y = INSPECTOR_PANEL.y + INSPECTOR_PANEL.h - 44;
+const BUTTON2_Y = BUTTON_Y + 14;
 const FOOTER_Y = INSPECTOR_PANEL.y + INSPECTOR_PANEL.h - 12;
+
+/** The close hint, right-aligned in the title bar opposite the tree's label. */
+export const INSPECTOR_CLOSE_LABEL = '[ESC] Close';
 
 export const NOTE_COLOR = '#dcb450';
 export const FOOTER_COLOR = '#969696';
@@ -84,7 +89,9 @@ export interface InspectorBar {
 
 /** The inspector's own care actions; Pick up and View in 3D are the scene's. */
 export type InspectorCare = 'water' | 'fertilise' | 'skip';
-export type InspectorButtonId = InspectorCare | 'pickup' | 'view';
+export type InspectorButtonId = InspectorCare | 'pickup' | 'view' | InspectorSubPanel;
+/** The buttons that open a sub-panel (treePanels.ts). */
+export type InspectorSubPanel = 'rename' | 'style' | 'sell' | 'repot';
 
 export interface InspectorButton {
   /** The control id is `panel-<id>`. */
@@ -180,17 +187,32 @@ export function inspectorPanel(tree: BonsaiTree, state: GameState): InspectorMod
       };
     }),
     bars,
-    buttons: spread([
-      ['water', 'Water', true],
-      ['fertilise', 'Fertilise', inventoryHas(state.inventory, 'fertilizer', 1) && !dormant],
-      [
-        'skip',
-        `Skip ${String(SKIP_DAYS)}d (${String(skipCost)}f)`,
-        inventoryHas(state.inventory, 'fertilizer', skipCost),
-      ],
-      ['pickup', 'Pick up', true],
-      ['view', 'View in 3D', true],
-    ]),
+    buttons: [
+      ...spread(BUTTON_Y, [
+        ['water', 'Water', true],
+        ['fertilise', 'Fertilise', inventoryHas(state.inventory, 'fertilizer', 1) && !dormant],
+        [
+          'skip',
+          `Skip ${String(SKIP_DAYS)}d (${String(skipCost)}f)`,
+          inventoryHas(state.inventory, 'fertilizer', skipCost),
+        ],
+        ['pickup', 'Pick up', true],
+        ['view', 'View in 3D', true],
+      ]),
+      // The prototype's second row; Repot needs repot_check ok and a pot of either tier.
+      ...spread(BUTTON2_Y, [
+        ['rename', 'Rename', true],
+        ['style', 'Set Style', true],
+        ['sell', 'Sell', true],
+        [
+          'repot',
+          'Repot',
+          repot === 'ok' &&
+            (inventoryHas(state.inventory, 'pot', 1) ||
+              inventoryHas(state.inventory, 'fancy_pot', 1)),
+        ],
+      ]),
+    ],
     footer: {
       text:
         `Fertilizer: ${String(fertilizer)}  |  Wire: ${String(state.inventory.wire)}` +
@@ -201,13 +223,16 @@ export function inspectorPanel(tree: BonsaiTree, state: GameState): InspectorMod
   };
 }
 
-/** One row of buttons from the left inset to the right one, equal gaps between them. */
-function spread(items: readonly [InspectorButtonId, string, boolean][]): InspectorButton[] {
+/** One row of buttons at `y` from the left inset to the right one, equal gaps between them. */
+function spread(
+  y: number,
+  items: readonly [InspectorButtonId, string, boolean][],
+): InspectorButton[] {
   const widths = items.map(([, label]) => label.length * GLYPH_W);
   const gap = (RIGHT - LEFT - widths.reduce((a, b) => a + b, 0)) / (items.length - 1);
   let x = LEFT;
   return items.map(([id, label, enabled], i) => {
-    const button = { id, label, enabled, x, y: BUTTON_Y };
+    const button = { id, label, enabled, x, y };
     x += (widths[i] ?? 0) + gap;
     return button;
   });

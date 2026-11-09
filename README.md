@@ -40,6 +40,7 @@ Every pull request runs the same checks in CI and deploys a preview to Azure Sta
 | Drag anywhere (joystick) or WASD / arrows | Move player |
 | Interact button or E | Interact with the nearest object |
 | Interact on a tree (or its pedestal) | Open the tree inspector: stats, score breakdown, Water, Fertilise, Skip 7d, Pick up, View in 3D |
+| Inspector: Rename, Set Style, Sell, Repot | Open the sub-panel: type a name (Enter saves), tap a style, confirm the sale price, or pick a standard or fancy pot (spring, 60 days after the last repot) |
 | Inspector → Pick up, or Interact on an empty pedestal → Place | Carry a tree (one at a time) and display it on an empty pedestal |
 | Menu button → Put down (while carrying) | Put the carried tree back on the shed floor |
 | Inspector → View in 3D | Open the 3D viewer on that tree |
