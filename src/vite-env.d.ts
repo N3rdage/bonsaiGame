@@ -45,8 +45,10 @@ interface BonsaiTestHook {
   readonly toast: string;
   /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
   readonly picker: string;
-  /** World only: 'menu' while the HUD menu panel is open; '' otherwise (always on the title). */
+  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
   readonly panel: string;
+  /** World only: key of the prop within interact range of the player, or '' (always on the title). */
+  readonly near: string;
   /** Every tappable Phaser control on screen, by id, with its centre in logical px (480x270); empty under the viewer. */
   readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }
