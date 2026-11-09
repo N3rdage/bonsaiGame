@@ -13,6 +13,18 @@ import type { GameState, Rng } from '../sim/types';
 export const SECONDS_PER_DAY = 300;
 /** Create_0: `global.base_time_scale = 1.0`; `?timeScale=` overrides it for tests. */
 export const BASE_TIME_SCALE = 1;
+/** Cap on `?timeScale=`: tickClock steps day by day, so a huge finite scale would hang the tab too; at 10000 a one-second hitch is still only ~33 days. */
+export const MAX_TIME_SCALE = 10_000;
+
+/**
+ * Parses the `?timeScale=` test override: a finite number above 0, clamped to
+ * MAX_TIME_SCALE; anything else (missing, zero, negative, Infinity, not a
+ * number) is `undefined`, as if the parameter were absent.
+ */
+export function parseTimeScale(raw: string | null): number | undefined {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? Math.min(n, MAX_TIME_SCALE) : undefined;
+}
 
 export interface ClockTick {
   /** Seconds carried toward the next day, below SECONDS_PER_DAY. */

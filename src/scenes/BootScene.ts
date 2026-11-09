@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { LocalStorageSaveStorage } from '../platform/localStorageSaveStorage';
 import { SEASONS } from '../sim/seasons';
 import { VIEWER_FIXTURES, isViewerFixtureKey } from '../viewer/viewerFixtures';
+import { parseTimeScale } from '../world/clock';
 import type { TitleSceneData } from './sceneData';
 
 /**
@@ -23,14 +24,14 @@ export class BootScene extends Phaser.Scene {
     // the viewer only, for the foliage screenshot tests; it stays like `?tree=`.
     const seasonParam = params.get('season');
     // `?timeScale=<n>` speeds the day clock up for the day-passing tests.
-    const timeScale = Number(params.get('timeScale'));
+    const timeScale = parseTimeScale(params.get('timeScale'));
 
     const data: TitleSceneData = {
       storage: new LocalStorageSaveStorage(),
       overrides: {
         tree: isViewerFixtureKey(fixtureKey) ? VIEWER_FIXTURES[fixtureKey] : undefined,
         season: SEASONS.find((s) => s === seasonParam),
-        timeScale: timeScale > 0 ? timeScale : undefined,
+        timeScale,
       },
     };
     this.scene.start('title', data);
