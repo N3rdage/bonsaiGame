@@ -3,7 +3,13 @@ import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { GameState } from '../sim/types';
 import { advanceDayAllTrees } from '../sim/world';
-import { BASE_TIME_SCALE, SECONDS_PER_DAY, tickClock } from './clock';
+import {
+  BASE_TIME_SCALE,
+  MAX_TIME_SCALE,
+  SECONDS_PER_DAY,
+  parseTimeScale,
+  tickClock,
+} from './clock';
 
 /** Never triggers natural branch spawns, so two runs grow the same. */
 const rng = () => 0.999;
@@ -54,5 +60,26 @@ describe('day clock', () => {
     expect(tick).toEqual({ accumulatorS: 0, days: 2, revenue: want });
     expect(want).toBeGreaterThan(0);
     expect([state.day, state.money]).toEqual([expected.day, expected.money]);
+  });
+});
+
+describe('parseTimeScale', () => {
+  it('takes a finite positive ?timeScale=', () => {
+    expect(parseTimeScale('150')).toBe(150);
+    expect(parseTimeScale('0.5')).toBe(0.5);
+  });
+
+  it.each(['0', '-1', 'Infinity', '1e400', 'abc', ''])('ignores %j', (raw) => {
+    expect(parseTimeScale(raw)).toBeUndefined();
+  });
+
+  it('ignores a missing parameter', () => {
+    expect(parseTimeScale(null)).toBeUndefined();
+  });
+
+  it('clamps to 10000 so a frame cannot step through millions of days', () => {
+    expect(MAX_TIME_SCALE).toBe(10_000);
+    expect(parseTimeScale('10000')).toBe(10_000);
+    expect(parseTimeScale('1e300')).toBe(10_000);
   });
 });
