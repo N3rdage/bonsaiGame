@@ -2,12 +2,15 @@ import type { Page } from '@playwright/test';
 import {
   bootWorld,
   collectErrors,
+  continueGame,
   expect,
   hook,
   interact,
   pickUpTree,
   placeTree,
+  saveGame,
   test,
+  toTitle,
   walkTo,
 } from './drive';
 
@@ -70,14 +73,26 @@ test.describe('the garden', () => {
 test.describe('the day clock', () => {
   test('a displayed tree earns display revenue as the days pass', async ({ page }) => {
     const errors = collectErrors(page);
-    // 150x: a day every 2 s.
-    await bootWorld(page, '/?timeScale=150');
+    // The carrying happens at 1x: a passing day rebuilds an open inspector, and
+    // at speed that can land between a tap's pointerdown and pointerup. The
+    // placement is saved, then continued at 150x (a day every 2 s).
+    await bootWorld(page);
     await walkTo(page, 160, 'left', 'tree:0');
     await pickUpTree(page);
     await walkTo(page, 85, 'right', 'pedestal_1');
     await placeTree(page);
+    await saveGame(page);
+    await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
 
+    await toTitle(page, '/?timeScale=150');
+    await continueGame(page);
+    await page.waitForFunction(
+      () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
+    );
     const before = await hook(page);
+    expect(before.treeLocations).toEqual([
+      { id: 0, name: "Granny's", location: 'displayed:shed_main' },
+    ]);
     const handle = await page.waitForFunction(
       (day) => {
         const h = window.__bonsai;
