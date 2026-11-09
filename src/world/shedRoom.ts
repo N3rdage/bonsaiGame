@@ -34,6 +34,8 @@ export interface Prop {
   readonly y: number;
   readonly w: number;
   readonly h: number;
+  /** Display pedestals only: the prototype's `pedestal_key` (instance creation code), as in `displayed:<pedestalKey>`. */
+  readonly pedestalKey?: string;
 }
 
 export interface Room {
@@ -88,8 +90,15 @@ export const SHED_ROOM: Room = {
     prop('workbench', 'Workbench', 'Make Pot', 250, 180, 40, 20),
     prop('planting_table', 'Planting', 'Plant Cutting', 330, 180, 32, 20),
     prop('shop_kiosk', 'Shop', 'Shop', 250, 290, 28, 24),
-    prop('pedestal_1', 'Pedestal', 'Use Pedestal', 620, 170, 16, 16),
-    prop('pedestal_2', 'Pedestal', 'Use Pedestal', 700, 170, 16, 16),
+    // rm_shed instance creation code: inst_32863523 and inst_277706A5.
+    {
+      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 620, 170, 16, 16),
+      pedestalKey: 'shed_main',
+    },
+    {
+      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 700, 170, 16, 16),
+      pedestalKey: 'shed_window',
+    },
     prop('door', 'Door', 'Enter', 464, 416, 24, 32),
   ],
   // rm_shed's background colour 4279770660 is ABGR 0xff181e24.

@@ -1,16 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CARRIED,
   DISPLAYED_PREFIX,
   addBranch,
+  carriedTree,
   createTree,
   displayedPedestalKey,
   isDisplayed,
   isSold,
   markDirty,
   needsWater,
+  pickUpTree,
+  placeTree,
+  putDownTree,
   spawnTree,
+  treeOnPedestal,
+  treesInRoom,
 } from './tree';
-import type { GameState } from './types';
+import type { BonsaiTree, GameState } from './types';
 
 describe('createTree', () => {
   it('applies the prototype defaults', () => {
@@ -134,5 +141,80 @@ describe('location helpers', () => {
     const t = at('sold');
     expect(isSold(t)).toBe(true);
     expect(isDisplayed(t)).toBe(false);
+  });
+});
+
+describe('carrying, placing and putting down', () => {
+  const world = (...locations: string[]) => {
+    const trees: BonsaiTree[] = locations.map((location, id) => ({
+      ...createTree('juniper', 'seed', id),
+      location,
+    }));
+    const pick = (i: number): BonsaiTree => {
+      const t = trees[i];
+      if (!t) throw new Error(String(i));
+      return t;
+    };
+    return { state: { trees } as unknown as GameState, trees, pick };
+  };
+
+  it('carries in the inventory location', () => {
+    expect(CARRIED).toBe('inventory');
+  });
+
+  it('finds the floor trees of a room in order, the carried and the displayed trees', () => {
+    const { state, trees } = world(
+      'shed',
+      'displayed:shed_main',
+      'inventory',
+      'sold',
+      'garden',
+      'shed',
+    );
+    expect(treesInRoom(state, 'shed')).toEqual([trees[0], trees[5]]);
+    expect(treeOnPedestal(state, 'shed_main')).toBe(trees[1]);
+    expect(treeOnPedestal(state, 'shed_window')).toBeUndefined();
+    expect(carriedTree(state)).toBe(trees[2]);
+    expect(carriedTree(world('shed').state)).toBeUndefined();
+  });
+
+  it('picks up from the floor or a pedestal without touching the revision', () => {
+    const { state, pick } = world('shed', 'displayed:shed_main');
+    expect(pickUpTree(state, pick(0))).toBe(true);
+    expect(pick(0).location).toBe('inventory');
+    expect(pick(0).revision).toBe(0);
+    expect(putDownTree(pick(0), 'shed')).toBe(true);
+    expect(pickUpTree(state, pick(1))).toBe(true);
+    expect(pick(1).location).toBe('inventory');
+  });
+
+  it('refuses a second pickup and changes nothing', () => {
+    const { state, trees, pick } = world('shed', 'displayed:shed_main');
+    expect(pickUpTree(state, pick(0))).toBe(true);
+    expect(pickUpTree(state, pick(1))).toBe(false);
+    expect(trees.map((t) => t.location)).toEqual(['inventory', 'displayed:shed_main']);
+  });
+
+  it('places only a carried tree, only on an empty pedestal', () => {
+    const { state, pick } = world('shed', 'displayed:shed_main');
+    const floor = pick(0);
+    expect(placeTree(state, floor, 'shed_window')).toBe(false);
+    expect(floor.location).toBe('shed');
+    pickUpTree(state, floor);
+    expect(placeTree(state, floor, 'shed_main')).toBe(false);
+    expect(floor.location).toBe('inventory');
+    expect(placeTree(state, floor, 'shed_window')).toBe(true);
+    expect(floor.location).toBe('displayed:shed_window');
+    expect(carriedTree(state)).toBeUndefined();
+  });
+
+  it('puts down only a carried tree', () => {
+    const { state, pick } = world('displayed:shed_main');
+    const shown = pick(0);
+    expect(putDownTree(shown, 'shed')).toBe(false);
+    expect(shown.location).toBe('displayed:shed_main');
+    pickUpTree(state, shown);
+    expect(putDownTree(shown, 'shed')).toBe(true);
+    expect(shown.location).toBe('shed');
   });
 });

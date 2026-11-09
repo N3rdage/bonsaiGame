@@ -2,11 +2,13 @@ import Phaser from 'phaser';
 import { loadGame, saveGame } from '../sim/save';
 import { seasonForDay } from '../sim/seasons';
 import { scoreTree } from '../sim/scoring';
+import { carriedTree, pickUpTree, placeTree, putDownTree, treeOnPedestal } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
 import { hudText } from '../world/hud';
 import { nearestInteractable, promptFor } from '../world/interactables';
 import {
+  CARRY_TEXT,
   HUD_BADGE,
   INTERACT_BUTTON,
   MENU_BUTTON,
@@ -22,13 +24,16 @@ import {
   PANEL_INSET,
   PANEL_TITLE_Y,
   loadSlotsPanel,
+  pedestalPanel,
   placeholderPanel,
+  treePanel,
   type PanelModel,
 } from '../world/panels';
 import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
 import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../world/player';
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
 import { SHED_ROOM, type Prop } from '../world/shedRoom';
+import { treeSprites, treeTargets, treeLabel, type TreeTarget } from '../world/treeSprites';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 
 const TOAST_MS = 2000;
@@ -71,6 +76,11 @@ interface OpenPanel {
  * While a modal is open the player does not move and the room's keys, Menu and
  * View tree do nothing; Escape or Close (Esc) closes it. F9 on an empty or
  * unreadable slot opens the Load Game slot picker as such a panel.
+ *
+ * Trees are drawn from their `location` (src/world/treeSprites.ts): on the
+ * floor grid, where they are interactables, or on a pedestal. Their panels
+ * pick one up, place the carried one and the menu puts it down, all through
+ * the location helpers in src/sim/tree.ts.
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
@@ -94,8 +104,13 @@ export class WorldScene extends Phaser.Scene {
   private menuButton!: Phaser.GameObjects.Text;
   private interactButton!: Phaser.GameObjects.Text;
   private promptText!: Phaser.GameObjects.Text;
-  /** The prop in interact range of the player, if any. */
-  private near: Prop | undefined;
+  private carryText!: Phaser.GameObjects.Text;
+  /** The tree sprites drawn now, redrawn whenever a location changes. */
+  private treeParts: Phaser.GameObjects.GameObject[] = [];
+  /** Props and floor trees, what E can reach. */
+  private targets: readonly (Prop | TreeTarget)[] = [];
+  /** The prop or floor tree in interact range of the player, if any. */
+  private near: Prop | TreeTarget | undefined;
   private panel: OpenPanel | undefined;
   private accumulatorMs = 0;
   private frames = 0;
@@ -135,14 +150,12 @@ export class WorldScene extends Phaser.Scene {
       this.add.rectangle(p.x, p.y, p.w, p.h, 0x7a6248).setStrokeStyle(1, 0xb39a74).setDepth(bottom);
       this.add.text(p.x, p.y, p.label, LABEL_STYLE).setOrigin(0.5).setDepth(bottom);
     }
-
     this.player = createPlayer(room);
     this.playerRect = this.add.rectangle(0, 0, PLAYER_W, PLAYER_H, 0xc9d8a8).setOrigin(0.5, 1);
     this.promptText = this.add
       .text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
       .setOrigin(0.5, 1)
       .setDepth(HUD_DEPTH);
-    this.drawPlayer();
 
     this.hud = this.add
       .text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), {
@@ -152,6 +165,13 @@ export class WorldScene extends Phaser.Scene {
       })
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
+    this.carryText = this.add
+      .text(CARRY_TEXT.right, CARRY_TEXT.top, '', { ...LABEL_STYLE, fontSize: '10px' })
+      .setOrigin(1, 0)
+      .setDepth(HUD_DEPTH);
+    this.treeParts = [];
+    this.drawTrees();
+    this.drawPlayer();
     this.viewButton = this.hudButton(VIEW_BUTTON.left, VIEW_BUTTON.bottom, 'View tree (V)', () => {
       this.openViewer();
     }).setOrigin(0, 1);
@@ -304,8 +324,14 @@ export class WorldScene extends Phaser.Scene {
       title: () => {
         this.toTitle();
       },
+      putdown: () => {
+        const tree = carriedTree(this.ctx.state);
+        if (tree) putDownTree(tree, SHED_ROOM.key);
+        this.closePanel();
+        this.relocated();
+      },
     };
-    const buttons = menuItems().map((item) => ({
+    const buttons = menuItems(carriedTree(this.ctx.state) !== undefined).map((item) => ({
       id: `menu-${item.id}`,
       text: this.hudButton(item.x, item.y, item.label, actions[item.id]).setOrigin(0, 0.5),
     }));
@@ -365,10 +391,69 @@ export class WorldScene extends Phaser.Scene {
     this.publishHook();
   }
 
-  /** E or the Interact button: the prop in range opens its panel (placeholders for now). */
+  /**
+   * E or the Interact button: a floor tree or an occupied pedestal opens the
+   * tree's panel, an empty pedestal the Display Pedestal panel, any other prop
+   * its placeholder.
+   */
   private interact(): void {
-    if (!this.roomKeysLive() || !this.near) return;
-    this.openPanel(placeholderPanel(this.near));
+    const near = this.near;
+    if (!this.roomKeysLive() || !near) return;
+    const { state } = this.ctx;
+    const pedestalKey = 'pedestalKey' in near ? near.pedestalKey : undefined;
+    const tree =
+      'tree' in near
+        ? near.tree
+        : pedestalKey === undefined
+          ? undefined
+          : treeOnPedestal(state, pedestalKey);
+    if (tree) {
+      this.openPanel(treePanel(tree), () => {
+        this.pickUp(tree);
+      });
+    } else if (pedestalKey !== undefined) {
+      const carried = carriedTree(state);
+      this.openPanel(pedestalPanel(pedestalKey, carried), () => {
+        if (carried) placeTree(state, carried, pedestalKey);
+        this.closePanel();
+        this.relocated();
+      });
+    } else if ('label' in near) {
+      this.openPanel(placeholderPanel(near));
+    }
+  }
+
+  /** The panel's Pick up: refused with a toast while another tree is carried. */
+  private pickUp(tree: BonsaiTree): void {
+    const carried = carriedTree(this.ctx.state);
+    this.closePanel();
+    if (pickUpTree(this.ctx.state, tree)) this.relocated();
+    else if (carried) this.showToast(`Already carrying ${treeLabel(carried)}`);
+  }
+
+  /** After a location change: redraw the trees and the carry line, publish. */
+  private relocated(): void {
+    this.drawTrees();
+    this.drawPlayer();
+    this.publishHook();
+  }
+
+  /** Placeholder obj_tree_sprite: a pot, a canopy circle scaled from trunk height, the label. */
+  private drawTrees(): void {
+    for (const part of this.treeParts) part.destroy();
+    const sprites = treeSprites(this.ctx.state, SHED_ROOM);
+    this.treeParts = sprites.flatMap((s) => {
+      const pot = s.size * 0.3;
+      const r = s.size * 0.35;
+      return [
+        this.add.rectangle(s.x, s.y, s.size * 0.5, pot, 0xb06a3c).setOrigin(0.5, 1),
+        this.add.circle(s.x, s.y - s.size + r, r, 0x5f8a4a).setStrokeStyle(1, 0x3c5a2e),
+        this.add.text(s.x, s.y - s.size - 1, s.label, LABEL_STYLE).setOrigin(0.5, 1),
+      ].map((part) => part.setDepth(s.depth));
+    });
+    this.targets = [...SHED_ROOM.props, ...treeTargets(sprites)];
+    const carried = carriedTree(this.ctx.state);
+    this.carryText.setText(carried ? `Carrying: ${treeLabel(carried)}` : '');
   }
 
   /** obj_ui_save_slots in load mode over the room; Close keeps the unsaved game. */
@@ -442,6 +527,7 @@ export class WorldScene extends Phaser.Scene {
     const modal = this.panel?.modal === true;
     const showInteract = this.near !== undefined && !viewerOpen && !modal;
     this.hud.setVisible(!viewerOpen);
+    this.carryText.setVisible(!viewerOpen);
     this.menuButton.setVisible(!viewerOpen && !modal);
     this.promptText.setVisible(showInteract);
     this.interactButton.setVisible(showInteract);
@@ -478,7 +564,7 @@ export class WorldScene extends Phaser.Scene {
   private drawPlayer(): void {
     const { x, y } = this.player;
     this.playerRect.setPosition(x, y).setDepth(y);
-    this.near = nearestInteractable(this.player, SHED_ROOM);
+    this.near = nearestInteractable(this.player, this.targets);
     this.promptText.setText(this.near ? promptFor(this.near) : '').setPosition(x, y - PLAYER_H - 2);
   }
 
@@ -490,6 +576,7 @@ export class WorldScene extends Phaser.Scene {
     this.closePanel();
     this.viewer.open(viewTree, overrides.season ?? seasonForDay(state.day), state);
     this.hud.setVisible(false);
+    this.carryText.setVisible(false);
     this.menuButton.setVisible(false);
     this.promptText.setVisible(false);
     this.interactButton.setVisible(false);
@@ -511,6 +598,7 @@ export class WorldScene extends Phaser.Scene {
 
   private readonly publishHook = (): void => {
     const { state, slot } = this.ctx;
+    const carried = carriedTree(state);
     window.__bonsai = {
       ...this.base,
       activeSlot: slot,
@@ -519,6 +607,12 @@ export class WorldScene extends Phaser.Scene {
       picker: '',
       panel: this.panel?.key ?? '',
       near: this.near?.key ?? '',
+      carrying: carried ? treeLabel(carried) : '',
+      treeLocations: state.trees.map((t) => ({
+        id: t.id,
+        name: treeLabel(t),
+        location: t.location,
+      })),
       controls: this.controls(),
       ready: true,
       scene: this.scene.key,

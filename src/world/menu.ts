@@ -1,6 +1,7 @@
 /**
  * Layout of the world HUD: the badge, the View tree button, the toast and the
- * Menu button with its panel (Save, Load, Title), in logical px on the 480x270
+ * Menu button with its panel (Put down while carrying, Save, Load, Title), the
+ * carry line, in logical px on the 480x270
  * canvas. Pure data; WorldScene draws it.
  */
 
@@ -15,13 +16,16 @@ export const INTERACT_BUTTON = { right: 474, bottom: 264 } as const;
 /** Left edge of the toast, to the right of the Menu button. */
 export const TOAST_X = 52;
 /** The open panel's rectangle (top-left and size), just under the Menu button. */
-export const MENU_PANEL = { x: 4, y: 16, w: 80, h: 54 } as const;
+export const MENU_PANEL = { x: 4, y: 16, w: 80, h: 70 } as const;
 /** Left inset of the row labels inside the panel. */
 export const MENU_ROW_INSET = 6;
 /** Vertical distance between row centres; each row's tap band is this tall. */
 export const MENU_ROW_SPACING = 16;
 
-export type MenuItemId = 'save' | 'load' | 'title';
+/** Top-right anchor of the `Carrying: <label>` line under the badge (text origin 1, 0). */
+export const CARRY_TEXT = { right: 472, top: 14 } as const;
+
+export type MenuItemId = 'putdown' | 'save' | 'load' | 'title';
 
 export interface MenuItem {
   readonly id: MenuItemId;
@@ -38,10 +42,11 @@ const ITEMS: readonly { id: MenuItemId; label: string }[] = [
   { id: 'title', label: 'Title (Esc)' },
 ];
 
-/** The panel's rows, top to bottom, centred in the panel's height. */
-export function menuItems(): readonly MenuItem[] {
-  const top = MENU_PANEL.y + (MENU_PANEL.h - ITEMS.length * MENU_ROW_SPACING) / 2;
-  return ITEMS.map((item, i) => ({
+/** The panel's rows, top to bottom, centred in the panel's height; `Put down` first while carrying a tree. */
+export function menuItems(carrying: boolean): readonly MenuItem[] {
+  const items = carrying ? [{ id: 'putdown' as const, label: 'Put down' }, ...ITEMS] : ITEMS;
+  const top = MENU_PANEL.y + (MENU_PANEL.h - items.length * MENU_ROW_SPACING) / 2;
+  return items.map((item, i) => ({
     ...item,
     x: MENU_PANEL.x + MENU_ROW_INSET,
     y: top + (i + 0.5) * MENU_ROW_SPACING,

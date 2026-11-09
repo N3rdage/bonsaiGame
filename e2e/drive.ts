@@ -121,6 +121,56 @@ export const closePanel = (page: Page): Promise<void> => phaser(page, 'Escape', 
 export const pickPanelSlot = (page: Page, n: number): Promise<void> =>
   phaser(page, String(n), `panel-slot-${String(n)}`);
 
+/**
+ * Walks with the arrow keys (movement stays keys on every project): to row
+ * `y` first, then along it toward `dx` until `near` is `key`.
+ */
+export async function walkTo(
+  page: Page,
+  y: number,
+  dx: 'left' | 'right',
+  key: string,
+): Promise<void> {
+  const from = (await hook(page)).player.y;
+  const vertical = from < y ? 'ArrowDown' : 'ArrowUp';
+  await page.keyboard.down(vertical);
+  await page.waitForFunction(
+    ([target, down]) => {
+      const at = window.__bonsai?.player.y ?? NaN;
+      return down ? at >= target : at <= target;
+    },
+    [y, from < y] as const,
+  );
+  await page.keyboard.up(vertical);
+  const horizontal = dx === 'left' ? 'ArrowLeft' : 'ArrowRight';
+  await page.keyboard.down(horizontal);
+  await page.waitForFunction((k) => window.__bonsai?.near === k, key);
+  await page.keyboard.up(horizontal);
+}
+
+/** Interacts with the tree in range (on the floor or a pedestal) and taps its panel's Pick up. */
+export async function pickUpTree(page: Page): Promise<void> {
+  await interact(page);
+  await page.waitForFunction(() => window.__bonsai?.panel.startsWith('tree:') === true);
+  await tapControl(page, 'panel-pickup');
+  await page.waitForFunction(() => window.__bonsai?.panel === '');
+}
+
+/** Interacts with the empty pedestal in range and taps its panel's Place row. */
+export async function placeTree(page: Page): Promise<void> {
+  await interact(page);
+  await page.waitForFunction(() => window.__bonsai?.panel.startsWith('pedestal:') === true);
+  await tapControl(page, 'panel-place');
+  await page.waitForFunction(() => window.__bonsai?.panel === '');
+}
+
+/** Opens the HUD menu and taps Put down. */
+export async function putDownTree(page: Page): Promise<void> {
+  await openMenu(page);
+  await tapControl(page, 'menu-putdown');
+  await page.waitForFunction(() => window.__bonsai?.panel === '');
+}
+
 // Viewer: DOM controls.
 
 /** Presses a DOM control: a tap on the tap route, else a click. */

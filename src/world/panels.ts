@@ -4,8 +4,11 @@
  * Pure; WorldScene draws them and maps row ids to actions.
  */
 
+import { getSpecies } from '../sim/species';
+import type { BonsaiTree } from '../sim/types';
 import { slotRowText, type SlotRow } from './saveSlots';
 import type { Prop } from './shedRoom';
+import { treeLabel } from './treeSprites';
 
 /** The box, centred on the canvas (obj_ui_panel auto-centres); wide enough for a full slot row. */
 export const PANEL = { x: 40, y: 60, w: 400, h: 150 } as const;
@@ -29,7 +32,7 @@ export interface PanelRow {
 }
 
 export interface PanelModel {
-  /** The hook's `panel`: 'slots' or 'placeholder:<propKey>'. */
+  /** The hook's `panel`: 'slots', 'tree:<id>', 'pedestal:<pedestalKey>' or 'placeholder:<propKey>'. */
   readonly key: string;
   readonly title: string;
   readonly rows: readonly PanelRow[];
@@ -43,8 +46,37 @@ function rows(items: readonly { text: string; id: string }[]): PanelRow[] {
 export function placeholderPanel(prop: Prop): PanelModel {
   return {
     key: `placeholder:${prop.key}`,
-    title: prop.key.startsWith('pedestal') ? 'Pedestal (empty)' : prop.label,
+    title: prop.label,
     rows: rows([{ text: 'Coming in a later slice.', id: '' }]),
+  };
+}
+
+/** A tree on the floor or a pedestal: what it is, and `Pick up`. */
+export function treePanel(tree: BonsaiTree): PanelModel {
+  return {
+    key: `tree:${String(tree.id)}`,
+    title: treeLabel(tree),
+    rows: rows([
+      { text: `Species: ${getSpecies(tree.speciesKey).displayName}`, id: '' },
+      { text: `Height: ${tree.trunk.heightCm.toFixed(1)} cm`, id: '' },
+      { text: 'Pick up', id: 'panel-pickup' },
+    ]),
+  };
+}
+
+/**
+ * obj_ui_pedestal for an empty pedestal: `Place <label>` while a tree is
+ * carried, else how to display one (the prototype listed the shed's trees here).
+ */
+export function pedestalPanel(pedestalKey: string, carried: BonsaiTree | undefined): PanelModel {
+  return {
+    key: `pedestal:${pedestalKey}`,
+    title: 'Display Pedestal',
+    rows: rows([
+      carried
+        ? { text: `Place ${treeLabel(carried)}`, id: 'panel-place' }
+        : { text: 'This pedestal is empty. Carry a tree here to display it.', id: '' },
+    ]),
   };
 }
 

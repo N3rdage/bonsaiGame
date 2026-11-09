@@ -118,3 +118,47 @@ export function displayedPedestalKey(tree: BonsaiTree): string | undefined {
 export function isSold(tree: BonsaiTree): boolean {
   return tree.location === 'sold';
 }
+
+/** Where a carried tree is: the player holds one tree at a time. */
+export const CARRIED = 'inventory';
+
+/** The tree the player is carrying, if any. */
+export function carriedTree(state: GameState): BonsaiTree | undefined {
+  return state.trees.find((t) => t.location === CARRIED);
+}
+
+/** Trees standing on the floor of room `roomKey` (exact match, as the prototype's Room Start), in `state.trees` order. */
+export function treesInRoom(state: GameState, roomKey: string): BonsaiTree[] {
+  return state.trees.filter((t) => t.location === roomKey);
+}
+
+/** The tree displayed on pedestal `pedestalKey`, if any. */
+export function treeOnPedestal(state: GameState, pedestalKey: string): BonsaiTree | undefined {
+  return state.trees.find((t) => t.location === DISPLAYED_PREFIX + pedestalKey);
+}
+
+/**
+ * Picks `tree` up from the floor or a pedestal. Refuses (false, nothing
+ * changed) while another tree is carried. Location is not morphology, so
+ * `revision` stays.
+ */
+export function pickUpTree(state: GameState, tree: BonsaiTree): boolean {
+  const carried = carriedTree(state);
+  if (carried && carried !== tree) return false;
+  tree.location = CARRIED;
+  return true;
+}
+
+/** Displays the carried `tree` on an empty pedestal; false (nothing changed) otherwise. */
+export function placeTree(state: GameState, tree: BonsaiTree, pedestalKey: string): boolean {
+  if (tree.location !== CARRIED || treeOnPedestal(state, pedestalKey)) return false;
+  tree.location = DISPLAYED_PREFIX + pedestalKey;
+  return true;
+}
+
+/** Puts the carried `tree` down on the floor of room `roomKey`; false (nothing changed) if it is not carried. */
+export function putDownTree(tree: BonsaiTree, roomKey: string): boolean {
+  if (tree.location !== CARRIED) return false;
+  tree.location = roomKey;
+  return true;
+}
