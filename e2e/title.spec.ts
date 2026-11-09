@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { tapControl } from './controls';
 
 /** A real GameMaker save (version 1) from the importer's fixtures, written as-is. */
 const PROTOTYPE_SAVE = readFileSync(
@@ -192,6 +193,16 @@ test.describe('title', () => {
     expect(h.scene).toBe('title');
     expect(h.picker).toBe('load');
     await toWorld(page, '1');
+    expect((await hook(page)).activeSlot).toBe(1);
+    expect(errors).toEqual([]);
+  });
+
+  test('tapping New Game starts the world', async ({ page }) => {
+    const errors = collectErrors(page);
+    await toTitle(page);
+    expect((await hook(page)).controls.map((c) => c.id)).toEqual(['new']);
+    await tapControl(page, 'new');
+    await page.waitForFunction(() => window.__bonsai?.scene === 'world');
     expect((await hook(page)).activeSlot).toBe(1);
     expect(errors).toEqual([]);
   });
