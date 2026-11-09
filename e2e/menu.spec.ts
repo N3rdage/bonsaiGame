@@ -1,36 +1,21 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { MENU_PANEL } from '../src/world/menu';
-import { dragLogical, tapControl } from './controls';
+import {
+  bootWorld,
+  closeViewer,
+  collectErrors,
+  dragLogical,
+  expect,
+  hook,
+  openMenu,
+  openViewer,
+  tapControl,
+  test,
+} from './drive';
 
-function collectErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on('pageerror', (err) => errors.push(err.message));
-  page.on('console', (msg) => {
-    if (msg.type() === 'error') errors.push(msg.text());
-  });
-  return errors;
-}
-
-async function bootWorld(page: Page): Promise<void> {
-  await page.goto('/');
-  // Each test has a fresh browser context, so no saves: Enter starts a new game in slot 1.
-  await page.waitForFunction(() => window.__bonsai?.scene === 'title');
-  await page.keyboard.press('Enter');
-  await page.waitForFunction(() => window.__bonsai?.scene === 'world');
-}
-
-async function hook(page: Page): Promise<BonsaiTestHook> {
-  const h = await page.evaluate(() => window.__bonsai);
-  if (!h) throw new Error('hook missing');
-  return h;
-}
+// The menu by tap is what these tests test, so it is tapped on every project.
 
 const ids = (h: BonsaiTestHook): string[] => h.controls.map((c) => c.id);
-
-async function openMenu(page: Page): Promise<void> {
-  await tapControl(page, 'menu');
-  await page.waitForFunction(() => window.__bonsai?.panel === 'menu');
-}
 
 async function saveByMenu(page: Page): Promise<void> {
   await openMenu(page);
@@ -59,6 +44,7 @@ test.describe('world menu', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await saveByMenu(page);
+    // Keyboard movement on every project; the joystick drag is tested in world.spec.ts.
     await page.keyboard.down('ArrowRight');
     await page.waitForFunction(() => (window.__bonsai?.player.x ?? 0) > 260);
     await page.keyboard.up('ArrowRight');
@@ -91,6 +77,7 @@ test.describe('world menu', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await openMenu(page);
+    // A key test: keydown-ESC closes the panel.
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => window.__bonsai?.panel === '');
     expect((await hook(page)).scene).toBe('world');
@@ -141,13 +128,13 @@ test.describe('world menu', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await openMenu(page);
-    await page.keyboard.press('v');
+    await openViewer(page);
     await page.waitForFunction(() => window.__bonsai?.viewer?.open === true);
     let h = await hook(page);
     expect(h.panel).toBe('');
     expect(h.controls).toEqual([]);
 
-    await page.keyboard.press('Escape');
+    await closeViewer(page);
     await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
     await page.waitForFunction(() =>
       (window.__bonsai?.controls ?? []).some((c) => c.id === 'menu'),
