@@ -9,9 +9,12 @@
  * species.ts as `getSpecies(tree.speciesKey)`.
  */
 
-import type { BonsaiTree, GameState, Origin, SpeciesKey } from './types';
+import type { BonsaiTree, GameState, Origin, SpeciesKey, StyleKey } from './types';
 
 export const DISPLAYED_PREFIX = 'displayed:';
+
+/** obj_ui_tree_rename's `name_max_length`. */
+export const MAX_TREE_NAME_LENGTH = 20;
 
 /** Build a tree with the prototype's defaults and origin-specific morphology. */
 export function createTree(speciesKey: SpeciesKey, origin: Origin, id: number): BonsaiTree {
@@ -96,6 +99,20 @@ export function addBranch(
   });
   tree.revision++;
   return id;
+}
+
+/**
+ * obj_ui_tree_rename's Save: the name, clamped to MAX_TREE_NAME_LENGTH
+ * characters as its Step clamped `keyboard_string`. Returns the name stored.
+ */
+export function renameTree(tree: BonsaiTree, name: string): string {
+  tree.name = name.slice(0, MAX_TREE_NAME_LENGTH);
+  return tree.name;
+}
+
+/** The style the score's style criterion measures against; '' clears it. Not morphology, so `revision` stays. */
+export function setTargetStyle(tree: BonsaiTree, key: StyleKey | ''): void {
+  tree.targetStyle = key;
 }
 
 export function markDirty(tree: BonsaiTree): void {

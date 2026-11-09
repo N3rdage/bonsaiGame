@@ -11,7 +11,10 @@
  */
 
 import { inventoryAdd } from './inventory';
-import type { GameState, InventoryKey } from './types';
+import { scoreTree } from './scoring';
+import { isSold } from './tree';
+import type { BonsaiTree, GameState, InventoryKey } from './types';
+import { roundHalfToEven } from './world';
 
 export interface ShopItem {
   key: InventoryKey;
@@ -46,4 +49,22 @@ export function shopBuy(
   state.money -= total;
   inventoryAdd(state.inventory, key, qty);
   return true;
+}
+
+/** obj_ui_tree_sell_confirm: `round(score.total * 2)` coins, GameMaker's half-to-even round. */
+export function sellPrice(tree: BonsaiTree): number {
+  return roundHalfToEven(scoreTree(tree).total * 2);
+}
+
+/**
+ * Sells `tree` at `sellPrice`: its location becomes 'sold' (kept in
+ * `state.trees`, as the prototype's soft delete) and the money is added.
+ * Returns the price, or undefined with nothing changed if it is already sold.
+ */
+export function sellTree(state: GameState, tree: BonsaiTree): number | undefined {
+  if (isSold(tree)) return undefined;
+  const price = sellPrice(tree);
+  tree.location = 'sold';
+  state.money += price;
+  return price;
 }

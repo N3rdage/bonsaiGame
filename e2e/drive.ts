@@ -155,11 +155,18 @@ export async function openInspector(page: Page): Promise<void> {
 }
 
 /**
- * Taps an inspector button ('water', 'fertilise', 'skip', 'pickup', 'view') on
- * every project: panel buttons have no keyboard route.
+ * Taps an inspector button ('water', 'fertilise', 'skip', 'pickup', 'view',
+ * 'rename', 'style', 'sell', 'repot') on every project: panel buttons have
+ * no keyboard route.
  */
 export const inspectorAction = (page: Page, id: string): Promise<void> =>
   tapControl(page, `panel-${id}`);
+
+/** Types `name` into the Rename panel's DOM input and taps its Save row. */
+export async function fillRename(page: Page, name: string): Promise<void> {
+  await page.fill('#rename-input', name);
+  await tapControl(page, 'panel-rename-save');
+}
 
 /** Opens the inspector of the tree in range and taps its Pick up. */
 export async function pickUpTree(page: Page): Promise<void> {

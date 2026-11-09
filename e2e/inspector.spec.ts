@@ -33,6 +33,8 @@ function fixture(name: string): { text: string; trees: FixtureTree[] } {
 
 const ids = (h: BonsaiTestHook): string[] => h.controls.map((c) => c.id);
 const BUTTONS = ['panel-water', 'panel-fertilise', 'panel-skip', 'panel-pickup', 'panel-view'];
+/** The second row on a tree whose repot is refused (a new game's starter is on cooldown). */
+const SUB = ['panel-rename', 'panel-style', 'panel-sell'];
 
 /** Writes a prototype save to slot 1 and continues it. */
 async function continueSave(page: Page, text: string): Promise<void> {
@@ -54,7 +56,7 @@ test.describe('tree inspector', () => {
     let h = await hook(page);
     expect(h.panel).toBe('tree:0');
     expect(h.inspected?.id).toBe(0);
-    expect(ids(h)).toEqual([...BUTTONS, 'panel-close']);
+    expect(ids(h)).toEqual([...BUTTONS, ...SUB, 'panel-close']);
     expect(h.inspected?.waterLevel).toBe(50);
     expect(h.tutorialStep).toBe(0);
 
@@ -81,7 +83,7 @@ test.describe('tree inspector', () => {
     expect(h.inspected?.heightCm).toBeGreaterThan(before.heightCm);
     expect(h.tutorialStep).toBe(2);
     expect(h.panel).toBe('tree:0');
-    expect(ids(h)).toEqual([...BUTTONS, 'panel-close']);
+    expect(ids(h)).toEqual([...BUTTONS, ...SUB, 'panel-close']);
     expect(errors).toEqual([]);
   });
 
@@ -105,7 +107,7 @@ test.describe('tree inspector', () => {
     }
     h = await hook(page);
     expect(h.inspected?.fertilizedUntilDay).toBe(h.day + 7);
-    expect(ids(h)).toEqual(['panel-water', 'panel-pickup', 'panel-view', 'panel-close']);
+    expect(ids(h)).toEqual(['panel-water', 'panel-pickup', 'panel-view', ...SUB, 'panel-close']);
     expect(errors).toEqual([]);
   });
 

@@ -45,7 +45,7 @@ interface BonsaiTestHook {
   readonly toast: string;
   /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
   readonly picker: string;
-  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), 'pedestal:<pedestalKey>' (an empty pedestal) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
+  /** World only: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal) or 'placeholder:<propKey>'; '' otherwise (always on the title). */
   readonly panel: string;
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
@@ -72,13 +72,25 @@ interface BonsaiTestHook {
         readonly vigor: number;
         readonly heightCm: number;
         readonly revision: number;
+        /** `tree.name` ('' when unnamed). */
+        readonly name: string;
+        /** The style key the score measures against, or ''. */
+        readonly targetStyle: string;
+        readonly potTier: number;
+        readonly soilTier: number;
+        /** `scoreTree(tree).total`, derived at publish. */
+        readonly score: number;
       }
     | undefined;
+  /** World: `state.money`. Title: 0. */
+  readonly money: number;
   /**
    * Every tappable Phaser control on screen, by id, with its centre in logical px (480x270); empty under the viewer.
    * Includes the tree inspector's enabled buttons 'panel-water', 'panel-fertilise', 'panel-skip', 'panel-pickup'
-   * and 'panel-view' (a greyed one is not listed), 'panel-place' (an empty pedestal's panel while carrying) and
-   * 'menu-putdown' (the HUD menu while carrying).
+   * and 'panel-view', and its second row's 'panel-rename', 'panel-style', 'panel-sell' and 'panel-repot' (a greyed one is
+   * not listed); the sub-panels' 'panel-soil', 'panel-repot-standard', 'panel-repot-fancy' (each only with a pot in stock),
+   * 'panel-rename-save', 'panel-style-<key>', 'panel-style-none' and 'panel-sell'; 'panel-place' (an empty pedestal's
+   * panel while carrying) and 'menu-putdown' (the HUD menu while carrying).
    */
   readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }

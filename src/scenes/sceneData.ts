@@ -55,4 +55,5 @@ export const IDLE_HOOK = {
   },
   tutorialStep: -1,
   inspected: undefined,
+  money: 0,
 } as const;
