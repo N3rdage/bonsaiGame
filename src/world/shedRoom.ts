@@ -2,7 +2,7 @@
  * The shed, the room a new game starts in, as pure data.
  *
  * The prototype's rooms are 960x540; the web build's logical canvas is 480x270
- * (`GAME_WIDTH`/`GAME_HEIGHT` in main.ts), so every prototype coordinate and
+ * (`GAME_WIDTH`/`GAME_HEIGHT` in resolution.ts), so every prototype coordinate and
  * distance halves. `fromPrototype` is the one place that rule lives.
  *
  * Positions are ported from archive/gamemaker/rooms/rm_shed/rm_shed.yy (the
