@@ -35,6 +35,8 @@ npm run test:e2e    # browser tests against the production build (run npm run bu
 
 Every pull request runs the same checks in CI and deploys a preview to Azure Static Web Apps.
 
+The title screen's corner shows which build you are playing, for example `v2026.11.10.142 (6d2152e)`: the UTC date of the commit it was built from, the CI run number (`0` for a local build) and the short commit SHA; tap it to open that commit on GitHub.
+
 ## Playing
 
 ### Controls

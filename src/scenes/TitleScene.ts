@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { shortCommit } from '../buildVersion';
 import { currentViewport, isPhone } from '../platform/orientation';
 import { loadGame, mostRecentSaveSlot } from '../sim/save';
 import { createNewGameState } from '../sim/state';
@@ -23,6 +24,8 @@ import { BODY_STYLE, fontLoaded } from './textStyle';
 const TEXT = BODY_STYLE;
 const DISABLED = '#5f6b58';
 const CENTER_X = 240;
+/** The short SHA the version line shows. */
+const COMMIT = shortCommit(__APP_COMMIT__);
 
 /** Whether a title tap has already asked for fullscreen this page load (see TitleScene.phoneFullscreen). */
 let phoneFullscreenAsked = false;
@@ -41,7 +44,8 @@ type View =
  * prototype's 3D hero tree is not ported yet and its Quit is not ported (a web
  * page has no quit). Every button also has a key (Enter, C, L, S; 1-3 in the
  * picker; Y/N to confirm; Escape to back out) so tests drive it without canvas
- * coordinates.
+ * coordinates. The version line in the corner opens the commit the build came
+ * from (src/buildVersion.ts).
  */
 export class TitleScene extends Phaser.Scene {
   private ctx!: TitleSceneData;
@@ -51,6 +55,8 @@ export class TitleScene extends Phaser.Scene {
   private layer!: Phaser.GameObjects.Container;
   /** The enabled buttons of the current view, by id, for the test hook. */
   private buttons: { id: string; text: Phaser.GameObjects.Text }[] = [];
+  /** The version line, a link to the commit the build came from. */
+  private versionLink!: Phaser.GameObjects.Text;
 
   constructor() {
     super('title');
@@ -213,9 +219,16 @@ export class TitleScene extends Phaser.Scene {
       }).setOrigin(0.5),
     );
     this.label(CENTER_X, 56, 'A cozy bonsai-growing sim', '#a0b496');
-    this.layer.add(
-      this.text(474, 264, `v${__APP_VERSION__}`, { ...TEXT, color: DISABLED }).setOrigin(1, 1),
-    );
+    this.versionLink = this.text(474, 264, `v${__APP_VERSION__} (${COMMIT})`, {
+      ...TEXT,
+      color: DISABLED,
+    })
+      .setOrigin(1, 1)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerup', () => {
+        window.open(__APP_COMMIT_URL__, '_blank', 'noopener');
+      });
+    this.layer.add(this.versionLink);
 
     const view = this.view;
     if (view.kind === 'menu') {
@@ -314,9 +327,12 @@ export class TitleScene extends Phaser.Scene {
   }
 
   private publishHook(): void {
+    const link = this.versionLink.getCenter();
     window.__bonsai = {
       ...IDLE_HOOK,
       version: __APP_VERSION__,
+      commit: COMMIT,
+      versionLink: { text: this.versionLink.text, x: link.x, y: link.y },
       fontLoaded: fontLoaded(),
       ready: true,
       scene: this.scene.key,
