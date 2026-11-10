@@ -76,7 +76,13 @@ import { createSourcePlant, takeCutting, type SourcePlantState } from '../sim/so
 import type { SpeciesKey } from '../sim/types';
 import { BASE_TIME_SCALE, tickClock } from '../world/clock';
 import { ROOMS } from '../world/gardenRoom';
-import { SHED_ROOM, type DoorTarget, type Prop, type Room } from '../world/shedRoom';
+import {
+  PROTOTYPE_SCALE,
+  SHED_ROOM,
+  type DoorTarget,
+  type Prop,
+  type Room,
+} from '../world/shedRoom';
 import { treeSprites, treeTargets, treeLabel, type TreeTarget } from '../world/treeSprites';
 import {
   RENAME_INPUT,
@@ -135,11 +141,25 @@ import type { TitleSceneData, WorldSceneData } from './sceneData';
 const TOAST_MS = 2000;
 /** The player sprite's drawn height, round its centre: spr_player's 32 px at 1.5x, halved. */
 const PLAYER_H = SHEETS.player.frameHeight * PLAYER_SCALE;
-/** The floor under everything, then the shed's dim and rug, the drop shadows, the walls; props and the player sort by y above 0. */
-const FLOOR_DEPTH = -4;
-const RUG_DEPTH = -3;
-const SHADOW_DEPTH = -2;
-const WALL_DEPTH = -1;
+/** The baked room (floor, dim, rug, walls) under everything, then the drop shadows; props and the player sort by y above 0. */
+const FLOOR_DEPTH = -2;
+const SHADOW_DEPTH = -1;
+/**
+ * The baked room's quad: one texture sample per fragment, nearest as the game's
+ * pixelArt textures are. An Image would go through Phaser's batched sprite
+ * shader, whose per-fragment work over the whole canvas costs a third of the
+ * frame rate on software GL (headless Chromium, CI).
+ */
+const ROOM_QUAD = {
+  name: 'roomQuad',
+  fragmentSource: `precision mediump float;
+uniform sampler2D uMainSampler;
+varying vec2 outTexCoord;
+void main () { gl_FragColor = texture2D(uMainSampler, outTexCoord); }`,
+  setupUniforms: (setUniform: (name: string, value: number) => void): void => {
+    setUniform('uMainSampler', 0);
+  },
+};
 /** The rug's corner radius: draw_roundrect takes none, so this approximates GameMaker's own. */
 const RUG_RADIUS = 3;
 const LABEL_STYLE = { fontFamily: 'monospace', fontSize: '8px', color: '#d8e6c8' };
@@ -239,7 +259,8 @@ export class WorldScene extends Phaser.Scene {
   /** The room shown, and what its floor, walls and props were drawn as. */
   private room: Room = SHED_ROOM;
   private roomParts: Phaser.GameObjects.GameObject[] = [];
-  private floorMap: Phaser.Tilemaps.Tilemap | undefined;
+  /** The room's static art, baked on entry (bakeRoom); destroyed on leaving the room or the scene. */
+  private roomTexture: Phaser.Textures.DynamicTexture | undefined;
   /** The props', floor trees' and the player's drop shadows, at floor depth. */
   private shadowGfx!: Phaser.GameObjects.Graphics;
   private playerShadow!: Phaser.GameObjects.Ellipse;
@@ -307,7 +328,7 @@ export class WorldScene extends Phaser.Scene {
     this.clockS = 0;
     this.room = SHED_ROOM;
     this.roomParts = [];
-    this.floorMap = undefined;
+    this.roomTexture = undefined;
     this.plants.clear();
     this.tutorialParts = [];
     this.tutorialDrawn = '';
@@ -470,6 +491,7 @@ export class WorldScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.panel?.dispose?.();
       this.viewer.destroy();
+      this.roomTexture?.destroy();
       keyboard.removeCapture([K.F5, K.F9]);
     });
     this.publishHook();
@@ -1031,52 +1053,21 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * The room from its sprite sheets (src/world/roomArt.ts), replacing the last
-   * room's: the floor tiles over the room's colour, the shed's dim and rug, the
-   * wall or fence runs and the garden's mitred corners, and each prop's sprite
-   * at its bottom edge's depth. Every prototype px is half a logical px.
+   * room's: its static art baked into one texture (bakeRoom) shown as one
+   * full-room quad, and each prop's sprite at its bottom edge's depth. Every
+   * prototype px is half a logical px.
    */
   private drawRoom(): void {
     for (const part of this.roomParts) part.destroy();
-    this.floorMap?.destroy();
+    this.roomTexture?.destroy();
     const room = this.room;
-    const floor = floorTiles(room);
-    const map = this.make.tilemap({
-      data: floor.frames.map((row) => [...row]),
-      tileWidth: floor.sheet.frameWidth,
-      tileHeight: floor.sheet.frameHeight,
-    });
-    this.floorMap = map;
-    const tileset = map.addTilesetImage(floor.sheet.key);
-    const layer = tileset && map.createLayer(0, tileset, 0, 0);
-    layer?.setScale(SPRITE_SCALE).setDepth(FLOOR_DEPTH);
-    const rug = this.add.graphics().setDepth(RUG_DEPTH);
-    if (room.key === 'shed') {
-      const r = SHED_RUG;
-      const line = SPRITE_SCALE;
-      rug.fillStyle(0x000000, SHED_FLOOR_DIM).fillRect(0, 0, room.width, room.height);
-      rug.fillStyle(r.fill).fillRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
-      rug.lineStyle(line, r.outline).strokeRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
-      rug
-        .lineStyle(line, r.border)
-        .strokeRoundedRect(r.x + r.inset, r.y + r.inset, r.w - 2 * r.inset, r.h - 2 * r.inset, 1);
-    }
-    const corners = this.add.graphics().setDepth(WALL_DEPTH);
-    for (const c of fenceCorners(room)) corners.fillStyle(c.colour).fillRect(c.x, c.y, c.w, c.h);
+    const key = `room-${room.key}`;
+    this.roomTexture = this.bakeRoom(key, room);
     this.roomParts = [
-      // The room's background colour under the tiles, as the prototype's background layer.
       this.add
-        .rectangle(0, 0, room.width, room.height, room.floor)
+        .shader(ROOM_QUAD, 0, 0, room.width, room.height, [key])
         .setOrigin(0)
-        .setDepth(FLOOR_DEPTH - 1),
-      rug,
-      ...wallRuns(room).map((w) =>
-        this.add
-          .tileSprite(w.x, w.y, w.w / SPRITE_SCALE, w.h / SPRITE_SCALE, w.sheet.key, 0)
-          .setOrigin(0)
-          .setScale(SPRITE_SCALE)
-          .setDepth(WALL_DEPTH),
-      ),
-      corners,
+        .setDepth(FLOOR_DEPTH),
       ...room.props.flatMap((p) => {
         const art = propSprite(p);
         if (!art) return [];
@@ -1088,6 +1079,52 @@ export class WorldScene extends Phaser.Scene {
         ];
       }),
     ];
+  }
+
+  /**
+   * The room's static art baked once into a texture at prototype px, so each
+   * 32 px tile keeps its pixels and a frame draws it as one quad: the room's
+   * colour (the prototype's background layer), the floor tiles, the shed's dim
+   * and rug, the wall or fence runs, then the garden's mitred corners.
+   */
+  private bakeRoom(key: string, room: Room): Phaser.Textures.DynamicTexture | undefined {
+    const texture = this.textures.addDynamicTexture(
+      key,
+      room.width * PROTOTYPE_SCALE,
+      room.height * PROTOTYPE_SCALE,
+    );
+    if (!texture) return undefined;
+    texture.fill(room.floor);
+    const floor = floorTiles(room);
+    const { frameWidth, frameHeight } = floor.sheet;
+    const topLeft = { originX: 0, originY: 0 };
+    floor.frames.forEach((row, y) => {
+      row.forEach((frame, x) => {
+        texture.stamp(floor.sheet.key, frame, x * frameWidth, y * frameHeight, topLeft);
+      });
+    });
+    // roomArt's rects are in logical px; the Graphics scales them up to the texture's prototype px.
+    const rug = this.make.graphics({}, false).setScale(PROTOTYPE_SCALE);
+    if (room.key === 'shed') {
+      const r = SHED_RUG;
+      const line = SPRITE_SCALE;
+      rug.fillStyle(0x000000, SHED_FLOOR_DIM).fillRect(0, 0, room.width, room.height);
+      rug.fillStyle(r.fill).fillRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
+      rug.lineStyle(line, r.outline).strokeRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
+      rug
+        .lineStyle(line, r.border)
+        .strokeRoundedRect(r.x + r.inset, r.y + r.inset, r.w - 2 * r.inset, r.h - 2 * r.inset, 1);
+    }
+    texture.draw(rug);
+    const s = PROTOTYPE_SCALE;
+    for (const w of wallRuns(room))
+      texture.repeat(w.sheet.key, 0, w.x * s, w.y * s, w.w * s, w.h * s);
+    const corners = this.make.graphics({}, false).setScale(PROTOTYPE_SCALE);
+    for (const c of fenceCorners(room)) corners.fillStyle(c.colour).fillRect(c.x, c.y, c.w, c.h);
+    texture.draw(corners).render();
+    rug.destroy();
+    corners.destroy();
+    return texture;
   }
 
   /** The drop shadows of the room's props and of the trees on its floor (the pedestal trees' are drawn with them). */
