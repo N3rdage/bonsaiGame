@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build"
+    "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build",
+    "art:sheets": "node art/sheets.mjs"
   },
   "dependencies": {
     "phaser": "^4.2.1",
@@ -33,6 +34,7 @@
     "eslint": "^10.14.0",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
+    "pngjs": "^7.0.0",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.72.1",
