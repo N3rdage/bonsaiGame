@@ -51,8 +51,10 @@ export interface PanelRow {
   readonly id: string;
   /** Vertical centre. */
   readonly y: number;
-  /** Left edge, for a row in a column; the box's inset when absent. */
+  /** Left edge, for a row in a column; the box's inset when absent. The right edge with `align: 'right'`. */
   readonly x?: number;
+  /** 'right' for plain text right-aligned at `x` (text origin 1, 0.5), as a column of counts. */
+  readonly align?: 'right';
   /** False for a greyed button: drawn in PANEL_DISABLED_COLOR and not a control. */
   readonly enabled?: boolean;
   /** Text colour overriding the default. */

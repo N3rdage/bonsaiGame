@@ -54,6 +54,7 @@ On a phone the game runs fullscreen in landscape: the first tap on New Game, Con
 | Inspector → View in 3D | Open the 3D viewer on that tree |
 | View tree button or V | Open the 3D viewer on the first tree |
 | Notebook button or J | Open or close Granny's notebook: one page per tutorial step, Prev and Next to turn |
+| Menu button → Inventory, or I | Open or close the inventory: resources, seeds and cuttings with their counts |
 | Tutorial panel → Skip | Skip the tutorial (asks first) |
 | Menu button → Save, or F5 | Save game |
 | Menu button → Load, or F9 | Load game |

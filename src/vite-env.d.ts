@@ -65,7 +65,7 @@ interface BonsaiTestHook {
   readonly toast: string;
   /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
   readonly picker: string;
-  /** World: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'plant' (Plant a Cutting), 'notebook', 'tutorial-skip' (the Skip confirmation) or 'settings'; '' otherwise. Title: 'settings' while its Settings panel is up, else ''. */
+  /** World: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'plant' (Plant a Cutting), 'notebook', 'inventory', 'tutorial-skip' (the Skip confirmation) or 'settings'; '' otherwise. Title: 'settings' while its Settings panel is up, else ''. */
   readonly panel: string;
   /** Both scenes: the stored settings (the Fullscreen row itself shows the live state, which can differ). */
   readonly settings: { readonly fullscreen: boolean; readonly weather: boolean };
@@ -88,6 +88,13 @@ interface BonsaiTestHook {
   /** World only: the open notebook page's indicator ('Page 1 / 5'), title and badge ('done', 'in progress', 'not yet', '' on the finale); undefined while the notebook is closed. */
   readonly notebook?:
     { readonly indicator: string; readonly title: string; readonly badge: string } | undefined;
+  /** World only: the open Inventory panel's sections ('Resources', 'Seeds', 'Cuttings') with the labels and counts they list (zeros hidden); undefined while it is closed. */
+  readonly inventorySections?:
+    | readonly {
+        readonly title: string;
+        readonly entries: readonly { readonly label: string; readonly count: number }[];
+      }[]
+    | undefined;
   /** World only: the tree whose inspector (panel 'tree:<id>') is open, or undefined. */
   readonly inspected:
     | {
@@ -123,7 +130,7 @@ interface BonsaiTestHook {
    * 'tutorial-skip' (the tutorial corner panel's Skip, with no modal open); the notebook's 'panel-prev' and 'panel-next'
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant a Cutting's
    * 'panel-select-<species>' (unselected cuttings), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
-   * 'menu-settings' (the HUD menu's Settings row), and the Settings panel's 'panel-fullscreen' (only where the browser offers
+   * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), and the Settings panel's 'panel-fullscreen' (only where the browser offers
    * fullscreen), 'panel-weather' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    */
   readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];
