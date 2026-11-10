@@ -21,8 +21,9 @@ const panelRight = MENU_PANEL.x + MENU_PANEL.w;
 const panelBottom = MENU_PANEL.y + MENU_PANEL.h;
 
 describe('world HUD menu layout', () => {
-  it('has Save, Load, Settings and Title, in that order', () => {
+  it('has Inventory, Save, Load, Settings and Title, in that order', () => {
     expect(menuItems(false).map((i) => [i.id, i.label])).toEqual([
+      ['inventory', 'Inventory (I)'],
       ['save', 'Save (F5)'],
       ['load', 'Load (F9)'],
       ['settings', 'Settings'],
@@ -33,6 +34,7 @@ describe('world HUD menu layout', () => {
   it('adds Put down first while a tree is carried', () => {
     expect(menuItems(true).map((i) => [i.id, i.label])).toEqual([
       ['putdown', 'Put down'],
+      ['inventory', 'Inventory (I)'],
       ['save', 'Save (F5)'],
       ['load', 'Load (F9)'],
       ['settings', 'Settings'],
