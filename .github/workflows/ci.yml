@@ -16,7 +16,10 @@ jobs:
   checks:
     name: Lint, typecheck, test, build, e2e
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The browser suite alone takes 14 to 17 minutes on ubuntu-latest (five
+    # Playwright projects, the parity one after the other four); at 20 the job
+    # was cut off with the suite already passed. #81 is the speed fix.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
 
