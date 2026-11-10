@@ -32,6 +32,7 @@ Entries should record:
 ## Propagation
 
 - **Cuttings root immediately and always succeed.** Real-world: 2–8 week rooting period, species-dependent success rate (juniper ~50–70%, harder species much lower), failure leaves a wasted cutting.
+- **Cuttings are taken only in spring and summer ([TODO](TODO.md) 2e-a).** Autumn and winter refuse with the day the next spring starts. The tutorial's Take a cutting step therefore waits for spring if the player reaches autumn first; a new game starts on day 0, in spring, so autumn does not arrive until day 57. Real-world: softwood and semi-hardwood cuttings in spring and summer are the easy case, but hardwood cuttings are taken in late autumn and winter.
 - **Only cuttings (juniper) implemented; seeds in [#3](TODO.md).** Real-world: also air layering, grafting, division. Each unlocks different morphology starting points.
 
 ## Morphology / growth

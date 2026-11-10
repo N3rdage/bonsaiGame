@@ -136,7 +136,7 @@ These were the hard-won rules of the prototype. Each names where it will live in
 - **Scoring is derived, never persisted.** Recompute on demand from morphology, style and vitality. (`src/sim/scoring.ts`)
 - **Species and styles are data.** Keyed records, looked up by key; trees store the key. (`src/sim/species.ts`, `src/sim/styles.ts`)
 - **Seasons are a pure function of the game day.** 28-day seasons, year starts in spring on day 1, nothing persisted. A new game starts on day 0 as the prototype did; `seasonForDay` treats it as day 1. (`src/sim/seasons.ts`)
-- **All growth goes through the season multipliers.** `seasonGrowthMultiplier` returns 0 for dormancy; any path that adds height or girth must consult it. Fertilising refuses when it is 0. (`src/sim/seasons.ts`, `src/sim/growth.ts`)
+- **All growth goes through the season multipliers.** `seasonGrowthMultiplier` returns 0 for dormancy; any path that adds height or girth must consult it. Fertilising refuses when it is 0. Season also gates the non-growth paths: repotting is spring-only and taking a cutting is limited to `CUTTING_SEASONS` (spring and summer). (`src/sim/seasons.ts`, `src/sim/growth.ts`, `src/sim/sourcePlant.ts`)
 - **Trunk and branch shape come from one curve helper each**, shared by the mesh builder, hotspot UI and style scorers, so what you see is what you score. (`src/sim/geometry.ts`)
 - **Mesh rebuilds are triggered by a revision counter** bumped by every morphology mutation. (`tree.revision`, read by `src/viewer/`)
 - **Consumables are really consumed.** Wire, fertiliser and pots are decremented by the action that uses them, gated on availability. (`src/sim/inventory.ts`)
