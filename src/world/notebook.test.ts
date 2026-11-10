@@ -19,7 +19,7 @@ import {
   notebookPanel,
 } from './notebook';
 
-// 10 px monospace: about 0.6 em a glyph and a 12 px line. Generous upper bounds.
+// 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
 const LINE_H = 12;
 

@@ -20,7 +20,7 @@ export const TUTORIAL_BOX = { x: 282, bottom: 248, w: 190 } as const;
 export const TUTORIAL_INSET = 6;
 /** Pitch of the 8 px body lines. */
 export const TUTORIAL_LINE_H = 10;
-/** Characters per body line: the inner width at 8 px monospace (about 4.8 px a glyph). */
+/** Characters per body line: the inner width at 8 px in the monospace fallback (about 4.8 px a glyph; VT323 is 3.2). */
 export const TUTORIAL_WRAP = 36;
 /** Height of the hint and Skip line (Skip is a 10 px button). */
 const SKIP_LINE_H = 12;
@@ -81,7 +81,7 @@ export function tutorialPanel(step: number, modalOpen: boolean): TutorialPanelMo
 
 /** The confirmation's box, centred: two wrapped lines above Cancel, Close and Skip. */
 export const SKIP_CONFIRM_PANEL = { x: 90, y: 80, w: 300, h: 110, rowSpacing: 14 } as const;
-/** Width of a 10 px monospace glyph, an upper bound. */
+/** Width of a 10 px glyph in the monospace fallback, an upper bound (VT323 is 4 px). */
 const GLYPH_W = 6;
 /** Characters per line inside SKIP_CONFIRM_PANEL at 10 px. */
 const CONFIRM_WRAP = 46;

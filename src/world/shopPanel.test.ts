@@ -5,7 +5,7 @@ import { PANEL_CLOSE_LABEL, panelClose, panelTitleY } from './panels';
 import { SHED_ROOM } from './shedRoom';
 import { SHOP_COLUMNS, SHOP_KIOSK_KEY, SHOP_PANEL, shopItemFor, shopPanel } from './shopPanel';
 
-// 10 px monospace: about 0.6 em a glyph and a 12 px line. Generous upper bounds.
+// 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
 const LINE_H = 12;
 
