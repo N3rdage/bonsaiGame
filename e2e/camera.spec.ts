@@ -1,5 +1,15 @@
 import type { Page } from '@playwright/test';
-import { bootWorld, collectErrors, expect, hook, interact, test, walkTo } from './drive';
+import {
+  bootWorld,
+  collectErrors,
+  expect,
+  hook,
+  interact,
+  openSettingsFromMenu,
+  tapControl,
+  test,
+  walkTo,
+} from './drive';
 
 // The world camera (src/world/worldCamera.ts, pinned in its unit tests): 2x on
 // a phone-sized viewport, following the player inside the room's drawn
@@ -143,6 +153,15 @@ test.describe('world camera on a desktop', () => {
 test.describe('world camera screenshot', () => {
   test('a new game in the shed with the tutorial box open', async ({ page }) => {
     await bootWorld(page);
+    // The shed's dust motes land somewhere new every run, more changed pixels
+    // than the screenshot cap (playwright.config.ts) allows, so the capture
+    // turns weather off in Settings first.
+    await openSettingsFromMenu(page);
+    await tapControl(page, 'panel-weather');
+    await page.waitForFunction(() => window.__bonsai?.settings.weather === false);
+    await tapControl(page, 'panel-close');
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
+    expect((await hook(page)).weather).toBeUndefined();
     await page.waitForFunction(() => window.__bonsai?.tutorialLabel !== '');
     await expect(page).toHaveScreenshot('shed-start.png');
   });
