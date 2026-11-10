@@ -207,6 +207,42 @@ test.describe('title', () => {
     expect(errors).toEqual([]);
   });
 
+  test('shows the build version and opens its commit in a new tab', async ({ page }) => {
+    const errors = collectErrors(page);
+    // Records window.open instead of opening anything, so the test never navigates.
+    await page.addInitScript(() => {
+      const calls: unknown[][] = [];
+      Object.assign(window, { __opened: calls });
+      window.open = (...args: unknown[]): null => {
+        calls.push(args);
+        return null;
+      };
+    });
+    await toTitle(page);
+    const h = await hook(page);
+    const at = h.versionLink;
+    if (!at) throw new Error('no version link on the title');
+    expect(at.text).toMatch(/^v\d{4}\.\d{2}\.\d{2}\.\d+ \([0-9a-f]{7}\)$/);
+    expect(at.text).toBe(`v${h.version} (${String(h.commit)})`);
+
+    const box = await page.locator('#game canvas').boundingBox();
+    if (!box) throw new Error('no canvas');
+    const x = box.x + (at.x * box.width) / 480;
+    const y = box.y + (at.y * box.height) / 270;
+    if (test.info().project.use.hasTouch) await page.touchscreen.tap(x, y);
+    else await page.mouse.click(x, y);
+    await page.waitForFunction(() => (window as { __opened?: unknown[] }).__opened?.length === 1);
+    const [call] = await page.evaluate(() => (window as { __opened?: unknown[][] }).__opened ?? []);
+    expect(call?.[0]).toMatch(
+      new RegExp(
+        `^https://github\\.com/N3rdage/bonsaiGame/commit/${String(h.commit)}[0-9a-f]{33}$`,
+      ),
+    );
+    expect(call?.slice(1)).toEqual(['_blank', 'noopener']);
+    expect((await hook(page)).scene).toBe('title');
+    expect(errors).toEqual([]);
+  });
+
   test('a corrupt slot shows a message and stays on the title', async ({ page }) => {
     const errors = collectErrors(page);
     await page.evaluate(() => {
