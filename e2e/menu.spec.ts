@@ -33,6 +33,7 @@ test.describe('world menu', () => {
     await openMenu(page);
     expect(ids(await hook(page))).toEqual([
       ...HUD,
+      'menu-inventory',
       'menu-save',
       'menu-load',
       'menu-settings',

@@ -93,6 +93,7 @@ import {
   stylePanel,
 } from '../world/treePanels';
 import { SHOP_KIOSK_KEY, shopItemFor, shopPanel } from '../world/shopPanel';
+import { INVENTORY_KEY, inventoryPanel, inventorySections } from '../world/inventoryPanel';
 import {
   NOTEBOOK_KEY,
   notebookHeader,
@@ -247,7 +248,8 @@ const BAR_H = 6;
  * in the HUD under the badge, redrawn on any publish after the step or the
  * modal state changed it; its Skip opens a confirmation. J or `Notebook (J)`
  * opens Granny's notebook (src/world/notebook.ts), whose Prev and Next reopen
- * it on the new page.
+ * it on the new page. I or the menu's `Inventory (I)` opens the read-only
+ * Inventory panel (src/world/inventoryPanel.ts).
  *
  * Ambient weather (src/world/weather.ts) falls over the room: the season's in
  * the garden, dust motes in the shed. It steps with the player, rebuilds on
@@ -451,6 +453,9 @@ export class WorldScene extends Phaser.Scene {
     onKeyDown(keyboard, 'J', () => {
       this.toggleNotebook();
     });
+    onKeyDown(keyboard, 'I', () => {
+      this.toggleInventory();
+    });
     (['ONE', 'TWO', 'THREE'] as const).forEach((name, i) => {
       onKeyDown(keyboard, name, () => {
         if (this.panel?.buttons.some((b) => b.id === `panel-slot-${String(i + 1)}`)) {
@@ -593,6 +598,9 @@ export class WorldScene extends Phaser.Scene {
   private openMenu(): void {
     const bg = this.panelBox(MENU_PANEL, HUD_DEPTH);
     const actions = {
+      inventory: () => {
+        this.toggleInventory();
+      },
       save: () => {
         this.save();
         this.closePanel();
@@ -735,6 +743,12 @@ export class WorldScene extends Phaser.Scene {
   private toggleNotebook(): void {
     if (this.panel?.key === NOTEBOOK_KEY) this.closePanel();
     else if (this.roomKeysLive()) this.openNotebook();
+  }
+
+  /** obj_game_controller Step_0's I: closes the inventory if open, else opens it unless another modal is up. */
+  private toggleInventory(): void {
+    if (this.panel?.key === INVENTORY_KEY) this.closePanel();
+    else if (this.roomKeysLive()) this.openPanel(inventoryPanel(this.ctx.state.inventory));
   }
 
   /** obj_ui_notebook on `page`, the active step's by default; Prev and Next reopen it on their page. */
@@ -1502,6 +1516,8 @@ export class WorldScene extends Phaser.Scene {
           : '',
       notebook:
         this.panel?.key === NOTEBOOK_KEY ? notebookHeader(state, this.notebookPage) : undefined,
+      inventorySections:
+        this.panel?.key === INVENTORY_KEY ? inventorySections(state.inventory) : undefined,
       inspected: inspected && {
         id: inspected.id,
         waterLevel: inspected.waterLevel,
