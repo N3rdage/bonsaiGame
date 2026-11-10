@@ -8,6 +8,7 @@
  */
 
 import { inventoryAdd, inventoryCount } from './inventory';
+import { DAYS_PER_SEASON, SEASONS, seasonForDay, type Season } from './seasons';
 import { getSpecies } from './species';
 import { TUTORIAL_TAKE_CUTTING, tutorialAdvanceIf } from './tutorial';
 import type { GameState, InventoryKey, SpeciesKey } from './types';
@@ -16,6 +17,19 @@ import type { GameState, InventoryKey, SpeciesKey } from './types';
 export const MAX_CUTTINGS = 3;
 /** Days a plant recovers after its third cutting ("2 weeks to regrow"). */
 export const REGROW_DAYS = 14;
+
+/** Seasons a cutting can be taken in (TODO 2e-a). */
+export const CUTTING_SEASONS: readonly Season[] = ['spring', 'summer'];
+
+/**
+ * First day of the next spring strictly after `day`, on the 1-based calendar
+ * of `seasonForDay` (day 0 and below count as day 1).
+ */
+export function nextCuttingSeasonDay(day: number): number {
+  const yearLength = DAYS_PER_SEASON * SEASONS.length;
+  const d = Math.max(1, Math.floor(day));
+  return (Math.floor((d - 1) / yearLength) + 1) * yearLength + 1;
+}
 
 /** One source plant's per-visit counters. */
 export interface SourcePlantState {
@@ -36,8 +50,8 @@ export const CUTTING_KEYS: Partial<Record<SpeciesKey, InventoryKey>> = {
 
 /**
  * Takes a cutting from `plant` of `speciesKey` and returns the toast: refused
- * while the plant recovers or when the species does not grow from cuttings;
- * otherwise one cutting to the inventory, the tutorial's Take a cutting step,
+ * while the plant recovers, when the species does not grow from cuttings or
+ * outside `CUTTING_SEASONS`, in that order; otherwise one cutting to the inventory, the tutorial's Take a cutting step,
  * and on the third cutting 14 days of recovery.
  */
 export function takeCutting(
@@ -52,6 +66,9 @@ export function takeCutting(
   const key = CUTTING_KEYS[speciesKey];
   if (!species.propagation.includes('cutting') || key === undefined) {
     return `${species.displayName} can't be grown from cuttings - try seeds`;
+  }
+  if (!CUTTING_SEASONS.includes(seasonForDay(state.day))) {
+    return `Cuttings are taken in spring or summer - try again on day ${String(nextCuttingSeasonDay(state.day))}`;
   }
   inventoryAdd(state.inventory, key);
   tutorialAdvanceIf(state, TUTORIAL_TAKE_CUTTING);
