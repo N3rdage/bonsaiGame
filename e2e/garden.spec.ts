@@ -14,8 +14,9 @@ import {
   walkTo,
 } from './drive';
 
-// Shed door (232, 208) to the garden at (50, 225); garden door (16, 228) back
-// to the shed at (240, 190). Source plants: juniper (140, 90), maple (260, 80).
+// Shed door (240, 216), in the bottom wall, to the garden at (50, 225); garden
+// door (16, 228) back to the shed at (240, 190). Source plants: juniper
+// (140, 90), maple (260, 80).
 
 async function throughDoor(page: Page, room: string): Promise<void> {
   await interact(page);
@@ -42,8 +43,9 @@ test.describe('the garden', () => {
     await throughDoor(page, 'shed');
     h = await hook(page);
     expect([h.room, h.player.x, h.player.y]).toEqual(['shed', 240, 190]);
-    // Landed just above the shed door, within its reach.
-    expect(h.near).toBe('door');
+    // Landed on the floor above the shed door, just out of its reach; a step down reaches it.
+    expect(h.near).toBe('');
+    await walkTo(page, 200, 'left', 'door');
     expect(h.treeLocations).toEqual([{ id: 0, name: "Granny's", location: 'shed' }]);
     expect(errors).toEqual([]);
   });
