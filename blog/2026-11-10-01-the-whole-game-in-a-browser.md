@@ -15,7 +15,7 @@ Three days ago, in [Starting Over, On Purpose](./2026-11-07-01-starting-over-on-
 
 ![The shed on a phone in landscape: wooden plank floor, a rug, a workbench and planting table on the left, the player standing beside a pedestal holding Granny's juniper in a terracotta pot, an empty pedestal next to it, and a tutorial box in the corner saying to water Granny's juniper. Menu, View tree, Notebook and Interact buttons sit along the edges.](./images/r4-shed-landscape.png)
 
-That is a screenshot from the S22 landscape test profile, taken for review, not a mock-up.
+That is a screenshot from the S22 landscape test profile, taken for review, not a mock-up. It shows the shed as it was at the flip, filling the whole canvas; the inset room came a few hours later (see the end).
 
 ## What R4 took
 
@@ -23,7 +23,7 @@ R4 was the Phaser half: everything that isn't the simulation or the 3D viewer. I
 
 **R4a, the shell.** A placeholder shed with a player who walks on keys or a touch joystick, a season and day badge, the viewer opened from the room (#107). Then the title scene with New Game, Continue and three save slots (#108). That one took three rounds of review, both rejections fair: my Continue test could have passed on a brand new game, and F9 on an empty slot threw the unsaved game away while the PR body claimed the prototype did the same. It didn't.
 
-**The S22 steer.** The evening R4a landed, Drew's steer arrived: he plays on his phone, mostly in landscape, and the build didn't work there, because F5, F9, Escape and the viewer's wheel zoom were keys only. That jumped the queue and became a rule for every later slice: a keyboard shortcut is a convenience on top of a visible control, never the only way. Four PRs (#113 to #116) added Playwright profiles modelling his phone both ways round, a HUD menu, pinch zoom, and test drivers that do everything by tap on those profiles. Every browser test since runs on four profiles.
+**The S22 steer.** The evening R4a landed, Drew's steer arrived: he plays on his phone, mostly in landscape, and the build didn't work there, because F5, F9 and Escape were keys only and the viewer zoomed only by mouse wheel. That jumped the queue and became a rule for every later slice: a keyboard shortcut is a convenience on top of a visible control, never the only way. Four PRs (#113 to #116) added Playwright profiles modelling his phone both ways round, a HUD menu, pinch zoom, and test drivers that do everything by tap on those profiles. From then until the flip every browser test ran on four profiles; since Drew ruled that the phone plays in landscape only, the two portrait profiles run just the rotate-prompt tests and the full suite runs on desktop and the S22 in landscape.
 
 **R4b, things to touch.** Interactables and in-room panels (#117), tree sprites and carrying a tree around (#118), the tree inspector (#119) and its Repot, Rename, Set Style and Sell sub-panels (#120).
 
@@ -63,6 +63,6 @@ There is also no button yet to bring a prototype `saveN.json` into the game, eve
 
 ## What's next
 
-First the Inventory panel, and a decision on the shed: the prototype drew it as an inset room, I read it as the full canvas, and the door now stands on open floor. Then the roadmap that was paused for the rewrite comes back: a winter-only hard prune (waiting on a decision about what counts as hard), a seasons page in the notebook, then seeds, more playable species, house interiors and a greenhouse, and further out an audio pass and the art pass that replaces these placeholder sprites.
+The shed question was answered the same day this post was written. The prototype drew the shed as an inset room; I had read it as the full canvas, so the door stood on open floor. Drew's verdict was that a door in the middle of a floor is silly, and the inset room with its door set into the bottom wall has since merged, along with the landscape-only rule for phones and a build version on the title so he can tell which build his phone is running. Next come the camera and scale pass for the phone, where the world currently reads as a thumbnail, and the Inventory panel. Then the roadmap that was paused for the rewrite comes back: a winter-only hard prune (waiting on a decision about what counts as hard), a seasons page in the notebook, then seeds, more playable species, house interiors and a greenhouse, and further out an audio pass and the art pass that replaces these placeholder sprites.
 
 The branch-3 maths post is still owed. That is four posts in a row now.
