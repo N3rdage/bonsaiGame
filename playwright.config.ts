@@ -17,6 +17,12 @@ function s22Ultra(width: number, height: number) {
   };
 }
 
+// E2E_PORT moves the preview server off 4173 when that port is held; CI uses the default.
+const port = Number(process.env.E2E_PORT ?? 4173);
+if (!Number.isInteger(port) || port <= 0) {
+  throw new Error(`E2E_PORT must be a positive integer, got "${process.env.E2E_PORT ?? ''}"`);
+}
+
 // Epic #8's acceptance loop, in its own project (see `projects`).
 const PARITY = /parity\.spec\.ts$/;
 
@@ -25,6 +31,11 @@ const PARITY = /parity\.spec\.ts$/;
 export default defineConfig<RouteOptions>({
   testDir: './e2e',
   fullyParallel: true,
+  // Walks are frame-paced (src/world/player.ts), so a starved runner stretches
+  // a long walk past Playwright's 30 s default (two CI runs in three today on
+  // s22-landscape); N3rdage/agentic-gaming#81 is the fix, this is the budget
+  // until it lands.
+  timeout: 60_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
@@ -38,13 +49,14 @@ export default defineConfig<RouteOptions>({
     },
   },
   use: {
-    baseURL: 'http://localhost:4173',
+    baseURL: `http://localhost:${String(port)}`,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'npm run preview',
-    url: 'http://localhost:4173',
+    // Vite takes the last --port, so this overrides the script's 4173 and keeps --strictPort.
+    command: `npm run preview -- --port ${String(port)}`,
+    url: `http://localhost:${String(port)}`,
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
