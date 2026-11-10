@@ -7,10 +7,9 @@
  * distance halves. `fromPrototype` is the one place that rule lives.
  *
  * Positions are ported from archive/gamemaker/rooms/rm_shed/rm_shed.yy (the
- * instance list). The prototype built its shed's `obj_wall` ring inset in the
- * room on entry (obj_game_controller Other_4, SHED_X0..SHED_Y1); here the shed
- * keeps the whole canvas, with thin wall strips along the edges, the top one as
- * deep as the drawn wall tile so the player stands below the wall.
+ * instance list). The shed is the prototype's inset room: the controller built
+ * its `obj_wall` ring on entry (obj_game_controller Other_4) at SHED_X0..SHED_Y1
+ * (scr_settings), well inside the canvas, and the dark background frames it.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -59,9 +58,12 @@ export interface Prop {
 
 export interface Room {
   readonly key: RoomKey;
+  /** The canvas the room is drawn on, logical px. */
   readonly width: number;
   readonly height: number;
-  /** The player is kept at least this far inside the room's edges. */
+  /** The outer edge of the wall ring; the walls are `WALL_BAND` deep inside it. */
+  readonly bounds: Rect;
+  /** The player is kept at least this far inside `bounds`. */
   readonly edgeMargin: number;
   readonly playerStart: { readonly x: number; readonly y: number };
   readonly walls: readonly Rect[];
@@ -70,15 +72,57 @@ export interface Room {
   readonly floor: number;
 }
 
-/**
- * Edge walls are thinner than `edgeMargin`, so the clamp (Step_0: "keep the
- * player inside the room regardless of wall coverage") is what holds the player
- * in at the edges; wall collision is for walls inside a room.
- */
-export const WALL_THICKNESS = 2;
+/** Other_4's ring is one row of 32 px tiles (`_tw`): each wall is a band that deep, so the player stops at the drawn tile. */
+export const WALL_BAND = fromPrototype(32);
 
-/** The shed's top wall strip: one drawn wall tile, prototype 32 px, so the player walks below the wall. */
-export const SHED_TOP_WALL = fromPrototype(32);
+/** A gap in the ring's left side from `top` to `bottom`, logical px. */
+export interface Gap {
+  readonly top: number;
+  readonly bottom: number;
+}
+
+/**
+ * Other_4's ring as collision bands just inside `bounds`: the top and bottom
+ * rows across it and the left and right columns down it, the left one broken
+ * by `leftGap` if there is one.
+ */
+export function ringWalls(bounds: Rect, leftGap?: Gap): Rect[] {
+  const { x, y, w, h } = bounds;
+  const band = WALL_BAND;
+  const left = leftGap
+    ? [
+        { x, y, w: band, h: leftGap.top - y },
+        { x, y: leftGap.bottom, w: band, h: y + h - leftGap.bottom },
+      ]
+    : [{ x, y, w: band, h }];
+  return [
+    { x, y, w, h: band },
+    { x, y: y + h - band, w, h: band },
+    ...left,
+    { x: x + w - band, y, w: band, h },
+  ];
+}
+
+/** The floor inside the ring's bands. */
+export function insideWalls(room: Room): Rect {
+  const { x, y, w, h } = room.bounds;
+  return { x: x + WALL_BAND, y: y + WALL_BAND, w: w - 2 * WALL_BAND, h: h - 2 * WALL_BAND };
+}
+
+/** scr_settings: the top-left corners of the shed ring's corner tiles, (160, 96) and (768, 416). */
+export const SHED_RING = {
+  x0: fromPrototype(160),
+  y0: fromPrototype(96),
+  x1: fromPrototype(768),
+  y1: fromPrototype(416),
+} as const;
+
+const SHED_BOUNDS: Rect = {
+  x: SHED_RING.x0,
+  y: SHED_RING.y0,
+  w: SHED_RING.x1 + WALL_BAND - SHED_RING.x0,
+  h: SHED_RING.y1 + WALL_BAND - SHED_RING.y0,
+};
 
 const WIDTH = fromPrototype(960);
 const HEIGHT = fromPrototype(540);
@@ -100,15 +144,12 @@ export const SHED_ROOM: Room = {
   key: 'shed',
   width: WIDTH,
   height: HEIGHT,
-  // Step_0: clamp(x, 8, room_width - 8).
+  bounds: SHED_BOUNDS,
+  // Step_0: clamp(x, 8, room_width - 8), against the room's bounds.
   edgeMargin: fromPrototype(8),
   playerStart: { x: fromPrototype(480), y: fromPrototype(270) },
-  walls: [
-    { x: 0, y: 0, w: WIDTH, h: SHED_TOP_WALL },
-    { x: 0, y: HEIGHT - WALL_THICKNESS, w: WIDTH, h: WALL_THICKNESS },
-    { x: 0, y: 0, w: WALL_THICKNESS, h: HEIGHT },
-    { x: WIDTH - WALL_THICKNESS, y: 0, w: WALL_THICKNESS, h: HEIGHT },
-  ],
+  // Other_4: solid all round; the door is drawn on the bottom wall, not cut into it.
+  walls: ringWalls(SHED_BOUNDS),
   props: [
     prop('workbench', 'Workbench', 'Make Pot', 250, 180, 40, 20),
     prop('planting_table', 'Planting', 'Plant Cutting', 330, 180, 32, 20),
@@ -122,9 +163,10 @@ export const SHED_ROOM: Room = {
       ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 700, 170, 16, 16),
       pedestalKey: 'shed_window',
     },
-    // inst_52E224DC's creation code: target_room = rm_garden_back, (100, 450).
+    // inst_52E224DC: a 32x32 door with its origin top-left at (464, 416), on the
+    // bottom wall; its creation code: target_room = rm_garden_back, (100, 450).
     {
-      ...prop('door', 'Door', 'To Garden', 464, 416, 24, 32),
+      ...prop('door', 'Door', 'To Garden', 464 + 16, 416 + 16, 16, 16),
       target: { room: 'garden', x: fromPrototype(100), y: fromPrototype(450) },
     },
   ],

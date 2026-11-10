@@ -19,14 +19,22 @@ import {
   type PlayerState,
 } from './player';
 import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
+import { INTERACT_RANGE, nearestInteractable } from './interactables';
 import {
+  SHED_RING,
   SHED_ROOM,
-  SHED_TOP_WALL,
-  WALL_THICKNESS,
+  WALL_BAND,
   fromPrototype,
   hitsWall,
+  insideWalls,
   type Room,
 } from './shedRoom';
+
+const door = (room: Room) => {
+  const d = room.props.find((p) => p.key === 'door');
+  if (!d) throw new Error('no door');
+  return d;
+};
 
 describe('shed room', () => {
   it('halves every prototype coordinate onto the 480x270 canvas', () => {
@@ -41,21 +49,61 @@ describe('shed room', () => {
       ['shop_kiosk', 125, 145],
       ['pedestal_1', 310, 85],
       ['pedestal_2', 350, 85],
-      ['door', 232, 208],
+      ['door', 240, 216],
     ]);
   });
 
-  it('walls the edges with strips thinner than the clamp margin, the top one a wall tile deep', () => {
-    expect(WALL_THICKNESS).toBe(2);
-    expect(WALL_THICKNESS).toBeLessThan(SHED_ROOM.edgeMargin);
-    expect(SHED_TOP_WALL).toBe(16);
-    expect(hitsWall(SHED_ROOM, 1, 135)).toBe(true);
-    expect(hitsWall(SHED_ROOM, 479, 135)).toBe(true);
-    expect(hitsWall(SHED_ROOM, 240, 1)).toBe(true);
-    expect(hitsWall(SHED_ROOM, 240, 15)).toBe(true);
-    expect(hitsWall(SHED_ROOM, 240, 16)).toBe(false);
-    expect(hitsWall(SHED_ROOM, 240, 269)).toBe(true);
-    expect(hitsWall(SHED_ROOM, 240, 135)).toBe(false);
+  it("is the prototype's inset room: SHED_X0..SHED_Y1 (160, 96)..(768, 416) and one tile, halved", () => {
+    expect(SHED_RING).toEqual({ x0: 80, y0: 48, x1: 384, y1: 208 });
+    expect(WALL_BAND).toBe(16);
+    expect(SHED_ROOM.bounds).toEqual({ x: 80, y: 48, w: 320, h: 176 });
+    // Draw_0's floor: (SHED_X0 + 32, SHED_Y0 + 32)..(SHED_X1, SHED_Y1).
+    expect(insideWalls(SHED_ROOM)).toEqual({ x: 96, y: 64, w: 288, h: 144 });
+  });
+
+  it('rings the shed with 16 px wall bands on all four sides, the bottom one solid', () => {
+    expect(SHED_ROOM.walls).toEqual([
+      { x: 80, y: 48, w: 320, h: 16 },
+      { x: 80, y: 208, w: 320, h: 16 },
+      { x: 80, y: 48, w: 16, h: 176 },
+      { x: 384, y: 48, w: 16, h: 176 },
+    ]);
+    expect(hitsWall(SHED_ROOM, 95.9, 135)).toBe(true);
+    expect(hitsWall(SHED_ROOM, 96, 135)).toBe(false);
+    expect(hitsWall(SHED_ROOM, 383.9, 135)).toBe(false);
+    expect(hitsWall(SHED_ROOM, 384, 135)).toBe(true);
+    expect(hitsWall(SHED_ROOM, 240, 63.9)).toBe(true);
+    expect(hitsWall(SHED_ROOM, 240, 64)).toBe(false);
+    expect(hitsWall(SHED_ROOM, 240, 207.9)).toBe(false);
+    expect(hitsWall(SHED_ROOM, 240, 208)).toBe(true);
+    expect(hitsWall(SHED_ROOM, 240, 223.9)).toBe(true);
+  });
+
+  it("centres the door on inst_52E224DC's 32 px square, top-left (464, 416), in the bottom wall", () => {
+    const d = door(SHED_ROOM);
+    expect([d.x, d.y, d.w, d.h]).toEqual([240, 216, 16, 16]);
+    expect(d.y - d.h / 2).toBe(SHED_RING.y1);
+    // Walking down from the start stops on the floor just above it, in reach.
+    let p = createPlayer(SHED_ROOM);
+    for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: 1 }, SHED_ROOM);
+    expect(p.y).toBeLessThan(208);
+    expect(p.y).toBeGreaterThan(206);
+    expect(nearestInteractable(p, SHED_ROOM.props)?.key).toBe('door');
+  });
+
+  it('takes the shed door to (100, 450) in the garden and the garden door to (480, 380) above the shed door', () => {
+    expect(door(SHED_ROOM).target).toEqual({ room: 'garden', x: 50, y: 225 });
+    const back = door(GARDEN_ROOM).target;
+    expect(back).toEqual({ room: 'shed', x: 240, y: 190 });
+    const inside = insideWalls(SHED_ROOM);
+    const x = back?.x ?? 0;
+    const y = back?.y ?? 0;
+    expect(x > inside.x && x < inside.x + inside.w && y > inside.y && y < inside.y + inside.h).toBe(
+      true,
+    );
+    expect(hitsWall(SHED_ROOM, x, y)).toBe(false);
+    // 26 px above the door's centre: just out of its 20 px reach.
+    expect(door(SHED_ROOM).y - y).toBeGreaterThan(INTERACT_RANGE);
   });
 });
 
@@ -83,16 +131,35 @@ describe('garden room', () => {
     expect(ROOMS.shed).toBe(SHED_ROOM);
   });
 
-  it('fences every edge but the doorway at logical y 208..240 on the left', () => {
+  it('fences the whole room in 16 px bands but the doorway at logical y 208..240 on the left', () => {
     expect(DOORWAY).toEqual({ top: 208, bottom: 240 });
-    expect(hitsWall(GARDEN_ROOM, 1, 100)).toBe(true);
+    expect(GARDEN_ROOM.bounds).toEqual({ x: 0, y: 0, w: 480, h: 270 });
+    expect(GARDEN_ROOM.walls).toEqual([
+      { x: 0, y: 0, w: 480, h: 16 },
+      { x: 0, y: 254, w: 480, h: 16 },
+      { x: 0, y: 0, w: 16, h: 208 },
+      { x: 0, y: 240, w: 16, h: 30 },
+      { x: 464, y: 0, w: 16, h: 270 },
+    ]);
+    expect(hitsWall(GARDEN_ROOM, 15.9, 100)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 16, 100)).toBe(false);
     expect(hitsWall(GARDEN_ROOM, 1, 207)).toBe(true);
     expect(hitsWall(GARDEN_ROOM, 1, 208)).toBe(false);
     expect(hitsWall(GARDEN_ROOM, 1, 239)).toBe(false);
     expect(hitsWall(GARDEN_ROOM, 1, 240)).toBe(true);
-    expect(hitsWall(GARDEN_ROOM, 479, 220)).toBe(true);
-    expect(hitsWall(GARDEN_ROOM, 240, 1)).toBe(true);
-    expect(hitsWall(GARDEN_ROOM, 240, 269)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 464, 220)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 463.9, 220)).toBe(false);
+    expect(hitsWall(GARDEN_ROOM, 240, 15.9)).toBe(true);
+    expect(hitsWall(GARDEN_ROOM, 240, 16)).toBe(false);
+    expect(hitsWall(GARDEN_ROOM, 240, 253.9)).toBe(false);
+    expect(hitsWall(GARDEN_ROOM, 240, 254)).toBe(true);
+  });
+
+  it('lets the player walk out through the doorway to the clamp', () => {
+    let p: PlayerState = { ...createPlayer(GARDEN_ROOM), y: 225 };
+    for (let i = 0; i < 100; i += 1) p = stepPlayer(p, { x: -1, y: 0 }, GARDEN_ROOM);
+    expect(p.x).toBe(4);
+    expect(nearestInteractable(p, GARDEN_ROOM.props)?.key).toBe('door');
   });
 });
 
@@ -120,17 +187,33 @@ describe('player movement', () => {
     expect(stepPlayer(start(), { x: 3, y: 0 }, SHED_ROOM).x).toBe(241.25);
   });
 
-  it('clamps the player 4 px inside the room, where no wall stops it first', () => {
+  it('clamps the player 4 px inside the wall ring, where no wall stops it first', () => {
     const open: Room = { ...SHED_ROOM, walls: [] };
     let q = start();
     for (let i = 0; i < 400; i += 1) q = stepPlayer(q, { x: -1, y: -1 }, open);
-    expect(q).toMatchObject({ x: 4, y: 4 });
+    expect(q).toMatchObject({ x: 84, y: 52 });
+    for (let i = 0; i < 600; i += 1) q = stepPlayer(q, { x: 1, y: 1 }, open);
+    expect(q).toMatchObject({ x: 396, y: 220 });
+  });
+
+  it('keeps the player on the shed floor, stopped by the wall bands before the clamp', () => {
+    expect(SHED_ROOM.edgeMargin).toBeLessThan(WALL_BAND);
+    // Straight left from the start: the last 1.25 px step before the band (e2e/world.spec.ts).
+    let w = start();
+    for (let i = 0; i < 200; i += 1) w = stepPlayer(w, { x: -1, y: 0 }, SHED_ROOM);
+    expect(w).toMatchObject({ x: 96.25, y: 135 });
+    const inside = insideWalls(SHED_ROOM);
     let p = start();
     for (let i = 0; i < 400; i += 1) p = stepPlayer(p, { x: -1, y: -1 }, SHED_ROOM);
-    expect(p.x).toBe(4);
-    expect(p.y).toBeGreaterThanOrEqual(SHED_TOP_WALL);
+    expect(p.x).toBeGreaterThanOrEqual(inside.x);
+    expect(p.x).toBeLessThan(inside.x + MOVE_SPEED);
+    expect(p.y).toBeGreaterThanOrEqual(inside.y);
+    expect(p.y).toBeLessThan(inside.y + MOVE_SPEED);
     for (let i = 0; i < 600; i += 1) p = stepPlayer(p, { x: 1, y: 1 }, SHED_ROOM);
-    expect(p).toMatchObject({ x: 476, y: 266 });
+    expect(p.x).toBeLessThan(inside.x + inside.w);
+    expect(p.x).toBeGreaterThan(inside.x + inside.w - MOVE_SPEED);
+    expect(p.y).toBeLessThan(inside.y + inside.h);
+    expect(p.y).toBeGreaterThan(inside.y + inside.h - MOVE_SPEED);
   });
 
   it('stops at a wall per axis and slides along it', () => {

@@ -13,7 +13,7 @@ import {
   treeShadow,
   wallRuns,
 } from './roomArt';
-import { SHED_ROOM, type Prop } from './shedRoom';
+import { SHED_ROOM, hitsWall, type Prop } from './shedRoom';
 
 const propByKey = (props: readonly Prop[], key: string): Prop => {
   const p = props.find((q) => q.key === key);
@@ -22,15 +22,26 @@ const propByKey = (props: readonly Prop[], key: string): Prop => {
 };
 
 describe('floor', () => {
-  it('tiles the room in 16 px tiles with the hashed frame of each', () => {
+  it('tiles only the inside of the shed ring in 16 px tiles, hashed on their column and row in the room', () => {
     const shed = floorTiles(SHED_ROOM);
     expect(TILE).toBe(16);
     expect(shed.sheet).toBe(SHEETS.floorShed);
-    expect(shed.frames).toHaveLength(17);
-    expect(shed.frames[0]).toHaveLength(30);
-    expect(shed.frames[0]?.slice(0, 4)).toEqual([0, 1, 2, 0]);
-    expect(shed.frames[1]?.slice(0, 4)).toEqual([1, 2, 0, 1]);
-    expect(floorTiles(GARDEN_ROOM).sheet).toBe(SHEETS.floorGarden);
+    // Draw_0: (SHED_X0 + 32, SHED_Y0 + 32)..(SHED_X1, SHED_Y1) = (192, 128)..(768, 416), halved.
+    expect(shed.area).toEqual({ x: 96, y: 64, w: 288, h: 144 });
+    expect(shed.frames).toHaveLength(9);
+    expect(shed.frames[0]).toHaveLength(18);
+    // Column 6, row 4: (6 * 7 + 4 * 13) mod 3 = 1.
+    expect(shed.frames[0]?.slice(0, 4)).toEqual([1, 2, 0, 1]);
+    expect(shed.frames[1]?.slice(0, 4)).toEqual([2, 0, 1, 2]);
+  });
+
+  it('tiles the whole garden', () => {
+    const garden = floorTiles(GARDEN_ROOM);
+    expect(garden.sheet).toBe(SHEETS.floorGarden);
+    expect(garden.area).toEqual({ x: 0, y: 0, w: 480, h: 270 });
+    expect(garden.frames).toHaveLength(17);
+    expect(garden.frames[0]).toHaveLength(30);
+    expect(garden.frames[0]?.slice(0, 4)).toEqual([0, 1, 2, 0]);
   });
 
   it('has the shed rug at the prototype (360, 220)..(600, 360), halved', () => {
@@ -41,13 +52,18 @@ describe('floor', () => {
 });
 
 describe('walls', () => {
-  it('rings the shed with spr_wall, corners included', () => {
-    expect(wallRuns(SHED_ROOM).map((r) => [r.sheet.key, r.x, r.y, r.w, r.h])).toEqual([
-      ['spr_wall', 0, 0, 480, 16],
-      ['spr_wall', 0, 254, 480, 16],
-      ['spr_wall', 0, 16, 16, 240],
-      ['spr_wall', 464, 16, 16, 240],
+  it('rings the inset shed with spr_wall, corners included, over its collision bands', () => {
+    const runs = wallRuns(SHED_ROOM).map((r) => [r.sheet.key, r.x, r.y, r.w, r.h]);
+    expect(runs).toEqual([
+      ['spr_wall', 80, 48, 320, 16],
+      ['spr_wall', 80, 208, 320, 16],
+      ['spr_wall', 80, 64, 16, 144],
+      ['spr_wall', 384, 64, 16, 144],
     ]);
+    // Every drawn wall tile collides.
+    for (const [, x, y, w, h] of runs as [string, number, number, number, number][]) {
+      expect(hitsWall(SHED_ROOM, x, y) && hitsWall(SHED_ROOM, x + w - 0.1, y + h - 0.1)).toBe(true);
+    }
   });
 
   it('fences the garden, rows spr_fence and columns spr_fence_v, without corners or the doorway', () => {
@@ -88,7 +104,23 @@ describe('props', () => {
     expect(at('planting_table')).toEqual(['spr_planting_table', 0, 165, 90, 0.5]);
     expect(at('shop_kiosk')).toEqual(['spr_shop_kiosk', 0, 125, 145, 0.5]);
     expect(at('pedestal_1')).toEqual(['spr_pedestal', 0, 310, 85, 0.75]);
-    expect(at('door')).toEqual(['spr_door', 0, 232, 208, 0.5]);
+    expect(at('door')).toEqual(['spr_door', 0, 240, 216, 0.5]);
+  });
+
+  it('sorts a prop at its bottom edge and a door, in its wall, at its top edge', () => {
+    const depth = (props: readonly Prop[], key: string) => propSprite(propByKey(props, key))?.depth;
+    expect(depth(SHED_ROOM.props, 'workbench')).toBe(100);
+    expect(depth(SHED_ROOM.props, 'door')).toBe(208);
+    expect(depth(GARDEN_ROOM.props, 'door')).toBe(220);
+  });
+
+  it("draws the shed door on the bottom wall: inst_52E224DC's 32 px square at top-left (464, 416)", () => {
+    const door = propSprite(propByKey(SHED_ROOM.props, 'door'));
+    expect(door && [door.x - 8, door.y - 8]).toEqual([232, 208]);
+    const bottomWall = wallRuns(SHED_ROOM)[1];
+    expect(door && [door.y - 8, door.y + 8]).toEqual(
+      bottomWall && [bottomWall.y, bottomWall.y + bottomWall.h],
+    );
   });
 
   it("draws each source plant's species frame and the garden door on its top-left origin", () => {

@@ -8,10 +8,12 @@ import { getSpecies } from '../sim/species';
 import type { SpeciesKey } from '../sim/types';
 import {
   SHED_ROOM,
-  WALL_THICKNESS,
   fromPrototype,
   prop,
+  ringWalls,
+  type Gap,
   type Prop,
+  type Rect,
   type Room,
   type RoomKey,
 } from './shedRoom';
@@ -20,7 +22,10 @@ const WIDTH = fromPrototype(960);
 const HEIGHT = fromPrototype(540);
 
 /** Other_4: the garden's left fence leaves a doorway at prototype y 416..480. */
-export const DOORWAY = { top: fromPrototype(416), bottom: fromPrototype(480) } as const;
+export const DOORWAY: Gap = { top: fromPrototype(416), bottom: fromPrototype(480) };
+
+/** Other_4 fences the whole room. */
+const BOUNDS: Rect = { x: 0, y: 0, w: WIDTH, h: HEIGHT };
 
 /** obj_source_plant: 48 px sprite, centred; prompt `Take Cutting`, labelled with the species. */
 function sourcePlant(speciesKey: SpeciesKey, px: number, py: number): Prop {
@@ -42,17 +47,11 @@ export const GARDEN_ROOM: Room = {
   key: 'garden',
   width: WIDTH,
   height: HEIGHT,
+  bounds: BOUNDS,
   edgeMargin: SHED_ROOM.edgeMargin,
   // The garden is only entered through a door, which sets the spot.
   playerStart: { x: fromPrototype(100), y: fromPrototype(450) },
-  // The fence ring as thin edge strips, with the doorway gap on the left.
-  walls: [
-    { x: 0, y: 0, w: WIDTH, h: WALL_THICKNESS },
-    { x: 0, y: HEIGHT - WALL_THICKNESS, w: WIDTH, h: WALL_THICKNESS },
-    { x: 0, y: 0, w: WALL_THICKNESS, h: DOORWAY.top },
-    { x: 0, y: DOORWAY.bottom, w: WALL_THICKNESS, h: HEIGHT - DOORWAY.bottom },
-    { x: WIDTH - WALL_THICKNESS, y: 0, w: WALL_THICKNESS, h: HEIGHT },
-  ],
+  walls: ringWalls(BOUNDS, DOORWAY),
   props: [
     sourcePlant('juniper', 280, 180),
     sourcePlant('maple', 520, 160),

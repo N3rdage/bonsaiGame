@@ -9,25 +9,36 @@
 import { SHEETS, PEDESTAL_SCALE, SPRITE_SCALE, floorFrame, sourcePlantFrame } from './assets';
 import type { Sheet } from './assets';
 import { DOORWAY } from './gardenRoom';
-import { fromPrototype, type Prop, type Rect, type Room } from './shedRoom';
+import { fromPrototype, insideWalls, type Prop, type Rect, type Room } from './shedRoom';
 
 /** One prototype tile, 32 px, in logical px. */
 export const TILE = fromPrototype(32);
 
-/** The floor sheet and its frame per tile, rows top to bottom, tiles from the room's top-left. */
+/** The floor sheet, the area it covers and its frame per tile, rows top to bottom, tiles from the area's top-left. */
 export interface FloorTiles {
   readonly sheet: Sheet;
+  readonly area: Rect;
   readonly frames: readonly (readonly number[])[];
 }
 
+/**
+ * Draw_0: the shed floor fills only the inside of its ring, (SHED_X0 + 32,
+ * SHED_Y0 + 32) to (SHED_X1, SHED_Y1), the dark background showing round it;
+ * the garden's fills the room. Each tile's frame hashes its column and row in
+ * the room, so a tile keeps its frame wherever the area starts.
+ */
 export function floorTiles(room: Room): FloorTiles {
-  const sheet = room.key === 'shed' ? SHEETS.floorShed : SHEETS.floorGarden;
-  const columns = Math.ceil(room.width / TILE);
-  const rows = Math.ceil(room.height / TILE);
-  const frames = Array.from({ length: rows }, (_, row) =>
-    Array.from({ length: columns }, (_, column) => floorFrame(column, row, sheet.frames)),
+  const shed = room.key === 'shed';
+  const sheet = shed ? SHEETS.floorShed : SHEETS.floorGarden;
+  const area = shed ? insideWalls(room) : { x: 0, y: 0, w: room.width, h: room.height };
+  const column0 = area.x / TILE;
+  const row0 = area.y / TILE;
+  const frames = Array.from({ length: Math.ceil(area.h / TILE) }, (_, row) =>
+    Array.from({ length: Math.ceil(area.w / TILE) }, (_, column) =>
+      floorFrame(column0 + column, row0 + row, sheet.frames),
+    ),
   );
-  return { sheet, frames };
+  return { sheet, area, frames };
 }
 
 /** A run of one wall sprite repeated from its top-left over the rect. */
@@ -36,35 +47,38 @@ export interface WallRun extends Rect {
 }
 
 /**
- * Other_4's ring of 32 px tiles round the room: the top and bottom rows
- * across it, then the left and right columns between them (the garden's left
- * one broken by the doorway). The rows start at 0 and room_height - 32, so on
- * the 540 px rooms the side columns' last tile overlaps the bottom row. The
- * shed's tiles are all `spr_wall`; the garden's rows are `spr_fence`, its
- * columns `spr_fence_v`, and its four corner tiles are left out (obj_wall Draw_0)
- * for the mitred corners.
+ * Other_4's ring of 32 px tiles round the room's bounds: the top and bottom
+ * rows across it, then the left and right columns between them (the garden's
+ * left one broken by the doorway). The garden's rows start at 0 and
+ * room_height - 32, so on its 540 px room the side columns' last tile overlaps
+ * the bottom row; the shed's ring, SHED_X0..SHED_Y1, is whole tiles. The shed's
+ * tiles are all `spr_wall`; the garden's rows are `spr_fence`, its columns
+ * `spr_fence_v`, and its four corner tiles are left out (obj_wall Draw_0) for
+ * the mitred corners.
  */
 export function wallRuns(room: Room): WallRun[] {
   const garden = room.key === 'garden';
-  const bottom = room.height - TILE;
-  const right = room.width - TILE;
-  const rowFrom = garden ? TILE : 0;
-  const rowW = room.width - 2 * rowFrom;
+  const { x, y, w, h } = room.bounds;
+  const bottom = y + h - TILE;
+  const right = x + w - TILE;
+  const rowFrom = garden ? x + TILE : x;
+  const rowW = w - (garden ? 2 * TILE : 0);
   const row = garden ? SHEETS.fence : SHEETS.wall;
   const column = garden ? SHEETS.fenceV : SHEETS.wall;
+  const top = y + TILE;
   // Other_4: for (_wy = _y0 + 32; _wy < _y1; _wy += 32), so the last tile starts before the bottom row.
-  const columnEnd = TILE * Math.ceil(bottom / TILE);
+  const columnEnd = top + TILE * Math.ceil((bottom - top) / TILE);
   const left: Rect[] = garden
     ? [
-        { x: 0, y: TILE, w: TILE, h: DOORWAY.top - TILE },
-        { x: 0, y: DOORWAY.bottom, w: TILE, h: columnEnd - DOORWAY.bottom },
+        { x, y: top, w: TILE, h: DOORWAY.top - top },
+        { x, y: DOORWAY.bottom, w: TILE, h: columnEnd - DOORWAY.bottom },
       ]
-    : [{ x: 0, y: TILE, w: TILE, h: columnEnd - TILE }];
+    : [{ x, y: top, w: TILE, h: columnEnd - top }];
   return [
-    { sheet: row, x: rowFrom, y: 0, w: rowW, h: TILE },
+    { sheet: row, x: rowFrom, y, w: rowW, h: TILE },
     { sheet: row, x: rowFrom, y: bottom, w: rowW, h: TILE },
     ...left.map((r) => ({ ...r, sheet: column })),
-    { sheet: column, x: right, y: TILE, w: TILE, h: columnEnd - TILE },
+    { sheet: column, x: right, y: top, w: TILE, h: columnEnd - top },
   ];
 }
 
@@ -152,13 +166,14 @@ export const SHED_RUG = {
   border: 0x9b6e5f,
 } as const;
 
-/** A prop's sprite: sheet and frame, centred on (x, y) at `scale`. */
+/** A prop's sprite: sheet and frame, centred on (x, y) at `scale`, drawn at `depth`. */
 export interface PropSprite {
   readonly sheet: Sheet;
   readonly frame: number;
   readonly x: number;
   readonly y: number;
   readonly scale: number;
+  readonly depth: number;
 }
 
 const PROP_SHEETS: Record<string, Sheet> = {
@@ -170,17 +185,20 @@ const PROP_SHEETS: Record<string, Sheet> = {
 /**
  * The prop's sprite, centred on the prop: the workbench, planting table and
  * kiosk at 1x, a pedestal at 1.5x (obj_pedestal), a door at 1x on the centre
- * of its rect (spr_door's origin is its top-left; the garden door's rect is
- * that 32 px square, halved), a source plant's species frame at 1x.
+ * of its rect (spr_door's origin is its top-left; each door's rect is that
+ * 32 px square, halved), a source plant's species frame at 1x. A prop sorts
+ * against the player at its bottom edge; a door sits in its wall or fence, so
+ * it sorts at its top edge, behind the player as the walls are (obj_player_2d
+ * Step_0 draws the player in front of walls and doors).
  */
 export function propSprite(prop: Prop): PropSprite | undefined {
-  const at = { x: prop.x, y: prop.y, frame: 0, scale: SPRITE_SCALE };
+  const at = { x: prop.x, y: prop.y, frame: 0, scale: SPRITE_SCALE, depth: prop.y + prop.h / 2 };
   if (prop.speciesKey) {
     return { ...at, sheet: SHEETS.sourcePlant, frame: sourcePlantFrame(prop.speciesKey) };
   }
   if (prop.pedestalKey !== undefined)
     return { ...at, sheet: SHEETS.pedestal, scale: PEDESTAL_SCALE };
-  if (prop.target) return { ...at, sheet: SHEETS.door };
+  if (prop.target) return { ...at, sheet: SHEETS.door, depth: prop.y - prop.h / 2 };
   const sheet = PROP_SHEETS[prop.key];
   return sheet && { ...at, sheet };
 }
