@@ -26,6 +26,11 @@ interface BonsaiTestHook {
   readonly scene: string;
   /** Device pixels per logical pixel the scene's camera renders at (canvas width / 480); 1 would mean the camera is not fitted. */
   readonly zoom: number;
+  /**
+   * World only: the world camera. `zoom` is the world zoom factor on top of the device zoom (2 on a phone-sized
+   * viewport, else 1), `scrollX` and `scrollY` the view's top-left in room units (logical px of the 480x270 room).
+   */
+  readonly camera?: { readonly zoom: number; readonly scrollX: number; readonly scrollY: number };
   /** World: the season of the game day at the last publish. Title: ''. */
   readonly season: string;
   /** World: the game day at the last publish (the day clock moves it). Title: -1. */
