@@ -56,8 +56,11 @@ export function stepPlayer(player: PlayerState, input: MoveInput, room: Room): P
   if (!hitsWall(room, nx, y)) x = nx;
   const ny = y + iy * MOVE_SPEED;
   if (!hitsWall(room, x, ny)) y = ny;
-  x = clamp(x, room.edgeMargin, room.width - room.edgeMargin);
-  y = clamp(y, room.edgeMargin, room.height - room.edgeMargin);
+  // Step_0's clamp keeps the player in the room "regardless of wall coverage";
+  // the room is its wall ring, so nothing puts the player outside the walls.
+  const { bounds: b, edgeMargin: m } = room;
+  x = clamp(x, b.x + m, b.x + b.w - m);
+  y = clamp(y, b.y + m, b.y + b.h - m);
 
   let { facing } = player;
   if (ix > 0.5) facing = 'right';
