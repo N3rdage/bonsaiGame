@@ -45,7 +45,15 @@ export default defineConfig<RouteOptions>({
   snapshotPathTemplate: '{testDir}/__screenshots__/{testFileName}/{arg}-{projectName}{ext}',
   expect: {
     toHaveScreenshot: {
-      maxDiffPixelRatio: 0.005,
+      // A pixel count, not a ratio: a ratio scales with the viewport, and 0.005
+      // of 1280x720 (4,608 px) let a young tree's whole foliage vanish unseen.
+      // Measured (agentic-gaming#23): a still viewer frame matches its baseline
+      // with 0 pixels changed run to run; the smallest real loss, the wire coil
+      // on s22-landscape, changes 48. A capture that would animate on purpose
+      // (the weather particles) turns the animation off first rather than
+      // loosening the cap per call: e2e/camera.spec.ts switches the weather
+      // setting off before its shed-start screenshot.
+      maxDiffPixels: 24,
       animations: 'disabled',
       stylePath: path.join(import.meta.dirname, 'e2e/screenshot.css'),
     },
