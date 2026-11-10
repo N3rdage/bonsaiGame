@@ -3,9 +3,11 @@ import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { nearestInteractable } from './interactables';
-import { SHED_ROOM } from './shedRoom';
+import { SHED_ROOM, insideWalls } from './shedRoom';
 import {
   FLOOR_GRID,
+  FLOOR_LAP_DEPTH,
+  floorSpot,
   SPRITE_MAX_PX,
   SPRITE_MIN_PX,
   TREE_PROMPT,
@@ -28,8 +30,32 @@ function stateWith(...locations: string[]): GameState {
 const at = (s: { x: number; y: number }) => [s.x, s.y];
 
 describe('tree sprites', () => {
-  it('halves the prototype floor grid: (340, 320), 64 by 80, five to a row', () => {
-    expect(FLOOR_GRID).toEqual({ x: 170, y: 160, dx: 32, dy: 40, perRow: 5 });
+  it('halves the prototype floor grid: (340, 320), 64 by 80, five to a row, two rows', () => {
+    expect(FLOOR_GRID).toEqual({ x: 170, y: 160, dx: 32, dy: 40, perRow: 5, rows: 2 });
+  });
+
+  it('keeps both rows inside the shed walls; a third, as the prototype drew it, would be outside', () => {
+    const inside = insideWalls(SHED_ROOM);
+    const last = floorSpot(9);
+    expect(last).toEqual({ x: 298, y: 200, depth: 200 });
+    expect(last.x + FLOOR_GRID.dx).toBeLessThan(inside.x + inside.w);
+    expect(last.y).toBeLessThan(inside.y + inside.h);
+    // Other_4's third row, prototype y 480, is below the bottom wall (SHED_Y1 416).
+    expect(FLOOR_GRID.y + 2 * FLOOR_GRID.dy).toBeGreaterThan(SHED_ROOM.walls[1]?.y ?? 0);
+  });
+
+  it('wraps the eleventh floor tree onto the first spot, behind the tree there, which E reaches', () => {
+    const state = stateWith(...Array.from({ length: 12 }, () => 'shed'));
+    const sprites = treeSprites(state, SHED_ROOM);
+    expect(sprites).toHaveLength(12);
+    expect(sprites.slice(10).map((s) => [s.tree.id, s.x, s.y])).toEqual([
+      [10, 170, 160],
+      [11, 202, 160],
+    ]);
+    expect(sprites[10]?.depth).toBeLessThan(sprites[0]?.depth ?? 0);
+    expect(floorSpot(20)).toEqual({ x: 170, y: 160, depth: 160 - 2 * FLOOR_LAP_DEPTH });
+    const near = nearestInteractable({ x: 170, y: 150 }, treeTargets(sprites));
+    expect(near?.key).toBe('tree:0');
   });
 
   it('puts the i-th floor tree at grid spot i, in state order', () => {
