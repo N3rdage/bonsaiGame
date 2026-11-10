@@ -1059,7 +1059,7 @@ export class WorldScene extends Phaser.Scene {
   /**
    * The room from its sprite sheets (src/world/roomArt.ts), replacing the last
    * room's: its static art baked into one texture (bakeRoom) shown as one
-   * full-room quad, and each prop's sprite at its bottom edge's depth. Every
+   * full-room quad, and each prop's sprite at its depth (propSprite). Every
    * prototype px is half a logical px.
    */
   private drawRoom(): void {
@@ -1080,7 +1080,7 @@ export class WorldScene extends Phaser.Scene {
           this.add
             .sprite(art.x, art.y, art.sheet.key, art.frame)
             .setScale(art.scale)
-            .setDepth(p.y + p.h / 2),
+            .setDepth(art.depth),
         ];
       }),
     ];
@@ -1103,9 +1103,12 @@ export class WorldScene extends Phaser.Scene {
     const floor = floorTiles(room);
     const { frameWidth, frameHeight } = floor.sheet;
     const topLeft = { originX: 0, originY: 0 };
+    const { area } = floor;
     floor.frames.forEach((row, y) => {
       row.forEach((frame, x) => {
-        texture.stamp(floor.sheet.key, frame, x * frameWidth, y * frameHeight, topLeft);
+        const tx = area.x * PROTOTYPE_SCALE + x * frameWidth;
+        const ty = area.y * PROTOTYPE_SCALE + y * frameHeight;
+        texture.stamp(floor.sheet.key, frame, tx, ty, topLeft);
       });
     });
     // roomArt's rects are in logical px; the Graphics scales them up to the texture's prototype px.
@@ -1113,7 +1116,7 @@ export class WorldScene extends Phaser.Scene {
     if (room.key === 'shed') {
       const r = SHED_RUG;
       const line = SPRITE_SCALE;
-      rug.fillStyle(0x000000, SHED_FLOOR_DIM).fillRect(0, 0, room.width, room.height);
+      rug.fillStyle(0x000000, SHED_FLOOR_DIM).fillRect(area.x, area.y, area.w, area.h);
       rug.fillStyle(r.fill).fillRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
       rug.lineStyle(line, r.outline).strokeRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
       rug

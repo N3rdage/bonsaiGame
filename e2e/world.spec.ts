@@ -33,15 +33,18 @@ test.describe('world', () => {
     expect(errors).toEqual([]);
   });
 
-  test('stops at the left edge clamp and faces left', async ({ page }) => {
+  // The shed's left wall band is x 80..96; from x 240 in 1.25 px steps the last
+  // step before it lands on 96.25. Pinned in src/world/world.test.ts.
+  test('stops at the shed wall and faces left', async ({ page }) => {
     await bootWorld(page);
     await page.keyboard.down('a');
-    await page.waitForFunction(() => window.__bonsai?.player.x === 4);
+    await page.waitForFunction(() => window.__bonsai?.player.x === 96.25);
     const f = (await hook(page)).frames;
     await page.waitForFunction((n) => (window.__bonsai?.frames ?? 0) >= n + 10, f);
     await page.keyboard.up('a');
     const h = await hook(page);
-    expect(h.player.x).toBe(4);
+    expect(h.player.x).toBe(96.25);
+    expect(h.player.y).toBe(135);
     expect(h.player.facing).toBe('left');
   });
 
