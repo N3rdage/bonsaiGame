@@ -1,16 +1,21 @@
 import type { Page } from '@playwright/test';
-import { bootWorld, collectErrors, expect, openViewer, setMode, test } from './drive';
+import {
+  bootWorld,
+  collectErrors,
+  expect,
+  hook,
+  openViewer,
+  setMode,
+  tapControl,
+  test,
+  toTitle,
+} from './drive';
 
-// A phone turned from portrait to landscape: the Samsung S22 Ultra at FHD+
+// A phone turned between portrait and landscape: the Samsung S22 Ultra at FHD+
 // (see playwright.config.ts). Each test sets its own viewport, so it runs the
-// same on every project.
+// same on every project that runs it.
 const PORTRAIT = { width: 384, height: 824 };
 const LANDSCAPE = { width: 824, height: 384 };
-
-async function bootPortrait(page: Page, url: string): Promise<void> {
-  await page.setViewportSize(PORTRAIT);
-  await bootWorld(page, url);
-}
 
 async function canvasBox(page: Page): Promise<{ width: number; height: number }> {
   const box = await page.locator('#game canvas').boundingBox();
@@ -25,15 +30,55 @@ async function backing(page: Page): Promise<{ width: number; height: number; zoo
   });
 }
 
-test.describe('orientation change', () => {
+/** Counts `requestFullscreen` calls instead of entering fullscreen, which headless cannot show. */
+async function countFullscreenRequests(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { fullscreenRequests: number };
+    w.fullscreenRequests = 0;
+    Element.prototype.requestFullscreen = function () {
+      w.fullscreenRequests += 1;
+      return Promise.resolve();
+    };
+  });
+}
+
+function fullscreenRequests(page: Page): Promise<number> {
+  return page.evaluate(
+    () => (window as unknown as { fullscreenRequests: number }).fullscreenRequests,
+  );
+}
+
+/** Lets the browser draw `n` frames; a running game publishes its hook on each. */
+async function frames(page: Page, n: number): Promise<void> {
+  await page.evaluate(
+    (count) =>
+      new Promise<void>((resolve) => {
+        let seen = 0;
+        const tick = (): void => {
+          seen += 1;
+          if (seen >= count) resolve();
+          else requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      }),
+    n,
+  );
+}
+
+test.describe('desktop window resize', () => {
+  // A touch screen this small in portrait is a phone, which gets the rotate prompt instead (below).
+  test.skip(({ hasTouch }) => hasTouch, 'desktop windows only');
+
   test('refits the world canvas at 16:9 without a reload', async ({ page }) => {
     const errors = collectErrors(page);
-    await bootPortrait(page, '/');
+    await page.setViewportSize(PORTRAIT);
+    await bootWorld(page);
+    expect((await hook(page)).rotatePrompt).toBe(false);
     const portrait = await canvasBox(page);
     expect(portrait.width).toBeCloseTo(PORTRAIT.width, 0);
     expect(portrait.height).toBeCloseTo((PORTRAIT.width * 9) / 16, 0);
     // The backing follows the device px of the fitted display (never below
-    // 480x270), the camera zoom with it: 1080x608 at 2.25 on the S22 Ultra.
+    // 480x270), the camera zoom with it.
     const dpr = await page.evaluate(() => window.devicePixelRatio);
     const expectBacking = async (view: { width: number; height: number }): Promise<void> => {
       const scale = Math.max(1, Math.min((view.width * dpr) / 480, (view.height * dpr) / 270));
@@ -48,7 +93,6 @@ test.describe('orientation change', () => {
     const landscape = await canvasBox(page);
     expect(landscape.width).toBeGreaterThanOrEqual(682);
     expect(landscape.width).toBeLessThanOrEqual(683);
-    // 1920x1080 at 4 on the S22 Ultra; the resize this sets off settles there.
     await expectBacking(LANDSCAPE);
     expect(await page.evaluate(() => window.__bonsai?.scene)).toBe('world');
     expect(errors).toEqual([]);
@@ -56,7 +100,8 @@ test.describe('orientation change', () => {
 
   test('re-renders the viewer in wire mode for the new viewport', async ({ page }) => {
     const errors = collectErrors(page);
-    await bootPortrait(page, '/?tree=wired');
+    await page.setViewportSize(PORTRAIT);
+    await bootWorld(page, '/?tree=wired');
     await openViewer(page);
     await page.waitForFunction(
       () => window.__bonsai?.viewer?.open === true && window.__bonsai.viewer.foliageReady,
@@ -92,5 +137,86 @@ test.describe('orientation change', () => {
     const toolbar = await page.locator('#viewer-toolbar').boundingBox();
     expect(toolbar?.height).toBe(110);
     expect(errors).toEqual([]);
+  });
+
+  test('a title click asks for no fullscreen', async ({ page }) => {
+    await countFullscreenRequests(page);
+    await toTitle(page);
+    await tapControl(page, 'new');
+    await page.waitForFunction(() => window.__bonsai?.scene === 'world');
+    expect(await fullscreenRequests(page)).toBe(0);
+  });
+});
+
+test.describe('phone rotate prompt', () => {
+  test.skip(({ hasTouch }) => !hasTouch, 'touch screens only');
+
+  test('covers the game in portrait until the phone is turned', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.setViewportSize(PORTRAIT);
+    await page.goto('/');
+    const prompt = page.locator('#rotate-prompt');
+    await expect(prompt).toBeVisible();
+    await expect(prompt).toContainText('Rotate your phone');
+    // The game is paused before its title starts, so nothing is published yet.
+    await frames(page, 30);
+    expect(await page.evaluate(() => window.__bonsai?.scene)).toBeUndefined();
+
+    await page.setViewportSize(LANDSCAPE);
+    await page.waitForFunction(() => window.__bonsai?.scene === 'title');
+    await expect(prompt).toBeHidden();
+    expect((await hook(page)).rotatePrompt).toBe(false);
+    expect(errors).toEqual([]);
+  });
+
+  test('pauses the world under the prompt and resumes where it was', async ({ page }) => {
+    const errors = collectErrors(page);
+    await page.setViewportSize(LANDSCAPE);
+    await bootWorld(page);
+    await page.setViewportSize(PORTRAIT);
+    await page.waitForFunction(() => window.__bonsai?.rotatePrompt === true);
+    const paused = await hook(page);
+    await frames(page, 30);
+    expect((await hook(page)).frames).toBe(paused.frames);
+
+    // Every point is the prompt's, so a tap on the HUD menu button lands on it.
+    const covered = await page.evaluate(({ width, height }) => {
+      const prompt = document.getElementById('rotate-prompt');
+      const points = [0.1, 0.5, 0.9].flatMap((fx) =>
+        [0.05, 0.2, 0.5, 0.9].map((fy) => document.elementFromPoint(width * fx, height * fy)),
+      );
+      return points.every((el) => prompt?.contains(el) === true);
+    }, PORTRAIT);
+    expect(covered).toBe(true);
+    await tapControl(page, 'menu');
+
+    await page.setViewportSize(LANDSCAPE);
+    await page.waitForFunction(
+      (f) => window.__bonsai?.rotatePrompt === false && window.__bonsai.frames > f,
+      paused.frames,
+    );
+    await expect(page.locator('#rotate-prompt')).toBeHidden();
+    const resumed = await hook(page);
+    expect(resumed.scene).toBe('world');
+    expect(resumed.room).toBe(paused.room);
+    expect(resumed.day).toBe(paused.day);
+    expect(resumed.panel).toBe('');
+    expect(errors).toEqual([]);
+  });
+
+  test('leaves a tablet-sized touch screen alone in portrait', async ({ page }) => {
+    await page.setViewportSize({ width: 768, height: 1024 });
+    await toTitle(page);
+    await expect(page.locator('#rotate-prompt')).toBeHidden();
+    expect((await hook(page)).rotatePrompt).toBe(false);
+  });
+
+  test('the first title tap asks for fullscreen once', async ({ page }) => {
+    await countFullscreenRequests(page);
+    await page.setViewportSize(LANDSCAPE);
+    await toTitle(page);
+    await tapControl(page, 'new');
+    await page.waitForFunction(() => window.__bonsai?.scene === 'world');
+    expect(await fullscreenRequests(page)).toBe(1);
   });
 });

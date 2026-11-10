@@ -25,6 +25,8 @@ if (!Number.isInteger(port) || port <= 0) {
 
 // Epic #8's acceptance loop, in its own project (see `projects`).
 const PARITY = /parity\.spec\.ts$/;
+// The rotate prompt's tests, the only ones a phone held in portrait can run.
+const ORIENTATION = /orientation\.spec\.ts$/;
 
 // Runs against the production build so what is tested is what gets deployed.
 // `npm run build` must have run first (CI does; locally `npm run build && npm run test:e2e`).
@@ -57,9 +59,14 @@ export default defineConfig<RouteOptions>({
   },
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: PARITY },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: PARITY },
+    // Pixel 7 and the S22 in portrait are phones held upright: the rotate prompt covers the game, so only its tests run.
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testMatch: ORIENTATION },
     // tapRoute: every action by touch through its control (e2e/drive.ts).
-    { name: 's22-portrait', use: { ...s22Ultra(384, 824), tapRoute: true }, testIgnore: PARITY },
+    {
+      name: 's22-portrait',
+      use: { ...s22Ultra(384, 824), tapRoute: true },
+      testMatch: ORIENTATION,
+    },
     { name: 's22-landscape', use: { ...s22Ultra(824, 384), tapRoute: true }, testIgnore: PARITY },
     // The whole loop in one long test, by touch in landscape, after the four
     // projects above have finished: run beside them its 3D viewer render on
