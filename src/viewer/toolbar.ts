@@ -9,7 +9,7 @@
 
 import { BRANCH_BEND_PER_CLICK, TRUNK_BEND_PER_EVENT } from '../sim/geometry';
 import { getSpecies } from '../sim/species';
-import { WIRE_SET_DAYS, activeWireForBranch } from '../sim/training';
+import { WIRE_SET_DAYS, activeWireForBranch, isPruneSeason } from '../sim/training';
 import type { BonsaiTree } from '../sim/types';
 import {
   uiStripHeight,
@@ -96,6 +96,8 @@ export const CAPTION_GAP = 4;
 
 export const EXIT_LABEL = 'Exit (Esc)';
 export const CAMERA_HELP = 'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R';
+/** Prune mode's note while `isPruneSeason` refuses the game's day (the inspector's `Repot: requires spring`). */
+export const PRUNE_OUT_OF_SEASON = 'Prune: requires winter';
 
 export type CameraAction = 'in' | 'out' | 'reset';
 
@@ -205,7 +207,8 @@ function subRow(ui: ViewerUiState): SubRowGroup[] {
   ];
 }
 
-function helpLines(ui: ViewerUiState, wireStock: number): string[] {
+function helpLines(ui: ViewerUiState, wireStock: number, day: number): string[] {
+  if (ui.mode === 'prune' && !isPruneSeason(day)) return [PRUNE_OUT_OF_SEASON, CAMERA_HELP];
   if (ui.mode !== 'wire') return [CAMERA_HELP];
   const what =
     ui.wireAction === 'bend'
@@ -234,7 +237,7 @@ export function buildToolbarModel(
     info: treeInfo(tree),
     modes: MODES.map(([mode, label]) => ({ mode, label, selected: ui.mode === mode })),
     subRow: subRow(ui),
-    help: helpLines(ui, wireStock),
+    help: helpLines(ui, wireStock, day),
     branchCaptions: branchCaptions(tree, ui, day),
   };
 }
