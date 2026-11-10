@@ -7,7 +7,10 @@ import {
   tutorialStepBody,
   tutorialStepLabel,
 } from '../sim/tutorial';
+import { GARDEN_ROOM } from './gardenRoom';
 import { CARRY_TEXT, INTERACT_BUTTON } from './menu';
+import { PEDESTAL_LABEL_DY } from './roomArt';
+import { SHED_ROOM, type Prop } from './shedRoom';
 import { PANEL_INSET, panelClose, panelTitleY } from './panels';
 import {
   SKIP_CONFIRM_PANEL,
@@ -43,22 +46,24 @@ describe('tutorial corner panel', () => {
     expect(tutorialPanel(TUTORIAL_WATER, true)?.skip.enabled).toBe(false);
   });
 
-  it('grows with the body: one line pitch per extra body line', () => {
+  it('grows upward with the body: one line pitch per extra body line, Skip where it was', () => {
     const two = tutorialPanel(TUTORIAL_WATER, false);
     const three = tutorialPanel(TUTORIAL_TRAIN, false);
     expect(two?.texts).toHaveLength(5);
     expect(three?.texts).toHaveLength(6);
     expect((three?.box.h ?? 0) - (two?.box.h ?? 0)).toBe(TUTORIAL_LINE_H);
-    expect(three?.skip.y).toBe((two?.skip.y ?? 0) + TUTORIAL_LINE_H);
+    expect(three?.box.y).toBe((two?.box.y ?? 0) - TUTORIAL_LINE_H);
+    expect(three?.skip.y).toBe(two?.skip.y);
   });
 
-  it('fits every step inside its box, top-right, under the carry line and above Interact', () => {
-    const { x, y, w } = TUTORIAL_BOX;
+  it('fits every step inside its box, bottom-right, under the carry line and above Interact', () => {
+    const { x, bottom, w } = TUTORIAL_BOX;
     expect(x + w).toBeLessThanOrEqual(480 - 8);
-    expect(y).toBeGreaterThanOrEqual(CARRY_TEXT.top + LINE_10);
     for (const step of tutorialAllSteps()) {
       const m = tutorialPanel(step, false);
       if (!m) throw new Error('no panel');
+      expect(m.box.y + m.box.h).toBe(bottom);
+      expect(m.box.y).toBeGreaterThanOrEqual(CARRY_TEXT.top + LINE_10);
       for (const t of m.texts) {
         expect(t.x + t.text.length * GLYPH_8).toBeLessThanOrEqual(x + w);
         expect(t.y + TUTORIAL_LINE_H).toBeLessThanOrEqual(m.skip.y + LINE_10);
@@ -76,6 +81,20 @@ describe('tutorial corner panel', () => {
           .map((t) => t.text)
           .join(' '),
       ).toBe(tutorialStepBody(step));
+    }
+  });
+
+  it('clears the shed pedestals with their labels and the garden source plants', () => {
+    const below = (p: Prop): number =>
+      p.pedestalKey === undefined ? p.y + p.h / 2 : PEDESTAL_LABEL_DY + p.y + LINE_10;
+    const props = [...SHED_ROOM.props, ...GARDEN_ROOM.props].filter(
+      (p) => p.pedestalKey !== undefined || p.speciesKey !== undefined,
+    );
+    expect(props).toHaveLength(5);
+    for (const step of tutorialAllSteps()) {
+      const m = tutorialPanel(step, false);
+      if (!m) throw new Error('no panel');
+      for (const p of props) expect(m.box.y).toBeGreaterThan(below(p));
     }
   });
 });

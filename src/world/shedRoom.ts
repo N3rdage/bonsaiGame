@@ -7,8 +7,10 @@
  * distance halves. `fromPrototype` is the one place that rule lives.
  *
  * Positions are ported from archive/gamemaker/rooms/rm_shed/rm_shed.yy (the
- * instance list). The prototype's `obj_wall` instances are not in the shed, so
- * its edges are the bounds; here they are thin wall strips along the edges.
+ * instance list). The prototype built its shed's `obj_wall` ring inset in the
+ * room on entry (obj_game_controller Other_4, SHED_X0..SHED_Y1); here the shed
+ * keeps the whole canvas, with thin wall strips along the edges, the top one as
+ * deep as the drawn wall tile so the player stands below the wall.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -75,6 +77,9 @@ export interface Room {
  */
 export const WALL_THICKNESS = 2;
 
+/** The shed's top wall strip: one drawn wall tile, prototype 32 px, so the player walks below the wall. */
+export const SHED_TOP_WALL = fromPrototype(32);
+
 const WIDTH = fromPrototype(960);
 const HEIGHT = fromPrototype(540);
 
@@ -99,7 +104,7 @@ export const SHED_ROOM: Room = {
   edgeMargin: fromPrototype(8),
   playerStart: { x: fromPrototype(480), y: fromPrototype(270) },
   walls: [
-    { x: 0, y: 0, w: WIDTH, h: WALL_THICKNESS },
+    { x: 0, y: 0, w: WIDTH, h: SHED_TOP_WALL },
     { x: 0, y: HEIGHT - WALL_THICKNESS, w: WIDTH, h: WALL_THICKNESS },
     { x: 0, y: 0, w: WALL_THICKNESS, h: HEIGHT },
     { x: WIDTH - WALL_THICKNESS, y: 0, w: WALL_THICKNESS, h: HEIGHT },

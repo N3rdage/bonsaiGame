@@ -4,16 +4,28 @@ import { LocalStorageSettingsStorage } from '../platform/localStorageSettingsSto
 import { loadSettings } from '../platform/settings';
 import { SEASONS } from '../sim/seasons';
 import { VIEWER_FIXTURES, isViewerFixtureKey } from '../viewer/viewerFixtures';
+import { ALL_SHEETS, sheetUrl } from '../world/assets';
 import { parseTimeScale } from '../world/clock';
 import type { TitleSceneData } from './sceneData';
 
 /**
- * Entry scene: creates the one save storage the game uses, loads the settings,
- * reads the viewer's test parameters and hands them to the title.
+ * Entry scene: loads the sprite sheets, creates the one save storage the game
+ * uses, loads the settings, reads the viewer's test parameters and hands them
+ * to the title.
  */
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('boot');
+  }
+
+  /** The room, prop and player sprite sheets (src/world/assets.ts), from public/assets under the app's base path. */
+  preload(): void {
+    for (const sheet of ALL_SHEETS) {
+      this.load.spritesheet(sheet.key, sheetUrl(import.meta.env.BASE_URL, sheet), {
+        frameWidth: sheet.frameWidth,
+        frameHeight: sheet.frameHeight,
+      });
+    }
   }
 
   create(): void {
