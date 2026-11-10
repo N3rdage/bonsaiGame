@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { currentViewport, isPhone } from '../platform/orientation';
 import { loadGame, mostRecentSaveSlot } from '../sim/save';
 import { createNewGameState } from '../sim/state';
 import type { GameState } from '../sim/types';
@@ -22,6 +23,9 @@ import { BODY_STYLE, fontLoaded } from './textStyle';
 const TEXT = BODY_STYLE;
 const DISABLED = '#5f6b58';
 const CENTER_X = 240;
+
+/** Whether a title tap has already asked for fullscreen this page load (see TitleScene.phoneFullscreen). */
+let phoneFullscreenAsked = false;
 
 /** Which panel is up: the menu, the slot picker, the overwrite confirmation for a slot, or Settings. */
 type View =
@@ -147,6 +151,17 @@ export class TitleScene extends Phaser.Scene {
     this.scene.start('world', data);
   }
 
+  /**
+   * On a phone, the first tap on New Game, Continue or Load asks for
+   * fullscreen (main.ts then locks landscape), inside the tap as browsers
+   * require. Once per page; a refusal or no fullscreen (iOS Safari) plays on.
+   */
+  private phoneFullscreen(): void {
+    if (phoneFullscreenAsked || !isPhone(currentViewport())) return;
+    phoneFullscreenAsked = true;
+    this.scale.startFullscreen();
+  }
+
   private show(view: View): void {
     this.view = view;
     this.draw();
@@ -206,12 +221,15 @@ export class TitleScene extends Phaser.Scene {
     if (view.kind === 'menu') {
       const anySave = this.rows.some((r) => r.status !== 'empty');
       this.button('new', CENTER_X, 110, 'New Game (Enter)', true, () => {
+        this.phoneFullscreen();
         this.newGame();
       });
       this.button('continue', CENTER_X, 136, 'Continue (C)', this.continueSlot > 0, () => {
+        this.phoneFullscreen();
         this.continueGame();
       });
       this.button('load', CENTER_X, 162, 'Load Game (L)', anySave, () => {
+        this.phoneFullscreen();
         this.openPicker('load');
       });
       this.button('settings', CENTER_X, 188, 'Settings (S)', true, () => {
