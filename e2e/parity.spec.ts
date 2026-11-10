@@ -21,7 +21,9 @@ import {
   walkTo,
 } from './drive';
 
-// Epic #8's acceptance: the whole loop in one flow, on the phone by touch.
+// Epic #8's acceptance: the whole loop in one flow, on the phone by touch. It
+// runs in the `s22-landscape-parity` project only (playwright.config.ts), after
+// the four per-step projects; they cover the same actions one step at a time.
 // Shed: floor spot 0 (170, 160), pedestal shed_main (310, 85), workbench
 // (125, 90), planting table (165, 90), kiosk (125, 145), door (232, 208) to the
 // garden at (50, 225); garden: juniper (140, 90), door (16, 228) back to (240, 190).
@@ -32,13 +34,7 @@ async function throughDoor(page: Page, room: string): Promise<void> {
 }
 
 test.describe('parity', () => {
-  test('plays the loop from a new game through save, reload and Continue', async ({
-    page,
-  }, testInfo) => {
-    test.skip(
-      testInfo.project.name !== 's22-landscape',
-      'one long flow; the per-step specs cover the other projects',
-    );
+  test('plays the loop from a new game through save, reload and Continue', async ({ page }) => {
     // A single flow through every room and panel: longer than one step's spec.
     test.setTimeout(90_000);
     const errors = collectErrors(page);
