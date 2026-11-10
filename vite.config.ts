@@ -26,7 +26,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        // woff2: the self-hosted pixel font (src/scenes/textStyle.ts), so text draws in it offline.
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2}'],
         // Phaser alone is over a megabyte; the default 2 MB cap would silently skip it.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },

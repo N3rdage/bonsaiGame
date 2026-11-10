@@ -12,6 +12,8 @@ declare const __APP_VERSION__: string;
 interface BonsaiTestHook {
   readonly ready: boolean;
   readonly version: string;
+  /** Both scenes: whether the pixel font (src/scenes/textStyle.ts) was loaded and registered before the scene drew its text. */
+  readonly fontLoaded: boolean;
   readonly scene: string;
   /** Device pixels per logical pixel the scene's camera renders at (canvas width / 480); 1 would mean the camera is not fitted. */
   readonly zoom: number;

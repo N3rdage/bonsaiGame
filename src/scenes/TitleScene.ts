@@ -17,8 +17,9 @@ import { SETTINGS_KEY, settingsPanel } from '../world/settingsPanel';
 import { crispText, fitCamera, sceneZoom } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { IDLE_HOOK, type TitleSceneData, type WorldSceneData } from './sceneData';
+import { BODY_STYLE, fontLoaded } from './textStyle';
 
-const TEXT = { fontFamily: 'monospace', fontSize: '10px', color: '#d8e6c8' };
+const TEXT = BODY_STYLE;
 const DISABLED = '#5f6b58';
 const CENTER_X = 240;
 
@@ -298,6 +299,7 @@ export class TitleScene extends Phaser.Scene {
     window.__bonsai = {
       ...IDLE_HOOK,
       version: __APP_VERSION__,
+      fontLoaded: fontLoaded(),
       ready: true,
       scene: this.scene.key,
       zoom: sceneZoom(this),

@@ -20,7 +20,7 @@ import {
   tutorialPanel,
 } from './tutorialPanel';
 
-// 8 px monospace: about 0.6 em a glyph (4.8 px) and a 10 px line; 10 px: 6 and 12. Generous upper bounds.
+// 8 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph (4.8 px) and a 10 px line; 10 px: 6 and 12. Generous upper bounds.
 const GLYPH_8 = 4.9;
 const GLYPH_10 = 6;
 const LINE_10 = 12;
