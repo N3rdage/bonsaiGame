@@ -6,6 +6,7 @@
  */
 
 import { inventoryRemove } from './inventory';
+import { seasonForDay, type Season } from './seasons';
 import { markDirty } from './tree';
 import { TUTORIAL_TRAIN, tutorialAdvanceIf } from './tutorial';
 import type { BonsaiTree, GameState, WireRecord } from './types';
@@ -119,9 +120,29 @@ export function clipBranch(
   return true;
 }
 
-/** Remove a branch entirely and renumber the survivors; thins foliage by 0.1. */
+/** Seasons a branch can be pruned (removed) in; clipping is year-round (backlog #76, option A). */
+export const PRUNE_SEASONS: readonly Season[] = ['winter'];
+
+/** Whether `day` falls in one of `PRUNE_SEASONS`. */
+export function isPruneSeason(day: number): boolean {
+  return PRUNE_SEASONS.includes(seasonForDay(day));
+}
+
+export type PruneStatus = 'ok' | 'out_of_season' | 'no_branch';
+
+/** Whether branch `branchId` can be pruned now: the season first, then the branch. */
+export function pruneCheck(tree: BonsaiTree, branchId: number, state: GameState): PruneStatus {
+  if (!isPruneSeason(state.day)) return 'out_of_season';
+  if (branchId < 0 || branchId >= tree.branches.length) return 'no_branch';
+  return 'ok';
+}
+
+/**
+ * Remove a branch entirely and renumber the survivors; thins foliage by 0.1.
+ * Refuses, changing nothing, unless `pruneCheck` is `ok`.
+ */
 export function pruneBranch(tree: BonsaiTree, state: GameState, branchId: number): boolean {
-  if (branchId < 0 || branchId >= tree.branches.length) return false;
+  if (pruneCheck(tree, branchId, state) !== 'ok') return false;
 
   tree.branches.splice(branchId, 1);
   tree.branches.forEach((b, i) => {

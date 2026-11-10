@@ -606,7 +606,8 @@ export class TreeViewer {
 
   /**
    * A hotspot click (Draw_64 `_draw_branch_hotspots`, `_draw_trunk_hotspots`).
-   * The training functions refuse without wire; a successful one bumps
+   * The training functions refuse without wire, and `pruneBranch` outside
+   * winter (the help line says why); a successful one bumps
    * `tree.revision`, so the next frame rebuilds the mesh and the toolbar.
    */
   private onHotspot({ kind, id, t }: WorldHotspot): void {

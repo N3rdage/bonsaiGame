@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { Page } from '@playwright/test';
 import {
   bootWorld,
   closeViewer as closeByRoute,
   collectErrors,
+  continueGame,
   expect,
   openViewer as openByRoute,
   press,
@@ -683,16 +686,65 @@ test.describe('viewer actions', () => {
     expect(errors).toEqual([]);
   });
 
-  test('prunes a branch', async ({ page }) => {
+  test('refuses to prune outside winter and says so', async ({ page }) => {
     const errors = collectErrors(page);
+    // A new game starts on day 0, spring.
     await openViewer(page, '/');
     const before = await pressMode(page, 'prune');
-    expect(before.branchCount).toBe(4);
+    expect(before.day).toBe(0);
+    await expect(page.locator('#viewer-help .help-line')).toHaveText([
+      'Prune: requires winter',
+      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R',
+    ]);
+    // The hotspots stay; the sim refuses the click.
     expect(before.hotspots).toHaveLength(4);
     const after = await clickHotspot(page, 'branch', 0);
-    expect(after.branchCount).toBe(3);
-    expect(after.hotspots).toHaveLength(3);
-    await expect(page.locator('#viewer-hotspots .hotspot')).toHaveCount(3);
+    expect(after.branchCount).toBe(before.branchCount);
+    expect(after.revision).toBe(before.revision);
+    expect(after.lengths).toEqual(before.lengths);
+    await expect(page.locator('#viewer-hotspots .hotspot')).toHaveCount(4);
+
+    // Clip mode has no note.
+    await pressMode(page, 'clip');
+    await expect(page.locator('#viewer-help .help-line')).toHaveText([
+      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R',
+    ]);
+    await closeViewer(page);
+    expect(errors).toEqual([]);
+  });
+
+  test('prunes a branch in winter', async ({ page }) => {
+    const errors = collectErrors(page);
+    // The day-14 prototype save moved to day 100, mid-winter; its first tree has 5 branches.
+    const save = JSON.parse(
+      readFileSync(
+        path.join(import.meta.dirname, '../src/sim/__fixtures__/prototype-save-v1-day14.json'),
+        'utf8',
+      ).replace(/\0+$/, ''),
+    ) as Record<string, unknown>;
+    save.game_day = 100;
+    await page.goto('/');
+    await page.evaluate((text) => {
+      localStorage.setItem('bonsai.save.1', text);
+    }, JSON.stringify(save));
+    await toTitle(page);
+    await continueGame(page);
+    await page.waitForFunction(() => window.__bonsai?.scene === 'world');
+    await openByRoute(page);
+    await page.waitForFunction(
+      () => window.__bonsai?.viewer?.open === true && window.__bonsai.viewer.renders >= 1,
+    );
+
+    const before = await pressMode(page, 'prune');
+    expect(before.day).toBe(100);
+    expect(before.branchCount).toBe(5);
+    await expect(page.locator('#viewer-help .help-line')).toHaveText([
+      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R',
+    ]);
+    const after = await clickHotspot(page, 'branch', 0);
+    expect(after.branchCount).toBe(4);
+    expect(after.hotspots).toHaveLength(before.hotspots.length - 1);
+    await expect(page.locator('#viewer-hotspots .hotspot')).toHaveCount(after.hotspots.length);
     expect(after.revision).toBe(before.revision + 1);
     await closeViewer(page);
     expect(errors).toEqual([]);

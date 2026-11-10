@@ -131,6 +131,7 @@ describe('review follow-ups', () => {
     if (!tree) throw new Error('no starter');
     expect(applyWire(tree, state, 0, 10)).toBe(true);
     expect(applyWire(tree, state, 1, 10)).toBe(true);
+    state.day = 100; // pruning is winter-only
     expect(pruneBranch(tree, state, 0)).toBe(true);
     // The surviving wired branch is now id 0 and its record followed it.
     const survivorWire = tree.wiresApplied.find((w) => w.branchId === 0);

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { seasonForDay } from './seasons';
 import { createNewGameState } from './state';
 import { addBranch, createTree } from './tree';
 import {
@@ -7,6 +8,7 @@ import {
   clipBranch,
   maxSafeBendDeg,
   pruneBranch,
+  pruneCheck,
   removeWire,
   wireTrunk,
 } from './training';
@@ -180,22 +182,84 @@ describe('clipBranch', () => {
   });
 });
 
+/** A day in the middle of the first winter (days 85 to 112). */
+const WINTER_DAY = 100;
+
+describe('pruneCheck', () => {
+  it.each([
+    [0, 'spring'],
+    [1, 'spring'],
+    [28, 'spring'],
+    [29, 'summer'],
+    [56, 'summer'],
+    [57, 'autumn'],
+    [84, 'autumn'],
+    [113, 'spring'],
+    [196, 'autumn'],
+  ])('refuses on day %i (%s) as out of season', (day, season) => {
+    const { state, tree } = fixture();
+    state.day = day;
+    expect(seasonForDay(day)).toBe(season);
+    expect(pruneCheck(tree, 0, state)).toBe('out_of_season');
+  });
+
+  it.each([85, WINTER_DAY, 112, 197, 224])('allows day %i, in winter', (day) => {
+    const { state, tree } = fixture();
+    state.day = day;
+    expect(seasonForDay(day)).toBe('winter');
+    expect(pruneCheck(tree, 0, state)).toBe('ok');
+  });
+
+  it('names a missing branch in winter, and the season before the branch', () => {
+    const { state, tree } = fixture();
+    state.day = WINTER_DAY;
+    expect(pruneCheck(tree, -1, state)).toBe('no_branch');
+    expect(pruneCheck(tree, 3, state)).toBe('no_branch');
+    state.day = 10;
+    expect(pruneCheck(tree, 3, state)).toBe('out_of_season');
+  });
+});
+
 describe('pruneBranch', () => {
   it('removes the branch, renumbers survivors and thins foliage 0.1', () => {
     const { state, tree } = fixture();
+    state.day = WINTER_DAY;
     tree.foliageDensity = 0.5;
     expect(pruneBranch(tree, state, 1)).toBe(true);
     expect(tree.branches.map((b) => b.id)).toEqual([0, 1]);
     expect(tree.branches.map((b) => b.angle)).toEqual([0, 90]);
     expect(tree.foliageDensity).toBeCloseTo(0.4, 10);
-    expect(tree.prunesHistory).toEqual([{ branchId: 1, day: 10 }]);
+    expect(tree.prunesHistory).toEqual([{ branchId: 1, day: WINTER_DAY }]);
   });
 
   it('returns false for invalid ids', () => {
     const { state, tree } = fixture();
+    state.day = WINTER_DAY;
     expect(pruneBranch(tree, state, -1)).toBe(false);
     expect(pruneBranch(tree, state, 3)).toBe(false);
     expect(tree.branches).toHaveLength(3);
+  });
+
+  it.each([0, 29, 57, 84, 113])('refuses on day %i, outside winter, and changes nothing', (day) => {
+    const { state, tree } = fixture();
+    applyWire(tree, state, 1, 10);
+    clipBranch(tree, state, 2, 1);
+    state.day = day;
+    state.tutorialStep = TUTORIAL_TRAIN;
+    const before = structuredClone(tree);
+    expect(pruneBranch(tree, state, 1)).toBe(false);
+    expect(tree).toEqual(before);
+    expect(tree.revision).toBe(before.revision);
+    expect(state.tutorialStep).toBe(TUTORIAL_TRAIN);
+  });
+
+  it('leaves clipping open in every season', () => {
+    for (const day of [10, 40, 70, WINTER_DAY]) {
+      const { state, tree } = fixture();
+      state.day = day;
+      expect(clipBranch(tree, state, 0, 1)).toBe(true);
+      expect(tree.branches[0]?.length).toBe(4);
+    }
   });
 });
 

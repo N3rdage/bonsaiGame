@@ -194,6 +194,22 @@ describe('buildToolbarModel', () => {
     expect(model.subRow).toEqual([]);
   });
 
+  it('notes that pruning requires winter, in prune mode only, from the game day', () => {
+    for (const day of [0, 28, 29, 56, 57, 84, 113]) {
+      expect(buildToolbarModel(starter(), ui({ mode: 'prune' }), 10, day).help).toEqual([
+        'Prune: requires winter',
+        CAMERA_HELP,
+      ]);
+    }
+    for (const day of [85, 100, 112]) {
+      expect(buildToolbarModel(starter(), ui({ mode: 'prune' }), 10, day).help).toEqual([
+        CAMERA_HELP,
+      ]);
+    }
+    expect(buildToolbarModel(starter(), ui({ mode: 'clip' }), 10, 0).help).toEqual([CAMERA_HELP]);
+    expect(buildToolbarModel(starter(), ui({ mode: 'view' }), 10, 0).help).toEqual([CAMERA_HELP]);
+  });
+
   it('adds the action, bend and show groups in wire + bend', () => {
     const model = buildToolbarModel(starter(), ui({ mode: 'wire', showUnwired: false }), 10, 0);
     expect(model.height).toBe(110);
