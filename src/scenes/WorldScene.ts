@@ -112,13 +112,36 @@ import {
   type WeatherArea,
   type WeatherProfile,
 } from '../world/weather';
+import { PLAYER_SCALE, SHEETS, SPRITE_SCALE, playerFrame } from '../world/assets';
+import {
+  PEDESTAL_EMPTY_COLOUR,
+  PEDESTAL_EMPTY_LABEL,
+  PEDESTAL_LABEL_DY,
+  SHED_FLOOR_DIM,
+  SHED_RUG,
+  fenceCorners,
+  floorTiles,
+  playerShadow,
+  propShadow,
+  propSprite,
+  wallRuns,
+  type Shadow,
+} from '../world/roomArt';
+import { treeArt, type TreeArt } from '../world/treeArt';
 import { crispText, fitCamera, sceneZoom } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 
 const TOAST_MS = 2000;
-const PLAYER_W = 16;
-const PLAYER_H = 24;
+/** The player sprite's drawn height, round its centre: spr_player's 32 px at 1.5x, halved. */
+const PLAYER_H = SHEETS.player.frameHeight * PLAYER_SCALE;
+/** The floor under everything, then the shed's dim and rug, the drop shadows, the walls; props and the player sort by y above 0. */
+const FLOOR_DEPTH = -4;
+const RUG_DEPTH = -3;
+const SHADOW_DEPTH = -2;
+const WALL_DEPTH = -1;
+/** The rug's corner radius: draw_roundrect takes none, so this approximates GameMaker's own. */
+const RUG_RADIUS = 3;
 const LABEL_STYLE = { fontFamily: 'monospace', fontSize: '8px', color: '#d8e6c8' };
 const HUD_DEPTH = 10_000;
 /** Modal panels and their dimmer sit above the HUD, so a press on the HUD under them hits the dimmer. */
@@ -163,8 +186,10 @@ const BAR_TRACK = 0x282828;
 const BAR_H = 6;
 
 /**
- * The rooms with placeholder art: floor, walls and labelled prop rectangles,
- * and the player as a rectangle depth-sorted by y against the props. A new or
+ * The rooms drawn from the prototype's sprites (src/world/roomArt.ts): floor
+ * tiles, walls or fence, the props, their shadows, and the player's animated
+ * sprite depth-sorted by y against the props; trees are drawn in code as
+ * obj_tree_sprite did (src/world/treeArt.ts). A new or
  * loaded game starts in the shed; a door redraws the scene as its target room
  * (src/world/gardenRoom.ts) with the player at its target spot. Room data,
  * movement and the HUD text come from the pure modules in src/world/; this
@@ -214,6 +239,10 @@ export class WorldScene extends Phaser.Scene {
   /** The room shown, and what its floor, walls and props were drawn as. */
   private room: Room = SHED_ROOM;
   private roomParts: Phaser.GameObjects.GameObject[] = [];
+  private floorMap: Phaser.Tilemaps.Tilemap | undefined;
+  /** The props', floor trees' and the player's drop shadows, at floor depth. */
+  private shadowGfx!: Phaser.GameObjects.Graphics;
+  private playerShadow!: Phaser.GameObjects.Ellipse;
   /** obj_source_plant's counters, per plant key for this visit to the room. */
   private readonly plants = new Map<string, SourcePlantState>();
   /** The weather of the room shown, undefined while the setting is off; drawn into `weatherGfx`. */
@@ -229,7 +258,7 @@ export class WorldScene extends Phaser.Scene {
   private viewerClosedAt = -1;
   private keys!: MoveKeys;
   private player!: PlayerState;
-  private playerRect!: Phaser.GameObjects.Rectangle;
+  private playerSprite!: Phaser.GameObjects.Sprite;
   private hud!: Phaser.GameObjects.Text;
   private viewButton!: Phaser.GameObjects.Text;
   private notebookButton!: Phaser.GameObjects.Text;
@@ -278,17 +307,24 @@ export class WorldScene extends Phaser.Scene {
     this.clockS = 0;
     this.room = SHED_ROOM;
     this.roomParts = [];
+    this.floorMap = undefined;
     this.plants.clear();
     this.tutorialParts = [];
     this.tutorialDrawn = '';
     this.tutorialSkipButton = undefined;
     fitCamera(this, this.publishHook);
 
+    this.shadowGfx = this.add.graphics().setDepth(SHADOW_DEPTH);
     this.drawRoom();
     this.weatherGfx = this.add.graphics().setDepth(WEATHER_DEPTH);
     this.buildWeather();
     this.player = createPlayer(SHED_ROOM);
-    this.playerRect = this.add.rectangle(0, 0, PLAYER_W, PLAYER_H, 0xc9d8a8).setOrigin(0.5, 1);
+    const shadow = playerShadow(0, 0);
+    this.playerShadow = this.add
+      .ellipse(0, 0, shadow.w, shadow.h, 0x000000, shadow.alpha)
+      .setDepth(SHADOW_DEPTH);
+    // obj_player_2d draws spr_player round its centre origin at (x, y), as here.
+    this.playerSprite = this.add.sprite(0, 0, SHEETS.player.key, 0).setScale(PLAYER_SCALE);
     this.promptText = this.text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
       .setOrigin(0.5, 1)
       .setDepth(HUD_DEPTH);
@@ -927,8 +963,8 @@ export class WorldScene extends Phaser.Scene {
       else if (id === 'panel-plant' && sel.species) {
         const tree = plantCutting(state, sel.species, sel.useFancyPot, sel.usePremiumSoil);
         this.closePanel();
-        this.relocated();
         this.hud.setText(hudText(state));
+        this.relocated();
         if (tree) this.showToast(`Planted a ${getSpecies(tree.speciesKey).displayName}.`);
       }
     });
@@ -993,24 +1029,110 @@ export class WorldScene extends Phaser.Scene {
     this.showToast(takeCutting(this.ctx.state, plant, speciesKey));
   }
 
-  /** The room's floor, walls and labelled prop rectangles (source plants green), replacing the last room's. */
+  /**
+   * The room from its sprite sheets (src/world/roomArt.ts), replacing the last
+   * room's: the floor tiles over the room's colour, the shed's dim and rug, the
+   * wall or fence runs and the garden's mitred corners, and each prop's sprite
+   * at its bottom edge's depth. Every prototype px is half a logical px.
+   */
   private drawRoom(): void {
     for (const part of this.roomParts) part.destroy();
+    this.floorMap?.destroy();
     const room = this.room;
+    const floor = floorTiles(room);
+    const map = this.make.tilemap({
+      data: floor.frames.map((row) => [...row]),
+      tileWidth: floor.sheet.frameWidth,
+      tileHeight: floor.sheet.frameHeight,
+    });
+    this.floorMap = map;
+    const tileset = map.addTilesetImage(floor.sheet.key);
+    const layer = tileset && map.createLayer(0, tileset, 0, 0);
+    layer?.setScale(SPRITE_SCALE).setDepth(FLOOR_DEPTH);
+    const rug = this.add.graphics().setDepth(RUG_DEPTH);
+    if (room.key === 'shed') {
+      const r = SHED_RUG;
+      const line = SPRITE_SCALE;
+      rug.fillStyle(0x000000, SHED_FLOOR_DIM).fillRect(0, 0, room.width, room.height);
+      rug.fillStyle(r.fill).fillRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
+      rug.lineStyle(line, r.outline).strokeRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
+      rug
+        .lineStyle(line, r.border)
+        .strokeRoundedRect(r.x + r.inset, r.y + r.inset, r.w - 2 * r.inset, r.h - 2 * r.inset, 1);
+    }
+    const corners = this.add.graphics().setDepth(WALL_DEPTH);
+    for (const c of fenceCorners(room)) corners.fillStyle(c.colour).fillRect(c.x, c.y, c.w, c.h);
     this.roomParts = [
-      this.add.rectangle(0, 0, room.width, room.height, room.floor).setOrigin(0).setDepth(-1),
-      ...room.walls.map((w) =>
-        this.add.rectangle(w.x, w.y, w.w, w.h, 0x5b4a36).setOrigin(0).setDepth(-1),
+      // The room's background colour under the tiles, as the prototype's background layer.
+      this.add
+        .rectangle(0, 0, room.width, room.height, room.floor)
+        .setOrigin(0)
+        .setDepth(FLOOR_DEPTH - 1),
+      rug,
+      ...wallRuns(room).map((w) =>
+        this.add
+          .tileSprite(w.x, w.y, w.w / SPRITE_SCALE, w.h / SPRITE_SCALE, w.sheet.key, 0)
+          .setOrigin(0)
+          .setScale(SPRITE_SCALE)
+          .setDepth(WALL_DEPTH),
       ),
+      corners,
       ...room.props.flatMap((p) => {
-        const bottom = p.y + p.h / 2;
-        const [fill, stroke] = p.speciesKey ? [0x4f7a3c, 0x8fbf6a] : [0x7a6248, 0xb39a74];
+        const art = propSprite(p);
+        if (!art) return [];
         return [
-          this.add.rectangle(p.x, p.y, p.w, p.h, fill).setStrokeStyle(1, stroke).setDepth(bottom),
-          this.text(p.x, p.y, p.label, LABEL_STYLE).setOrigin(0.5).setDepth(bottom),
+          this.add
+            .sprite(art.x, art.y, art.sheet.key, art.frame)
+            .setScale(art.scale)
+            .setDepth(p.y + p.h / 2),
         ];
       }),
     ];
+  }
+
+  /** The drop shadows of the room's props and of the trees on its floor (the pedestal trees' are drawn with them). */
+  private drawShadows(trees: readonly TreeArt[]): void {
+    const g = this.shadowGfx.clear();
+    const fill = (s: Shadow): void => {
+      g.fillStyle(0x000000, s.alpha).fillEllipse(s.x, s.y, s.w, s.h);
+    };
+    for (const p of this.room.props) {
+      const s = propShadow(p);
+      if (s) fill(s);
+    }
+    for (const t of trees) fill(t.shadow);
+  }
+
+  /** obj_tree_sprite's Draw event into `g`: feet, the shaded body, sheen, outline, rim, trunk and the leaf circles. */
+  private paintTree(g: Phaser.GameObjects.Graphics, art: TreeArt): void {
+    const line = art.scale;
+    g.fillStyle(art.feetColour);
+    for (const f of art.feet) g.fillRect(f.x, f.y, f.w, f.h);
+    for (const row of art.body) {
+      const [a, b, c, d] = row.points;
+      g.fillStyle(row.colour);
+      g.fillTriangle(a.x, a.y, b.x, b.y, c.x, c.y).fillTriangle(a.x, a.y, c.x, c.y, d.x, d.y);
+    }
+    if (art.sheen) {
+      const r = art.sheen.rect;
+      g.fillStyle(art.sheen.colour).fillRect(r.x, r.y, r.w, r.h);
+    }
+    g.lineStyle(line, art.outline.colour).beginPath();
+    art.outline.points.forEach((p, i) => {
+      if (i === 0) g.moveTo(p.x, p.y);
+      else g.lineTo(p.x, p.y);
+    });
+    g.closePath().strokePath();
+    const rim = art.rim.rect;
+    g.fillStyle(art.rim.fill).fillRect(rim.x, rim.y, rim.w, rim.h);
+    g.lineStyle(line, art.rim.line).strokeRect(rim.x, rim.y, rim.w, rim.h);
+    const trunk = art.trunk.rect;
+    g.fillStyle(art.trunk.colour).fillRect(trunk.x, trunk.y, trunk.w, trunk.h);
+    if (!art.canopy) return;
+    g.fillStyle(art.canopy.fill);
+    for (const c of art.canopy.circles) g.fillCircle(c.x, c.y, c.r);
+    g.lineStyle(line, art.canopy.line);
+    for (const c of art.canopy.circles) g.strokeCircle(c.x, c.y, c.r);
   }
 
   /** The inspector's Pick up: refused with a toast while another tree is carried. */
@@ -1028,19 +1150,49 @@ export class WorldScene extends Phaser.Scene {
     this.publishHook();
   }
 
-  /** Placeholder obj_tree_sprite: a pot, a canopy circle scaled from trunk height, the label. */
+  /**
+   * obj_tree_sprite for every tree in the room (src/world/treeArt.ts), sized
+   * from its trunk height, in the season's leaf colour. A floor tree is
+   * labelled above, a displayed one under its pedestal as obj_pedestal did,
+   * which shows `(empty)` with no tree.
+   */
   private drawTrees(): void {
     for (const part of this.treeParts) part.destroy();
-    const sprites = treeSprites(this.ctx.state, this.room);
+    const { state } = this.ctx;
+    const season = seasonForDay(state.day);
+    const sprites = treeSprites(state, this.room);
+    const floorArt: TreeArt[] = [];
     this.treeParts = sprites.flatMap((s) => {
-      const pot = s.size * 0.3;
-      const r = s.size * 0.35;
+      const art = treeArt(s.tree, season, s.x, s.y, s.size);
+      const g = this.add.graphics().setDepth(s.depth);
+      if (s.pedestalKey === undefined) {
+        floorArt.push(art);
+      } else {
+        g.fillStyle(0x000000, art.shadow.alpha);
+        g.fillEllipse(art.shadow.x, art.shadow.y, art.shadow.w, art.shadow.h);
+      }
+      this.paintTree(g, art);
+      if (s.pedestalKey !== undefined) return [g];
       return [
-        this.add.rectangle(s.x, s.y, s.size * 0.5, pot, 0xb06a3c).setOrigin(0.5, 1),
-        this.add.circle(s.x, s.y - s.size + r, r, 0x5f8a4a).setStrokeStyle(1, 0x3c5a2e),
-        this.text(s.x, s.y - s.size - 1, s.label, LABEL_STYLE).setOrigin(0.5, 1),
-      ].map((part) => part.setDepth(s.depth));
+        g,
+        this.text(s.x, art.labelY, s.label, LABEL_STYLE).setOrigin(0.5, 1).setDepth(s.depth),
+      ];
     });
+    for (const p of this.room.props) {
+      if (p.pedestalKey === undefined) continue;
+      const tree = treeOnPedestal(state, p.pedestalKey);
+      const label = tree
+        ? this.text(p.x, p.y + PEDESTAL_LABEL_DY, treeLabel(tree), {
+            ...LABEL_STYLE,
+            color: '#ffffff',
+          })
+        : this.text(p.x, p.y + PEDESTAL_LABEL_DY, PEDESTAL_EMPTY_LABEL, {
+            ...LABEL_STYLE,
+            color: PEDESTAL_EMPTY_COLOUR,
+          });
+      this.treeParts.push(label.setOrigin(0.5, 0).setDepth(p.y + p.h / 2));
+    }
+    this.drawShadows(floorArt);
     this.targets = [...this.room.props, ...treeTargets(sprites)];
     const carried = carriedTree(this.ctx.state);
     this.carryText.setText(carried ? `Carrying: ${treeLabel(carried)}` : '');
@@ -1180,10 +1332,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private drawPlayer(): void {
-    const { x, y } = this.player;
-    this.playerRect.setPosition(x, y).setDepth(y);
+    const { x, y, facing, walkAnim } = this.player;
+    this.playerSprite.setPosition(x, y).setFrame(playerFrame(facing, walkAnim)).setDepth(y);
+    const shadow = playerShadow(x, y);
+    this.playerShadow.setPosition(shadow.x, shadow.y);
     this.near = nearestInteractable(this.player, this.targets);
-    this.promptText.setText(this.near ? promptFor(this.near) : '').setPosition(x, y - PLAYER_H - 2);
+    this.promptText
+      .setText(this.near ? promptFor(this.near) : '')
+      .setPosition(x, y - PLAYER_H / 2 - 2);
   }
 
   /**

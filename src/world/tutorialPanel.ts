@@ -8,8 +8,14 @@
 import { TUTORIAL_DONE, tutorialStepBody, tutorialStepLabel } from '../sim/tutorial';
 import { PANEL_INSET, panelClose, rowY, wrapLines, type PanelModel } from './panels';
 
-/** The corner box's left edge, top and width; its height follows the body (prototype 340 wide, 16 from the right, 32 down, halved and widened to fit the labels at 8 px). */
-export const TUTORIAL_BOX = { x: 282, y: 28, w: 190 } as const;
+/**
+ * The corner box's left edge, bottom and width; its height follows the body,
+ * upward from the bottom (the prototype's 340 px box, 16 from the right,
+ * halved and widened to fit the labels at 8 px). It sits bottom-right, just
+ * above `Interact (E)`, where the prototype put it while the viewer was open:
+ * the prototype's top-right spot covers the shed's display pedestals.
+ */
+export const TUTORIAL_BOX = { x: 282, bottom: 248, w: 190 } as const;
 /** Left inset of the texts. */
 export const TUTORIAL_INSET = 6;
 /** Pitch of the 8 px body lines. */
@@ -50,12 +56,14 @@ export interface TutorialPanelModel {
 /** The corner panel for `step`, or undefined once the tutorial is done. */
 export function tutorialPanel(step: number, modalOpen: boolean): TutorialPanelModel | undefined {
   if (step === TUTORIAL_DONE) return undefined;
-  const { x, y, w } = TUTORIAL_BOX;
+  const { x, bottom, w } = TUTORIAL_BOX;
   const left = x + TUTORIAL_INSET;
   const body = wrapLines(tutorialStepBody(step), TUTORIAL_WRAP);
+  const h = BODY_DY + body.length * TUTORIAL_LINE_H + GAP + SKIP_LINE_H + GAP;
+  const y = bottom - h;
   const skipY = y + BODY_DY + body.length * TUTORIAL_LINE_H + GAP;
   return {
-    box: { x, y, w, h: skipY + SKIP_LINE_H + GAP - y },
+    box: { x, y, w, h },
     texts: [
       { text: 'Tutorial', x: left, y: y + HEADING_DY, color: TUTORIAL_HEADING_COLOR },
       { text: tutorialStepLabel(step), x: left, y: y + LABEL_DY, color: LABEL_COLOR },

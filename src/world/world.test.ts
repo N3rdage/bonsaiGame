@@ -19,7 +19,14 @@ import {
   type PlayerState,
 } from './player';
 import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
-import { SHED_ROOM, WALL_THICKNESS, fromPrototype, hitsWall, type Room } from './shedRoom';
+import {
+  SHED_ROOM,
+  SHED_TOP_WALL,
+  WALL_THICKNESS,
+  fromPrototype,
+  hitsWall,
+  type Room,
+} from './shedRoom';
 
 describe('shed room', () => {
   it('halves every prototype coordinate onto the 480x270 canvas', () => {
@@ -38,12 +45,15 @@ describe('shed room', () => {
     ]);
   });
 
-  it('walls the edges with strips thinner than the clamp margin', () => {
+  it('walls the edges with strips thinner than the clamp margin, the top one a wall tile deep', () => {
     expect(WALL_THICKNESS).toBe(2);
     expect(WALL_THICKNESS).toBeLessThan(SHED_ROOM.edgeMargin);
+    expect(SHED_TOP_WALL).toBe(16);
     expect(hitsWall(SHED_ROOM, 1, 135)).toBe(true);
     expect(hitsWall(SHED_ROOM, 479, 135)).toBe(true);
     expect(hitsWall(SHED_ROOM, 240, 1)).toBe(true);
+    expect(hitsWall(SHED_ROOM, 240, 15)).toBe(true);
+    expect(hitsWall(SHED_ROOM, 240, 16)).toBe(false);
     expect(hitsWall(SHED_ROOM, 240, 269)).toBe(true);
     expect(hitsWall(SHED_ROOM, 240, 135)).toBe(false);
   });
@@ -110,10 +120,15 @@ describe('player movement', () => {
     expect(stepPlayer(start(), { x: 3, y: 0 }, SHED_ROOM).x).toBe(241.25);
   });
 
-  it('clamps the player 4 px inside the room', () => {
+  it('clamps the player 4 px inside the room, where no wall stops it first', () => {
+    const open: Room = { ...SHED_ROOM, walls: [] };
+    let q = start();
+    for (let i = 0; i < 400; i += 1) q = stepPlayer(q, { x: -1, y: -1 }, open);
+    expect(q).toMatchObject({ x: 4, y: 4 });
     let p = start();
     for (let i = 0; i < 400; i += 1) p = stepPlayer(p, { x: -1, y: -1 }, SHED_ROOM);
-    expect(p).toMatchObject({ x: 4, y: 4 });
+    expect(p.x).toBe(4);
+    expect(p.y).toBeGreaterThanOrEqual(SHED_TOP_WALL);
     for (let i = 0; i < 600; i += 1) p = stepPlayer(p, { x: 1, y: 1 }, SHED_ROOM);
     expect(p).toMatchObject({ x: 476, y: 266 });
   });
