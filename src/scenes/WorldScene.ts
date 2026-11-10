@@ -134,7 +134,8 @@ import {
   type Shadow,
 } from '../world/roomArt';
 import { treeArt, type TreeArt } from '../world/treeArt';
-import { crispText, fitCamera, sceneZoom } from './crisp';
+import { viewSize, worldView, worldZoom, type WorldView } from '../world/worldCamera';
+import { crispText, fitCamera, sceneZoom, textZoom, type DeviceZoom } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 import { FONT_FAMILY, LABEL_STYLE, fontLoaded } from './textStyle';
@@ -251,6 +252,13 @@ const BAR_H = 6;
  * Ambient weather (src/world/weather.ts) falls over the room: the season's in
  * the garden, dust motes in the shed. It steps with the player, rebuilds on
  * room entry and when a day changes the season, and is off with the setting.
+ *
+ * Two cameras (src/world/worldCamera.ts): the world camera draws the room,
+ * props, shadows, trees, the player, its prompt and the weather, zoomed by
+ * the world zoom and following the player inside the room's drawn extent; the
+ * main camera, added on top, draws everything else (HUD, menu, toast,
+ * panels, dimmers, the tutorial box) on the unzoomed logical canvas. An
+ * object is the main camera's unless `inWorld` hands it to the world camera.
  */
 export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
@@ -262,6 +270,10 @@ export class WorldScene extends Phaser.Scene {
   >;
   /** The room shown, and what its floor, walls and props were drawn as. */
   private room: Room = SHED_ROOM;
+  /** The camera that draws the room; `cameras.main` is the HUD's, on top of it. */
+  private worldCamera!: Phaser.Cameras.Scene2D.Camera;
+  /** What the world camera shows, in room units: the hook's `camera`. */
+  private view: WorldView = { zoom: 1, scrollX: 0, scrollY: 0 };
   private roomParts: Phaser.GameObjects.GameObject[] = [];
   /** The room's static art, baked on entry (bakeRoom); destroyed on leaving the room or the scene. */
   private roomTexture: Phaser.Textures.DynamicTexture | undefined;
@@ -338,22 +350,33 @@ export class WorldScene extends Phaser.Scene {
     this.tutorialParts = [];
     this.tutorialDrawn = '';
     this.tutorialSkipButton = undefined;
-    fitCamera(this, this.publishHook);
-
-    this.shadowGfx = this.add.graphics().setDepth(SHADOW_DEPTH);
-    this.drawRoom();
-    this.weatherGfx = this.add.graphics().setDepth(WEATHER_DEPTH);
-    this.buildWeather();
     this.player = createPlayer(SHED_ROOM);
+    // The scene's own camera becomes the world camera; the HUD's, added after it, draws on top.
+    this.worldCamera = this.cameras.main;
+    this.cameras.add(0, 0, undefined, undefined, true, 'hud');
+    const toHud = (o: Phaser.GameObjects.GameObject): void => {
+      this.worldCamera.ignore(o);
+    };
+    this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, toHud);
+    fitCamera(this, this.publishHook, this.fitWorld);
+
+    this.shadowGfx = this.inWorld(this.add.graphics().setDepth(SHADOW_DEPTH));
+    this.drawRoom();
+    this.weatherGfx = this.inWorld(this.add.graphics().setDepth(WEATHER_DEPTH));
+    this.buildWeather();
     const shadow = playerShadow(0, 0);
-    this.playerShadow = this.add
-      .ellipse(0, 0, shadow.w, shadow.h, 0x000000, shadow.alpha)
-      .setDepth(SHADOW_DEPTH);
+    this.playerShadow = this.inWorld(
+      this.add.ellipse(0, 0, shadow.w, shadow.h, 0x000000, shadow.alpha).setDepth(SHADOW_DEPTH),
+    );
     // obj_player_2d draws spr_player round its centre origin at (x, y), as here.
-    this.playerSprite = this.add.sprite(0, 0, SHEETS.player.key, 0).setScale(PLAYER_SCALE);
-    this.promptText = this.text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
-      .setOrigin(0.5, 1)
-      .setDepth(HUD_DEPTH);
+    this.playerSprite = this.inWorld(
+      this.add.sprite(0, 0, SHEETS.player.key, 0).setScale(PLAYER_SCALE),
+    );
+    this.promptText = this.inWorld(
+      this.text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
+        .setOrigin(0.5, 1)
+        .setDepth(HUD_DEPTH),
+    );
 
     this.hud = this.text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), {
       ...LABEL_STYLE,
@@ -468,15 +491,14 @@ export class WorldScene extends Phaser.Scene {
           return;
         }
         if (over.length > 0 || this.joystick) return;
-        // World px, not canvas px: the joystick's dead zone and radius are logical.
-        const { worldX: x, worldY: y } = pointer;
+        const { x, y } = this.screenPoint(pointer);
         this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
       },
     );
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (pointer.id !== this.joystick?.id) return;
-      const { worldX, worldY } = pointer;
-      this.joystick.input = joystickInput(worldX - this.joystick.x, worldY - this.joystick.y);
+      const { x, y } = this.screenPoint(pointer);
+      this.joystick.input = joystickInput(x - this.joystick.x, y - this.joystick.y);
     });
     const release = (pointer: Phaser.Input.Pointer): void => {
       if (pointer.id === this.joystick?.id) this.joystick = undefined;
@@ -494,6 +516,7 @@ export class WorldScene extends Phaser.Scene {
       if (this.panel?.key === SETTINGS_KEY) this.openSettings();
     });
     this.events.once('shutdown', () => {
+      this.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, toHud);
       this.panel?.dispose?.();
       this.viewer.destroy();
       this.roomTexture?.destroy();
@@ -509,6 +532,34 @@ export class WorldScene extends Phaser.Scene {
     style: Phaser.Types.GameObjects.Text.TextStyle,
   ): Phaser.GameObjects.Text {
     return crispText(this, x, y, text, style);
+  }
+
+  /** Hands `o` to the world camera alone (a text at its zoom, so it stays crisp); everything else is the HUD camera's. */
+  private inWorld<T extends Phaser.GameObjects.GameObject>(o: T): T {
+    // A camera skips an object whose cameraFilter has its id bit: here, only the HUD camera's.
+    o.cameraFilter = this.cameras.main.id;
+    if (o instanceof Phaser.GameObjects.Text) o.setResolution(textZoom(this, o));
+    return o;
+  }
+
+  /** A pointer in logical screen px through the HUD camera, so the joystick's dead zone and radius ignore the world zoom. */
+  private screenPoint(pointer: Phaser.Input.Pointer): Phaser.Math.Vector2 {
+    return this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+  }
+
+  /** On create and each resize, after the HUD camera is fitted: the world camera's zoom for this viewport, then its view. */
+  private readonly fitWorld = (zoom: DeviceZoom): void => {
+    const factor = worldZoom(window.innerWidth, window.innerHeight);
+    this.worldCamera.setZoom(zoom.x * factor, zoom.y * factor);
+    this.view = { ...this.view, zoom: factor };
+    this.follow();
+  };
+
+  /** Points the world camera at the player, clamped to the room's drawn extent (src/world/worldCamera.ts). */
+  private follow(): void {
+    this.view = worldView(this.player, this.room.bounds, this.view.zoom);
+    const { w, h } = viewSize(this.view.zoom);
+    this.worldCamera.centerOn(this.view.scrollX + w / 2, this.view.scrollY + h / 2);
   }
 
   private hudButton(
@@ -1083,7 +1134,7 @@ export class WorldScene extends Phaser.Scene {
             .setDepth(art.depth),
         ];
       }),
-    ];
+    ].map((part) => this.inWorld(part));
   }
 
   /**
@@ -1237,6 +1288,7 @@ export class WorldScene extends Phaser.Scene {
           });
       this.treeParts.push(label.setOrigin(0.5, 0).setDepth(p.y + p.h / 2));
     }
+    for (const part of this.treeParts) this.inWorld(part);
     this.drawShadows(floorArt);
     this.targets = [...this.room.props, ...treeTargets(sprites)];
     const carried = carriedTree(this.ctx.state);
@@ -1389,6 +1441,7 @@ export class WorldScene extends Phaser.Scene {
     this.promptText
       .setText(this.near ? promptFor(this.near) : '')
       .setPosition(x, y - PLAYER_H / 2 - 2);
+    this.follow();
   }
 
   /**
@@ -1486,6 +1539,7 @@ export class WorldScene extends Phaser.Scene {
       ready: true,
       scene: this.scene.key,
       zoom: sceneZoom(this),
+      camera: { ...this.view },
       // The game state's own flag, not the viewer's, so a test sees what the
       // simulation would see after the viewer has let go.
       paused: state.paused,
