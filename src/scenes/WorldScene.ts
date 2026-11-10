@@ -663,6 +663,7 @@ export class WorldScene extends Phaser.Scene {
       if (!row.id || row.enabled === false) {
         const color = row.enabled === false ? PANEL_DISABLED_COLOR : PANEL_TEXT_COLOR;
         const t = text(row.y, row.text, row.color ?? color, row.x);
+        if (row.align === 'right') t.setOrigin(1, 0.5);
         parts.push(t);
         return t;
       }

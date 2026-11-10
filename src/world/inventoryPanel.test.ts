@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInventory } from '../sim/inventory';
 import type { Inventory } from '../sim/types';
 import {
-  INVENTORY_COUNT_X,
+  INVENTORY_COUNT_RIGHT,
   INVENTORY_PANEL,
   inventoryPanel,
   inventorySections,
@@ -56,6 +56,12 @@ describe('inventory panel', () => {
     ]);
   });
 
+  it('lists seeds and cuttings in species order, however the inventory was built', () => {
+    const reversed = Object.fromEntries(Object.entries(full()).reverse()) as Inventory;
+    expect(Object.keys(reversed)[0]).toBe('cutting_maple');
+    expect(inventorySections(reversed)).toEqual(inventorySections(full()));
+  });
+
   it('draws every section, with (none) under an empty one, and only Close to tap', () => {
     const m = inventoryPanel(empty());
     expect([m.key, m.title]).toEqual(['inventory', 'Inventory']);
@@ -99,12 +105,15 @@ describe('inventory panel', () => {
       const rows = inventoryPanel(inv).rows;
       let above = panelTitleY(box);
       for (const row of rows) {
-        const left = row.x ?? NaN;
-        const right = left + row.text.length * GLYPH_W;
+        // A right-aligned row's x is its right edge.
+        const width = row.text.length * GLYPH_W;
+        const left = row.align === 'right' ? (row.x ?? NaN) - width : (row.x ?? NaN);
+        const right = left + width;
         expect(left).toBeGreaterThanOrEqual(box.x + PANEL_INSET);
         expect(right).toBeLessThanOrEqual(box.x + box.w - PANEL_INSET);
-        // A label stays clear of its count on the same line.
-        if (left < INVENTORY_COUNT_X) expect(right).toBeLessThan(INVENTORY_COUNT_X);
+        // Counts are right-aligned on the column's edge; a label stays clear of a six-digit count.
+        if (row.align === 'right') expect(row.x).toBe(INVENTORY_COUNT_RIGHT);
+        else expect(right).toBeLessThan(INVENTORY_COUNT_RIGHT - 6 * GLYPH_W);
         expect(row.y - above === 0 || row.y - above >= LINE_H).toBe(true);
         above = row.y;
       }
