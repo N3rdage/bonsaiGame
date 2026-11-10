@@ -2,7 +2,7 @@
 
 How the web project is organised, the decisions behind it, and the invariants carried over from the GameMaker prototype. For why the rewrite happened, see `docs/ADR-001-typescript-rewrite.md`. For the prototype's own architecture, see `archive/gamemaker/ARCHITECTURE.md`. For deliberately-unsimulated behaviour, see `SIMPLIFICATIONS.md`.
 
-This document describes the project as it stands after slice R4d-4a (simulation done; the 3D viewer done in R3; the day clock, and the shed and the garden drawn from the prototype's sprites and joined by doors, with the garden's source plants giving cuttings, the shed's kiosk selling supplies, its workbench making pots and its planting table planting cuttings; player movement, the HUD, interactables, modal panels, tree sprites and carrying, and the tree inspector with its sub-panels; the tutorial corner panel, its Skip confirmation and Granny's notebook; the title scene with new game, continue, the slot picker and F5/F9 save and load; per-machine settings with the Settings panel; seasonal ambient weather in the garden and dust motes in the shed) and the shape the port is heading toward: the rest of the Phaser rooms and UI (R4). Sections marked *planned* describe modules that do not exist yet.
+This document describes the project at parity with the prototype: R4, the Phaser rooms and UI, is done, so the web build has the simulation (R2) and the 3D viewer (R3); the title scene with new game, continue, the slot picker and F5/F9 save and load; the day clock, and the shed and the garden drawn from the prototype's sprites and joined by doors, with the garden's source plants giving cuttings, the shed's kiosk selling supplies, its workbench making pots and its planting table planting cuttings; player movement, the HUD, interactables, modal panels, tree sprites and carrying, and the tree inspector with its sub-panels; the tutorial corner panel, its Skip confirmation and Granny's notebook; per-machine settings with the Settings panel; seasonal ambient weather in the garden and dust motes in the shed; and every text in the VT323 pixel font. `e2e/parity.spec.ts` plays that loop end to end in one browser test. What the port deliberately leaves out is noted in the porting map's rows and under "Known rough edges".
 
 ## High-level shape
 
@@ -11,7 +11,7 @@ A single-page web game. Vite bundles TypeScript into a static site; Phaser rende
 ```
 index.html
   src/main.ts            Phaser.Game config, PWA service-worker registration
-  src/scenes/            Phaser scenes: boot, title (R4a-2), world (the shed, R4a-1, and the garden, R4c-1), more rooms and UI (planned)
+  src/scenes/            Phaser scenes: boot, title (R4a-2), world (the shed, R4a-1, and the garden, R4c-1)
   src/world/             pure room data, player movement, input and HUD text for the world scene (R4a-1); resolution.ts, the canvas and camera scale
   src/sim/               pure simulation (done, R2): tree, geometry, growth, seasons, scoring, species, styles, training, save
   src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch/foliage/wire meshes done (R3a-c); hotspots and modes done (R3d-1); toolbar done (R3d-2a); actions done (R3d-2b); lifecycle done (R3d-2c)
@@ -63,8 +63,8 @@ The logical resolution is 480x270, fitted to the window with crisp text over pix
 | `obj_workbench`, `obj_planting_table`, `obj_ui_plant_cutting` | `src/sim/planting.ts` (`makePot`, `plantCutting`), `src/world/plantPanel.ts`, `src/scenes/WorldScene.ts` | Done (R4d-1) |
 | `scr_weather`, `obj_weather` | `src/world/weather.ts`, `src/scenes/WorldScene.ts` | Done (R4d-3) |
 | Sprites (`spr_player`, floors, walls, fences, props), `obj_player_2d`/`obj_tree_sprite`/`obj_pedestal`/`obj_source_plant`/`obj_door`/`obj_wall` Draw, controller Draw_0 (floor, dim, rug) and Draw_73 (fence corners) | `art/sheets.mjs`, `public/assets/`, `src/world/assets.ts`, `roomArt.ts`, `treeArt.ts`, `src/scenes/BootScene.ts`, `WorldScene.ts` | Done (R4d-4a); decor sprites and the shed window are not ported |
-| `obj_interactable`, the remaining rooms | `src/world/`, `src/scenes/` | Planned (R4) |
-| `obj_ui_*`, `scr_ui`, `scr_title_hero` | `src/scenes/ui/` | Planned (R4) |
+| `obj_interactable`, the remaining rooms | `src/world/interactables.ts`, `shedRoom.ts`, `gardenRoom.ts`, `src/scenes/WorldScene.ts` | Done (R4b-1, R4c-1): the prototype had no other playable rooms; the house interiors are new content, out of scope for the port (`TODO.md` #5) |
+| `obj_ui_*`, `scr_ui`, `scr_title_hero` | `src/world/panels.ts` and the panel modules above, `src/scenes/TitleScene.ts`, `WorldScene.ts`, `textStyle.ts` | Done for the UI (R4a-2 to R4d-4b), except the read-only Inventory panel (`obj_ui_inventory`, I), which is not ported; the title's hero tree (`scr_title_hero`) is not ported |
 
 ### How the simulation is shaped
 
@@ -158,4 +158,5 @@ These were the hard-won rules of the prototype. Each names where it will live in
 ## Known rough edges
 
 - The shed and garden are drawn from the prototype's sprites, without its decor (shelf, tools, watering can, pot stack, sack, the shed window; `TODO.md` #10), and the shed fills the canvas where the prototype's was an inset room. The title starts a real new game or continues a save, the days pass in real time, you can walk around and between the rooms, save with F5, carry trees between the floor and the display pedestals, take juniper cuttings in the garden and plant them at the planting table, and V opens the fully interactive 3D viewer on the first tree in the state (or a `?tree=` fixture). The shop kiosk sells supplies and the workbench makes pots from clay.
+- Not ported from the prototype: the title's 3D hero tree (`scr_title_hero`), the read-only Inventory panel (`obj_ui_inventory`, I; the counts show in the shop and the Plant a Cutting panel), the debug keys F1 and F2, the window `scale` setting and Quit. Prototype saves import through `src/sim/save.ts`, but the game has no control yet to bring a `saveN.json` file in.
 - Prototype rough edges (cuttings for junipers only) carry over until the relevant backlog items are built.
