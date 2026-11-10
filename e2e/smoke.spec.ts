@@ -14,12 +14,15 @@ test.describe('boot', () => {
 
     // Boot hands over to the title; New Game starts a new game in the world.
     await page.waitForFunction(() => window.__bonsai?.scene === 'title');
+    // Boot loads the pixel font before the title draws, so no text is drawn in the fallback first.
+    expect(await page.evaluate(() => window.__bonsai?.fontLoaded)).toBe(true);
     await startNewGame(page);
     await page.waitForFunction(() => window.__bonsai?.scene === 'world');
     const hook = await page.evaluate(() => window.__bonsai);
     expect(hook?.ready).toBe(true);
     expect(hook?.season).toBe('spring');
     expect(hook?.version).toMatch(/^\d+\.\d+\.\d+/);
+    expect(hook?.fontLoaded).toBe(true);
     // New Game runs a real new game through the simulation bundle.
     expect(hook?.day).toBe(0);
     expect(hook?.trees).toBe(1);

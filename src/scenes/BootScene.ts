@@ -1,3 +1,4 @@
+import fontUrl from '@fontsource/vt323/files/vt323-latin-400-normal.woff2?url';
 import Phaser from 'phaser';
 import { LocalStorageSaveStorage } from '../platform/localStorageSaveStorage';
 import { LocalStorageSettingsStorage } from '../platform/localStorageSettingsStorage';
@@ -7,6 +8,7 @@ import { VIEWER_FIXTURES, isViewerFixtureKey } from '../viewer/viewerFixtures';
 import { ALL_SHEETS, sheetUrl } from '../world/assets';
 import { parseTimeScale } from '../world/clock';
 import type { TitleSceneData } from './sceneData';
+import { FONT_KEY } from './textStyle';
 
 /**
  * Entry scene: loads the sprite sheets, creates the one save storage the game
@@ -18,8 +20,13 @@ export class BootScene extends Phaser.Scene {
     super('boot');
   }
 
-  /** The room, prop and player sprite sheets (src/world/assets.ts), from public/assets under the app's base path. */
+  /**
+   * The pixel font (src/scenes/textStyle.ts), so no text is drawn in the
+   * fallback first, and the room, prop and player sprite sheets
+   * (src/world/assets.ts), from public/assets under the app's base path.
+   */
   preload(): void {
+    this.load.font(FONT_KEY, fontUrl, 'woff2');
     for (const sheet of ALL_SHEETS) {
       this.load.spritesheet(sheet.key, sheetUrl(import.meta.env.BASE_URL, sheet), {
         frameWidth: sheet.frameWidth,
