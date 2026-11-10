@@ -171,6 +171,8 @@ test.describe('phone rotate prompt', () => {
 
   test('pauses the world under the prompt and resumes where it was', async ({ page }) => {
     const errors = collectErrors(page);
+    // The tap on New Game would go fullscreen, and a fullscreen window cannot be resized.
+    await countFullscreenRequests(page);
     await page.setViewportSize(LANDSCAPE);
     await bootWorld(page);
     await page.setViewportSize(PORTRAIT);

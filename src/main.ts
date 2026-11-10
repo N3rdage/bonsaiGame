@@ -55,14 +55,16 @@ game.scale.on('resize', () => {
 });
 
 // A phone in portrait gets the rotate prompt (src/platform/orientation.ts) over
-// a paused game: the whole Phaser loop stops, so the day clock, the world steps
-// and input stop with it, and rotating back resumes exactly where it was.
+// a paused game: the whole Phaser loop stops, so the day clock and the world
+// steps stop with it, and rotating back resumes exactly where it was.
 const rotatePromptEl = document.getElementById('rotate-prompt');
 function applyOrientation(): void {
   const show = isPhonePortrait(currentViewport());
   if (show === rotatePrompt) return;
   rotatePrompt = show;
   rotatePromptEl?.classList.toggle('open', show);
+  // Phaser also listens on the window, so a tap on the prompt would still reach the scenes without this.
+  game.input.enabled = !show;
   if (show) game.pause();
   else game.resume();
 }
