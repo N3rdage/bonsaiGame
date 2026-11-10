@@ -59,6 +59,16 @@ describe('weatherProfile', () => {
       expect(pin(weatherProfile(season, false))).toEqual(PROFILES[season]);
     }
     expect(weatherProfile('spring', false).colours).toEqual([0xffd6e0, 0xffbed4, 0xfae2e9]);
+    expect(weatherProfile('summer', false).colours).toEqual([0xd6f08c, 0xe8f6a5]);
+    expect(weatherProfile('autumn', false).colours).toEqual([
+      0xd25a28, 0xe68c28, 0xb2441e, 0xa0702a,
+    ]);
+    expect(weatherProfile('winter', false).colours).toEqual([0xffffff, 0xe2ecf6]);
+    expect(weatherProfile('spring', false)).toMatchObject({
+      rotating: true,
+      hover: false,
+      glow: false,
+    });
     expect(weatherProfile('autumn', false)).toMatchObject({ rotating: true, hover: false });
     expect(weatherProfile('summer', false)).toMatchObject({
       rotating: false,

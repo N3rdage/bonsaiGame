@@ -45,6 +45,38 @@ use frames **0, 4, 8, 12** (the `contact` pose of each direction).
 - **`spr_tree_small` not generated** — out of scope (procedural/data-driven tree).
 - All tileables verified seamless (see `_preview.png`, the 3×3 tiled rows).
 
+## Web build
+
+The web build does not read the PNGs above: it reads the prototype's own
+frames, which GameMaker keeps as one PNG per frame under
+`archive/gamemaker/sprites/<name>/<frame-uuid>.png`, ordered by the `frames`
+array of `<name>.yy`. `sheets.mjs` (Node, `pngjs`; run it with
+`npm run art:sheets`, no Python needed) packs each sprite's frames in that
+order into one horizontal strip, `public/assets/<name>.png`, which Vite copies
+into the build and `BootScene` loads as a spritesheet (keys and frame sizes in
+`src/world/assets.ts`). The output is committed; rerun the script after an
+archive sprite changes.
+
+| File | Px size | Frames | Made from |
+|------|---------|--------|-----------|
+| `spr_player.png` | 512×32 | 16 | `archive/gamemaker/sprites/spr_player` |
+| `spr_floor_shed.png` | 96×32 | 3 | `spr_floor_shed` |
+| `spr_floor_garden.png` | 96×32 | 3 | `spr_floor_garden` |
+| `spr_source_plant.png` | 144×48 | 3 | `spr_source_plant` |
+| `spr_wall.png` | 32×32 | 1 | `spr_wall` |
+| `spr_fence.png` | 32×32 | 1 | `spr_fence` |
+| `spr_fence_v.png` | 32×32 | 1 | `spr_fence_v` |
+| `spr_door.png` | 32×32 | 1 | `spr_door` |
+| `spr_workbench.png` | 32×32 | 1 | `spr_workbench` |
+| `spr_planting_table.png` | 32×32 | 1 | `spr_planting_table` |
+| `spr_shop_kiosk.png` | 32×32 | 1 | `spr_shop_kiosk` |
+| `spr_pedestal.png` | 32×32 | 1 | `spr_pedestal` |
+
+The decor sprites (`make_decor.py`: shelf, tools, watering can, pot stack,
+sack, window) are not in the web build yet. `spr_foliage` is the 3D viewer's
+(`src/viewer/foliage.png`), and the room's trees are drawn in code as the
+prototype's `obj_tree_sprite` did, so `spr_tree_small` is not used.
+
 ## Regenerating / tweaking
 
 `pixel.py` is the hard-edged drawing toolkit (+ the palette dict). `make_assets.py`

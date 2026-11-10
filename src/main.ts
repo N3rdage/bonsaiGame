@@ -14,7 +14,8 @@ function targetSize(): { width: number; height: number } {
 
 const initial = targetSize();
 const game = new Phaser.Game({
-  type: Phaser.AUTO,
+  // WebGL explicitly: the room's baked quad is a Shader (WorldScene) and the 3D viewer is Three.js.
+  type: Phaser.WEBGL,
   parent: 'game',
   width: initial.width,
   height: initial.height,
