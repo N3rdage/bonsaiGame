@@ -149,7 +149,8 @@ const SHADOW_DEPTH = -1;
  * The baked room's quad: one texture sample per fragment, nearest as the game's
  * pixelArt textures are. An Image would go through Phaser's batched sprite
  * shader, whose per-fragment work over the whole canvas costs a third of the
- * frame rate on software GL (headless Chromium, CI).
+ * frame rate on software GL (headless Chromium, CI). A Shader draws only under
+ * WebGL, which src/main.ts asks Phaser for explicitly (the 3D viewer needs it anyway).
  */
 const ROOM_QUAD = {
   name: 'roomQuad',
@@ -208,7 +209,7 @@ const BAR_H = 6;
 /**
  * The rooms drawn from the prototype's sprites (src/world/roomArt.ts): floor
  * tiles, walls or fence, the props, their shadows, and the player's animated
- * sprite depth-sorted by y against the props; trees are drawn in code as
+ * sprite depth-sorted at its feet against the props' bottom edges; trees are drawn in code as
  * obj_tree_sprite did (src/world/treeArt.ts). A new or
  * loaded game starts in the shed; a door redraws the scene as its target room
  * (src/world/gardenRoom.ts) with the player at its target spot. Room data,
@@ -1374,7 +1375,11 @@ export class WorldScene extends Phaser.Scene {
 
   private drawPlayer(): void {
     const { x, y, facing, walkAnim } = this.player;
-    this.playerSprite.setPosition(x, y).setFrame(playerFrame(facing, walkAnim)).setDepth(y);
+    // Sorted at the feet (the sprite is centred on y), as the props are at their bottom edges.
+    this.playerSprite
+      .setPosition(x, y)
+      .setFrame(playerFrame(facing, walkAnim))
+      .setDepth(y + PLAYER_H / 2);
     const shadow = playerShadow(x, y);
     this.playerShadow.setPosition(shadow.x, shadow.y);
     this.near = nearestInteractable(this.player, this.targets);
