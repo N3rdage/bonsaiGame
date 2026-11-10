@@ -1,7 +1,82 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_CUTTINGS, REGROW_DAYS, createSourcePlant, takeCutting } from './sourcePlant';
+import { seasonForDay } from './seasons';
+import {
+  CUTTING_SEASONS,
+  MAX_CUTTINGS,
+  REGROW_DAYS,
+  createSourcePlant,
+  nextCuttingSeasonDay,
+  takeCutting,
+} from './sourcePlant';
 import { createNewGameState } from './state';
 import { TUTORIAL_PLANT, TUTORIAL_TAKE_CUTTING, TUTORIAL_WATER } from './tutorial';
+
+describe('nextCuttingSeasonDay', () => {
+  it('is the first day of the next spring on the 1-based season calendar', () => {
+    expect(nextCuttingSeasonDay(0)).toBe(113);
+    expect(nextCuttingSeasonDay(1)).toBe(113);
+    expect(nextCuttingSeasonDay(56)).toBe(113);
+    expect(nextCuttingSeasonDay(57)).toBe(113);
+    expect(nextCuttingSeasonDay(84)).toBe(113);
+    expect(nextCuttingSeasonDay(85)).toBe(113);
+    expect(nextCuttingSeasonDay(112)).toBe(113);
+    expect(nextCuttingSeasonDay(113)).toBe(225);
+    expect(nextCuttingSeasonDay(224)).toBe(225);
+    expect(seasonForDay(113)).toBe('spring');
+    expect(seasonForDay(112)).toBe('winter');
+  });
+});
+
+describe('takeCutting seasons', () => {
+  const REFUSAL = 'Cuttings are taken in spring or summer - try again on day 113';
+
+  it('allows spring and summer only', () => {
+    expect(CUTTING_SEASONS).toEqual(['spring', 'summer']);
+  });
+
+  it.each([0, 1, 28, 29, 56, 113])('takes a cutting on day %i', (day) => {
+    const state = createNewGameState();
+    state.day = day;
+    expect(takeCutting(state, createSourcePlant(), 'juniper')).toBe(
+      'Took a Juniper cutting  (1 in inventory)',
+    );
+  });
+
+  it.each([57, 84, 85, 112])('refuses on day %i and changes nothing', (day) => {
+    const state = createNewGameState();
+    state.day = day;
+    state.tutorialStep = TUTORIAL_TAKE_CUTTING;
+    const before = { ...state.inventory };
+    const plant = createSourcePlant();
+    expect(takeCutting(state, plant, 'juniper')).toBe(REFUSAL);
+    expect(state.inventory).toEqual(before);
+    expect(plant).toEqual({ cuttingsTaken: 0, regrowDay: -1 });
+    expect(state.tutorialStep).toBe(TUTORIAL_TAKE_CUTTING);
+  });
+
+  it('names the next spring of a later year', () => {
+    const state = createNewGameState();
+    state.day = 200;
+    expect(takeCutting(state, createSourcePlant(), 'juniper')).toBe(
+      'Cuttings are taken in spring or summer - try again on day 225',
+    );
+  });
+
+  it('says the plant is recovering before the season refusal', () => {
+    const state = createNewGameState();
+    state.day = 60;
+    const plant = { cuttingsTaken: 0, regrowDay: 70 };
+    expect(takeCutting(state, plant, 'juniper')).toBe('This plant is recovering - ready on day 70');
+  });
+
+  it('says the species does not grow from cuttings before the season refusal', () => {
+    const state = createNewGameState();
+    state.day = 60;
+    expect(takeCutting(state, createSourcePlant(), 'maple')).toBe(
+      "Japanese Maple can't be grown from cuttings - try seeds",
+    );
+  });
+});
 
 describe('takeCutting', () => {
   it('adds a juniper cutting and says how many are held, two spaces before the count', () => {
