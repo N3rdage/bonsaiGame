@@ -21,9 +21,10 @@ import {
   walkTo,
 } from './drive';
 
-// Epic #8's acceptance: the whole loop in one flow, on the phone by touch. It
-// runs in the `s22-landscape-parity` project only (playwright.config.ts), after
-// the four per-step projects; they cover the same actions one step at a time.
+// Epic #8's acceptance: the whole loop in one flow on the phone profile, walking
+// on the arrow keys and taking every action by tap. It runs in the
+// `s22-landscape-parity` project only (playwright.config.ts), after the four
+// per-step projects; they cover the same actions one step at a time.
 // Shed: floor spot 0 (170, 160), pedestal shed_main (310, 85), workbench
 // (125, 90), planting table (165, 90), kiosk (125, 145), door (232, 208) to the
 // garden at (50, 225); garden: juniper (140, 90), door (16, 228) back to (240, 190).
