@@ -1,10 +1,30 @@
+import { execFileSync } from 'node:child_process';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
-import pkg from './package.json' with { type: 'json' };
+import { commitUrl, formatBuildVersion, UNKNOWN_COMMIT } from './src/buildVersion.ts';
+
+/** `git <args>` trimmed, or undefined where git or the repository is unavailable. */
+function git(args: string[]): string | undefined {
+  try {
+    const out = execFileSync('git', args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return out === '' ? undefined : out;
+  } catch {
+    return undefined;
+  }
+}
+
+// The version depends only on the commit and the CI run, never on when the build ran.
+const commit = process.env.GITHUB_SHA ?? git(['rev-parse', 'HEAD']) ?? UNKNOWN_COMMIT;
+const commitDate = git(['log', '-1', '--format=%cI']) ?? '';
 
 export default defineConfig({
   define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
+    __APP_VERSION__: JSON.stringify(formatBuildVersion(commitDate, process.env.GITHUB_RUN_NUMBER)),
+    __APP_COMMIT__: JSON.stringify(commit),
+    __APP_COMMIT_URL__: JSON.stringify(commitUrl(commit)),
   },
   plugins: [
     VitePWA({

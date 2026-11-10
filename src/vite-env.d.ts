@@ -1,8 +1,12 @@
 /// <reference types="vite/client" />
 /// <reference types="vite-plugin-pwa/client" />
 
-/** Injected at build time from package.json (see vite.config.ts). */
+/** Injected at build time (vite.config.ts, src/buildVersion.ts): `yyyy.mm.dd.build`, the commit's UTC date and the CI run number. */
 declare const __APP_VERSION__: string;
+/** Injected at build time: the full SHA of the commit built, or 'unknown'. */
+declare const __APP_COMMIT__: string;
+/** Injected at build time: the GitHub page of `__APP_COMMIT__`. */
+declare const __APP_COMMIT_URL__: string;
 
 /**
  * Test hook. The game publishes a small read-only snapshot of its state here so
@@ -11,7 +15,12 @@ declare const __APP_VERSION__: string;
  */
 interface BonsaiTestHook {
   readonly ready: boolean;
+  /** The build version, `yyyy.mm.dd.build` (see src/buildVersion.ts). */
   readonly version: string;
+  /** Title only: the short SHA of the commit built (or 'unknown'), as the version line shows it. */
+  readonly commit?: string;
+  /** Title only: the version line's text and centre in logical px; tapping it opens the commit's GitHub page in a new tab. */
+  readonly versionLink?: { readonly text: string; readonly x: number; readonly y: number };
   /** Both scenes: whether the pixel font (src/scenes/textStyle.ts) was loaded and registered before the scene drew its text. */
   readonly fontLoaded: boolean;
   readonly scene: string;
