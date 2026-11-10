@@ -44,7 +44,7 @@ npm run build && npm run test:e2e   # Playwright against the production build
 - `src/main.ts` boots Phaser. `src/scenes/` holds Phaser scenes (world, UI). `src/sim/` is the simulation: pure, deterministic, no rendering or browser imports; `src/sim/types.ts` is its data model and `src/sim/__fixtures__/` holds real prototype saves for the importer tests. `src/platform/` is the thin browser-facing layer (storage adapters). `src/viewer/` (when it lands) is the Three.js tree viewer.
 - `e2e/` Playwright specs. `public/` static assets including `staticwebapp.config.json`, which Vite copies into `dist/`.
 - `archive/gamemaker/` the prototype. Read it, do not edit it.
-- `art/` source pixel art and the Python scripts that generate placeholder sprites.
+- `art/` source pixel art, the Python scripts that generate placeholder sprites, and `sheets.mjs` (`npm run art:sheets`), which packs the prototype's sprite frames into the sheets under `public/assets/`.
 - `blog/` the dev blog. `docs/` decision records.
 
 ## Blog (`blog/`)
@@ -70,5 +70,5 @@ Posts in `blog/` follow the shared syndication contract; the single source of tr
 ## Known rough edges (don't treat as bugs to fix incidentally)
 
 - Only junipers can be grown from cuttings; seeds aren't implemented.
-- Fancy pots are stat-only (1.25x display revenue); no visual differentiation yet.
+- Fancy pots give 1.25x display revenue; their only look is the 2D tree sprite's celadon pot with feet and sheen (and the 3D viewer's pot colours).
 - Until the port reaches parity, the web build is a placeholder scene.
