@@ -137,6 +137,7 @@ import { treeArt, type TreeArt } from '../world/treeArt';
 import { crispText, fitCamera, sceneZoom } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
+import { FONT_FAMILY, LABEL_STYLE, fontLoaded } from './textStyle';
 
 const TOAST_MS = 2000;
 /** The player sprite's drawn height, round its centre: spr_player's 32 px at 1.5x, halved. */
@@ -163,7 +164,6 @@ void main () { gl_FragColor = texture2D(uMainSampler, outTexCoord); }`,
 };
 /** The rug's corner radius: draw_roundrect takes none, so this approximates GameMaker's own. */
 const RUG_RADIUS = 3;
-const LABEL_STYLE = { fontFamily: 'monospace', fontSize: '8px', color: '#d8e6c8' };
 const HUD_DEPTH = 10_000;
 /** Modal panels and their dimmer sit above the HUD, so a press on the HUD under them hits the dimmer. */
 const MODAL_DEPTH = 10_001;
@@ -256,7 +256,10 @@ export class WorldScene extends Phaser.Scene {
   private ctx!: WorldSceneData;
   private viewTree: BonsaiTree | undefined;
   /** Hook fields read once from the state the world was started with (new or loaded). */
-  private base!: Pick<BonsaiTestHook, 'version' | 'trees' | 'starterScore' | 'starterHeightCm'>;
+  private base!: Pick<
+    BonsaiTestHook,
+    'version' | 'fontLoaded' | 'trees' | 'starterScore' | 'starterHeightCm'
+  >;
   /** The room shown, and what its floor, walls and props were drawn as. */
   private room: Room = SHED_ROOM;
   private roomParts: Phaser.GameObjects.GameObject[] = [];
@@ -315,6 +318,7 @@ export class WorldScene extends Phaser.Scene {
     const first = data.state.trees[0];
     this.base = {
       version: __APP_VERSION__,
+      fontLoaded: fontLoaded(),
       trees: data.state.trees.length,
       starterScore: first ? scoreTree(first).total : -1,
       starterHeightCm: first ? first.trunk.heightCm : -1,
@@ -770,7 +774,7 @@ export class WorldScene extends Phaser.Scene {
     input.style.background = '#141914';
     input.style.color = '#ffffff';
     input.style.border = '1px solid #8ca078';
-    input.style.fontFamily = 'monospace';
+    input.style.fontFamily = FONT_FAMILY;
     const place = (): void => {
       const r = this.game.canvas.getBoundingClientRect();
       const sx = r.width / this.room.width;

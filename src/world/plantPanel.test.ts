@@ -14,7 +14,7 @@ import {
 } from './plantPanel';
 import { SHED_ROOM } from './shedRoom';
 
-// 10 px monospace: generous upper bounds of a glyph's width and a line's height.
+// 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): generous upper bounds of a glyph's width and a line's height.
 const GLYPH_W = 6;
 const LINE_H = 12;
 

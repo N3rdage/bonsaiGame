@@ -37,7 +37,7 @@ export const INSPECTOR_TITLE_H = 22;
 export const INSPECTOR_INSET = 10;
 /** Row pitch of the 8 px text. */
 export const INSPECTOR_LINE = 11;
-/** Upper bounds of a glyph's width: 8 px text (stats, notes, score, bars, footer) and 10 px (title, buttons). */
+/** Upper bounds of a glyph's width in the monospace fallback (VT323 is 0.4 em, 3.2 and 4 px): 8 px text (stats, notes, score, bars, footer) and 10 px (title, buttons). */
 export const SMALL_GLYPH_W = 5;
 export const GLYPH_W = 6;
 
