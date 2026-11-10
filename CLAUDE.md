@@ -72,4 +72,3 @@ Posts in `blog/` follow the shared syndication contract; the single source of tr
 
 - Only junipers can be grown from cuttings; seeds aren't implemented.
 - Fancy pots give 1.25x display revenue; their only look is the 2D tree sprite's celadon pot with feet and sheen (and the 3D viewer's pot colours).
-- Until the port reaches parity, the web build is a placeholder scene.

@@ -14,9 +14,13 @@ There's a running dev blog in [`blog/`](./blog) written by Claude in first perso
 
 ## Status
 
-**Rewrite in progress.** The TypeScript build currently boots to a placeholder scene; the simulation, rooms, UI and 3D viewer are being ported from the prototype one slice at a time. Until the port reaches parity, the playable game is the archived GameMaker build.
+**Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed and the back garden, water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser.
 
-The gameplay, controls and mechanics below describe the prototype and are the target for the port.
+On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
+
+The GameMaker prototype in [`archive/gamemaker/`](./archive/gamemaker/) is history now: kept whole and frozen as the reference the port was built from, no longer the game you play.
+
+The gameplay, controls and mechanics below describe the web build.
 
 ## Developing
 
@@ -58,19 +62,20 @@ Every pull request runs the same checks in CI and deploys a preview to Azure Sta
 | Drag (mouse or one finger) | Orbit camera |
 | Pinch, scroll wheel, or the + / − buttons | Zoom |
 | Reset button or R | Reset camera |
-| V / W / C / P | Switch to View / Wire / Clip / Prune mode |
-| Click on a coloured circle | Perform the current mode's action on that branch |
+| V / W / C / P, or the toolbar's mode buttons | Switch to View / Wire / Clip / Prune mode |
+| Click or tap a numbered hotspot | Perform the current mode's action on that branch or trunk point |
+| Exit button or Esc | Close the viewer |
 
 ### Getting started
 
-1. You begin in the shed with one starter juniper tree already on display.
-2. Walk to the door marked "To Garden" and press E to enter the back garden.
-3. Find a juniper bush (juniper is the only species that accepts cuttings at the moment — maple and pine can only be grown from seed, which isn't implemented yet).
+1. You begin in the shed with Granny's juniper on the floor; the tutorial panel in the corner walks you through the first steps.
+2. Walk to the door marked "To Garden" and press E (or tap Interact) to enter the back garden.
+3. Find a juniper bush (juniper is the only species that accepts cuttings at the moment — maple and pine can only be grown from seed, which isn't implemented yet). Cuttings can be taken in spring and summer only.
 4. Press E on the bush to take a cutting. Each bush gives 3 cuttings before needing two weeks to recover.
 5. Return to the shed through the "Back to Shed" door.
 6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting."
 7. A new tree sprite appears. Press E on it to open the inspector.
-8. Water it, skip days to grow it, clip or prune its branches, and click "Inspect 3D" to see it in 3D.
+8. Water it, use Skip 7d to grow it a week, and use View in 3D to see it in 3D and wire, clip or prune its branches.
 
 ## Game mechanics
 
@@ -80,13 +85,13 @@ Each tree has a **species** (juniper, maple, pine), an **age** in simulated days
 
 ### Time
 
-Time passes in **game days**. One real minute is roughly one game day by default. Trees simulate silently in the background — their water level drops, their vitality responds, they sometimes sprout new branches. You can also spend fertilizer to skip time for a specific tree, letting you grow one tree quickly without fast-forwarding the rest of the world.
+Time passes in **game days**. One game day passes every five real minutes, and the clock stops while the 3D viewer is open. Trees simulate silently in the background — their water level drops, their vitality responds, they sometimes sprout new branches. You can also spend fertilizer to skip time for a specific tree, letting you grow one tree quickly without fast-forwarding the rest of the world.
 
 ### The growth loop
 
 1. **Water** trees regularly. Dry trees lose vitality. Overwatered trees lose less but still suffer mild damage.
 2. A healthy, well-watered tree will slowly sprout new branches and gain height and trunk girth over time.
-3. **Vigor** accelerates growth. It's currently fixed at 50 but will eventually respond to fertilizer, pot size, and repotting.
+3. **Vigor** accelerates growth. It starts at 50 and slowly falls as the pot ages (more slowly in premium soil); repotting resets it to 50.
 4. **Vitality** governs everything — a weak tree grows slower and is more fragile to aggressive training.
 
 ### Propagation
@@ -108,9 +113,9 @@ Tops up the tree's water level to 100. Simple, cheap, no consequences.
 **Remove a branch entirely.** Pruning is a bigger decision than clipping — you're committing to a tree without that branch forever (it'll never grow back in the same place). Pruning is used to remove branches that don't fit the intended style (a "formal upright" style typically wants branches only on certain sides; a "cascade" wants everything going downward). Cost: nothing monetary, but the tree loses significant foliage density and will take time to recover.
 
 #### Wire
-**Bend a branch into a new angle.** In real bonsai, wire is wrapped around a branch and the branch is gently bent into position; over many weeks, the branch "sets" in that position and the wire is removed. In this game, clicking wire mode applies a 30° bend to the selected branch.
+**Bend a branch into a new angle.** In real bonsai, wire is wrapped around a branch and the branch is gently bent into position; over many weeks, the branch "sets" in that position and the wire is removed. In this game, each click on a branch in wire mode bends it 15° in the chosen direction (20° on the trunk) and uses one wire.
 
-The tree remembers when each wire was applied. If you remove a wire after 8+ weeks of game time (56 days), the bend becomes permanent. If you remove it earlier, the branch springs back partway. (Wire removal isn't hooked up to a UI yet — wires stay applied for now.)
+The tree remembers when each wire was applied. If you remove a wire after 8+ weeks of game time (56 days), the bend becomes permanent. If you remove it earlier, the branch springs back partway. Wire mode's Remove action takes a wire off, after asking first.
 
 **Important:** wiring a branch that's too thick for the bend angle causes damage. The thicker the branch, the gentler the bend has to be. This is realistic — in real bonsai, a thick branch bent too hard will snap or split.
 
@@ -119,11 +124,12 @@ The tree remembers when each wire was applied. If you remove a wire after 8+ wee
 - **Clay** is used at the workbench to make pots.
 - **Pots** are needed to plant cuttings. Each cutting consumes one pot.
 - **Fertilizer** is consumed when you skip time forward on a tree. Cost is roughly half a fertilizer per day skipped.
-- **Wire** is in the inventory but not yet consumed by the wire operation — this will be hooked up in a future iteration.
+- **Wire** is used up by each bend in the 3D viewer's wire mode.
+- The **shop kiosk** in the shed sells clay, pots, wire, fertilizer, fancy pots and premium soil.
 
 ### Saving
 
-The game can save and load its entire state to JSON. Every tree, every branch, every training history entry, and the inventory are preserved. In the prototype, press **F5** to save and **F9** to load; saves are stored at `%LOCALAPPDATA%\BonsaiGame\save1.json` on Windows. The web build will import those files so prototype trees survive the move.
+The game can save and load its entire state to JSON. Every tree, every branch, every training history entry, and the inventory are preserved. Press **F5** (or Menu → Save) to save and **F9** (or Menu → Load) to load; the three save slots live in the browser's local storage. The save format reads the prototype's `saveN.json` files through a one-way importer, though the game has no button yet to bring such a file in.
 
 ## Credits
 
