@@ -113,6 +113,8 @@ interface BonsaiTestHook {
    * fullscreen), 'panel-weather' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    */
   readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];
+  /** Added on read by src/main.ts: true while the phone-portrait rotate prompt covers the game and the Phaser loop is paused under it. */
+  readonly rotatePrompt?: boolean;
 }
 
 /** Snapshot of the 3D viewer: camera pose, pot and tree mesh shown, and frames drawn so far. */

@@ -39,6 +39,8 @@ Every pull request runs the same checks in CI and deploys a preview to Azure Sta
 
 ### Controls
 
+On a phone the game runs fullscreen in landscape: the first tap on New Game, Continue or Load goes fullscreen where the browser allows it, and holding the phone upright shows a "Rotate your phone" prompt over the paused game.
+
 | Input | Action |
 |-------|--------|
 | Drag anywhere (joystick) or WASD / arrows | Move player |
