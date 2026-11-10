@@ -36,6 +36,7 @@ npm run build && npm run test:e2e   # Playwright against the production build
 - `npm run lint` is ESLint with typescript-eslint's strict type-checked configs. Fix the code, not the rule, unless the rule is wrong for the whole project, in which case change it in its own PR with the reasoning.
 - `npm run test` is Vitest. Unit tests sit beside the code as `*.test.ts`. The simulation under `src/sim/` is pure TypeScript with no Phaser import, so it is fully unit-testable; keep it that way.
 - `npm run test:e2e` is Playwright. Browser tests read game state through `window.__bonsai`, a small read-only test hook published by scenes (typed in `src/vite-env.d.ts`). Extend it additively when a test needs to see something; never scrape pixels.
+- `E2E_PORT=4174 npm run test:e2e` when 4173 is held by a stale preview server (default 4173; CI uses the default).
 - The build must stay installable: the PWA manifest and service worker are configured in `vite.config.ts`. The e2e suite checks both.
 - Deploys: `.github/workflows/deploy-swa.yml` pushes `main` to Azure Static Web Apps and gives every PR a preview URL. It skips cleanly without the deploy token.
 
