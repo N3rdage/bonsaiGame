@@ -17,7 +17,8 @@ export default defineConfig({
         theme_color: '#3b5d3a',
         background_color: '#1d2a1c',
         display: 'standalone',
-        orientation: 'any',
+        // Phones run landscape only (src/platform/orientation.ts); the installed app opens that way.
+        orientation: 'landscape',
         start_url: '/',
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },

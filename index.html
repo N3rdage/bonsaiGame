@@ -296,10 +296,40 @@
         width: var(--modal-button-width);
         height: var(--modal-button-height);
       }
+      /* A phone in portrait (src/platform/orientation.ts): above everything, and it takes every tap. */
+      #rotate-prompt {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        background: #1d2a1c;
+        color: #d8e6c8;
+        font:
+          28px VT323,
+          monospace;
+        text-align: center;
+        touch-action: none;
+        user-select: none;
+      }
+      #rotate-prompt.open {
+        display: flex;
+      }
+      #rotate-prompt .detail {
+        color: #a0b496;
+        font-size: 20px;
+      }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="rotate-prompt" role="alert">
+      <div>Rotate your phone</div>
+      <div class="detail">Bonsai Greenhouse plays in landscape.</div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
