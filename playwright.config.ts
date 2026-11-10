@@ -17,6 +17,9 @@ function s22Ultra(width: number, height: number) {
   };
 }
 
+// Epic #8's acceptance loop, in its own project (see `projects`).
+const PARITY = /parity\.spec\.ts$/;
+
 // Runs against the production build so what is tested is what gets deployed.
 // `npm run build` must have run first (CI does; locally `npm run build && npm run test:e2e`).
 export default defineConfig<RouteOptions>({
@@ -46,10 +49,19 @@ export default defineConfig<RouteOptions>({
     timeout: 30_000,
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: PARITY },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: PARITY },
     // tapRoute: every action by touch through its control (e2e/drive.ts).
-    { name: 's22-portrait', use: { ...s22Ultra(384, 824), tapRoute: true } },
-    { name: 's22-landscape', use: { ...s22Ultra(824, 384), tapRoute: true } },
+    { name: 's22-portrait', use: { ...s22Ultra(384, 824), tapRoute: true }, testIgnore: PARITY },
+    { name: 's22-landscape', use: { ...s22Ultra(824, 384), tapRoute: true }, testIgnore: PARITY },
+    // The whole loop in one long test, by touch in landscape, after the four
+    // projects above have finished: run beside them its 3D viewer render on
+    // CI's software GL starves the other worker's walks past their timeouts.
+    {
+      name: 's22-landscape-parity',
+      use: { ...s22Ultra(824, 384), tapRoute: true },
+      testMatch: PARITY,
+      dependencies: ['chromium', 'mobile', 's22-portrait', 's22-landscape'],
+    },
   ],
 });
