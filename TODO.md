@@ -18,20 +18,20 @@ Priority-ordered toward "playable." Security items always at top.
 
 ## Active
 
-| # | Category | Name | Description | Size |
-|---|---|---|---|---|
-| 2e | Mechanics | Expanded season gating | Follow-up to 2d. Gate take-cutting to spring/summer (matches real propagation timing) and introduce a hard-vs-light prune distinction so hard pruning can be winter-only. Deferred from 2d to keep that slice small. | S |
-| 2f | UX | Season UX polish | Notebook page explaining the four seasons + their effects; tutorial step that pops on the first dormancy transition pointing at the season HUD badge. Deferred from 2a so the clock could ship without onboarding churn. | S |
-| 3 | Mechanics | Seeds | Seed collection + planting (maple / pine only propagate from seed). Tree starts as a 2cm sprout. | L |
-| 4 | Content | More species playable | Beyond juniper-from-cuttings: maple and pine via seeds (post-#3), plus per-species care quirks (e.g. pine candling) and mesh tweaks (leaf shape, bark colour). | L |
-| 5 | Content | House interiors | Indoor rooms (lounge, study, hallway) for displaying finished trees. Pedestals currently live in the shed as a stopgap; they migrate here when interiors land. | L |
-| 6 | Content | Greenhouse room + building system | Grid-based wall/shelf placement so the player can lay out their greenhouse interior. Split candidates: empty greenhouse room, item placement system, item catalogue. | L |
-| 7 | Polish | Audio pass | Currently silent. SFX (water, snip, footsteps, UI clicks) + ambient music per room. Split candidates: SFX layer, music layer, mixer/settings hook. | L |
-| 9 | Polish | Art pass | Replace placeholder sprites and 3D textures with cohesive art. Last item — only when systems are stable. Likely split per-asset-type or per-room. | XL |
-| 10 | Content | Shed decor / clutter | A furniture/clutter pass to make the cozy shed feel lived-in: wall shelves (with pots), garden tools (rake/shears/watering can), random pots/sacks lying around, a window. Needs new decor sprites (art flow) placed in the empty wall/floor space. | M |
-| 12 | Polish | Garden door context | The garden door reads as a small door floating in a wall with no building around it. Give it a doorframe / shed-exterior surround (or rethink how the garden→shed transition is presented). | S |
-| 13 | Polish | Decor y-sorting | Shed decor is drawn on the floor layer (behind the player), and wall pieces (window) are special-cased in a Draw End event. If decor should occlude/sort with the player by position, promote it to a small y-sorted `obj_decor` (depth = -y) placed as instances rather than fixed draws. | S |
-| 14 | Polish | Seasonal outdoor scenery | Follow-up to the ambient-weather pass: the garden ground + scenery are constant across seasons, now conspicuous under the seasonal particles (green grass under falling snow reads wrong). Tint the garden floor (`spr_floor_garden`) and static scenery (fence, source plant) toward per-season palettes - autumn browning, winter pale/frosted, spring fresh - mirroring the foliage `species_seasonal_color` approach. Cheap first cut: a season-keyed colour multiply on the floor draw; fuller version swaps sprites. | S |
+| # | Category | Name | Description | Size | Status |
+|---|---|---|---|---|---|
+| 2e | Mechanics | Expanded season gating | Follow-up to 2d. Gate take-cutting to spring/summer (matches real propagation timing) and introduce a hard-vs-light prune distinction so hard pruning can be winter-only. Deferred from 2d to keep that slice small. | S | In backlog (#73) |
+| 2f | UX | Season UX polish | Notebook page explaining the four seasons + their effects; tutorial step that pops on the first dormancy transition pointing at the season HUD badge. Deferred from 2a so the clock could ship without onboarding churn. | S | |
+| 3 | Mechanics | Seeds | Seed collection + planting (maple / pine only propagate from seed). Tree starts as a 2cm sprout. | L | |
+| 4 | Content | More species playable | Beyond juniper-from-cuttings: maple and pine via seeds (post-#3), plus per-species care quirks (e.g. pine candling) and mesh tweaks (leaf shape, bark colour). | L | |
+| 5 | Content | House interiors | Indoor rooms (lounge, study, hallway) for displaying finished trees. Pedestals currently live in the shed as a stopgap; they migrate here when interiors land. | L | |
+| 6 | Content | Greenhouse room + building system | Grid-based wall/shelf placement so the player can lay out their greenhouse interior. Split candidates: empty greenhouse room, item placement system, item catalogue. | L | |
+| 7 | Polish | Audio pass | Currently silent. SFX (water, snip, footsteps, UI clicks) + ambient music per room. Split candidates: SFX layer, music layer, mixer/settings hook. | L | |
+| 9 | Polish | Art pass | Replace placeholder sprites and 3D textures with cohesive art. Last item — only when systems are stable. Likely split per-asset-type or per-room. | XL | |
+| 10 | Content | Shed decor / clutter | A furniture/clutter pass to make the cozy shed feel lived-in: wall shelves (with pots), garden tools (rake/shears/watering can), random pots/sacks lying around, a window. Needs new decor sprites (art flow) placed in the empty wall/floor space. | M | |
+| 12 | Polish | Garden door context | The garden door reads as a small door floating in a wall with no building around it. Give it a doorframe / shed-exterior surround (or rethink how the garden→shed transition is presented). | S | |
+| 13 | Polish | Decor y-sorting | Shed decor is drawn on the floor layer (behind the player), and wall pieces (window) are special-cased in a Draw End event. If decor should occlude/sort with the player by position, promote it to a small y-sorted `obj_decor` (depth = -y) placed as instances rather than fixed draws. | S | |
+| 14 | Polish | Seasonal outdoor scenery | Follow-up to the ambient-weather pass: the garden ground + scenery are constant across seasons, now conspicuous under the seasonal particles (green grass under falling snow reads wrong). Tint the garden floor (`spr_floor_garden`) and static scenery (fence, source plant) toward per-season palettes - autumn browning, winter pale/frosted, spring fresh - mirroring the foliage `species_seasonal_color` approach. Cheap first cut: a season-keyed colour multiply on the floor draw; fuller version swaps sprites. | S | |
 
 ## Shipped
 
