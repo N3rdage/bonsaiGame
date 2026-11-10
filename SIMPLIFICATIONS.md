@@ -39,6 +39,7 @@ Entries should record:
 
 - **Branch spawn is uniform random, capped at 15.** No species-specific branching habits, no apical-dominance gradient, no inhibition from neighbouring branches.
 - **No branch dieback.** Real-world: shaded interior branches die back naturally as the canopy thickens — a major design lever for stylists.
+- **Pruning (removing a branch) is winter-only; clipping is year-round ([TODO](TODO.md) 2e-b).** The gate is the calendar season, not dormancy: a juniper is not dormant in the game's winter, yet the 3D viewer's Prune mode still refuses in spring, summer and autumn and says `Prune: requires winter`. There is no hard-versus-light prune distinction. Real-world: structural pruning is best done in late winter or early spring, light maintenance pruning through the growing season, and the timing varies by species.
 - **No back-budding.** Hard cuts don't trigger latent buds to break. Real-world: a controlled hard prune is *how* you densify a tree.
 - **No nebari (root flare) modelling.** Trunk base is uniform. Real-world: surface roots are one of the most-judged style criteria.
 

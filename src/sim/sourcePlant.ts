@@ -51,8 +51,9 @@ export const CUTTING_KEYS: Partial<Record<SpeciesKey, InventoryKey>> = {
 /**
  * Takes a cutting from `plant` of `speciesKey` and returns the toast: refused
  * while the plant recovers, when the species does not grow from cuttings or
- * outside `CUTTING_SEASONS`, in that order; otherwise one cutting to the inventory, the tutorial's Take a cutting step,
- * and on the third cutting 14 days of recovery.
+ * outside `CUTTING_SEASONS`, in that order; otherwise one cutting to the
+ * inventory, the tutorial's Take a cutting step, and on the third cutting 14
+ * days of recovery.
  */
 export function takeCutting(
   state: GameState,

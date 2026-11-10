@@ -79,7 +79,7 @@ On a phone the game runs fullscreen in landscape: the first tap on New Game, Con
 5. Return to the shed through the "Back to Shed" door.
 6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting."
 7. A new tree sprite appears. Press E on it to open the inspector.
-8. Water it, use Skip 7d to grow it a week, and use View in 3D to see it in 3D and wire, clip or prune its branches.
+8. Water it, use Skip 7d to grow it a week, and use View in 3D to see it in 3D and wire, clip or (in winter) prune its branches.
 
 ## Game mechanics
 
@@ -114,7 +114,7 @@ Tops up the tree's water level to 100. Simple, cheap, no consequences.
 **Shorten a branch by a small amount.** Clipping controls the length and density of a branch. Repeated clipping encourages the branch to thicken and sprout secondary growth near the cut — this is how the bushy, dense canopy of a mature bonsai is formed. Cost: nothing. Clipping removes a little foliage density each time.
 
 #### Prune
-**Remove a branch entirely.** Pruning is a bigger decision than clipping — you're committing to a tree without that branch forever (it'll never grow back in the same place). Pruning is used to remove branches that don't fit the intended style (a "formal upright" style typically wants branches only on certain sides; a "cascade" wants everything going downward). Cost: nothing monetary, but the tree loses significant foliage density and will take time to recover.
+**Remove a branch entirely.** Pruning is a bigger decision than clipping — you're committing to a tree without that branch forever (it'll never grow back in the same place). Pruning is used to remove branches that don't fit the intended style (a "formal upright" style typically wants branches only on certain sides; a "cascade" wants everything going downward). Cost: nothing monetary, but the tree loses significant foliage density and will take time to recover. Pruning is done in winter only; in the other seasons Prune mode says `Prune: requires winter` and leaves the tree alone. Clipping works all year.
 
 #### Wire
 **Bend a branch into a new angle.** In real bonsai, wire is wrapped around a branch and the branch is gently bent into position; over many weeks, the branch "sets" in that position and the wire is removed. In this game, each click on a branch in wire mode bends it 15° in the chosen direction (20° on the trunk) and uses one wire.
