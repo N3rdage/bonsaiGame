@@ -1,5 +1,6 @@
 import fontUrl from '@fontsource/vt323/files/vt323-latin-400-normal.woff2?url';
 import Phaser from 'phaser';
+import { SOUND_KEYS, audioUrl } from '../platform/audio';
 import { LocalStorageSaveStorage } from '../platform/localStorageSaveStorage';
 import { LocalStorageSettingsStorage } from '../platform/localStorageSettingsStorage';
 import { loadSettings } from '../platform/settings';
@@ -11,7 +12,7 @@ import type { TitleSceneData } from './sceneData';
 import { FONT_KEY } from './textStyle';
 
 /**
- * Entry scene: loads the sprite sheets, creates the one save storage the game
+ * Entry scene: loads the sprite sheets and sound effects, creates the one save storage the game
  * uses, loads the settings, reads the viewer's test parameters and hands them
  * to the title.
  */
@@ -23,7 +24,8 @@ export class BootScene extends Phaser.Scene {
   /**
    * The pixel font (src/scenes/textStyle.ts), so no text is drawn in the
    * fallback first, and the room, prop and player sprite sheets
-   * (src/world/assets.ts), from public/assets under the app's base path.
+   * (src/world/assets.ts) and the sound effects (src/platform/audio.ts), from
+   * public/assets under the app's base path.
    */
   preload(): void {
     this.load.font(FONT_KEY, fontUrl, 'woff2');
@@ -33,6 +35,7 @@ export class BootScene extends Phaser.Scene {
         frameHeight: sheet.frameHeight,
       });
     }
+    for (const key of SOUND_KEYS) this.load.audio(key, audioUrl(import.meta.env.BASE_URL, key));
   }
 
   create(): void {

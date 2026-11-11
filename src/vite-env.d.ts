@@ -74,6 +74,8 @@ interface BonsaiTestHook {
     readonly sound: boolean;
     readonly music: boolean;
   };
+  /** Both scenes: the last sound effect key the scene's SoundPlayer asked Phaser to play after the Sound gate, or ''. It does not prove audio came out (the e2e suite has no audio device). */
+  readonly lastSound: string;
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
   /** World only: label (name, or species display name) of the tree carried (location 'inventory'), or '' (always on the title). */

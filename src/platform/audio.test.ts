@@ -26,12 +26,11 @@ describe('audio', () => {
     ]);
   });
 
-  it('puts every file under assets/audio as .ogg below the base path', () => {
-    expect(audioUrl('/', 'water')).toBe('/assets/audio/water.ogg');
+  it('puts every file under assets/audio below the base path: effects .wav, music .ogg', () => {
+    expect(audioUrl('/', 'water')).toBe('/assets/audio/water.wav');
     expect(audioUrl('/bonsai/', 'garden')).toBe('/bonsai/assets/audio/garden.ogg');
-    for (const key of [...SOUND_KEYS, ...MUSIC_KEYS]) {
-      expect(audioUrl('/', key)).toBe(`/assets/audio/${key}.ogg`);
-    }
+    for (const key of SOUND_KEYS) expect(audioUrl('/', key)).toBe(`/assets/audio/${key}.wav`);
+    for (const key of MUSIC_KEYS) expect(audioUrl('/', key)).toBe(`/assets/audio/${key}.ogg`);
   });
 
   it('names seven sound effects and three music tracks, none shared', () => {

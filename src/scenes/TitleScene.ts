@@ -24,6 +24,7 @@ import {
 } from '../world/panels';
 import { SETTINGS_KEY, settingsPanel } from '../world/settingsPanel';
 import type { UiMetrics } from '../world/uiScale';
+import { SoundPlayer } from './audio';
 import { crispText, fitCamera, hitArea, sceneUi, sceneZoom, setHitArea } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { IDLE_HOOK, type TitleSceneData, type WorldSceneData } from './sceneData';
@@ -76,6 +77,10 @@ export class TitleScene extends Phaser.Scene {
   private versionLink!: Phaser.GameObjects.Text;
   /** The UI metrics (src/world/uiScale.ts), read at create; a resize updates only `hit`. */
   private ui!: UiMetrics;
+  /** The buttons' `click` (src/scenes/audio.ts), behind the Sound switch. */
+  private sfx!: SoundPlayer;
+  /** Set once a button has started the world, so the title no longer publishes the hook. */
+  private leaving = false;
 
   constructor() {
     super('title');
@@ -86,6 +91,8 @@ export class TitleScene extends Phaser.Scene {
     this.rows = readSlotRows(data.storage);
     this.message = corruptSlotsMessage(this.rows);
     this.view = { kind: 'menu' };
+    this.sfx = new SoundPlayer(this.sound, () => this.ctx.settings);
+    this.leaving = false;
     this.layer = this.add.container(0, 0);
     this.ui = sceneUi(this);
     // A resize gives the buttons the new tap target size; the layout and text sizes stay until the next view or restart.
@@ -178,6 +185,7 @@ export class TitleScene extends Phaser.Scene {
 
   private startGame(slot: number, state: GameState): void {
     const data: WorldSceneData = { ...this.ctx, state, slot };
+    this.leaving = true;
     this.scene.start('world', data);
   }
 
@@ -216,7 +224,10 @@ export class TitleScene extends Phaser.Scene {
       color: enabled ? '#ffffff' : DISABLED,
     }).setOrigin(originX, 0.5);
     if (enabled) {
-      setHitArea(text, this.ui.hit).on('pointerup', onClick);
+      setHitArea(text, this.ui.hit).on('pointerup', () => {
+        this.sfx.tap(onClick);
+        if (!this.leaving) this.publishHook();
+      });
       this.buttons.push({ id, text });
     }
     this.layer.add(text);
@@ -405,6 +416,7 @@ export class TitleScene extends Phaser.Scene {
       picker: this.pickerHook(),
       panel: this.view.kind === 'settings' ? SETTINGS_KEY : '',
       settings: { ...this.ctx.settings },
+      lastSound: this.sfx.lastSound,
     };
   }
 
