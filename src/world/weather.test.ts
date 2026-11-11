@@ -108,22 +108,21 @@ describe('weatherProfile', () => {
 describe('weatherArea', () => {
   it('is the halved wall ring in the shed and the whole room in the garden', () => {
     expect(weatherArea(SHED_ROOM)).toEqual({ x0: 80, y0: 48, x1: 384, y1: 208 });
-    expect(weatherArea(SHED_ROOM)).toBe(SHED_WEATHER_AREA);
+    expect(weatherArea(SHED_ROOM)).toEqual(SHED_WEATHER_AREA);
     expect(weatherArea(GARDEN_ROOM)).toEqual({ x0: 0, y0: 0, x1: 480, y1: 270 });
     expect(WEATHER_MARGIN).toBe(12);
   });
 
-  it("gives the lounge the shed's indoor motes over the same ring", () => {
+  it("gives the lounge, hallway and study the shed's indoor motes over each room's own ring", () => {
     expect(isIndoor(SHED_ROOM)).toBe(true);
-    expect(isIndoor(LOUNGE_ROOM)).toBe(true);
     expect(isIndoor(GARDEN_ROOM)).toBe(false);
-    expect(weatherArea(LOUNGE_ROOM)).toBe(SHED_WEATHER_AREA);
-  });
-
-  it('gives the hallway and the study the same indoor motes', () => {
-    for (const room of [HALLWAY_ROOM, STUDY_ROOM]) {
+    for (const [room, area] of [
+      [LOUNGE_ROOM, { x0: 48, y0: 96, x1: 416, y1: 208 }],
+      [HALLWAY_ROOM, { x0: 80, y0: 160, x1: 384, y1: 208 }],
+      [STUDY_ROOM, { x0: 128, y0: 96, x1: 336, y1: 208 }],
+    ] as const) {
       expect(isIndoor(room)).toBe(true);
-      expect(weatherArea(room)).toBe(SHED_WEATHER_AREA);
+      expect(weatherArea(room)).toEqual(area);
     }
   });
 });

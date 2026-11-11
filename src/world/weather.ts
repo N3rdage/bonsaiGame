@@ -11,7 +11,7 @@
  */
 
 import type { Season } from '../sim/seasons';
-import { fromPrototype, type Room } from './shedRoom';
+import { WALL_BAND, fromPrototype, type Room } from './shedRoom';
 
 export type WeatherKind = 'motes' | 'petals' | 'fireflies' | 'leaves' | 'snow';
 
@@ -146,9 +146,11 @@ export function isIndoor(room: Room): boolean {
   return room.key !== 'garden';
 }
 
-/** The shed's interior (which the lounge, hallway and study share), or the whole room for the garden. */
+/** An indoor room's wall ring from its top-left corner tile to its bottom-right one (the shed's SHED_WEATHER_AREA), or the whole room for the garden. */
 export function weatherArea(room: Room): WeatherArea {
-  return isIndoor(room) ? SHED_WEATHER_AREA : { x0: 0, y0: 0, x1: room.width, y1: room.height };
+  if (!isIndoor(room)) return { x0: 0, y0: 0, x1: room.width, y1: room.height };
+  const { x, y, w, h } = room.bounds;
+  return { x0: x, y0: y, x1: x + w - WALL_BAND, y1: y + h - WALL_BAND };
 }
 
 /** One particle (obj_weather's struct); angles in degrees. */

@@ -4,8 +4,8 @@
  * prototype sprite, packed by `npm run art:sheets` (art/sheets.mjs) from
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
  * horizontal strip in the order of the sprite's `.yy` frames. The house
- * rooms' tiles (lounge, hallway, study) have no prototype sprite; `npm run art:interiors` (art/interiors.mjs)
- * draws them.
+ * rooms' tiles (lounge, hallway, study) and their window have no prototype
+ * sprite; `npm run art:interiors` (art/interiors.mjs) draws them.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -47,6 +47,7 @@ export const SHEETS = {
   wallHallway: sheet('spr_wall_hallway'),
   floorStudy: sheet('spr_floor_study', 3),
   wallStudy: sheet('spr_wall_study'),
+  window: sheet('spr_window'),
 } as const satisfies Record<string, Sheet>;
 
 /** Every sheet, in load order. */

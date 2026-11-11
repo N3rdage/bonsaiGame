@@ -12,6 +12,8 @@
 // spr_floor_study.png: three frames of deep-red herringbone parquet that
 // repeats every 16 px. spr_wall_study.png: dark wooden panelling, a raised
 // panel per half tile, over a skirting board.
+// spr_window.png: one 32x32 frame, a four-pane window with a sill, transparent
+// round it so it can be drawn over any room's top wall.
 // Hard pixel edges, a small palette in the family of art/pixel.py's wood
 // tones, and a seeded generator per frame, so a rerun reproduces the
 // committed bytes.
@@ -50,6 +52,9 @@ const PARQUET_LIGHT = [136, 56, 44];
 const PANEL = [88, 58, 38];
 const PANEL_DARK = [58, 37, 24];
 const PANEL_LIGHT = [112, 76, 50];
+const GLASS = [104, 136, 146];
+const GLASS_LIGHT = [150, 182, 184];
+const GLASS_DARK = [78, 104, 116];
 
 /** mulberry32: a small seeded generator, uniform in [0, 1). */
 function seeded(seed) {
@@ -191,6 +196,35 @@ function panelling(png) {
   skirting(png);
 }
 
+/**
+ * The window, drawn over a top wall tile: transparent round it, so the room's
+ * own wall (and its skirting board) shows at the edges. A dark-edged wooden
+ * frame, four panes of glass split by a mullion and a transom, lighter towards
+ * the top with a diagonal glint, and a sill across the bottom.
+ */
+function windowPane(png) {
+  for (let y = 2; y <= 21; y += 1) {
+    for (let x = 3; x <= 28; x += 1) {
+      let c = WOOD_MID;
+      if (x === 3 || x === 28 || y === 2) c = WOOD_DARK;
+      else if (x >= 6 && x <= 25 && y >= 5 && y <= 21 && x !== 15 && x !== 16 && y !== 12 && y !== 13) {
+        c = y < 9 ? GLASS_LIGHT : GLASS;
+        if ((x + y) % 11 === 0 || (x + y) % 11 === 1) c = GLASS_LIGHT;
+        if (y >= 19) c = GLASS_DARK;
+      }
+      setPixel(png, x, y, c);
+    }
+  }
+  const rng = seeded(1000);
+  for (let i = 0; i < 6; i += 1) {
+    setPixel(png, 6 + Math.floor(rng() * 9), 14 + Math.floor(rng() * 5), GLASS_LIGHT);
+  }
+  for (let x = 2; x <= 29; x += 1) {
+    setPixel(png, x, 22, WOOD_LIGHT);
+    setPixel(png, x, 23, WOOD_DARK);
+  }
+}
+
 function write(name, png) {
   writeFileSync(join(OUT, `${name}.png`), PNG.sync.write(png));
   console.log(`${name}.png  ${String(png.width)}x${String(png.height)}`);
@@ -219,3 +253,7 @@ write('spr_floor_study', studyFloor);
 const studyWall = new PNG({ width: SIZE, height: SIZE });
 panelling(studyWall);
 write('spr_wall_study', studyWall);
+
+const windowPng = new PNG({ width: SIZE, height: SIZE });
+windowPane(windowPng);
+write('spr_window', windowPng);

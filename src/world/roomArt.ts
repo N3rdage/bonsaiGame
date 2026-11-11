@@ -142,7 +142,9 @@ export interface WallRun extends Rect {
  * the bottom row; the shed's ring, SHED_X0..SHED_Y1, is whole tiles. The shed's
  * tiles are all `spr_wall` and each house room's all its own wall sheet; the
  * garden's rows are `spr_fence`, its columns `spr_fence_v`, and its four
- * corner tiles are left out (obj_wall Draw_0) for the mitred corners.
+ * corner tiles are left out (obj_wall Draw_0) for the mitred corners. The
+ * room's windows come last (windowRuns), so the bake draws them over the top
+ * row.
  */
 export function wallRuns(room: Room): WallRun[] {
   const { wallRow: row, wallColumn: column, fenced, leftGap } = ROOM_STYLES[room.key];
@@ -165,7 +167,14 @@ export function wallRuns(room: Room): WallRun[] {
     { sheet: row, x: rowFrom, y: bottom, w: rowW, h: TILE },
     ...left.map((r) => ({ ...r, sheet: column })),
     { sheet: column, x: right, y: top, w: TILE, h: columnEnd - top },
+    ...windowRuns(room),
   ];
+}
+
+/** Each of the room's windows as a run of `spr_window` along its top wall band, one 16 px pane a tile. */
+export function windowRuns(room: Room): WallRun[] {
+  const { y } = room.bounds;
+  return room.windows.map(({ x, w }) => ({ sheet: SHEETS.window, x, y, w, h: TILE }));
 }
 
 export interface ColourRect extends Rect {

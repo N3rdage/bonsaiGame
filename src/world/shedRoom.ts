@@ -57,13 +57,25 @@ export interface Prop {
   readonly speciesKey?: SpeciesKey;
 }
 
+/**
+ * A window in the room's top wall (new content: the prototype's shed window
+ * was decor, `TODO.md` #10): from `x` for `w` logical px along the wall band,
+ * drawn over it and not collision; the wall under it still stops the player.
+ */
+export interface RoomWindow {
+  readonly x: number;
+  readonly w: number;
+}
+
 export interface Room {
   readonly key: RoomKey;
   /** The canvas the room is drawn on, logical px. */
   readonly width: number;
   readonly height: number;
-  /** The outer edge of the wall ring; the walls are `WALL_BAND` deep inside it. */
+  /** The outer edge of the wall ring, on the 16 px tile grid; the walls are `WALL_BAND` deep inside it. */
   readonly bounds: Rect;
+  /** The windows in the top wall, left to right. */
+  readonly windows: readonly RoomWindow[];
   /** The player is kept at least this far inside `bounds`. */
   readonly edgeMargin: number;
   readonly playerStart: { readonly x: number; readonly y: number };
@@ -118,7 +130,7 @@ export const SHED_RING = {
   y1: fromPrototype(416),
 } as const;
 
-/** The shed ring's outer edge; the lounge shares it. */
+/** The shed ring's outer edge; each house room has its own. */
 export const SHED_BOUNDS: Rect = {
   x: SHED_RING.x0,
   y: SHED_RING.y0,
@@ -147,6 +159,7 @@ export const SHED_ROOM: Room = {
   width: WIDTH,
   height: HEIGHT,
   bounds: SHED_BOUNDS,
+  windows: [],
   // Step_0: clamp(x, 8, room_width - 8), against the room's bounds.
   edgeMargin: fromPrototype(8),
   playerStart: { x: fromPrototype(480), y: fromPrototype(270) },
