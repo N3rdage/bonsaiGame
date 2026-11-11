@@ -117,9 +117,9 @@ describe('weatherArea', () => {
     expect(isIndoor(SHED_ROOM)).toBe(true);
     expect(isIndoor(GARDEN_ROOM)).toBe(false);
     for (const [room, area] of [
-      [LOUNGE_ROOM, { x0: 48, y0: 80, x1: 416, y1: 208 }],
+      [LOUNGE_ROOM, { x0: 48, y0: 96, x1: 416, y1: 208 }],
       [HALLWAY_ROOM, { x0: 80, y0: 160, x1: 384, y1: 208 }],
-      [STUDY_ROOM, { x0: 128, y0: 80, x1: 336, y1: 208 }],
+      [STUDY_ROOM, { x0: 128, y0: 96, x1: 336, y1: 208 }],
     ] as const) {
       expect(isIndoor(room)).toBe(true);
       expect(weatherArea(room)).toEqual(area);

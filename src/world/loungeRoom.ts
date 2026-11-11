@@ -11,8 +11,12 @@
 
 import { SHED_ROOM, fromPrototype, prop, ringWalls, type Rect, type Room } from './shedRoom';
 
-/** 384x144, x 48..432 and y 80..224: its bottom wall is the shed's row, so the shed door's square stays at x 240. */
-export const LOUNGE_BOUNDS: Rect = { x: 48, y: 80, w: 384, h: 144 };
+/**
+ * 384x128, x 48..432 and y 96..224: its bottom wall is the shed's row, so the
+ * shed door's square stays at x 240, and it is no taller than a phone's
+ * zoomed view (135), which shows its whole height.
+ */
+export const LOUNGE_BOUNDS: Rect = { x: 48, y: 96, w: 384, h: 128 };
 
 export const LOUNGE_ROOM: Room = {
   key: 'lounge',
@@ -29,15 +33,15 @@ export const LOUNGE_ROOM: Room = {
   walls: ringWalls(LOUNGE_BOUNDS),
   props: [
     // In the top corners, within reach of a player stopped by both walls
-    // ((65, 96.25) or (415, 96.25) from the door's landing on the 1.25 px step
-    // grid, (64.25, 96.25) or (415.5, 96.25) from the hallway's), so a walk
+    // ((65, 112.5) or (415, 112.5) from the door's landing on the 1.25 px step
+    // grid, (64.25, 112.5) or (415.5, 112.5) from the hallway's), so a walk
     // into the corner always ends with the pedestal in range.
     {
-      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 136, 224, 16, 16),
+      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 136, 256, 16, 16),
       pedestalKey: 'lounge_mantel',
     },
     {
-      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 824, 224, 16, 16),
+      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 824, 256, 16, 16),
       pedestalKey: 'lounge_side_table',
     },
     // The shed garden door's square in the bottom wall, back to 26 px below the shed's lounge door.

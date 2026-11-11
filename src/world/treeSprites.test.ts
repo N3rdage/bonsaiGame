@@ -85,8 +85,8 @@ describe('tree sprites', () => {
     );
     const sprites = treeSprites(state, LOUNGE_ROOM);
     expect(sprites.map((s) => [s.tree.id, s.pedestalKey, s.x, s.y, s.depth])).toEqual([
-      [1, 'lounge_mantel', 68, 104, 120.5],
-      [0, 'lounge_side_table', 412, 104, 120.5],
+      [1, 'lounge_mantel', 68, 120, 136.5],
+      [0, 'lounge_side_table', 412, 120, 136.5],
     ]);
   });
 

@@ -8,8 +8,8 @@
 
 import { SHED_ROOM, fromPrototype, prop, ringWalls, type Rect, type Room } from './shedRoom';
 
-/** 224x144, x 128..352 and y 80..224, centred on the canvas's x 240. */
-export const STUDY_BOUNDS: Rect = { x: 128, y: 80, w: 224, h: 144 };
+/** 224x128, x 128..352 and y 96..224, centred on the canvas's x 240 and smaller than a phone's zoomed view (240x135). */
+export const STUDY_BOUNDS: Rect = { x: 128, y: 96, w: 224, h: 128 };
 
 export const STUDY_ROOM: Room = {
   key: 'study',
@@ -23,13 +23,13 @@ export const STUDY_ROOM: Room = {
   walls: ringWalls(STUDY_BOUNDS),
   props: [
     // In the top corners, within reach of a player stopped by both walls
-    // ((144.5, 96.25) or (335.75, 96.25) from the landing on the 1.25 px step grid).
+    // ((144.5, 112.5) or (335.75, 112.5) from the landing on the 1.25 px step grid).
     {
-      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 296, 224, 16, 16),
+      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 296, 256, 16, 16),
       pedestalKey: 'study_desk',
     },
     {
-      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 664, 224, 16, 16),
+      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 664, 256, 16, 16),
       pedestalKey: 'study_bookshelf',
     },
     // The left wall's band, prototype top-left (256, 364), back to 26 px left of the hallway's study door.

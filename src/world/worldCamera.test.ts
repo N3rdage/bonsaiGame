@@ -84,18 +84,21 @@ describe('worldView', () => {
     }
   });
 
-  it("follows along the house rooms' own extents and centres the hallway's 64 px corridor", () => {
-    // Lounge (48, 80) 384x144: x 48..192, y 80..89. Study (128, 80) 224x144: narrower than the view, so centred.
-    expect(worldView({ x: 64, y: 190 }, LOUNGE_ROOM.bounds, 2)).toEqual({
-      zoom: 2,
-      scrollX: 48,
-      scrollY: 89,
-    });
-    expect(worldView({ x: 420, y: 96 }, LOUNGE_ROOM.bounds, 2).scrollX).toBe(192);
-    expect(worldView({ x: 162, y: 96 }, STUDY_ROOM.bounds, 2)).toEqual({
+  it("follows along the house rooms' own extents and centres those shorter than the view", () => {
+    // Lounge (48, 96) 384x128: x follows in 48..192, y centred on its middle, 160, wherever the player is.
+    for (const y of [112.5, 190, 207.5]) {
+      expect(worldView({ x: 64, y }, LOUNGE_ROOM.bounds, 2)).toEqual({
+        zoom: 2,
+        scrollX: 48,
+        scrollY: 160 - 67.5,
+      });
+    }
+    expect(worldView({ x: 420, y: 112.5 }, LOUNGE_ROOM.bounds, 2).scrollX).toBe(192);
+    // Study (128, 96) 224x128: smaller than the view both ways, so centred on (240, 160).
+    expect(worldView({ x: 144.5, y: 112.5 }, STUDY_ROOM.bounds, 2)).toEqual({
       zoom: 2,
       scrollX: 120,
-      scrollY: 80,
+      scrollY: 92.5,
     });
     // Hallway (80, 160) 320x64: x follows in 80..160, y stays on the corridor's centre line, 192.
     for (const y of [176.25, 190, 207.5]) {

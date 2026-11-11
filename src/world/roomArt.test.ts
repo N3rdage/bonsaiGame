@@ -52,9 +52,9 @@ describe('floor', () => {
 
   it("tiles only the inside of each house room's own ring with its own floor, hashed as the shed's", () => {
     for (const [room, sheet, area, rows, columns] of [
-      [LOUNGE_ROOM, SHEETS.floorLounge, { x: 64, y: 96, w: 352, h: 112 }, 7, 22],
+      [LOUNGE_ROOM, SHEETS.floorLounge, { x: 64, y: 112, w: 352, h: 96 }, 6, 22],
       [HALLWAY_ROOM, SHEETS.floorHallway, { x: 96, y: 176, w: 288, h: 32 }, 2, 18],
-      [STUDY_ROOM, SHEETS.floorStudy, { x: 144, y: 96, w: 192, h: 112 }, 7, 12],
+      [STUDY_ROOM, SHEETS.floorStudy, { x: 144, y: 112, w: 192, h: 96 }, 6, 12],
     ] as const) {
       const tiles = floorTiles(room);
       expect(tiles.sheet).toBe(sheet);
@@ -114,10 +114,10 @@ describe('walls', () => {
         LOUNGE_ROOM,
         SHEETS.wallLounge,
         [
-          [48, 80, 384, 16],
+          [48, 96, 384, 16],
           [48, 208, 384, 16],
-          [48, 96, 16, 112],
-          [416, 96, 16, 112],
+          [48, 112, 16, 96],
+          [416, 112, 16, 96],
         ],
       ],
       [
@@ -134,10 +134,10 @@ describe('walls', () => {
         STUDY_ROOM,
         SHEETS.wallStudy,
         [
-          [128, 80, 224, 16],
+          [128, 96, 224, 16],
           [128, 208, 224, 16],
-          [128, 96, 16, 112],
-          [336, 96, 16, 112],
+          [128, 112, 16, 96],
+          [336, 112, 16, 96],
         ],
       ],
     ] as const) {
@@ -259,8 +259,8 @@ describe('props', () => {
       const s = propSprite(propByKey(props, key));
       return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
     };
-    expect(at(LOUNGE_ROOM.props, 'pedestal_1')).toEqual(['spr_pedestal', 68, 112, 0.75, 120]);
-    expect(at(LOUNGE_ROOM.props, 'pedestal_2')).toEqual(['spr_pedestal', 412, 112, 0.75, 120]);
+    expect(at(LOUNGE_ROOM.props, 'pedestal_1')).toEqual(['spr_pedestal', 68, 128, 0.75, 136]);
+    expect(at(LOUNGE_ROOM.props, 'pedestal_2')).toEqual(['spr_pedestal', 412, 128, 0.75, 136]);
     expect(at(LOUNGE_ROOM.props, 'door')).toEqual(['spr_door', 240, 216, 0.5, 208]);
     const topWall = wallRuns(SHED_ROOM)[0];
     expect(at(SHED_ROOM.props, 'door_lounge')).toEqual(['spr_door', 240, 56, 0.5, topWall?.y]);
@@ -275,8 +275,8 @@ describe('props', () => {
     expect(at(HALLWAY_ROOM.props, 'door_lounge')).toEqual(['spr_door', 88, 190, 0.5, 182]);
     expect(at(HALLWAY_ROOM.props, 'door_study')).toEqual(['spr_door', 392, 190, 0.5, 182]);
     expect(at(STUDY_ROOM.props, 'door_hallway')).toEqual(['spr_door', 136, 190, 0.5, 182]);
-    expect(at(STUDY_ROOM.props, 'pedestal_1')).toEqual(['spr_pedestal', 148, 112, 0.75, 120]);
-    expect(at(STUDY_ROOM.props, 'pedestal_2')).toEqual(['spr_pedestal', 332, 112, 0.75, 120]);
+    expect(at(STUDY_ROOM.props, 'pedestal_1')).toEqual(['spr_pedestal', 148, 128, 0.75, 136]);
+    expect(at(STUDY_ROOM.props, 'pedestal_2')).toEqual(['spr_pedestal', 332, 128, 0.75, 136]);
   });
 
   it('puts the pedestal label 30 prototype px below its centre', () => {
@@ -295,7 +295,7 @@ describe('shadows', () => {
     });
     expect(propShadow(propByKey(LOUNGE_ROOM.props, 'pedestal_1'))).toEqual({
       x: 68,
-      y: 112 + 11.25,
+      y: 128 + 11.25,
       w: 18,
       h: 2.5,
       alpha: 0.3,
