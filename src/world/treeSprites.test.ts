@@ -3,6 +3,7 @@ import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { nearestInteractable } from './interactables';
+import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM, insideWalls } from './shedRoom';
 import {
   FLOOR_GRID,
@@ -74,12 +75,20 @@ describe('tree sprites', () => {
   });
 
   it('stands a displayed tree on its pedestal top, in front of the pedestal', () => {
-    const state = stateWith('displayed:shed_window', 'displayed:shed_main', 'displayed:garden_1');
-    const sprites = treeSprites(state, SHED_ROOM);
+    const state = stateWith(
+      'displayed:lounge_side_table',
+      'displayed:lounge_mantel',
+      'displayed:study_desk',
+    );
+    const sprites = treeSprites(state, LOUNGE_ROOM);
     expect(sprites.map((s) => [s.tree.id, s.pedestalKey, s.x, s.y, s.depth])).toEqual([
-      [1, 'shed_main', 310, 77, 93.5],
-      [0, 'shed_window', 350, 77, 93.5],
+      [1, 'lounge_mantel', 100, 72, 88.5],
+      [0, 'lounge_side_table', 380, 72, 88.5],
     ]);
+  });
+
+  it('draws no displayed tree in the shed, which has no pedestals', () => {
+    expect(treeSprites(stateWith('displayed:lounge_mantel'), SHED_ROOM)).toEqual([]);
   });
 
   it('leaves out carried, sold and other-room trees', () => {
@@ -109,13 +118,13 @@ describe('tree sprites', () => {
   });
 
   it('makes floor trees interactables that prompt Inspect; displayed ones are not', () => {
-    const state = stateWith('shed', 'displayed:shed_main');
-    const targets = treeTargets(treeSprites(state, SHED_ROOM));
+    const state = stateWith('lounge', 'displayed:lounge_mantel');
+    const targets = treeTargets(treeSprites(state, LOUNGE_ROOM));
     expect(targets.map((t) => [t.key, t.prompt, t.x, t.y])).toEqual([
       ['tree:0', TREE_PROMPT, 170, 160],
     ]);
     expect(TREE_PROMPT).toBe('Inspect');
-    const near = nearestInteractable({ x: 170, y: 140 }, [...SHED_ROOM.props, ...targets]);
+    const near = nearestInteractable({ x: 170, y: 140 }, [...LOUNGE_ROOM.props, ...targets]);
     expect(near?.key).toBe('tree:0');
   });
 });

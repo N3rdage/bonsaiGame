@@ -152,7 +152,7 @@ describe('walls', () => {
 });
 
 describe('props', () => {
-  it('draws the shed props from their sprites, centred, the pedestal at 1.5x', () => {
+  it('draws the shed props from their sprites, centred', () => {
     const at = (key: string) => {
       const s = propSprite(propByKey(SHED_ROOM.props, key));
       return s && [s.sheet.key, s.frame, s.x, s.y, s.scale];
@@ -160,7 +160,6 @@ describe('props', () => {
     expect(at('workbench')).toEqual(['spr_workbench', 0, 125, 90, 0.5]);
     expect(at('planting_table')).toEqual(['spr_planting_table', 0, 165, 90, 0.5]);
     expect(at('shop_kiosk')).toEqual(['spr_shop_kiosk', 0, 125, 145, 0.5]);
-    expect(at('pedestal_1')).toEqual(['spr_pedestal', 0, 310, 85, 0.75]);
     expect(at('door')).toEqual(['spr_door', 0, 240, 216, 0.5]);
   });
 
@@ -229,9 +228,9 @@ describe('shadows', () => {
       h: 2,
       alpha: 0.25,
     });
-    expect(propShadow(propByKey(SHED_ROOM.props, 'pedestal_1'))).toEqual({
-      x: 310,
-      y: 85 + 11.25,
+    expect(propShadow(propByKey(LOUNGE_ROOM.props, 'pedestal_1'))).toEqual({
+      x: 100,
+      y: 80 + 11.25,
       w: 18,
       h: 2.5,
       alpha: 0.3,

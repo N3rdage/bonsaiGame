@@ -156,15 +156,8 @@ export const SHED_ROOM: Room = {
     prop('workbench', 'Workbench', 'Make Pot', 250, 180, 40, 20),
     prop('planting_table', 'Planting', 'Plant Cutting', 330, 180, 32, 20),
     prop('shop_kiosk', 'Shop', 'Shop', 250, 290, 28, 24),
-    // rm_shed instance creation code: inst_32863523 and inst_277706A5.
-    {
-      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 620, 170, 16, 16),
-      pedestalKey: 'shed_main',
-    },
-    {
-      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 700, 170, 16, 16),
-      pedestalKey: 'shed_window',
-    },
+    // rm_shed's two pedestals (shed_main, shed_window) moved to the lounge;
+    // saves before version 4 migrate their trees there (save.ts).
     // inst_52E224DC: a 32x32 door with its origin top-left at (464, 416), on the
     // bottom wall; its creation code: target_room = rm_garden_back, (100, 450).
     {

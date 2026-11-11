@@ -94,11 +94,11 @@ describe('world panels', () => {
 
   it('offers Place on an empty pedestal only while carrying', () => {
     const tree = createNewGameState().trees[0];
-    const carrying = pedestalPanel('shed_main', tree);
-    expect([carrying.key, carrying.title]).toEqual(['pedestal:shed_main', 'Display Pedestal']);
+    const carrying = pedestalPanel('lounge_mantel', tree);
+    expect([carrying.key, carrying.title]).toEqual(['pedestal:lounge_mantel', 'Display Pedestal']);
     expect(carrying.rows.map((r) => [r.text, r.id])).toEqual([["Place Granny's", 'panel-place']]);
-    const empty = pedestalPanel('shed_window', undefined);
-    expect(empty.key).toBe('pedestal:shed_window');
+    const empty = pedestalPanel('lounge_side_table', undefined);
+    expect(empty.key).toBe('pedestal:lounge_side_table');
     expect(empty.rows.map((r) => [r.text, r.id])).toEqual([
       ['This pedestal is empty. Carry a tree here to display it.', ''],
     ]);
@@ -145,8 +145,8 @@ function everyPanel(ui: UiMetrics): PanelModel[] {
   return [
     loadSlotsPanel([widest, widest, widest]),
     loadSlotsPanel([empty(1), { ...empty(2), status: 'corrupt' }, widest]),
-    pedestalPanel('shed_main', tree),
-    pedestalPanel('shed_main', undefined),
+    pedestalPanel('lounge_mantel', tree),
+    pedestalPanel('lounge_mantel', undefined),
     settingsPanel(DEFAULT_SETTINGS, { available: true, active: false }),
     settingsPanel(DEFAULT_SETTINGS, { available: false, active: false }),
     shopPanel(stocked, ui),

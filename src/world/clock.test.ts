@@ -17,7 +17,7 @@ const rng = () => 0.999;
 function displayedState(): GameState {
   const state = createNewGameState();
   const tree = createTree('juniper', 'cutting', 0);
-  tree.location = 'displayed:shed_main';
+  tree.location = 'displayed:lounge_mantel';
   state.trees = [tree];
   return state;
 }

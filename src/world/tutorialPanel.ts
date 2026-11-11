@@ -16,7 +16,8 @@ import { estimatedBox, hitRect, type UiMetrics } from './uiScale';
  * upward from the bottom (the prototype's 340 px box, 16 from the right,
  * halved and widened to fit the labels at 8 px). It sits bottom-right, just
  * above `Interact (E)`, where the prototype put it while the viewer was open:
- * the prototype's top-right spot covers the shed's display pedestals.
+ * the prototype's top-right spot covers the display pedestals (the prototype's
+ * shed's, now the lounge's and the study's).
  */
 export const TUTORIAL_BOX = { x: 282, bottom: 248, w: 190 } as const;
 /** Left inset of the texts. */

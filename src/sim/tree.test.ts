@@ -133,10 +133,10 @@ describe('location helpers', () => {
     expect(isSold(t)).toBe(false);
   });
 
-  it('displayed:shed_main exposes the pedestal key', () => {
-    const t = at(DISPLAYED_PREFIX + 'shed_main');
+  it('displayed:lounge_mantel exposes the pedestal key', () => {
+    const t = at(DISPLAYED_PREFIX + 'lounge_mantel');
     expect(isDisplayed(t)).toBe(true);
-    expect(displayedPedestalKey(t)).toBe('shed_main');
+    expect(displayedPedestalKey(t)).toBe('lounge_mantel');
     expect(isSold(t)).toBe(false);
   });
 
@@ -168,21 +168,21 @@ describe('carrying, placing and putting down', () => {
   it('finds the floor trees of a room in order, the carried and the displayed trees', () => {
     const { state, trees } = world(
       'shed',
-      'displayed:shed_main',
+      'displayed:lounge_mantel',
       'inventory',
       'sold',
       'garden',
       'shed',
     );
     expect(treesInRoom(state, 'shed')).toEqual([trees[0], trees[5]]);
-    expect(treeOnPedestal(state, 'shed_main')).toBe(trees[1]);
-    expect(treeOnPedestal(state, 'shed_window')).toBeUndefined();
+    expect(treeOnPedestal(state, 'lounge_mantel')).toBe(trees[1]);
+    expect(treeOnPedestal(state, 'lounge_side_table')).toBeUndefined();
     expect(carriedTree(state)).toBe(trees[2]);
     expect(carriedTree(world('shed').state)).toBeUndefined();
   });
 
   it('picks up from the floor or a pedestal without touching the revision', () => {
-    const { state, pick } = world('shed', 'displayed:shed_main');
+    const { state, pick } = world('shed', 'displayed:lounge_mantel');
     expect(pickUpTree(state, pick(0))).toBe(true);
     expect(pick(0).location).toBe('inventory');
     expect(pick(0).revision).toBe(0);
@@ -192,30 +192,30 @@ describe('carrying, placing and putting down', () => {
   });
 
   it('refuses a second pickup and changes nothing', () => {
-    const { state, trees, pick } = world('shed', 'displayed:shed_main');
+    const { state, trees, pick } = world('shed', 'displayed:lounge_mantel');
     expect(pickUpTree(state, pick(0))).toBe(true);
     expect(pickUpTree(state, pick(1))).toBe(false);
-    expect(trees.map((t) => t.location)).toEqual(['inventory', 'displayed:shed_main']);
+    expect(trees.map((t) => t.location)).toEqual(['inventory', 'displayed:lounge_mantel']);
   });
 
   it('places only a carried tree, only on an empty pedestal', () => {
-    const { state, pick } = world('shed', 'displayed:shed_main');
+    const { state, pick } = world('shed', 'displayed:lounge_mantel');
     const floor = pick(0);
-    expect(placeTree(state, floor, 'shed_window')).toBe(false);
+    expect(placeTree(state, floor, 'lounge_side_table')).toBe(false);
     expect(floor.location).toBe('shed');
     pickUpTree(state, floor);
-    expect(placeTree(state, floor, 'shed_main')).toBe(false);
+    expect(placeTree(state, floor, 'lounge_mantel')).toBe(false);
     expect(floor.location).toBe('inventory');
-    expect(placeTree(state, floor, 'shed_window')).toBe(true);
-    expect(floor.location).toBe('displayed:shed_window');
+    expect(placeTree(state, floor, 'lounge_side_table')).toBe(true);
+    expect(floor.location).toBe('displayed:lounge_side_table');
     expect(carriedTree(state)).toBeUndefined();
   });
 
   it('puts down only a carried tree', () => {
-    const { state, pick } = world('displayed:shed_main');
+    const { state, pick } = world('displayed:lounge_mantel');
     const shown = pick(0);
     expect(putDownTree(shown, 'shed')).toBe(false);
-    expect(shown.location).toBe('displayed:shed_main');
+    expect(shown.location).toBe('displayed:lounge_mantel');
     pickUpTree(state, shown);
     expect(putDownTree(shown, 'shed')).toBe(true);
     expect(shown.location).toBe('shed');
