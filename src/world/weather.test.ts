@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
 import { seededRandom } from '../viewer/seededRandom';
 import { GARDEN_ROOM } from './gardenRoom';
+import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM } from './shedRoom';
 import {
   SHED_WEATHER_AREA,
   WEATHER_MARGIN,
   createParticles,
+  isIndoor,
   particleDraw,
   stepParticles,
   weatherArea,
@@ -107,6 +109,13 @@ describe('weatherArea', () => {
     expect(weatherArea(SHED_ROOM)).toBe(SHED_WEATHER_AREA);
     expect(weatherArea(GARDEN_ROOM)).toEqual({ x0: 0, y0: 0, x1: 480, y1: 270 });
     expect(WEATHER_MARGIN).toBe(12);
+  });
+
+  it("gives the lounge the shed's indoor motes over the same ring", () => {
+    expect(isIndoor(SHED_ROOM)).toBe(true);
+    expect(isIndoor(LOUNGE_ROOM)).toBe(true);
+    expect(isIndoor(GARDEN_ROOM)).toBe(false);
+    expect(weatherArea(LOUNGE_ROOM)).toBe(SHED_WEATHER_AREA);
   });
 });
 

@@ -20,6 +20,7 @@ import {
 } from './player';
 import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
 import { INTERACT_RANGE, nearestInteractable } from './interactables';
+import { LOUNGE_ROOM } from './loungeRoom';
 import {
   SHED_RING,
   SHED_ROOM,
@@ -30,9 +31,9 @@ import {
   type Room,
 } from './shedRoom';
 
-const door = (room: Room) => {
-  const d = room.props.find((p) => p.key === 'door');
-  if (!d) throw new Error('no door');
+const door = (room: Room, key = 'door') => {
+  const d = room.props.find((p) => p.key === key);
+  if (!d) throw new Error(`no ${key}`);
   return d;
 };
 
@@ -50,6 +51,7 @@ describe('shed room', () => {
       ['pedestal_1', 310, 85],
       ['pedestal_2', 350, 85],
       ['door', 240, 216],
+      ['door_lounge', 240, 56],
     ]);
   });
 
@@ -160,6 +162,79 @@ describe('garden room', () => {
     for (let i = 0; i < 100; i += 1) p = stepPlayer(p, { x: -1, y: 0 }, GARDEN_ROOM);
     expect(p.x).toBe(4);
     expect(nearestInteractable(p, GARDEN_ROOM.props)?.key).toBe('door');
+  });
+});
+
+describe('lounge room', () => {
+  it("is drawn on the shed's canvas inside the shed's ring, walled solid all round", () => {
+    expect([LOUNGE_ROOM.key, LOUNGE_ROOM.width, LOUNGE_ROOM.height]).toEqual(['lounge', 480, 270]);
+    expect(LOUNGE_ROOM.bounds).toEqual(SHED_ROOM.bounds);
+    expect(LOUNGE_ROOM.edgeMargin).toBe(SHED_ROOM.edgeMargin);
+    expect(LOUNGE_ROOM.walls).toEqual([
+      { x: 80, y: 48, w: 320, h: 16 },
+      { x: 80, y: 208, w: 320, h: 16 },
+      { x: 80, y: 48, w: 16, h: 176 },
+      { x: 384, y: 48, w: 16, h: 176 },
+    ]);
+    expect(LOUNGE_ROOM.playerStart).toEqual({ x: 240, y: 190 });
+    expect(hitsWall(LOUNGE_ROOM, 240, 190)).toBe(false);
+  });
+
+  it('has two pedestals, lounge_main and lounge_window, and a door in the bottom wall', () => {
+    expect(
+      LOUNGE_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
+    ).toEqual([
+      ['pedestal_1', 'Pedestal', 'Use Pedestal', 200, 85, 16, 16, 'lounge_main'],
+      ['pedestal_2', 'Pedestal', 'Use Pedestal', 280, 85, 16, 16, 'lounge_window'],
+      ['door', 'Door', 'Back to Shed', 240, 216, 16, 16, undefined],
+    ]);
+    expect(door(LOUNGE_ROOM).y - door(LOUNGE_ROOM).h / 2).toBe(SHED_RING.y1);
+  });
+
+  it("links the shed's top door and the lounge door both ways, each landing just out of reach", () => {
+    const toLounge = door(SHED_ROOM, 'door_lounge');
+    expect([toLounge.label, toLounge.prompt, toLounge.x, toLounge.y, toLounge.w]).toEqual([
+      'Door',
+      'To Lounge',
+      240,
+      56,
+      16,
+    ]);
+    // The top wall's band: prototype top-left (464, 96), halved.
+    expect(toLounge.y - toLounge.h / 2).toBe(SHED_RING.y0);
+    expect(toLounge.target).toEqual({ room: 'lounge', x: 240, y: 190 });
+    expect(door(LOUNGE_ROOM).target).toEqual({ room: 'shed', x: 240, y: 82 });
+    expect(ROOMS[toLounge.target?.room ?? 'shed']).toBe(LOUNGE_ROOM);
+    for (const [from, key, to] of [
+      [SHED_ROOM, 'door_lounge', LOUNGE_ROOM],
+      [LOUNGE_ROOM, 'door', SHED_ROOM],
+    ] as const) {
+      const d = door(from, key);
+      const back = to.props.find((p) => p.target?.room === from.key);
+      const land = d.target ?? { x: 0, y: 0 };
+      expect(hitsWall(to, land.x, land.y)).toBe(false);
+      expect(back && Math.hypot(back.x - land.x, back.y - land.y)).toBe(26);
+      expect(nearestInteractable(land, to.props)).toBeUndefined();
+    }
+  });
+
+  it('lets the player walk up from the start to the lounge door, past the planting table', () => {
+    let p = createPlayer(SHED_ROOM);
+    for (let i = 0; i < 52; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, SHED_ROOM);
+    expect(p.y).toBe(70);
+    expect(nearestInteractable(p, SHED_ROOM.props)?.key).toBe('door_lounge');
+  });
+});
+
+describe('rooms', () => {
+  it('has every room under its key, and every door leads to one of them', () => {
+    expect(ROOMS).toEqual({ shed: SHED_ROOM, garden: GARDEN_ROOM, lounge: LOUNGE_ROOM });
+    for (const [key, room] of Object.entries(ROOMS)) {
+      expect(room.key).toBe(key);
+      for (const p of room.props) {
+        if (p.target) expect(Object.keys(ROOMS)).toContain(p.target.room);
+      }
+    }
   });
 });
 

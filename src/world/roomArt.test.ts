@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { SHEETS } from './assets';
 import { DOORWAY, GARDEN_ROOM } from './gardenRoom';
+import { LOUNGE_ROOM } from './loungeRoom';
 import {
   PEDESTAL_LABEL_DY,
+  ROOM_STYLES,
+  SHED_FLOOR_DIM,
   SHED_RUG,
   TILE,
   fenceCorners,
@@ -44,6 +47,22 @@ describe('floor', () => {
     expect(garden.frames[0]?.slice(0, 4)).toEqual([0, 1, 2, 0]);
   });
 
+  it("tiles only the inside of the lounge's ring with its carpet", () => {
+    const lounge = floorTiles(LOUNGE_ROOM);
+    expect(lounge.sheet).toBe(SHEETS.floorLounge);
+    expect(lounge.area).toEqual(floorTiles(SHED_ROOM).area);
+    expect(lounge.frames).toEqual(floorTiles(SHED_ROOM).frames);
+  });
+
+  it('dims and rugs the shed floor only', () => {
+    expect(ROOM_STYLES.shed).toMatchObject({ floorDim: SHED_FLOOR_DIM, rug: SHED_RUG });
+    expect(SHED_FLOOR_DIM).toBe(0.12);
+    for (const key of ['garden', 'lounge'] as const) {
+      expect(ROOM_STYLES[key].floorDim).toBe(0);
+      expect(ROOM_STYLES[key].rug).toBeUndefined();
+    }
+  });
+
   it('has the shed rug at the prototype (360, 220)..(600, 360), halved', () => {
     expect([SHED_RUG.x, SHED_RUG.y, SHED_RUG.w, SHED_RUG.h, SHED_RUG.inset]).toEqual([
       180, 110, 120, 70, 3.5,
@@ -76,9 +95,18 @@ describe('walls', () => {
     ]);
   });
 
+  it('rings the lounge with spr_wall_lounge where the shed has spr_wall', () => {
+    const runs = wallRuns(LOUNGE_ROOM);
+    expect(runs.every((r) => r.sheet === SHEETS.wallLounge)).toBe(true);
+    expect(runs.map(({ x, y, w, h }) => [x, y, w, h])).toEqual(
+      wallRuns(SHED_ROOM).map(({ x, y, w, h }) => [x, y, w, h]),
+    );
+  });
+
   it('mitres the garden corners with two rails each, three bands a leg, inside the corner tiles', () => {
     const rects = fenceCorners(GARDEN_ROOM);
     expect(fenceCorners(SHED_ROOM)).toEqual([]);
+    expect(fenceCorners(LOUNGE_ROOM)).toEqual([]);
     // 4 corners x 2 L's x 2 legs x 3 bands.
     expect(rects).toHaveLength(48);
     const inTile = (r: (typeof rects)[number]): boolean =>
@@ -131,6 +159,18 @@ describe('props', () => {
     const door = propSprite(propByKey(GARDEN_ROOM.props, 'door'));
     // Prototype top-left (16, 440), 32 px: logical (8, 220)..(24, 236).
     expect(door && [door.x - 8, door.y - 8]).toEqual([8, 220]);
+  });
+
+  it("draws the lounge's pedestals at 1.5x and its door on the bottom wall, the shed's lounge door on the top", () => {
+    const at = (props: readonly Prop[], key: string) => {
+      const s = propSprite(propByKey(props, key));
+      return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
+    };
+    expect(at(LOUNGE_ROOM.props, 'pedestal_1')).toEqual(['spr_pedestal', 200, 85, 0.75, 93]);
+    expect(at(LOUNGE_ROOM.props, 'pedestal_2')).toEqual(['spr_pedestal', 280, 85, 0.75, 93]);
+    expect(at(LOUNGE_ROOM.props, 'door')).toEqual(['spr_door', 240, 216, 0.5, 208]);
+    const topWall = wallRuns(SHED_ROOM)[0];
+    expect(at(SHED_ROOM.props, 'door_lounge')).toEqual(['spr_door', 240, 56, 0.5, topWall?.y]);
   });
 
   it('puts the pedestal label 30 prototype px below its centre', () => {

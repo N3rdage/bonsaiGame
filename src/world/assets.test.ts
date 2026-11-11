@@ -33,7 +33,14 @@ describe('sprite sheets', () => {
       ['spr_planting_table', 32, 32, 1],
       ['spr_shop_kiosk', 32, 32, 1],
       ['spr_pedestal', 32, 32, 1],
+      ['spr_floor_lounge', 32, 32, 3],
+      ['spr_wall_lounge', 32, 32, 1],
     ]);
+  });
+
+  it("loads the lounge's generated tiles with the rest", () => {
+    expect(ALL_SHEETS).toContain(SHEETS.floorLounge);
+    expect(ALL_SHEETS).toContain(SHEETS.wallLounge);
   });
 
   it('has a committed strip for every sheet, its frames side by side', () => {

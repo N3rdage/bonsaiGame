@@ -40,6 +40,7 @@ describe('interactables', () => {
       ['pedestal_1', 'E: Use Pedestal'],
       ['pedestal_2', 'E: Use Pedestal'],
       ['door', 'E: To Garden'],
+      ['door_lounge', 'E: To Lounge'],
     ]);
   });
 });

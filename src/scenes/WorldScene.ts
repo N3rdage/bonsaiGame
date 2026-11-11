@@ -128,8 +128,7 @@ import {
   PEDESTAL_EMPTY_COLOUR,
   PEDESTAL_EMPTY_LABEL,
   PEDESTAL_LABEL_DY,
-  SHED_FLOOR_DIM,
-  SHED_RUG,
+  ROOM_STYLES,
   fenceCorners,
   floorTiles,
   playerShadow,
@@ -228,7 +227,7 @@ const BAR_H = 6;
  * sprite depth-sorted at its feet against the props' bottom edges; trees are drawn in code as
  * obj_tree_sprite did (src/world/treeArt.ts). A new or
  * loaded game starts in the shed; a door redraws the scene as its target room
- * (src/world/gardenRoom.ts) with the player at its target spot. Room data,
+ * (`ROOMS` in src/world/gardenRoom.ts) with the player at its target spot. Room data,
  * movement and the HUD text come from the pure modules in src/world/; this
  * scene only reads input, draws and publishes the test hook.
  *
@@ -1258,8 +1257,9 @@ export class WorldScene extends Phaser.Scene {
   /**
    * The room's static art baked once into a texture at prototype px, so each
    * 32 px tile keeps its pixels and a frame draws it as one quad: the room's
-   * colour (the prototype's background layer), the floor tiles, the shed's dim
-   * and rug, the wall or fence runs, then the garden's mitred corners.
+   * colour (the prototype's background layer), the floor tiles, the room
+   * style's dim and rug (the shed's), the wall or fence runs, then the garden's
+   * mitred corners.
    */
   private bakeRoom(key: string, room: Room): Phaser.Textures.DynamicTexture | undefined {
     const texture = this.textures.addDynamicTexture(
@@ -1282,10 +1282,10 @@ export class WorldScene extends Phaser.Scene {
     });
     // roomArt's rects are in logical px; the Graphics scales them up to the texture's prototype px.
     const rug = this.make.graphics({}, false).setScale(PROTOTYPE_SCALE);
-    if (room.key === 'shed') {
-      const r = SHED_RUG;
+    const { floorDim, rug: r } = ROOM_STYLES[room.key];
+    if (floorDim > 0) rug.fillStyle(0x000000, floorDim).fillRect(area.x, area.y, area.w, area.h);
+    if (r) {
       const line = SPRITE_SCALE;
-      rug.fillStyle(0x000000, SHED_FLOOR_DIM).fillRect(area.x, area.y, area.w, area.h);
       rug.fillStyle(r.fill).fillRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
       rug.lineStyle(line, r.outline).strokeRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
       rug
