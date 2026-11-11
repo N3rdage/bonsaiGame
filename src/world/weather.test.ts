@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
 import { seededRandom } from '../viewer/seededRandom';
 import { GARDEN_ROOM } from './gardenRoom';
+import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM } from './shedRoom';
+import { STUDY_ROOM } from './studyRoom';
 import {
   SHED_WEATHER_AREA,
   WEATHER_MARGIN,
@@ -116,6 +118,13 @@ describe('weatherArea', () => {
     expect(isIndoor(LOUNGE_ROOM)).toBe(true);
     expect(isIndoor(GARDEN_ROOM)).toBe(false);
     expect(weatherArea(LOUNGE_ROOM)).toBe(SHED_WEATHER_AREA);
+  });
+
+  it('gives the hallway and the study the same indoor motes', () => {
+    for (const room of [HALLWAY_ROOM, STUDY_ROOM]) {
+      expect(isIndoor(room)).toBe(true);
+      expect(weatherArea(room)).toBe(SHED_WEATHER_AREA);
+    }
   });
 });
 

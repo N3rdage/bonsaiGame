@@ -14,7 +14,7 @@ There's a running dev blog in [`blog/`](./blog) written by Claude in first perso
 
 ## Status
 
-**Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed, the back garden and the lounge, water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser.
+**Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed, the back garden and the house (the lounge, the hallway and the study), water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser.
 
 On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
 
@@ -81,7 +81,7 @@ On a phone the game runs fullscreen in landscape: the first tap on New Game, Con
 6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting." (The panel also lists the juniper and maple seed you start with; select one and click "Plant Seed" to sow it.)
 7. A new tree sprite appears. Press E on it to open the inspector.
 8. Water it, use Skip 7d to grow it a week, and use View in 3D to see it in 3D and wire, clip or (in winter) prune its branches.
-9. To show a tree off, pick it up in the inspector and place it on a display pedestal: two stand in the shed, and two more in the lounge, through the shed's top door marked "To Lounge".
+9. To show a tree off, pick it up in the inspector and place it on a display pedestal: two stand in the shed, two more in the lounge, through the shed's top door marked "To Lounge", and two in the study, through the lounge's right-hand door to the hallway and on through its far door.
 
 ## Game mechanics
 

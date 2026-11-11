@@ -72,8 +72,8 @@ archive sprite changes.
 | `spr_shop_kiosk.png` | 32×32 | 1 | `spr_shop_kiosk` |
 | `spr_pedestal.png` | 32×32 | 1 | `spr_pedestal` |
 
-The lounge is new content with no prototype sprites, so its two tiles are
-drawn in code by `interiors.mjs` (Node, `pngjs`; `npm run art:interiors`). It
+The house rooms (lounge, hallway, study) are new content with no prototype
+sprites, so their tiles are drawn in code by `interiors.mjs` (Node, `pngjs`; `npm run art:interiors`). It
 uses a seeded generator, never `Math.random`, so a rerun reproduces the
 committed bytes. Hard pixel edges, a small palette near `pixel.py`'s wood tones.
 
@@ -81,6 +81,10 @@ committed bytes. Hard pixel edges, a small palette near `pixel.py`'s wood tones.
 |------|---------|--------|-----------|
 | `spr_floor_lounge.png` | 96×32 | 3 | `interiors.mjs`: warm carpet, a diamond weave repeating every 8 px (seamless), flecks per frame |
 | `spr_wall_lounge.png` | 32×32 | 1 | `interiors.mjs`: striped wallpaper over a wooden skirting board |
+| `spr_floor_hallway.png` | 96×32 | 3 | `interiors.mjs`: dark 8 px floorboards with staggered joints, a green runner across the middle (seamless), grain per frame |
+| `spr_wall_hallway.png` | 32×32 | 1 | `interiors.mjs`: plaster over a dado rail and a wooden skirting board |
+| `spr_floor_study.png` | 96×32 | 3 | `interiors.mjs`: deep-red herringbone parquet repeating every 16 px (seamless), grain per frame |
+| `spr_wall_study.png` | 32×32 | 1 | `interiors.mjs`: dark wooden panelling, two raised panels, over a skirting board |
 
 The decor sprites (`make_decor.py`: shelf, tools, watering can, pot stack,
 sack, window) are not in the web build yet. `spr_foliage` is the 3D viewer's
