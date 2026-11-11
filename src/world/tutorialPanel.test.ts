@@ -7,6 +7,11 @@ import {
   tutorialStepBody,
   tutorialStepLabel,
 } from '../sim/tutorial';
+import { DAYS_PER_SEASON } from '../sim/seasons';
+import { seasonTipFor } from '../sim/seasonTip';
+import { SPECIES, SPECIES_KEYS } from '../sim/species';
+import { createNewGameState } from '../sim/state';
+import { createTree } from '../sim/tree';
 import { GARDEN_ROOM } from './gardenRoom';
 import {
   CARRY_TEXT,
@@ -22,6 +27,7 @@ import { PANEL_INSET, panelClose, panelTitleY } from './panels';
 import {
   SKIP_CONFIRM_PANEL,
   TUTORIAL_BOX,
+  seasonTipParts,
   skipConfirmPanel,
   tutorialLineH,
   tutorialPanel,
@@ -40,6 +46,8 @@ import {
 // 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph (6 px) and a 12 px line. Generous upper bounds.
 const GLYPH_10 = 6;
 const LINE_10 = 12;
+/** The first day of winter. */
+const WINTER = 3 * DAYS_PER_SEASON + 1;
 
 describe('tutorial corner panel', () => {
   it('shows the heading, the step label, the wrapped body and the hint while a step is active', () => {
@@ -51,7 +59,7 @@ describe('tutorial corner panel', () => {
       'inspect it, then click Water.',
       'Press J for notebook',
     ]);
-    expect(m?.skip.enabled).toBe(true);
+    expect(m?.button.enabled).toBe(true);
   });
 
   it('is hidden once the tutorial is done', () => {
@@ -59,7 +67,7 @@ describe('tutorial corner panel', () => {
   });
 
   it('disables Skip while a modal panel is open', () => {
-    expect(tutorialPanel(TUTORIAL_WATER, true, DESKTOP_UI)?.skip.enabled).toBe(false);
+    expect(tutorialPanel(TUTORIAL_WATER, true, DESKTOP_UI)?.button.enabled).toBe(false);
   });
 
   it('grows upward with the body: one line pitch per extra body line, Skip where it was', () => {
@@ -69,7 +77,7 @@ describe('tutorial corner panel', () => {
     expect(three?.texts).toHaveLength(6);
     expect((three?.box.h ?? 0) - (two?.box.h ?? 0)).toBe(tutorialLineH(DESKTOP_UI));
     expect(three?.box.y).toBe((two?.box.y ?? 0) - tutorialLineH(DESKTOP_UI));
-    expect(three?.skip.y).toBe(two?.skip.y);
+    expect(three?.button.y).toBe(two?.button.y);
   });
 
   it('fits every step inside its box, bottom-right, under the carry line and above Interact', () => {
@@ -90,15 +98,15 @@ describe('tutorial corner panel', () => {
         let above = -Infinity;
         for (const t of m.texts) {
           expect(t.x + t.text.length * glyph).toBeLessThanOrEqual(right);
-          expect(t.y + ui.label).toBeLessThanOrEqual(m.skip.y + LINE_10);
+          expect(t.y + ui.label).toBeLessThanOrEqual(m.button.y + LINE_10);
           expect(t.y - above).toBeGreaterThanOrEqual(ui.label);
           above = t.y;
         }
         const hint = m.texts.at(-1);
         expect((hint?.x ?? 0) + 'Press J for notebook'.length * glyph).toBeLessThan(
-          m.skip.x - 'Skip'.length * GLYPH_10,
+          m.button.x - 'Skip'.length * GLYPH_10,
         );
-        expect(m.skip.y + LINE_10).toBeLessThanOrEqual(m.box.y + m.box.h);
+        expect(m.button.y + LINE_10).toBeLessThanOrEqual(m.box.y + m.box.h);
         expect(m.box.y + m.box.h).toBeLessThan(INTERACT_BUTTON.bottom - LINE_10);
         expect(m.texts[1]?.text).toBe(tutorialStepLabel(step));
         expect(
@@ -119,29 +127,40 @@ describe('tutorial corner panel', () => {
     const m = tutorialPanel(TUTORIAL_WATER, false, DESKTOP_UI);
     expect(m?.box).toEqual({ x: 282, y: 185, w: 190, h: 63 });
     expect(m?.texts.map((t) => t.y)).toEqual([189, 198, 208, 218, 234]);
-    expect(m?.skip).toEqual({ x: 466, y: 232, enabled: true });
+    expect(m?.button).toEqual({
+      x: 466,
+      y: 232,
+      enabled: true,
+      label: 'Skip',
+      id: 'tutorial-skip',
+    });
   });
 
   it("keeps the HUD's visible tap targets apart and inside the canvas on the phone", () => {
-    const hud = (ui: UiMetrics, step: number, carrying: boolean): UiRect[] => {
-      const m = tutorialPanel(step, false, ui);
+    const winterTip = seasonTipFor({ ...createNewGameState(), day: WINTER }, WINTER - 1);
+    const hud = (ui: UiMetrics, step: number, carrying: boolean, tip?: string): UiRect[] => {
+      const m = tutorialPanel(step, false, ui, tip);
       if (!m) throw new Error('no panel');
       const boxes = [
         estimatedBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, ui),
         estimatedBox('Notebook (J)', NOTEBOOK_BUTTON.left, NOTEBOOK_BUTTON.bottom, 0, 1, ui),
         estimatedBox('Menu', MENU_BUTTON.left, MENU_BUTTON.top, 0, 0, ui),
         estimatedBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
-        estimatedBox('Skip', m.skip.x, m.skip.y, 1, 0, ui),
+        estimatedBox(m.button.label, m.button.x, m.button.y, 1, 0, ui),
         ...menuItems(carrying, ui).map((item) =>
           estimatedBox(item.label, item.x, item.y, 0, 0.5, ui),
         ),
       ];
       return boxes.map((b) => hitRect(b, ui.hit));
     };
+    expect(winterTip).toBeDefined();
     for (const ui of [PHONE_UI, DESKTOP_UI]) {
-      for (const step of tutorialAllSteps()) {
+      for (const [step, tip] of [
+        ...tutorialAllSteps().map((s) => [s, undefined] as const),
+        [TUTORIAL_DONE, winterTip] as const,
+      ]) {
         for (const carrying of [false, true]) {
-          const rects = hud(ui, step, carrying);
+          const rects = hud(ui, step, carrying, tip);
           rects.forEach((a, i) => {
             expect(a.w).toBeGreaterThanOrEqual(ui.hit);
             expect(a.h).toBeGreaterThanOrEqual(ui.hit);
@@ -167,6 +186,86 @@ describe('tutorial corner panel', () => {
       const m = tutorialPanel(step, false, DESKTOP_UI);
       if (!m) throw new Error('no panel');
       for (const p of props) expect(m.box.y).toBeGreaterThan(below(p));
+    }
+  });
+});
+
+describe('season tip in the corner panel', () => {
+  const tip = (state = createNewGameState()): string => {
+    state.day = WINTER;
+    const text = seasonTipFor(state, WINTER - 1);
+    if (text === undefined) throw new Error('no tip');
+    return text;
+  };
+
+  it('splits the tip into its first sentence and the rest', () => {
+    expect(seasonTipParts('Winter: Pine is dormant. Growth pauses. Watch.')).toEqual({
+      label: 'Winter: Pine is dormant.',
+      body: 'Growth pauses. Watch.',
+    });
+    expect(seasonTipParts('One line')).toEqual({ label: 'One line', body: '' });
+  });
+
+  it('shows the tip under a Seasons heading with Got it, even once the tutorial is done', () => {
+    const text = tip();
+    for (const step of [TUTORIAL_WATER, TUTORIAL_DONE]) {
+      const m = tutorialPanel(step, false, DESKTOP_UI, text);
+      if (!m) throw new Error('no panel');
+      const { label, body } = seasonTipParts(text);
+      expect(m.texts.slice(0, 2).map((t) => t.text)).toEqual(['Seasons', label]);
+      expect(
+        m.texts
+          .slice(2, -1)
+          .map((t) => t.text)
+          .join(' '),
+      ).toBe(body);
+      expect(m.texts.at(-1)?.text).toBe('Press J for notebook');
+      expect([m.button.label, m.button.id, m.button.enabled]).toEqual([
+        'Got it',
+        'tip-dismiss',
+        true,
+      ]);
+    }
+    expect(tutorialPanel(TUTORIAL_DONE, true, DESKTOP_UI, text)?.button.enabled).toBe(false);
+  });
+
+  it("puts Got it where Skip was and fits the box, on desktop and the phone, for every species' tip", () => {
+    const right = TUTORIAL_BOX.x + TUTORIAL_BOX.w;
+    const tips = SPECIES_KEYS.filter((k) => !SPECIES[k].seasonsActive.includes('winter')).map(
+      (key) => {
+        const state = createNewGameState();
+        state.trees = [{ ...createTree(key, 'seed', 0), location: 'shed' }];
+        return tip(state);
+      },
+    );
+    expect(tips.length).toBeGreaterThan(0);
+    for (const ui of [DESKTOP_UI, PHONE_UI]) {
+      const glyph = ui.label * 0.6 + 0.1;
+      const step = tutorialPanel(TUTORIAL_WATER, false, ui);
+      if (!step) throw new Error('no panel');
+      const stepBottom = step.box.y + step.box.h;
+      for (const text of tips) {
+        const m = tutorialPanel(TUTORIAL_WATER, false, ui, text);
+        if (!m) throw new Error('no panel');
+        // The same bottom edge, and the button the same distance above it: where Skip was.
+        expect(m.box.y + m.box.h).toBe(stepBottom);
+        expect([m.button.x, m.button.y - stepBottom]).toEqual([
+          step.button.x,
+          step.button.y - stepBottom,
+        ]);
+        expect(m.box.x + m.box.w).toBe(right);
+        expect(m.box.y).toBeGreaterThanOrEqual(CARRY_TEXT.top + LINE_10);
+        for (const t of m.texts) {
+          expect(t.x + t.text.length * glyph).toBeLessThanOrEqual(right);
+          expect(t.y + ui.label).toBeLessThanOrEqual(m.button.y + LINE_10);
+        }
+        const hint = m.texts.at(-1);
+        expect((hint?.x ?? 0) + 'Press J for notebook'.length * glyph).toBeLessThan(
+          m.button.x - 'Got it'.length * GLYPH_10,
+        );
+        expect(m.button.y + LINE_10).toBeLessThanOrEqual(m.box.y + m.box.h);
+        expect(m.box.y + m.box.h).toBeLessThan(INTERACT_BUTTON.bottom - LINE_10);
+      }
     }
   });
 });

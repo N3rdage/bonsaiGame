@@ -1,5 +1,6 @@
 /**
- * The tutorial corner panel (obj_game_controller Draw_64) and its Skip
+ * The tutorial corner panel (obj_game_controller Draw_64), which also carries
+ * the first-dormancy season tip (src/sim/seasonTip.ts), and its Skip
  * confirmation (obj_ui_tutorial_skip_confirm), in logical px on the 480x270
  * canvas. Pure; the texts come from src/sim/tutorial.ts and WorldScene draws
  * them, the corner panel at HUD depth and the confirmation as a modal panel.
@@ -75,23 +76,48 @@ export interface TutorialText {
 
 export interface TutorialPanelModel {
   readonly box: { readonly x: number; readonly y: number; readonly w: number; readonly h: number };
-  /** Heading, step label, the wrapped body lines and the notebook hint. */
+  /** Heading, label, the wrapped body lines and the notebook hint. */
   readonly texts: readonly TutorialText[];
-  /** The `Skip` button's top-right corner; disabled while a modal panel is open. */
-  readonly skip: { readonly x: number; readonly y: number; readonly enabled: boolean };
+  /**
+   * The button's top-right corner, its text and control id: `Skip`
+   * (`tutorial-skip`) for a step, `Got it` (`tip-dismiss`) for the season tip;
+   * disabled while a modal panel is open.
+   */
+  readonly button: {
+    readonly x: number;
+    readonly y: number;
+    readonly enabled: boolean;
+    readonly label: string;
+    readonly id: string;
+  };
+}
+
+/** The season tip split for the corner panel: its first sentence as the label, the rest as the body. */
+export function seasonTipParts(tip: string): { label: string; body: string } {
+  const end = tip.indexOf('. ');
+  return end < 0
+    ? { label: tip, body: '' }
+    : { label: tip.slice(0, end + 1), body: tip.slice(end + 2) };
 }
 
 /**
- * The corner panel for `step` at `ui`'s sizes, or undefined once the tutorial
- * is done. The texts are label-sized; the box rises where Skip's tap target
- * would reach `Interact (E)`'s.
+ * The corner panel at `ui`'s sizes: the season `tip` while one is held
+ * (heading `Seasons`, `Got it` in Skip's place, shown even once the tutorial
+ * is done), else `step`'s, or undefined once the tutorial is done. The texts
+ * are label-sized; the box rises where the button's tap target would reach
+ * `Interact (E)`'s.
  */
 export function tutorialPanel(
   step: number,
   modalOpen: boolean,
   ui: UiMetrics,
+  tip?: string,
 ): TutorialPanelModel | undefined {
-  if (step === TUTORIAL_DONE) return undefined;
+  if (tip === undefined && step === TUTORIAL_DONE) return undefined;
+  const parts =
+    tip === undefined
+      ? { heading: 'Tutorial', label: tutorialStepLabel(step), body: tutorialStepBody(step) }
+      : { heading: 'Seasons', ...seasonTipParts(tip) };
   // Wider in proportion to the label size, from the same right edge, so the longest step label still fits.
   const w = Math.round((TUTORIAL_BOX.w * ui.label) / 8);
   const x = TUTORIAL_BOX.x + TUTORIAL_BOX.w - w;
@@ -100,15 +126,15 @@ export function tutorialPanel(
   const lineH = tutorialLineH(ui);
   const labelDy = HEADING_DY + ui.label + 1;
   const bodyDy = labelDy + lineH;
-  const body = wrapLines(tutorialStepBody(step), tutorialWrap(ui));
+  const body = wrapLines(parts.body, tutorialWrap(ui));
   const h = bodyDy + body.length * lineH + GAP + SKIP_LINE_H + GAP;
   const y = bottom - h;
   const skipY = y + bodyDy + body.length * lineH + GAP;
   return {
     box: { x, y, w, h },
     texts: [
-      { text: 'Tutorial', x: left, y: y + HEADING_DY, color: TUTORIAL_HEADING_COLOR },
-      { text: tutorialStepLabel(step), x: left, y: y + labelDy, color: LABEL_COLOR },
+      { text: parts.heading, x: left, y: y + HEADING_DY, color: TUTORIAL_HEADING_COLOR },
+      { text: parts.label, x: left, y: y + labelDy, color: LABEL_COLOR },
       ...body.map((text, i) => ({
         text,
         x: left,
@@ -117,7 +143,14 @@ export function tutorialPanel(
       })),
       { text: 'Press J for notebook', x: left, y: skipY + 2, color: HINT_COLOR },
     ],
-    skip: { x: x + w - TUTORIAL_INSET, y: skipY, enabled: !modalOpen },
+    button: {
+      x: x + w - TUTORIAL_INSET,
+      y: skipY,
+      enabled: !modalOpen,
+      ...(tip === undefined
+        ? { label: 'Skip', id: 'tutorial-skip' }
+        : { label: 'Got it', id: 'tip-dismiss' }),
+    },
   };
 }
 

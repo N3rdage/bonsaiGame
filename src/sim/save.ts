@@ -4,7 +4,8 @@
  * Ported from archive/gamemaker/scripts/scr_save_load/scr_save_load.gml.
  * Version 1 is the GameMaker prototype's snake_case shape (every number written
  * as a float, plus a trailing NUL byte); `importPrototypeSave` converts it to
- * the TS model. Version 2 is this port's camelCase shape (`SaveFileV2`).
+ * the TS model. Version 2 is this port's camelCase shape; version 3
+ * (`SaveFileV3`) adds `seasonTipShown`, read as false from older saves.
  * Storage is injected (MemorySaveStorage here, localStorage in src/platform)
  * so this module stays free of DOM APIs.
  */
@@ -30,11 +31,12 @@ import type {
   WireRecord,
 } from './types';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const SAVE_SLOT_COUNT = 3;
 
-export interface SaveFileV2 {
-  version: 2;
+/** The shape `serializeState` writes. Version 2 was the same without `seasonTipShown`. */
+export interface SaveFileV3 {
+  version: 3;
   savedAt: string;
   day: number;
   money: number;
@@ -42,6 +44,7 @@ export interface SaveFileV2 {
   trees: BonsaiTree[];
   nextTreeId: number;
   tutorialStep: number;
+  seasonTipShown: boolean;
 }
 
 export interface SaveStorage {
@@ -92,9 +95,9 @@ export function formatSaveTimestamp(date: Date): string {
   );
 }
 
-/** Writes a version-2 save. `state.paused` is transient and never written; loads start unpaused. */
+/** Writes a version-3 save. `state.paused` is transient and never written; loads start unpaused. */
 export function serializeState(state: GameState, now: Date): string {
-  const file: SaveFileV2 = {
+  const file: SaveFileV3 = {
     version: SAVE_VERSION,
     savedAt: formatSaveTimestamp(now),
     day: state.day,
@@ -103,6 +106,7 @@ export function serializeState(state: GameState, now: Date): string {
     trees: state.trees,
     nextTreeId: state.nextTreeId,
     tutorialStep: state.tutorialStep,
+    seasonTipShown: state.seasonTipShown,
   };
   // The JSON text is the deep copy: nothing read back from it aliases `state`.
   return JSON.stringify(file);
@@ -127,6 +131,7 @@ export function deserializeSave(text: string): GameState {
   const version = Number(raw.version);
   if (version === 1) return importPrototypeSave(raw);
   if (version === 2) return readV2Save(raw);
+  if (version === 3) return readV3Save(raw);
   throw new Error(`Unsupported save version: ${String(raw.version)}`);
 }
 
@@ -314,25 +319,34 @@ export function importPrototypeSave(raw: unknown): GameState {
     tutorialStep: tutorialStepFromSave(
       raw.tutorial_step === undefined ? undefined : int(raw.tutorial_step, -1),
     ),
+    // The prototype had no season tip, so it can still fire once.
+    seasonTipShown: false,
     paused: false,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Version 2: this port's shape
+// Versions 2 and 3: this port's shape
 
-function readV2Save(raw: Record<string, unknown>): GameState {
+/** A version-2 save: version 3's fields without `seasonTipShown`, which migrates as false so the tip can still fire once. */
+function readV2Save(raw: Record<string, unknown>, where = 'Save v2'): GameState {
   return {
     day: int(raw.day, 0),
     money: num(raw.money, 0),
     inventory: mergeInventory(raw.inventory),
-    trees: coerceTrees(raw.trees, 'Save v2'),
+    trees: coerceTrees(raw.trees, where),
     nextTreeId: int(raw.nextTreeId, 0),
     tutorialStep: tutorialStepFromSave(
       typeof raw.tutorialStep === 'number' ? raw.tutorialStep : undefined,
     ),
+    seasonTipShown: false,
     paused: false,
   };
+}
+
+/** A version-3 save: version 2 plus `seasonTipShown`. */
+function readV3Save(raw: Record<string, unknown>): GameState {
+  return { ...readV2Save(raw, 'Save v3'), seasonTipShown: raw.seasonTipShown === true };
 }
 
 // ---------------------------------------------------------------------------
@@ -354,7 +368,7 @@ export function loadGame(storage: SaveStorage, slot = 1): GameState | undefined 
   return deserializeSave(text);
 }
 
-/** Header fields only, for the slot picker. Works for v1 and v2 saves. Throws on a corrupt slot. */
+/** Header fields only, for the slot picker. Works for every save version. Throws on a corrupt slot. */
 export function saveSlotMetadata(storage: SaveStorage, slot: number): SaveSlotMetadata | undefined {
   const text = storage.read(slot);
   if (text === undefined) return undefined;
