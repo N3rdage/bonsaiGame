@@ -30,6 +30,19 @@ export const MOVE_SPEED = fromPrototype(2.5);
 export const WALK_ANIM_STEP = 0.14;
 export const WALK_FRAMES = 4;
 
+/**
+ * Whether a step from walk cycle position `prev` to `next` lands a foot: the
+ * frames are `[contact, step-A, contact, step-B]`, so a footstep sounds when
+ * the cycle enters frame 0 or frame 2 (the wrap from 3 to 0 included). Standing
+ * still (`next` 0) never sounds, nor does staying within a frame.
+ */
+export function footstepDue(prev: number, next: number): boolean {
+  if (next === 0) return false;
+  const from = Math.floor(prev);
+  const to = Math.floor(next);
+  return from !== to && to % 2 === 0;
+}
+
 export function createPlayer(room: Room): PlayerState {
   return { x: room.playerStart.x, y: room.playerStart.y, facing: 'down', walkAnim: 0 };
 }
