@@ -61,7 +61,7 @@ test.describe('tutorial', () => {
     await openNotebook(page);
     let h = await hook(page);
     expect(h.notebook).toEqual({
-      indicator: 'Page 1 / 5',
+      indicator: 'Page 1 / 6',
       title: tutorialStepLabel(TUTORIAL_WATER),
       badge: 'in progress',
     });
@@ -70,13 +70,13 @@ test.describe('tutorial', () => {
     await turnNotebookPage(page, 'panel-next');
     h = await hook(page);
     expect(h.notebook).toEqual({
-      indicator: 'Page 2 / 5',
+      indicator: 'Page 2 / 6',
       title: tutorialStepLabel(TUTORIAL_SKIP_WEEK),
       badge: 'not yet',
     });
     expect(ids(h)).toEqual(['panel-prev', 'panel-next', 'panel-close']);
     await turnNotebookPage(page, 'panel-prev');
-    expect((await hook(page)).notebook?.indicator).toBe('Page 1 / 5');
+    expect((await hook(page)).notebook?.indicator).toBe('Page 1 / 6');
 
     // J toggles it shut; the tap route closes it with Close.
     if (tapRoute) await closePanel(page);
@@ -99,7 +99,7 @@ test.describe('tutorial', () => {
     expect(ids(h)).toEqual(['view', 'notebook', 'menu']);
     await openNotebook(page);
     expect((await hook(page)).notebook).toEqual({
-      indicator: 'Page 6 / 6',
+      indicator: 'Page 7 / 7',
       title: 'All caught up',
       badge: '',
     });
@@ -123,9 +123,15 @@ test.describe('tutorial', () => {
 
     await openNotebook(page);
     h = await hook(page);
-    expect(h.notebook?.indicator).toBe('Page 6 / 6');
+    expect(h.notebook?.indicator).toBe('Page 7 / 7');
     expect(h.notebook?.title).toBe('All caught up');
     expect(ids(h)).toEqual(['panel-prev', 'panel-close']);
+    await turnNotebookPage(page, 'panel-prev');
+    expect((await hook(page)).notebook).toEqual({
+      indicator: 'Page 6 / 7',
+      title: 'Seasons',
+      badge: '',
+    });
     await turnNotebookPage(page, 'panel-prev');
     expect((await hook(page)).notebook?.badge).toBe('done');
     expect(errors).toEqual([]);

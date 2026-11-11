@@ -83,9 +83,11 @@ interface BonsaiTestHook {
   readonly inventory: Readonly<Record<string, number>>;
   /** World: `state.tutorialStep` (0 Water, 1 Skip a week, ..., -1 done). Title: -1. */
   readonly tutorialStep: number;
-  /** World only: the step label the tutorial corner panel shows, '' while it is not shown (tutorial done, or under the viewer). */
+  /** World only: the label the tutorial corner panel shows (the step's, or the season tip's first sentence while the tip is held), '' while it is not shown (tutorial done and no tip, or under the viewer). */
   readonly tutorialLabel?: string;
-  /** World only: the open notebook page's indicator ('Page 1 / 5'), title and badge ('done', 'in progress', 'not yet', '' on the finale); undefined while the notebook is closed. */
+  /** World only: the first-dormancy season tip the corner panel holds ('Winter: Japanese Maple is dormant. ...'), '' when none. */
+  readonly seasonTip?: string;
+  /** World only: the open notebook page's indicator ('Page 1 / 6'), title and badge ('done', 'in progress', 'not yet', '' on Seasons and the finale); undefined while the notebook is closed. */
   readonly notebook?:
     { readonly indicator: string; readonly title: string; readonly badge: string } | undefined;
   /** World only: the open Inventory panel's sections ('Resources', 'Seeds', 'Cuttings') with the labels and counts they list (zeros hidden); undefined while it is closed. */
@@ -127,7 +129,8 @@ interface BonsaiTestHook {
    * not listed); the sub-panels' 'panel-soil', 'panel-repot-standard', 'panel-repot-fancy' (each only with a pot in stock),
    * 'panel-rename-save', 'panel-style-<key>', 'panel-style-none' and 'panel-sell'; 'panel-place' (an empty pedestal's
    * panel while carrying) and 'menu-putdown' (the HUD menu while carrying); 'notebook' (the HUD's Notebook (J)) and
-   * 'tutorial-skip' (the tutorial corner panel's Skip, with no modal open); the notebook's 'panel-prev' and 'panel-next'
+   * 'tutorial-skip' (the tutorial corner panel's Skip, with no modal open) or, while it holds the season tip,
+   * 'tip-dismiss' (its Got it) in Skip's place; the notebook's 'panel-prev' and 'panel-next'
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant a Cutting's
    * 'panel-select-<species>' (unselected cuttings), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
    * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), and the Settings panel's 'panel-fullscreen' (only where the browser offers

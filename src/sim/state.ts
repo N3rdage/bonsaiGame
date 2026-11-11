@@ -25,6 +25,7 @@ export function createNewGameState(): GameState {
     trees: [],
     nextTreeId: 0,
     tutorialStep: TUTORIAL_WATER,
+    seasonTipShown: false,
     paused: false,
   };
 

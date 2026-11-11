@@ -27,6 +27,7 @@ function makeState(step: number): GameState {
     trees: [],
     nextTreeId: 0,
     tutorialStep: step,
+    seasonTipShown: false,
     paused: false,
   };
 }

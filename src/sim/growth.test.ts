@@ -3,6 +3,7 @@ import {
   FERTILIZER_DAYS,
   MAX_NATURAL_BRANCHES,
   REPOT_COOLDOWN_DAYS,
+  REPOT_SEASONS,
   fertilizeTree,
   repotCheck,
   repotTree,
@@ -239,6 +240,11 @@ describe('fertilizeTree', () => {
 });
 
 describe('repotCheck', () => {
+  it('repots in spring only, 60 days apart (the prototype numbers)', () => {
+    expect(REPOT_SEASONS).toEqual(['spring']);
+    expect(REPOT_COOLDOWN_DAYS).toBe(60);
+  });
+
   it('is out_of_season outside spring', () => {
     const { state, tree } = fixture(SUMMER);
     expect(repotCheck(tree, state)).toBe('out_of_season');

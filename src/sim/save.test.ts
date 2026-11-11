@@ -49,7 +49,7 @@ function expectIntegerIds(state: GameState): void {
 
 describe('constants', () => {
   it('match the spec', () => {
-    expect(SAVE_VERSION).toBe(2);
+    expect(SAVE_VERSION).toBe(3);
     expect(SAVE_SLOT_COUNT).toBe(3);
   });
 });
@@ -61,12 +61,16 @@ describe('formatSaveTimestamp', () => {
   });
 });
 
-describe('v2 round trip', () => {
+describe('v3 round trip', () => {
   it('is deep-equal and does not alias the original', () => {
     const state = createNewGameState();
     must(state.trees[0]).trunk.movement.push({ y: 5, angleDeg: 90 });
     const text = serializeState(state, NOW);
-    expect(JSON.parse(text)).toMatchObject({ version: 2, savedAt: '2026-01-02 03:04' });
+    expect(JSON.parse(text)).toMatchObject({
+      version: 3,
+      savedAt: '2026-01-02 03:04',
+      seasonTipShown: false,
+    });
     const loaded = deserializeSave(text);
     expect(loaded).toEqual(state);
     expect(loaded.trees).not.toBe(state.trees);
@@ -101,11 +105,39 @@ describe('v2 round trip', () => {
     const state = createNewGameState();
     expect(deserializeSave(serializeState(state, NOW) + '\0')).toEqual(state);
   });
+
+  it('keeps seasonTipShown once the tip has fired', () => {
+    const state = createNewGameState();
+    state.seasonTipShown = true;
+    expect(deserializeSave(serializeState(state, NOW)).seasonTipShown).toBe(true);
+  });
+});
+
+describe('v2 -> v3 migration', () => {
+  it('reads a version-2 save as it was, with seasonTipShown false so the tip can still fire', () => {
+    const state = createNewGameState();
+    state.day = 40;
+    state.tutorialStep = -1;
+    const v3 = JSON.parse(serializeState(state, NOW)) as Record<string, unknown>;
+    const { seasonTipShown, ...rest } = v3;
+    expect(seasonTipShown).toBe(false);
+    const v2 = JSON.stringify({ ...rest, version: 2 });
+    expect(deserializeSave(v2)).toEqual(state);
+    // Even a v2 save carrying a stray `seasonTipShown: true` predates the field.
+    expect(
+      deserializeSave(JSON.stringify({ ...rest, version: 2, seasonTipShown: true })).seasonTipShown,
+    ).toBe(false);
+  });
+
+  it('imports prototype saves with seasonTipShown false', () => {
+    expect(deserializeSave(DAY14).seasonTipShown).toBe(false);
+    expect(deserializeSave(DAY730).seasonTipShown).toBe(false);
+  });
 });
 
 describe('deserializeSave version dispatch', () => {
   it('throws on an unknown version, naming it', () => {
-    expect(() => deserializeSave('{"version":3,"trees":[]}')).toThrow(/3/);
+    expect(() => deserializeSave('{"version":4,"trees":[]}')).toThrow(/4/);
     expect(() => deserializeSave('{"trees":[]}')).toThrow(/version/);
   });
 
@@ -179,13 +211,13 @@ describe('prototype import: day 730', () => {
     }
   });
 
-  it('survives a v2 round trip unchanged', () => {
+  it('survives a v3 round trip unchanged', () => {
     expect(deserializeSave(serializeState(state, NOW))).toEqual(state);
   });
 });
 
 describe('slot metadata', () => {
-  it('reads v1 and v2 headers', () => {
+  it('reads v1 and v3 headers', () => {
     const storage = new MemorySaveStorage();
     storage.write(1, DAY14 + '\0');
     saveGame(storage, createNewGameState(), 2, NOW);
@@ -201,7 +233,7 @@ describe('slot metadata', () => {
       day: 0,
       money: 100,
       savedAt: '2026-01-02 03:04',
-      version: 2,
+      version: 3,
     });
     expect(saveSlotMetadata(storage, 3)).toBeUndefined();
   });

@@ -104,11 +104,13 @@ import {
 } from '../world/notebook';
 import {
   TUTORIAL_HEADING_COLOR,
+  seasonTipParts,
   skipConfirmPanel,
   tutorialPanel,
   type TutorialPanelModel,
 } from '../world/tutorialPanel';
 import { tutorialSkip, tutorialStepLabel } from '../sim/tutorial';
+import { seasonTipFor } from '../sim/seasonTip';
 import { SETTINGS_KEY, settingsPanel } from '../world/settingsPanel';
 import {
   createParticles,
@@ -313,10 +315,12 @@ export class WorldScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text;
   private viewButton!: Phaser.GameObjects.Text;
   private notebookButton!: Phaser.GameObjects.Text;
-  /** The tutorial corner panel's parts, the model they show (JSON, '' for none) and its Skip while enabled. */
+  /** The tutorial corner panel's parts, the model they show (JSON, '' for none) and its button (Skip or Got it) while enabled. */
   private tutorialParts: HudPart[] = [];
   private tutorialDrawn = '';
-  private tutorialSkipButton: Phaser.GameObjects.Text | undefined;
+  private tutorialButton: { id: string; text: Phaser.GameObjects.Text } | undefined;
+  /** The first-dormancy tip while the corner panel holds it; scene state, cleared by Got it or the notebook. */
+  private seasonTip: string | undefined;
   /** The notebook page shown while it is open; scene state, never saved. */
   private notebookPage = 0;
   private menuButton!: Phaser.GameObjects.Text;
@@ -370,7 +374,8 @@ export class WorldScene extends Phaser.Scene {
     this.plants.clear();
     this.tutorialParts = [];
     this.tutorialDrawn = '';
-    this.tutorialSkipButton = undefined;
+    this.tutorialButton = undefined;
+    this.seasonTip = undefined;
     this.player = createPlayer(SHED_ROOM);
     // The scene's own camera becomes the world camera; the HUD's, added after it, draws on top.
     this.worldCamera = this.cameras.main;
@@ -616,7 +621,7 @@ export class WorldScene extends Phaser.Scene {
   private readonly onResize = (): void => {
     this.ui = { ...this.ui, hit: sceneUi(this).hit };
     const buttons = [this.viewButton, this.notebookButton, this.menuButton, this.interactButton];
-    for (const button of [...buttons, this.tutorialSkipButton]) {
+    for (const button of [...buttons, this.tutorialButton?.text]) {
       if (button) setHitArea(button, this.ui.hit);
     }
     this.publishHook();
@@ -810,8 +815,12 @@ export class WorldScene extends Phaser.Scene {
     else if (this.roomKeysLive()) this.openPanel(inventoryPanel(this.ctx.state.inventory));
   }
 
-  /** obj_ui_notebook on `page`, the active step's by default; Prev and Next reopen it on their page. */
+  /**
+   * obj_ui_notebook on `page`, the active step's by default; Prev and Next
+   * reopen it on their page. Opening it puts a held season tip away.
+   */
   private openNotebook(page = notebookOpeningPage(this.ctx.state.tutorialStep)): void {
+    this.seasonTip = undefined;
     const model = notebookPanel(this.ctx.state, page);
     this.notebookPage = page;
     this.openPanel(model, (i) => {
@@ -829,22 +838,32 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * The corner panel for the current step and modal state, redrawn only when
-   * its model changed (gone once the tutorial is done); hidden under the viewer.
+   * The corner panel for the held season tip, else the current step, and the
+   * modal state, redrawn only when its model changed (gone once the tutorial
+   * is done and no tip is held); hidden under the viewer.
    */
   private drawTutorial(): void {
-    const model = tutorialPanel(this.ctx.state.tutorialStep, this.panel?.modal === true, this.ui);
+    const model = tutorialPanel(
+      this.ctx.state.tutorialStep,
+      this.panel?.modal === true,
+      this.ui,
+      this.seasonTip,
+    );
     const drawn = model ? JSON.stringify(model) : '';
     if (drawn !== this.tutorialDrawn) {
       for (const part of this.tutorialParts) part.destroy();
-      this.tutorialSkipButton = undefined;
+      this.tutorialButton = undefined;
       this.tutorialParts = model ? this.tutorialPartsFor(model) : [];
       this.tutorialDrawn = drawn;
     }
     for (const part of this.tutorialParts) part.setVisible(!this.viewer.isOpen);
   }
 
-  /** The box (interactive, so a press on it starts no joystick), the texts and Skip, greyed while disabled. */
+  /**
+   * The box (interactive, so a press on it starts no joystick), the texts and
+   * the button, greyed while disabled: Skip asks to confirm, Got it puts the
+   * season tip away.
+   */
   private tutorialPartsFor(m: TutorialPanelModel): HudPart[] {
     const { x, y, w, h } = m.box;
     const bg = this.add
@@ -855,25 +874,33 @@ export class WorldScene extends Phaser.Scene {
     const texts = m.texts.map((t) =>
       this.text(t.x, t.y, t.text, { ...labelStyle(this.ui), color: t.color }),
     );
-    const skip = m.skip.enabled
+    const { x: bx, y: by, label, id, enabled } = m.button;
+    const button = enabled
       ? this.hudButton(
-          m.skip.x,
-          m.skip.y,
-          'Skip',
+          bx,
+          by,
+          label,
           () => {
-            this.openSkipConfirm();
+            if (id === 'tip-dismiss') this.dismissSeasonTip();
+            else this.openSkipConfirm();
           },
           1,
           0,
         )
-      : this.text(m.skip.x, m.skip.y, 'Skip', {
+      : this.text(bx, by, label, {
           ...bodyStyle(this.ui),
           color: PANEL_DISABLED_COLOR,
         }).setOrigin(1, 0);
-    if (m.skip.enabled) this.tutorialSkipButton = skip;
-    const parts = [bg, ...texts, skip];
+    if (enabled) this.tutorialButton = { id, text: button };
+    const parts = [bg, ...texts, button];
     for (const part of parts) part.setDepth(HUD_DEPTH);
     return parts;
+  }
+
+  /** Got it: the corner panel goes back to the tutorial step, or away once the tutorial is done. */
+  private dismissSeasonTip(): void {
+    this.seasonTip = undefined;
+    this.publishHook();
   }
 
   /** obj_ui_tree_style_picker, one tap per pick. */
@@ -1493,6 +1520,11 @@ export class WorldScene extends Phaser.Scene {
     const tick = tickClock(state, this.clockS, deltaMs / 1000, timeScale);
     this.clockS = tick.accumulatorS;
     if (tick.days === 0) return;
+    const tip = seasonTipFor(state, state.day - tick.days);
+    if (tip !== undefined) {
+      state.seasonTipShown = true;
+      this.seasonTip = tip;
+    }
     this.drawTrees();
     this.drawPlayer();
     // obj_weather's season recheck: the season only changes with the day.
@@ -1559,13 +1591,15 @@ export class WorldScene extends Phaser.Scene {
     const rows = this.panel?.buttons.map((b) => at(b.id, b.text)) ?? [];
     if (this.panel?.modal) return rows;
     const interact = this.near ? [at('interact', this.interactButton)] : [];
-    const skip = this.tutorialSkipButton ? [at('tutorial-skip', this.tutorialSkipButton)] : [];
+    const tutorial = this.tutorialButton
+      ? [at(this.tutorialButton.id, this.tutorialButton.text)]
+      : [];
     return [
       at('view', this.viewButton),
       at('notebook', this.notebookButton),
       at('menu', this.menuButton),
       ...interact,
-      ...skip,
+      ...tutorial,
       ...rows,
     ];
   }
@@ -1583,8 +1617,11 @@ export class WorldScene extends Phaser.Scene {
       tutorialStep: state.tutorialStep,
       tutorialLabel:
         this.tutorialParts.length > 0 && !this.viewer.isOpen
-          ? tutorialStepLabel(state.tutorialStep)
+          ? this.seasonTip !== undefined
+            ? seasonTipParts(this.seasonTip).label
+            : tutorialStepLabel(state.tutorialStep)
           : '',
+      seasonTip: this.seasonTip ?? '',
       notebook:
         this.panel?.key === NOTEBOOK_KEY ? notebookHeader(state, this.notebookPage) : undefined,
       inventorySections:
