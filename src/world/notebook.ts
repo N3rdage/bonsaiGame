@@ -1,6 +1,7 @@
 /**
  * Granny's notebook (obj_ui_notebook) as a PanelModel: one page per tutorial
- * step plus a finale once the tutorial is done, each with its title, status
+ * step, a Seasons page with the season rules (new in the port), and a finale
+ * once the tutorial is done, each step page with its title, status
  * badge and texts from src/sim/tutorial.ts, and `< Prev` / `Next >` on
  * Close's line. Pure; WorldScene keeps the page index and reopens the panel
  * on the new page.
@@ -14,6 +15,19 @@ import {
   tutorialStepLabel,
   tutorialStepStatus,
 } from '../sim/tutorial';
+import { REPOT_COOLDOWN_DAYS, REPOT_SEASONS } from '../sim/growth';
+import { isDormant } from '../sim/seasonTip';
+import {
+  DAYS_PER_SEASON,
+  SEASONS,
+  seasonGrowthMultiplier,
+  seasonLabel,
+  seasonWaterMultiplier,
+  type Season,
+} from '../sim/seasons';
+import { CUTTING_SEASONS } from '../sim/sourcePlant';
+import { SPECIES_KEYS, getSpecies } from '../sim/species';
+import { PRUNE_SEASONS } from '../sim/training';
 import type { GameState } from '../sim/types';
 import { PANEL_INSET, panelClose, rowY, wrapLines, type PanelModel, type PanelRow } from './panels';
 
@@ -41,10 +55,63 @@ const BADGES = {
   locked: { text: 'not yet', color: '#787878' },
 } as const;
 
-/** The steps the notebook pages through: every tutorial step, then the finale once done. */
+/** The Seasons page's entry in `notebookPages`; tutorial steps are 0 and up, TUTORIAL_DONE -1. */
+export const SEASONS_PAGE = -2;
+export const SEASONS_PAGE_TITLE = 'Seasons';
+
+/** A multiplier as the page prints it: 1.3x, 1.0x. */
+export function multiplierText(m: number): string {
+  return `${m.toFixed(1)}x`;
+}
+
+/** Every species' name, and whether it ever rests. */
+function dormancyText(): string {
+  const resting: string[] = [];
+  const awake: string[] = [];
+  for (const key of SPECIES_KEYS) {
+    const species = getSpecies(key);
+    const seasons = SEASONS.filter((s) => isDormant(species, s));
+    if (seasons.length > 0) resting.push(`${species.displayName} in ${seasons.join(' and ')}`);
+    else awake.push(species.displayName);
+  }
+  const grows = awake.length > 0 ? ` ${awake.join(' and ')} grows all year.` : '';
+  return `Dormant (no growth, no fertilising): ${resting.join(', ')}.${grows}`;
+}
+
+/**
+ * The Seasons page's paragraphs, '' for a blank line: the season length,
+ * each season's growth multiplier (for a species awake then) and water use
+ * with what can be done in it, the repot cooldown and each species' dormancy.
+ * Built from the sim's exports, so the page cannot drift from the rules.
+ */
+export function seasonsPageParagraphs(): string[] {
+  const year = DAYS_PER_SEASON * SEASONS.length;
+  const actions = (season: Season): string[] => [
+    ...(REPOT_SEASONS.includes(season) ? ['repot'] : []),
+    ...(CUTTING_SEASONS.includes(season) ? ['take cuttings'] : []),
+    ...(PRUNE_SEASONS.includes(season) ? ['prune'] : []),
+  ];
+  return [
+    `Each season lasts ${String(DAYS_PER_SEASON)} days, so a year is ${String(year)}; day 1 is spring.`,
+    '',
+    ...SEASONS.map((season) => {
+      const can = actions(season);
+      return (
+        `${seasonLabel(season)}: growth ${multiplierText(seasonGrowthMultiplier(SEASONS, season))}, ` +
+        `water use ${multiplierText(seasonWaterMultiplier(season))}` +
+        (can.length > 0 ? `; ${can.join(', ')}` : '')
+      );
+    }),
+    '',
+    `Repots are ${String(REPOT_COOLDOWN_DAYS)} days apart. Wire and clip in any season.`,
+    dormancyText(),
+  ];
+}
+
+/** The pages the notebook turns through: every tutorial step, Seasons, then the finale once done. */
 export function notebookPages(tutorialStep: number): number[] {
-  const steps = tutorialAllSteps();
-  return tutorialStep === TUTORIAL_DONE ? [...steps, TUTORIAL_DONE] : steps;
+  const pages = [...tutorialAllSteps(), SEASONS_PAGE];
+  return tutorialStep === TUTORIAL_DONE ? [...pages, TUTORIAL_DONE] : pages;
 }
 
 /** The page it opens on: the active step's, or the last once the tutorial is done. */
@@ -55,17 +122,20 @@ export function notebookOpeningPage(tutorialStep: number): number {
     : Math.max(0, pages.indexOf(tutorialStep));
 }
 
-/** What page `page` shows at the top: the indicator, the title and the badge ('' on the finale). */
+/** What page `page` shows at the top: the indicator, the title and the badge ('' on Seasons and the finale). */
 export function notebookHeader(
   state: GameState,
   page: number,
 ): { indicator: string; title: string; badge: string } {
   const pages = notebookPages(state.tutorialStep);
   const step = pages[page] ?? TUTORIAL_DONE;
+  const indicator = `Page ${String(page + 1)} / ${String(pages.length)}`;
+  if (step === SEASONS_PAGE) return { indicator, title: SEASONS_PAGE_TITLE, badge: '' };
+  if (step === TUTORIAL_DONE) return { indicator, title: 'All caught up', badge: '' };
   return {
-    indicator: `Page ${String(page + 1)} / ${String(pages.length)}`,
-    title: step === TUTORIAL_DONE ? 'All caught up' : tutorialStepLabel(step),
-    badge: step === TUTORIAL_DONE ? '' : BADGES[tutorialStepStatus(state, step)].text,
+    indicator,
+    title: tutorialStepLabel(step),
+    badge: BADGES[tutorialStepStatus(state, step)].text,
   };
 }
 
@@ -87,7 +157,15 @@ export function notebookPanel(state: GameState, page: number): PanelModel {
     wrapLines(text, NOTEBOOK_WRAP).map((t, i) => line(from + i, t, color));
 
   let content: PanelRow[];
-  if (step === TUTORIAL_DONE) {
+  if (step === SEASONS_PAGE) {
+    content = [];
+    let i = 1;
+    for (const text of seasonsPageParagraphs()) {
+      const lines = text === '' ? [] : paragraph(i, text, FLAVOUR_COLOR);
+      content.push(...lines);
+      i += Math.max(1, lines.length);
+    }
+  } else if (step === TUTORIAL_DONE) {
     content = paragraph(2, tutorialStepFlavour(TUTORIAL_DONE), FLAVOUR_COLOR);
   } else {
     const status = tutorialStepStatus(state, step);
