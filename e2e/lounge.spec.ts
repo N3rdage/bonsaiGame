@@ -4,6 +4,8 @@ import {
   collectErrors,
   continueGame,
   expect,
+  holdUntilAtMost,
+  holdUntilNear,
   hook,
   interact,
   pickUpTree,
@@ -21,38 +23,6 @@ import {
 async function throughDoor(page: Page, room: string): Promise<void> {
   await interact(page);
   await page.waitForFunction((r) => window.__bonsai?.room === r, room);
-}
-
-type Arrow = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
-
-/**
- * Holds `arrow` until `key` is in reach, or not at all if it already is. The
- * walks here end against the wall the player walks into (both doors sit in
- * one, the pedestals in a corner), so the wall stops the walk inside reach
- * however late the key is released; walkTo's row-then-along approach would
- * release the along key with the target already in reach and let a slow
- * runner carry the player past it (backlog #81).
- */
-async function holdUntilNear(page: Page, arrow: Arrow, key: string): Promise<void> {
-  if ((await hook(page)).near === key) return;
-  await page.keyboard.down(arrow);
-  await page.waitForFunction((k) => window.__bonsai?.near === k, key);
-  await page.keyboard.up(arrow);
-}
-
-/** Holds `arrow` (up or left) until the player's coordinate on `axis` is at most `max`; a late release ends at the wall. */
-async function holdUntilAtMost(
-  page: Page,
-  arrow: Arrow,
-  axis: 'x' | 'y',
-  max: number,
-): Promise<void> {
-  await page.keyboard.down(arrow);
-  await page.waitForFunction(([a, limit]) => (window.__bonsai?.player[a] ?? NaN) <= limit, [
-    axis,
-    max,
-  ] as const);
-  await page.keyboard.up(arrow);
 }
 
 /** From under the door (a new game starts at (240, 135)): straight up into the top wall. */

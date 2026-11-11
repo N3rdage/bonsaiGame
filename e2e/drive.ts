@@ -161,6 +161,38 @@ export async function walkTo(
   await page.keyboard.up(horizontal);
 }
 
+export type Arrow = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
+
+/**
+ * Holds `arrow` until `key` is in reach, or not at all if it already is. The
+ * walks here end against the wall the player walks into (both doors sit in
+ * one, the pedestals in a corner), so the wall stops the walk inside reach
+ * however late the key is released; walkTo's row-then-along approach would
+ * release the along key with the target already in reach and let a slow
+ * runner carry the player past it (backlog #81).
+ */
+export async function holdUntilNear(page: Page, arrow: Arrow, key: string): Promise<void> {
+  if ((await hook(page)).near === key) return;
+  await page.keyboard.down(arrow);
+  await page.waitForFunction((k) => window.__bonsai?.near === k, key);
+  await page.keyboard.up(arrow);
+}
+
+/** Holds `arrow` (up or left) until the player's coordinate on `axis` is at most `max`; a late release ends at the wall. */
+export async function holdUntilAtMost(
+  page: Page,
+  arrow: Arrow,
+  axis: 'x' | 'y',
+  max: number,
+): Promise<void> {
+  await page.keyboard.down(arrow);
+  await page.waitForFunction(([a, limit]) => (window.__bonsai?.player[a] ?? NaN) <= limit, [
+    axis,
+    max,
+  ] as const);
+  await page.keyboard.up(arrow);
+}
+
 /** Interacts with the tree in range (on the floor or a pedestal) and waits for its inspector. */
 export async function openInspector(page: Page): Promise<void> {
   await interact(page);

@@ -6,6 +6,7 @@
 
 import { getSpecies } from '../sim/species';
 import type { SpeciesKey } from '../sim/types';
+import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import {
   SHED_ROOM,
@@ -18,6 +19,7 @@ import {
   type Room,
   type RoomKey,
 } from './shedRoom';
+import { STUDY_ROOM } from './studyRoom';
 
 const WIDTH = fromPrototype(960);
 const HEIGHT = fromPrototype(540);
@@ -72,4 +74,6 @@ export const ROOMS: Record<RoomKey, Room> = {
   shed: SHED_ROOM,
   garden: GARDEN_ROOM,
   lounge: LOUNGE_ROOM,
+  hallway: HALLWAY_ROOM,
+  study: STUDY_ROOM,
 };
