@@ -72,7 +72,13 @@ import {
 } from '../world/inspector';
 import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
 import { onKeyDown } from '../world/keys';
-import { createPlayer, stepPlayer, type MoveInput, type PlayerState } from '../world/player';
+import {
+  createPlayer,
+  footstepDue,
+  stepPlayer,
+  type MoveInput,
+  type PlayerState,
+} from '../world/player';
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
 import { createSourcePlant, takeCutting, type SourcePlantState } from '../sim/sourcePlant';
 import type { SpeciesKey } from '../sim/types';
@@ -151,6 +157,7 @@ import {
   type DeviceZoom,
 } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
+import { SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 import { FONT_FAMILY, bodyStyle, fontLoaded, labelStyle } from './textStyle';
 
@@ -343,6 +350,8 @@ export class WorldScene extends Phaser.Scene {
   private accumulatorMs = 0;
   private frames = 0;
   private joystick: { id: number; x: number; y: number; input: MoveInput } | undefined;
+  /** Every sound effect the world plays, behind the Sound switch (src/scenes/audio.ts). */
+  private sfx!: SoundPlayer;
 
   constructor() {
     super('world');
@@ -350,6 +359,8 @@ export class WorldScene extends Phaser.Scene {
 
   create(data: WorldSceneData): void {
     this.ctx = data;
+    // Reads the settings live, so the Settings panel's Sound switch acts at once.
+    this.sfx = new SoundPlayer(this.sound, () => this.ctx.settings);
     this.viewTree = data.overrides.tree?.() ?? data.state.trees[0];
     const first = data.state.trees[0];
     this.base = {
@@ -543,6 +554,9 @@ export class WorldScene extends Phaser.Scene {
 
     this.viewer = new TreeViewer(document.body);
     this.viewer.onRender = this.publishHook;
+    this.viewer.onSound = (key) => {
+      this.sfx.play(key);
+    };
     this.viewer.onClose = () => {
       this.viewerClosedAt = performance.now();
       this.publishHook();
@@ -600,6 +614,7 @@ export class WorldScene extends Phaser.Scene {
   /**
    * A text button at the body size, anchored at (`x`, `y`) by its origin,
    * tappable over `hitRect` of its bounds (setHitArea) at least `ui.hit` square.
+   * A tap clicks unless its action played its own sound (SoundPlayer.tap).
    */
   private hudButton(
     x: number,
@@ -612,7 +627,9 @@ export class WorldScene extends Phaser.Scene {
     const button = this.text(x, y, label, bodyStyle(this.ui))
       .setOrigin(originX, originY)
       .setDepth(HUD_DEPTH);
-    setHitArea(button, this.ui.hit).on('pointerup', onTap);
+    setHitArea(button, this.ui.hit).on('pointerup', () => {
+      this.sfx.tap(onTap);
+    });
     return button;
   }
 
@@ -785,6 +802,7 @@ export class WorldScene extends Phaser.Scene {
       this.closePanel();
       this.relocated();
       if (price !== undefined) {
+        this.sfx.play('coin');
         this.showToast(`Sold ${treeLabel(tree)} for ${String(price)} coins`);
       }
     });
@@ -1074,9 +1092,12 @@ export class WorldScene extends Phaser.Scene {
     this.publishHook();
   }
 
-  /** An inspector care button: the pure dispatch, then the tree sprite and the inspector redrawn. */
+  /**
+   * An inspector care button: the pure dispatch (and `water` when the watering
+   * happened), then the tree sprite and the inspector redrawn.
+   */
   private care(tree: BonsaiTree, id: 'water' | 'fertilise' | 'skip'): void {
-    inspectorAction(this.ctx.state, tree, id);
+    if (inspectorAction(this.ctx.state, tree, id) && id === 'water') this.sfx.play('water');
     this.drawTrees();
     this.drawPlayer();
     this.openInspector(tree);
@@ -1171,6 +1192,7 @@ export class WorldScene extends Phaser.Scene {
    * new visit, as the prototype's room instances were recreated on entry.
    */
   private enterRoom(target: DoorTarget): void {
+    this.sfx.play('door');
     this.room = ROOMS[target.room];
     this.plants.clear();
     this.joystick = undefined;
@@ -1506,7 +1528,11 @@ export class WorldScene extends Phaser.Scene {
     const input = this.joystick?.input ?? this.keyboardMove();
     for (let i = 0; i < steps; i += 1) {
       // obj_player_2d/Step_0: no movement while a UI panel is open.
-      if (!modal) this.player = stepPlayer(this.player, input, this.room);
+      if (!modal) {
+        const prev = this.player.walkAnim;
+        this.player = stepPlayer(this.player, input, this.room);
+        if (footstepDue(prev, this.player.walkAnim)) this.sfx.play('footstep');
+      }
       // The weather keeps moving under panels, as the prototype's did.
       if (this.weather) stepParticles(this.weather.parts, this.weather.profile, this.weather.area);
       this.frames += 1;
@@ -1539,8 +1565,12 @@ export class WorldScene extends Phaser.Scene {
     if (this.weather && this.weather.season !== seasonForDay(state.day)) this.buildWeather();
     if (this.panel?.tree) this.openInspector(this.panel.tree);
     this.hud.setText(hudText(state));
-    if (tick.revenue > 0) this.showToast(`Display revenue: +$${String(tick.revenue)}`);
-    else this.publishHook();
+    if (tick.revenue > 0) {
+      this.sfx.play('coin');
+      this.showToast(`Display revenue: +$${String(tick.revenue)}`);
+    } else {
+      this.publishHook();
+    }
   }
 
   private keyboardMove(): MoveInput {
@@ -1660,6 +1690,7 @@ export class WorldScene extends Phaser.Scene {
       picker: '',
       panel: this.panel?.key ?? '',
       settings: { ...this.ctx.settings },
+      lastSound: this.sfx.lastSound,
       near: this.near?.key ?? '',
       carrying: carried ? treeLabel(carried) : '',
       treeLocations: state.trees.map((t) => ({

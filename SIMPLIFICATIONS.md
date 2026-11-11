@@ -56,7 +56,7 @@ Entries should record:
 
 ## Audio
 
-- **The game is silent, and the mixer is two switches.** Settings has `Sound` and `Music` on/off rows and every future play call goes through `audioAllowed` (`src/platform/audio.ts`), but no file plays until backlog 7-b (sound effects) and 7-c (music) land. There are no volume sliders or separate ambience channel. Notes: the prototype had no mixer; a volume slider would be a design decision for Drew.
+- **Sound effects but no music yet, and the mixer is two switches.** Seven effects (click, footstep, water, snip, wire, door, coin) play through `audioAllowed` (`src/platform/audio.ts`) behind the `Sound` switch; the `Music` switch has nothing to gate until backlog 7-c brings the tracks. No volume sliders or ambience channel, and the effects are generated placeholders (`art/sounds.mjs`), not recorded or designed sounds. Notes: the prototype had no mixer; a volume slider would be a design decision for Drew.
 
 ---
 

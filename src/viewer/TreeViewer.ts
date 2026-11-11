@@ -14,6 +14,7 @@ import {
   WebGLRenderer,
   type Texture,
 } from 'three';
+import type { SoundKey } from '../platform/audio';
 import type { Season } from '../sim/seasons';
 import { applyWire, clipBranch, pruneBranch, removeWire, wireTrunk } from '../sim/training';
 import type { BonsaiTree, GameState, PotTier, Vec3 } from '../sim/types';
@@ -105,6 +106,8 @@ export class TreeViewer {
   onClose?: () => void;
   /** Called after every frame is drawn. */
   onRender?: () => void;
+  /** Called when a training action changed the tree: `snip` for a clip or prune, `wire` for wiring on or off. */
+  onSound?: (key: SoundKey) => void;
 
   private readonly canvas: HTMLCanvasElement;
   private readonly hotspotLayer: HTMLDivElement;
@@ -191,7 +194,11 @@ export class TreeViewer {
       this.setPendingWireRemoval(-1);
     };
     this.modal.onRemove = (branchId) => {
-      if (this.tree && this.state) removeWire(this.tree, this.state, branchId);
+      if (this.tree && this.state) {
+        const wired = this.tree.branches[branchId]?.wired === true;
+        removeWire(this.tree, this.state, branchId);
+        if (wired) this.onSound?.('wire');
+      }
       this.setPendingWireRemoval(-1);
     };
 
@@ -616,16 +623,12 @@ export class TreeViewer {
     // A pending frame means the buttons may be stale (a prune renumbers branches): wait for it.
     if (this.frame !== undefined) return;
     if (kind === 'trunk') {
-      wireTrunk(
-        tree,
-        state,
-        t * tree.trunk.heightCm,
-        trunkBendWorldAngle(ui.bendDir, this.cam.yaw),
-      );
+      const angle = trunkBendWorldAngle(ui.bendDir, this.cam.yaw);
+      if (wireTrunk(tree, state, t * tree.trunk.heightCm, angle)) this.onSound?.('wire');
     } else if (ui.mode === 'clip') {
-      clipBranch(tree, state, id, 1);
+      if (clipBranch(tree, state, id, 1)) this.onSound?.('snip');
     } else if (ui.mode === 'prune') {
-      pruneBranch(tree, state, id);
+      if (pruneBranch(tree, state, id)) this.onSound?.('snip');
     } else if (ui.mode === 'wire') {
       const branch = tree.branches[id];
       if (!branch) return;
@@ -635,7 +638,7 @@ export class TreeViewer {
       }
       const sign = branchBendSign(tree, branch, ui.bendDir, bendAxis(ui.bendDir), this.project);
       const { bend, bendV } = branchBendTarget(branch, ui.bendDir, sign);
-      applyWire(tree, state, id, bend, bendV);
+      if (applyWire(tree, state, id, bend, bendV)) this.onSound?.('wire');
     }
     this.requestRender();
   }
