@@ -26,6 +26,18 @@ async function setSound(page: Page, to: boolean): Promise<void> {
   await page.waitForFunction((v) => window.__bonsai?.settings.sound === v, to);
 }
 
+/**
+ * Closes the modal panel and waits for a fixed step after it: the hook lists
+ * Interact as soon as the panel is gone, but the button shows again only on
+ * the world's next update, and a tap before that hits nothing.
+ */
+async function closeAndStep(page: Page): Promise<void> {
+  await closePanel(page);
+  await page.waitForFunction(() => window.__bonsai?.panel === '');
+  const frames = (await hook(page)).frames;
+  await page.waitForFunction((f) => (window.__bonsai?.frames ?? 0) > f, frames);
+}
+
 /** From the shed's start to the starter's inspector. */
 async function inspectStarter(page: Page): Promise<void> {
   await walkTo(page, 160, 'left', 'tree:0');
@@ -77,13 +89,11 @@ test.describe('sound effects', () => {
     await page.waitForFunction(() => window.__bonsai?.inspected?.waterLevel === 100);
     expect((await hook(page)).lastSound).toBe('');
 
-    await closePanel(page);
-    await page.waitForFunction(() => window.__bonsai?.panel === '');
+    await closeAndStep(page);
     await openSettingsFromMenu(page);
     expect((await hook(page)).lastSound).toBe('');
     await setSound(page, true);
-    await closePanel(page);
-    await page.waitForFunction(() => window.__bonsai?.panel === '');
+    await closeAndStep(page);
     await openInspector(page);
     expect((await hook(page)).lastSound).not.toBe('water');
 
