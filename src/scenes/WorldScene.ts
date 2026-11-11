@@ -59,7 +59,7 @@ import { clamp } from '../sim/vec3';
 import {
   DISABLED_COLOR,
   FOOTER_COLOR,
-  INSPECTOR_BUTTON_PITCH,
+  INSPECTOR_CLOSE,
   INSPECTOR_CLOSE_LABEL,
   INSPECTOR_INSET,
   INSPECTOR_PANEL,
@@ -151,14 +151,7 @@ import {
 } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
-import {
-  BODY_STYLE,
-  FONT_FAMILY,
-  LABEL_STYLE,
-  bodyStyle,
-  fontLoaded,
-  labelStyle,
-} from './textStyle';
+import { FONT_FAMILY, bodyStyle, fontLoaded, labelStyle } from './textStyle';
 
 const TOAST_MS = 2000;
 /** The player sprite's drawn height, round its centre: spr_player's 32 px at 1.5x, halved. */
@@ -602,7 +595,7 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * A text button at the body size, anchored at (`x`, `y`) by its origin,
-   * tappable over `hitRect` of its bounds (setHitArea) at least `hit` square.
+   * tappable over `hitRect` of its bounds (setHitArea) at least `ui.hit` square.
    */
   private hudButton(
     x: number,
@@ -611,12 +604,11 @@ export class WorldScene extends Phaser.Scene {
     onTap: () => void,
     originX = 0,
     originY = originX,
-    hit = this.ui.hit,
   ): Phaser.GameObjects.Text {
     const button = this.text(x, y, label, bodyStyle(this.ui))
       .setOrigin(originX, originY)
       .setDepth(HUD_DEPTH);
-    setHitArea(button, hit).on('pointerup', onTap);
+    setHitArea(button, this.ui.hit).on('pointerup', onTap);
     return button;
   }
 
@@ -962,11 +954,11 @@ export class WorldScene extends Phaser.Scene {
    */
   private openInspector(tree: BonsaiTree): void {
     const { state } = this.ctx;
-    const m = inspectorPanel(tree, state);
+    const m = inspectorPanel(tree, state, this.ui);
     const box = INSPECTOR_PANEL;
     const line = (l: InspectorText, color = INSPECTOR_TEXT) =>
-      this.text(l.x, l.y, l.text, { ...LABEL_STYLE, color }).setOrigin(0, 0.5);
-    const big = { ...BODY_STYLE, color: INSPECTOR_TEXT };
+      this.text(l.x, l.y, l.text, { ...labelStyle(this.ui), color }).setOrigin(0, 0.5);
+    const big = { ...bodyStyle(this.ui), color: INSPECTOR_TEXT };
     const parts: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Depth)[] = [
       this.add
         .rectangle(0, 0, this.room.width, this.room.height, 0x000000, 0.5)
@@ -1027,11 +1019,9 @@ export class WorldScene extends Phaser.Scene {
       },
     };
     const buttons: OpenPanel['buttons'] = [];
-    // Tap targets no taller than the button rows' pitch, so the rows' never overlap, until backlog #88 lays the inspector out for touch.
-    const hit = Math.min(this.ui.hit, INSPECTOR_BUTTON_PITCH);
     for (const b of m.buttons) {
       if (b.enabled) {
-        const text = this.hudButton(b.x, b.y, b.label, actions[b.id], 0, 0.5, hit);
+        const text = this.hudButton(b.x, b.y, b.label, actions[b.id], 0, 0.5);
         buttons.push({ id: `panel-${b.id}`, text: text.setColor(INSPECTOR_TEXT) });
       } else {
         parts.push(
@@ -1040,15 +1030,14 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     const close = this.hudButton(
-      box.x + box.w - INSPECTOR_INSET,
-      box.y + INSPECTOR_TITLE_H / 2,
+      INSPECTOR_CLOSE.x,
+      INSPECTOR_CLOSE.y,
       INSPECTOR_CLOSE_LABEL,
       () => {
         this.closePanel();
       },
       1,
       0.5,
-      hit,
     );
     buttons.push({ id: 'panel-close', text: close.setColor(INSPECTOR_HINT) });
     for (const part of parts) part.setDepth(MODAL_DEPTH);
