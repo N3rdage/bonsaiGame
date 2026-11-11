@@ -184,8 +184,8 @@ describe('lounge room', () => {
     expect(
       LOUNGE_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
-      ['pedestal_1', 'Pedestal', 'Use Pedestal', 200, 85, 16, 16, 'lounge_main'],
-      ['pedestal_2', 'Pedestal', 'Use Pedestal', 280, 85, 16, 16, 'lounge_window'],
+      ['pedestal_1', 'Pedestal', 'Use Pedestal', 100, 80, 16, 16, 'lounge_main'],
+      ['pedestal_2', 'Pedestal', 'Use Pedestal', 380, 80, 16, 16, 'lounge_window'],
       ['door', 'Door', 'Back to Shed', 240, 216, 16, 16, undefined],
     ]);
     expect(door(LOUNGE_ROOM).y - door(LOUNGE_ROOM).h / 2).toBe(SHED_RING.y1);
@@ -223,6 +223,19 @@ describe('lounge room', () => {
     for (let i = 0; i < 52; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, SHED_ROOM);
     expect(p.y).toBe(70);
     expect(nearestInteractable(p, SHED_ROOM.props)?.key).toBe('door_lounge');
+  });
+
+  it('keeps each pedestal in reach of a player walked into its corner, however long the keys are held', () => {
+    for (const [dx, key, x] of [
+      [-1, 'pedestal_1', 96.25],
+      [1, 'pedestal_2', 383.75],
+    ] as const) {
+      let p = createPlayer(LOUNGE_ROOM);
+      for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: dx, y: 0 }, LOUNGE_ROOM);
+      for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, LOUNGE_ROOM);
+      expect([p.x, p.y]).toEqual([x, 65]);
+      expect(nearestInteractable(p, LOUNGE_ROOM.props)?.key).toBe(key);
+    }
   });
 });
 

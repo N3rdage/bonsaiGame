@@ -16,7 +16,7 @@ import {
 
 // Shed lounge door (240, 56), in the top wall, to the lounge at (240, 190);
 // lounge door (240, 216) back to the shed at (240, 82). Lounge pedestals:
-// lounge_main (200, 85) and lounge_window (280, 85).
+// lounge_main (100, 80) and lounge_window (380, 80), in the top corners.
 
 async function throughDoor(page: Page, room: string): Promise<void> {
   await interact(page);
@@ -36,6 +36,13 @@ async function walkInto(page: Page, dy: 'up' | 'down', key: string): Promise<voi
   await page.keyboard.down(vertical);
   await page.waitForFunction((k) => window.__bonsai?.near === k, key);
   await page.keyboard.up(vertical);
+}
+
+/** Walks left until the player's x is at most `x`; the left wall bounds a late release the same way. */
+async function walkLeftTo(page: Page, x: number): Promise<void> {
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForFunction((limit) => (window.__bonsai?.player.x ?? NaN) <= limit, x);
+  await page.keyboard.up('ArrowLeft');
 }
 
 async function toLounge(page: Page): Promise<void> {
@@ -70,7 +77,9 @@ test.describe('the lounge', () => {
     await walkTo(page, 160, 'left', 'tree:0');
     await pickUpTree(page);
     await toLounge(page);
-    await walkTo(page, 85, 'left', 'pedestal_1');
+    // Into the top-left corner: the left wall then the top wall stop the walk with the pedestal in reach.
+    await walkLeftTo(page, 110);
+    await walkInto(page, 'up', 'pedestal_1');
     await placeTree(page);
     let h = await hook(page);
     expect(h.carrying).toBe('');

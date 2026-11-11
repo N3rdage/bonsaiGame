@@ -18,12 +18,15 @@ export const LOUNGE_ROOM: Room = {
   playerStart: { x: 240, y: 190 },
   walls: ringWalls(SHED_BOUNDS),
   props: [
+    // In the top corners, within reach of a player stopped by both walls
+    // ((96.25, 65) from the door's landing on the 1.25 px step grid), so a
+    // walk into the corner always ends with the pedestal in range.
     {
-      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 400, 170, 16, 16),
+      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 200, 160, 16, 16),
       pedestalKey: 'lounge_main',
     },
     {
-      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 560, 170, 16, 16),
+      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 760, 160, 16, 16),
       pedestalKey: 'lounge_window',
     },
     // The shed garden door's square in the bottom wall, back to 26 px below the shed's lounge door.

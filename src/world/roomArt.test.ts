@@ -166,8 +166,8 @@ describe('props', () => {
       const s = propSprite(propByKey(props, key));
       return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
     };
-    expect(at(LOUNGE_ROOM.props, 'pedestal_1')).toEqual(['spr_pedestal', 200, 85, 0.75, 93]);
-    expect(at(LOUNGE_ROOM.props, 'pedestal_2')).toEqual(['spr_pedestal', 280, 85, 0.75, 93]);
+    expect(at(LOUNGE_ROOM.props, 'pedestal_1')).toEqual(['spr_pedestal', 100, 80, 0.75, 88]);
+    expect(at(LOUNGE_ROOM.props, 'pedestal_2')).toEqual(['spr_pedestal', 380, 80, 0.75, 88]);
     expect(at(LOUNGE_ROOM.props, 'door')).toEqual(['spr_door', 240, 216, 0.5, 208]);
     const topWall = wallRuns(SHED_ROOM)[0];
     expect(at(SHED_ROOM.props, 'door_lounge')).toEqual(['spr_door', 240, 56, 0.5, topWall?.y]);
