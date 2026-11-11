@@ -65,8 +65,8 @@ test.describe('interactables and panels', () => {
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.panel === 'plant');
     h = await hook(page);
-    // A new game has no cuttings, fancy pots or premium soil: only Close is a control.
-    expect(ids(h)).toEqual(['panel-close']);
+    // A new game has a juniper and a maple seed and no cuttings, fancy pots or premium soil.
+    expect(ids(h)).toEqual(['panel-select-seed-juniper', 'panel-select-seed-maple', 'panel-close']);
     const { x, y } = h.player;
     await page.keyboard.down('ArrowRight');
     await frames(page, 10);
@@ -148,7 +148,7 @@ test.describe('interactables and panels', () => {
     const h = await hook(page);
     expect(h.panel).toBe('plant');
     expect(h.player).toEqual(before.player);
-    expect(ids(h)).toEqual(['panel-close']);
+    expect(ids(h)).toEqual(['panel-select-seed-juniper', 'panel-select-seed-maple', 'panel-close']);
     expect(errors).toEqual([]);
   });
 });
