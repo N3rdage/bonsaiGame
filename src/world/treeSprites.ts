@@ -9,7 +9,7 @@ import { getSpecies } from '../sim/species';
 import { treeOnPedestal, treesInRoom } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import type { Interactable } from './interactables';
-import { fromPrototype, type Room } from './shedRoom';
+import { SHED_ROOM, fromPrototype, insideWalls, type Room } from './shedRoom';
 
 /**
  * First floor spot, prototype (340, 320); columns 64 and rows 80 prototype px
@@ -31,12 +31,27 @@ export const FLOOR_GRID = {
 /** Each lap round the grid draws this much further back, so the first tree on a spot is in front. */
 export const FLOOR_LAP_DEPTH = 0.01;
 
-/** The i-th floor tree's spot and draw depth. */
-export function floorSpot(i: number): { x: number; y: number; depth: number } {
-  const { x, y, dx, dy, perRow, rows } = FLOOR_GRID;
-  const spot = i % (perRow * rows);
-  const lap = Math.floor(i / (perRow * rows));
-  const sy = y + Math.floor(spot / perRow) * dy;
+/**
+ * The grid's rows that lie on the room's floor: both in every room but the
+ * hallway, whose corridor floor (y 176..208) holds only the second.
+ */
+export function floorRows(room: Room): number[] {
+  const floor = insideWalls(room);
+  return Array.from({ length: FLOOR_GRID.rows }, (_, r) => FLOOR_GRID.y + r * FLOOR_GRID.dy).filter(
+    (y) => y > floor.y && y <= floor.y + floor.h,
+  );
+}
+
+/** The i-th floor tree's spot and draw depth in the room, wrapping round the grid's rows on its floor. */
+export function floorSpot(
+  i: number,
+  room: Room = SHED_ROOM,
+): { x: number; y: number; depth: number } {
+  const { x, dx, perRow } = FLOOR_GRID;
+  const rows = floorRows(room);
+  const spot = i % (perRow * rows.length);
+  const lap = Math.floor(i / (perRow * rows.length));
+  const sy = rows[Math.floor(spot / perRow)] ?? FLOOR_GRID.y;
   return { x: x + (spot % perRow) * dx, y: sy, depth: sy - lap * FLOOR_LAP_DEPTH };
 }
 
@@ -84,7 +99,7 @@ export function treeSprites(state: GameState, room: Room): TreeSprite[] {
   const floor = treesInRoom(state, room.key).map((tree, i): TreeSprite => ({
     tree,
     label: treeLabel(tree),
-    ...floorSpot(i),
+    ...floorSpot(i, room),
     size: spriteSize(tree.trunk.heightCm),
     pedestalKey: undefined,
   }));

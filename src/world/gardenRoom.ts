@@ -51,6 +51,7 @@ export const GARDEN_ROOM: Room = {
   width: WIDTH,
   height: HEIGHT,
   bounds: BOUNDS,
+  windows: [],
   edgeMargin: SHED_ROOM.edgeMargin,
   // The garden is only entered through a door, which sets the spot.
   playerStart: { x: fromPrototype(100), y: fromPrototype(450) },

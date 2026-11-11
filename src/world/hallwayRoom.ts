@@ -1,33 +1,38 @@
 /**
  * The hallway, as pure data: new content (the prototype had no interiors), the
- * house's hub between the lounge and the study. It is the lounge's shape (the
- * shed's canvas and inset ring, solid walls) with no pedestals, a corridor
- * with a door in each side wall. Both doors sit on the row y 190, as do the
- * doors they lead to, so every walk through the house is a straight walk
- * along that row into the wall the door is in.
+ * house's hub between the lounge and the study. A corridor: the shed's width
+ * and canvas but only 64 px tall, a ring of solid walls round a two-tile floor
+ * with the dark background above and below, no windows and no pedestals, and
+ * a door in each side wall. Both doors sit on the row y 190, as do the doors
+ * they lead to, so every walk through the house is a straight walk along that
+ * row into the wall the door is in.
  */
 
-import { SHED_BOUNDS, SHED_ROOM, fromPrototype, prop, ringWalls, type Room } from './shedRoom';
+import { SHED_ROOM, fromPrototype, prop, ringWalls, type Rect, type Room } from './shedRoom';
+
+/** 320x64, the shed's x 80..400 and y 160..224: wall bands at 160 and 208, the floor y 176..208 round the row y 190, on the tile grid. */
+export const HALLWAY_BOUNDS: Rect = { x: 80, y: 160, w: 320, h: 64 };
 
 export const HALLWAY_ROOM: Room = {
   key: 'hallway',
   width: fromPrototype(960),
   height: fromPrototype(540),
-  bounds: SHED_BOUNDS,
+  bounds: HALLWAY_BOUNDS,
+  windows: [],
   edgeMargin: SHED_ROOM.edgeMargin,
   // Where the lounge's hallway door lands, 26 px right of this room's lounge door.
   playerStart: { x: 114, y: 190 },
-  walls: ringWalls(SHED_BOUNDS),
+  walls: ringWalls(HALLWAY_BOUNDS),
   props: [
     // The left wall's band, prototype top-left (160, 364), back to 26 px left of the lounge's hallway door.
     {
       ...prop('door_lounge', 'Door', 'To Lounge', 160 + 16, 364 + 16, 16, 16),
-      target: { room: 'lounge', x: 366, y: 190 },
+      target: { room: 'lounge', x: 398, y: 190 },
     },
     // The right wall's band, prototype top-left (768, 364), to 26 px right of the study's door.
     {
       ...prop('door_study', 'Door', 'To Study', 768 + 16, 364 + 16, 16, 16),
-      target: { room: 'study', x: 114, y: 190 },
+      target: { room: 'study', x: 162, y: 190 },
     },
   ],
   // A dark warm umber behind the ring, between the shed's 0x241e18 and the lounge's 0x2a1c1a.

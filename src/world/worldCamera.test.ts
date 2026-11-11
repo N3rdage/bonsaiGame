@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { PHONE_MAX_SHORT_SIDE } from '../platform/orientation';
 import { GARDEN_ROOM } from './gardenRoom';
+import { HALLWAY_ROOM } from './hallwayRoom';
+import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM } from './shedRoom';
+import { STUDY_ROOM } from './studyRoom';
 import { PHONE_WORLD_ZOOM, viewSize, worldView, worldZoom } from './worldCamera';
 
 const SHED = SHED_ROOM.bounds;
@@ -79,6 +82,35 @@ describe('worldView', () => {
       expect(worldView(at, SHED, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 0 });
       expect(worldView(at, GARDEN, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 0 });
     }
+  });
+
+  it("follows along the house rooms' own extents and centres the hallway's 64 px corridor", () => {
+    // Lounge (48, 80) 384x144: x 48..192, y 80..89. Study (128, 80) 224x144: narrower than the view, so centred.
+    expect(worldView({ x: 64, y: 190 }, LOUNGE_ROOM.bounds, 2)).toEqual({
+      zoom: 2,
+      scrollX: 48,
+      scrollY: 89,
+    });
+    expect(worldView({ x: 420, y: 96 }, LOUNGE_ROOM.bounds, 2).scrollX).toBe(192);
+    expect(worldView({ x: 162, y: 96 }, STUDY_ROOM.bounds, 2)).toEqual({
+      zoom: 2,
+      scrollX: 120,
+      scrollY: 80,
+    });
+    // Hallway (80, 160) 320x64: x follows in 80..160, y stays on the corridor's centre line, 192.
+    for (const y of [176.25, 190, 207.5]) {
+      expect(worldView({ x: 114, y }, HALLWAY_ROOM.bounds, 2)).toEqual({
+        zoom: 2,
+        scrollX: 80,
+        scrollY: 192 - 67.5,
+      });
+    }
+    expect(worldView({ x: 366, y: 190 }, HALLWAY_ROOM.bounds, 2).scrollX).toBe(160);
+    expect(worldView({ x: 114, y: 190 }, HALLWAY_ROOM.bounds, 1)).toEqual({
+      zoom: 1,
+      scrollX: 0,
+      scrollY: 0,
+    });
   });
 
   it('centres an extent smaller than the view, inside the canvas', () => {
