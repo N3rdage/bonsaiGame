@@ -9,6 +9,7 @@ import {
   hook,
   interact,
   openLoadPicker,
+  openInspector,
   openMenu,
   openSettingsFromMenu,
   tapControl,
@@ -111,6 +112,27 @@ test.describe('tap targets', () => {
       6,
     );
     await expectTapTargets(page, 'shop');
+    expect(errors).toEqual([]);
+  });
+
+  test("in the shed: the starter's inspector, both button rows and Close", async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await walkTo(page, 160, 'left', 'tree:0');
+    await openInspector(page);
+    // A new game's starter: every button but Repot (on cooldown) is a control.
+    expect((await hook(page)).controls.map((c) => c.id)).toEqual([
+      'panel-water',
+      'panel-fertilise',
+      'panel-skip',
+      'panel-pickup',
+      'panel-view',
+      'panel-rename',
+      'panel-style',
+      'panel-sell',
+      'panel-close',
+    ]);
+    await expectTapTargets(page, 'inspector');
     expect(errors).toEqual([]);
   });
 });
