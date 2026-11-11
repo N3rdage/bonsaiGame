@@ -6,13 +6,35 @@ import {
   PANEL_INSET,
   PANEL_ROW_SPACING,
   PANEL_TITLE_Y,
+  fitRows,
+  isControl,
   loadSlotsPanel,
+  panelClose,
+  panelTitleY,
   pedestalPanel,
   wrapLines,
   type PanelModel,
 } from './panels';
+import { DEFAULT_SETTINGS } from '../platform/settings';
 import { createNewGameState } from '../sim/state';
+import { TUTORIAL_DONE, tutorialAllSteps } from '../sim/tutorial';
+import type { InventoryKey } from '../sim/types';
+import { inventoryPanel } from './inventoryPanel';
+import { notebookPages, notebookPanel } from './notebook';
+import { NO_SELECTION, plantPanel, type PlantSelection } from './plantPanel';
 import type { SlotRow } from './saveSlots';
+import { settingsPanel } from './settingsPanel';
+import { SHOP_PANEL, shopPanel } from './shopPanel';
+import { renamePanel, repotPanel, sellPanel, stylePanel } from './treePanels';
+import { skipConfirmPanel } from './tutorialPanel';
+import {
+  DESKTOP_UI,
+  PHONE_UI,
+  estimatedBox,
+  hitRect,
+  rectsOverlap,
+  type UiMetrics,
+} from './uiScale';
 
 // 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
@@ -93,6 +115,105 @@ describe('wrapLines', () => {
 
   it('gives a word longer than the limit a line of its own', () => {
     expect(wrapLines('a extraordinarily b', 5)).toEqual(['a', 'extraordinarily', 'b']);
+  });
+});
+
+/** Every panel model the world and the title draw, in the states that give each its most rows and controls. */
+function everyPanel(ui: UiMetrics): PanelModel[] {
+  const state = createNewGameState();
+  const tree = state.trees[0];
+  if (!tree) throw new Error('no starter');
+  const stocked = createNewGameState();
+  for (const key of Object.keys(stocked.inventory) as InventoryKey[]) {
+    stocked.inventory[key] = 99;
+  }
+  stocked.money = 9_999_999;
+  const poor = { ...createNewGameState(), money: 0 };
+  const selections: PlantSelection[] = [
+    NO_SELECTION,
+    { species: 'juniper', useFancyPot: true, usePremiumSoil: true },
+    { species: 'maple', useFancyPot: false, usePremiumSoil: false },
+  ];
+  const noPots = createNewGameState();
+  noPots.inventory.pot = 0;
+  noPots.inventory.cutting_juniper = 1;
+  const notebooks = [...tutorialAllSteps(), TUTORIAL_DONE].flatMap((step) => {
+    const s = { ...createNewGameState(), tutorialStep: step };
+    return notebookPages(step).map((_, page) => notebookPanel(s, page));
+  });
+  return [
+    loadSlotsPanel([widest, widest, widest]),
+    loadSlotsPanel([empty(1), { ...empty(2), status: 'corrupt' }, widest]),
+    pedestalPanel('shed_main', tree),
+    pedestalPanel('shed_main', undefined),
+    settingsPanel(DEFAULT_SETTINGS, { available: true, active: false }),
+    settingsPanel(DEFAULT_SETTINGS, { available: false, active: false }),
+    shopPanel(stocked, ui),
+    shopPanel(poor, ui),
+    ...selections.flatMap((sel) => [plantPanel(stocked, sel, ui), plantPanel(state, sel, ui)]),
+    plantPanel(noPots, { ...NO_SELECTION, species: 'juniper' }, ui),
+    ...notebooks,
+    inventoryPanel(stocked.inventory),
+    inventoryPanel(state.inventory),
+    skipConfirmPanel(),
+    repotPanel(tree, stocked, true, ui),
+    repotPanel(tree, state, false, ui),
+    sellPanel(tree),
+    stylePanel(tree, ui),
+    renamePanel(tree, 'x'.repeat(20)),
+  ];
+}
+
+describe('fitRows', () => {
+  it('leaves every panel as modelled at the desktop scale', () => {
+    for (const model of everyPanel(DESKTOP_UI)) expect(fitRows(model, DESKTOP_UI)).toBe(model);
+  });
+
+  it('fits every panel inside the canvas on the phone, controls apart and above Close', () => {
+    const ui = PHONE_UI;
+    for (const model of everyPanel(ui).map((m) => fitRows(m, ui))) {
+      const box = model.box ?? PANEL;
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.h).toBeLessThanOrEqual(270);
+      expect(box.x + box.w).toBeLessThanOrEqual(480);
+      const close = panelClose(box);
+      const closeHit = hitRect(
+        estimatedBox(PANEL_CLOSE_LABEL, close.x, close.y, 0.5, 0.5, ui),
+        ui.hit,
+      );
+      expect(closeHit.y + closeHit.h).toBeLessThanOrEqual(box.y + box.h);
+      const hits = [closeHit];
+      for (const row of model.rows) {
+        const x = row.x ?? box.x + PANEL_INSET;
+        const [left, right] =
+          row.align === 'right'
+            ? [x - row.text.length * GLYPH_W, x]
+            : [x, x + row.text.length * GLYPH_W];
+        expect(left).toBeGreaterThanOrEqual(box.x);
+        expect(right).toBeLessThanOrEqual(box.x + box.w);
+        expect(row.y - LINE_H / 2).toBeGreaterThanOrEqual(panelTitleY(box) + LINE_H / 2);
+        if (row.y !== close.y) expect(row.y + LINE_H / 2).toBeLessThanOrEqual(closeHit.y);
+        if (isControl(row))
+          hits.push(hitRect(estimatedBox(row.text, x, row.y, 0, 0.5, ui), ui.hit));
+      }
+      hits.forEach((a, i) => {
+        expect(a.y).toBeGreaterThanOrEqual(box.y);
+        for (const b of hits.slice(i + 1)) expect(rectsOverlap(a, b), model.key).toBe(false);
+      });
+    }
+  });
+
+  it('gives control lines the tap target as pitch, grows the box and recentres it', () => {
+    const fitted = fitRows(loadSlotsPanel([widest, widest, widest]), PHONE_UI);
+    expect(fitted.rows.map((r) => r.y)).toEqual([96, 127, 158]);
+    expect(fitted.box).toEqual(PANEL);
+    // Six affordable Buy lines under the headers: 36, then 62 to 217 at 31 apart, then Close's 47.
+    const rich = { ...createNewGameState(), money: 1000 };
+    const shop = fitRows(shopPanel(rich, PHONE_UI), PHONE_UI);
+    expect(shop.box).toEqual({ ...SHOP_PANEL, y: 3, h: 264 });
+    expect([...new Set(shop.rows.map((r) => r.y))]).toEqual([39, 65, 96, 127, 158, 189, 220, 251]);
+    expect(panelClose(SHOP_PANEL).y).not.toBe(251);
   });
 });
 

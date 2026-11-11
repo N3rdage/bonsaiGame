@@ -6,8 +6,10 @@
  */
 
 import type { BonsaiTree } from '../sim/types';
+import { GAME_HEIGHT } from './resolution';
 import { slotRowText, type SlotRow } from './saveSlots';
 import { treeLabel } from './treeSprites';
+import type { UiMetrics } from './uiScale';
 
 /** A panel's box in logical px and the pitch of its rows. */
 export interface PanelBox {
@@ -73,6 +75,61 @@ export interface PanelModel {
 /** Vertical centre of `box`'s line `i`: one `rowSpacing` apart from 36 px below its top. */
 export function rowY(box: PanelBox, i: number): number {
   return box.y + 36 + i * box.rowSpacing;
+}
+
+/** Whether `row` is a control: it has an id and is not greyed. */
+export function isControl(row: PanelRow): boolean {
+  return row.id !== '' && row.enabled !== false;
+}
+
+/** Whether `fitRows` re-lays rows of `box` out at `ui`: its tap target is taller than the row pitch. */
+export function needsFit(box: PanelBox, ui: UiMetrics): boolean {
+  return ui.hit > box.rowSpacing;
+}
+
+/**
+ * `model` re-laid out so every control's tap target fits its line (backlog
+ * #87): where `ui.hit` is above the box's `rowSpacing`, a line (the rows
+ * sharing a `y`) with a control gets `ui.hit` of pitch instead of
+ * `rowSpacing`, a text line keeps it, each gap growing by half of each
+ * neighbour's extra; the rows on Close's line stay on it. The box grows to
+ * hold the lines above Close's tap target and is recentred on the canvas;
+ * `x` and `w` stay. At or under `rowSpacing` the model is returned as is.
+ */
+export function fitRows(model: PanelModel, ui: UiMetrics): PanelModel {
+  const box = model.box ?? PANEL;
+  const spacing = box.rowSpacing;
+  if (!needsFit(box, ui)) return model;
+  const closeY = panelClose(box).y;
+  const lineYs = [...new Set(model.rows.map((r) => r.y))]
+    .filter((y) => y !== closeY)
+    .sort((a, b) => a - b);
+  const band = (y: number): number =>
+    model.rows.some((r) => r.y === y && isControl(r)) ? Math.max(spacing, ui.hit) : spacing;
+  const offsets = new Map<number, number>();
+  let prev: number | undefined;
+  for (const y of lineYs) {
+    const offset =
+      prev === undefined
+        ? y - box.y
+        : (offsets.get(prev) ?? 0) + y - prev + (band(prev) + band(y)) / 2 - spacing;
+    offsets.set(y, Math.ceil(offset));
+    prev = y;
+  }
+  const closeBand = Math.max(spacing, ui.hit);
+  const last = prev === undefined ? 0 : (offsets.get(prev) ?? 0) + band(prev) / 2;
+  const h = Math.max(box.h, Math.ceil(last + closeBand / 2 + (box.y + box.h - closeY)));
+  const y = h === box.h ? box.y : Math.floor((GAME_HEIGHT - h) / 2);
+  const fitted = { ...box, y, h };
+  const fittedClose = panelClose(fitted).y;
+  return {
+    ...model,
+    box: fitted,
+    rows: model.rows.map((r) => ({
+      ...r,
+      y: r.y === closeY ? fittedClose : y + (offsets.get(r.y) ?? 0),
+    })),
+  };
 }
 
 /** Lays `items` out as rows of `box`, one per line. */

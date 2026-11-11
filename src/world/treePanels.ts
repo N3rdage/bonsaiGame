@@ -13,7 +13,17 @@ import { getSpecies } from '../sim/species';
 import { STYLE_KEYS, getStyle } from '../sim/styles';
 import { MAX_TREE_NAME_LENGTH } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
-import { PANEL, TALL_PANEL, rows, type PanelModel, type PanelRow } from './panels';
+import {
+  PANEL,
+  PANEL_INSET,
+  TALL_PANEL,
+  needsFit,
+  rowY,
+  rows,
+  type PanelModel,
+  type PanelRow,
+} from './panels';
+import { DESKTOP_UI, type UiMetrics } from './uiScale';
 
 /** obj_ui_tree_sell_confirm's price colour, rgb(220, 200, 120). */
 export const PRICE_COLOR = '#dcc878';
@@ -25,11 +35,21 @@ function quoted(tree: BonsaiTree): string {
 
 const species = (tree: BonsaiTree): string => `Species: ${getSpecies(tree.speciesKey).displayName}`;
 
+/** Left edge of the second column (Fancy Pot, the right-hand styles) where the rows need a taller pitch. */
+const SECOND_COLUMN_X = TALL_PANEL.x + 200;
+
 /**
  * Repot: the tree's pot, vigor and days since the last repot, the premium
  * soil toggle while any is in stock, and one row per pot tier, greyed at 0.
+ * Where the rows need a taller pitch (`needsFit`), the two pot rows share a
+ * line, so the box still fits the canvas.
  */
-export function repotPanel(tree: BonsaiTree, state: GameState, premiumSoil: boolean): PanelModel {
+export function repotPanel(
+  tree: BonsaiTree,
+  state: GameState,
+  premiumSoil: boolean,
+  ui: UiMetrics = DESKTOP_UI,
+): PanelModel {
   const soil = inventoryCount(state.inventory, 'soil_premium');
   const pots = inventoryCount(state.inventory, 'pot');
   const fancy = inventoryCount(state.inventory, 'fancy_pot');
@@ -47,18 +67,28 @@ export function repotPanel(tree: BonsaiTree, state: GameState, premiumSoil: bool
       id: 'panel-soil',
     });
   }
+  const standard = {
+    text: `Standard Pot (${String(pots)})`,
+    id: 'panel-repot-standard',
+    enabled: pots > 0,
+  };
+  const fancyPot = {
+    text: `Fancy Pot (${String(fancy)})`,
+    id: 'panel-repot-fancy',
+    enabled: fancy > 0,
+  };
+  const potsY = rowY(TALL_PANEL, items.length);
   return {
     key: `repot:${String(tree.id)}`,
     title: 'Repot Tree',
     box: TALL_PANEL,
-    rows: rows(
-      [
-        ...items,
-        { text: `Standard Pot (${String(pots)})`, id: 'panel-repot-standard', enabled: pots > 0 },
-        { text: `Fancy Pot (${String(fancy)})`, id: 'panel-repot-fancy', enabled: fancy > 0 },
-      ],
-      TALL_PANEL,
-    ),
+    rows: needsFit(TALL_PANEL, ui)
+      ? [
+          ...rows(items, TALL_PANEL),
+          { ...standard, x: TALL_PANEL.x + PANEL_INSET, y: potsY },
+          { ...fancyPot, x: SECOND_COLUMN_X, y: potsY },
+        ]
+      : rows([...items, standard, fancyPot], TALL_PANEL),
   };
 }
 
@@ -84,24 +114,34 @@ export function sellPanel(tree: BonsaiTree): PanelModel {
 /**
  * Set Style: one row per style, the current one marked `>`, then `(none)`.
  * A tap sets it at once (the prototype selected, then saved); the
- * descriptions are left out to fit the width.
+ * descriptions are left out to fit the width. Where the rows need a taller
+ * pitch (`needsFit`), the choices run down two columns, the left one first,
+ * so the box still fits the canvas.
  */
-export function stylePanel(tree: BonsaiTree): PanelModel {
+export function stylePanel(tree: BonsaiTree, ui: UiMetrics = DESKTOP_UI): PanelModel {
+  const intro = { text: 'Pick a target style for this tree.', id: '' };
+  const choices = [
+    ...STYLE_KEYS.map((key) => ({
+      text: `${tree.targetStyle === key ? '>' : ' '} ${getStyle(key).displayName}`,
+      id: `panel-style-${key}`,
+    })),
+    { text: `${tree.targetStyle === '' ? '>' : ' '} (none)`, id: 'panel-style-none' },
+  ];
+  const perColumn = Math.ceil(choices.length / 2);
   return {
     key: `style:${String(tree.id)}`,
     title: 'Tree Style',
     box: TALL_PANEL,
-    rows: rows(
-      [
-        { text: 'Pick a target style for this tree.', id: '' },
-        ...STYLE_KEYS.map((key) => ({
-          text: `${tree.targetStyle === key ? '>' : ' '} ${getStyle(key).displayName}`,
-          id: `panel-style-${key}`,
-        })),
-        { text: `${tree.targetStyle === '' ? '>' : ' '} (none)`, id: 'panel-style-none' },
-      ],
-      TALL_PANEL,
-    ),
+    rows: needsFit(TALL_PANEL, ui)
+      ? [
+          ...rows([intro], TALL_PANEL),
+          ...choices.map((choice, i) => ({
+            ...choice,
+            x: i < perColumn ? TALL_PANEL.x + PANEL_INSET : SECOND_COLUMN_X,
+            y: rowY(TALL_PANEL, 1 + (i % perColumn)),
+          })),
+        ]
+      : rows([intro, ...choices], TALL_PANEL),
   };
 }
 
@@ -125,10 +165,16 @@ export function renameCounter(typed: string): string {
   return `Enter to save  |  Esc to cancel  |  ${String(n)}/${String(MAX_TREE_NAME_LENGTH)}`;
 }
 
-/** The rename input box in logical px: right of `New name:` on the second row, to the inset. */
-export const RENAME_INPUT = {
-  x: PANEL.x + 80,
-  y: PANEL.y + 36 + PANEL.rowSpacing,
-  w: PANEL.w - 90,
-  h: 16,
-} as const;
+/**
+ * The rename input box in logical px for the panel as drawn (`model` after
+ * `fitRows`): right of `New name:` on its row, to the inset.
+ */
+export function renameInput(model: PanelModel): {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+} {
+  const box = model.box ?? PANEL;
+  return { x: box.x + 80, y: model.rows[1]?.y ?? rowY(box, 1), w: box.w - 90, h: 16 };
+}

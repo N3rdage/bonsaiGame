@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { BODY_STYLE, FONT_FAMILY, FONT_KEY, LABEL_STYLE } from './textStyle';
+import { DESKTOP_UI, PHONE_UI } from '../world/uiScale';
+import { BODY_STYLE, FONT_FAMILY, FONT_KEY, LABEL_STYLE, bodyStyle, labelStyle } from './textStyle';
 
 /** The browser `monospace` default (DejaVu Sans Mono, Liberation Mono, Courier New, Menlo): 0.6 em an advance. */
 const MONOSPACE_ADVANCE_EM = 0.6;
@@ -55,6 +56,14 @@ describe('the pixel font', () => {
     expect(FONT_FAMILY).toBe('VT323, monospace');
     expect(LABEL_STYLE).toEqual({ fontFamily: FONT_FAMILY, fontSize: '8px', color: '#d8e6c8' });
     expect(BODY_STYLE).toEqual({ fontFamily: FONT_FAMILY, fontSize: '10px', color: '#d8e6c8' });
+  });
+
+  it('sizes labels and copy from the UI metrics: 8 and 10 px on desktop, 10 and 10 on the phone', () => {
+    expect(labelStyle(DESKTOP_UI)).toEqual(LABEL_STYLE);
+    expect(bodyStyle(DESKTOP_UI)).toEqual(BODY_STYLE);
+    expect(labelStyle(PHONE_UI)).toEqual({ ...LABEL_STYLE, fontSize: '10px' });
+    expect(bodyStyle(PHONE_UI)).toEqual(BODY_STYLE);
+    expect(labelStyle({ hit: 44, label: 14, body: 14 }).fontSize).toBe('14px');
   });
 
   it('is monospace at 0.4 em an advance (zero-width marks aside), narrower than monospace', () => {

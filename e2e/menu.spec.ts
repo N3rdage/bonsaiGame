@@ -1,5 +1,6 @@
 import type { Page } from '@playwright/test';
-import { MENU_PANEL } from '../src/world/menu';
+import { menuPanel } from '../src/world/menu';
+import { cssPerLogical, uiMetrics } from '../src/world/uiScale';
 import {
   bootWorld,
   closeViewer,
@@ -141,10 +142,19 @@ test.describe('world menu', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await openMenu(page);
-    // Inside the panel's background, above its first row (MENU_PANEL and
-    // menuItems() in src/world/menu.ts: the panel starts at y 16, Save at 27).
-    const x = MENU_PANEL.x + MENU_PANEL.w - 6;
-    const y = MENU_PANEL.y + 2;
+    // Inside the panel's background, above its first row (menuPanel() and
+    // menuItems() in src/world/menu.ts at this screen's UI metrics: on the
+    // desktop the panel starts at y 16, Inventory at 35; on the phone at 28, its
+    // first row's tap target at 31).
+    const box = await page.locator('#game canvas').boundingBox();
+    if (!box) throw new Error('no canvas');
+    const ui = uiMetrics(
+      cssPerLogical(box.width, box.height),
+      test.info().project.use.hasTouch === true,
+    );
+    const panel = menuPanel(false, ui);
+    const x = panel.x + panel.w - 6;
+    const y = panel.y + 2;
     await dragLogical(page, x, y, 60);
     const h = await hook(page);
     expect(h.panel).toBe('menu');

@@ -132,8 +132,20 @@ interface BonsaiTestHook {
    * 'panel-select-<species>' (unselected cuttings), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
    * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), and the Settings panel's 'panel-fullscreen' (only where the browser offers
    * fullscreen), 'panel-weather' and 'panel-close', in the world and on the title (whose menu button is 'settings').
+   * `hit` is the control's tap target (the rect the scene gave Phaser's setInteractive) in logical px, top-left and
+   * size: its text box grown to the UI metrics' `hit` (src/world/uiScale.ts) and kept inside the canvas.
    */
-  readonly controls: readonly { readonly id: string; readonly x: number; readonly y: number }[];
+  readonly controls: readonly {
+    readonly id: string;
+    readonly x: number;
+    readonly y: number;
+    readonly hit: {
+      readonly x: number;
+      readonly y: number;
+      readonly w: number;
+      readonly h: number;
+    };
+  }[];
   /** Added on read by src/main.ts: true while the phone-portrait rotate prompt covers the game and the Phaser loop is paused under it. */
   readonly rotatePrompt?: boolean;
 }
