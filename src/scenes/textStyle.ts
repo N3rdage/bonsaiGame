@@ -3,8 +3,11 @@
  * `@fontsource/vt323` and loaded by `BootScene.preload` under `FONT_KEY`
  * before any scene draws text, with the browser's `monospace` behind it.
  * VT323 is monospace at 0.4 em an advance, narrower than `monospace`'s
- * 0.6 em, so every layout width counted in characters still fits.
+ * 0.6 em, so every layout width counted in characters still fits. The sizes
+ * come from the screen's UI metrics (src/world/uiScale.ts).
  */
+
+import type { UiMetrics } from '../world/uiScale';
 
 /** The family name the font is registered under in `document.fonts`. */
 export const FONT_KEY = 'VT323';
@@ -15,11 +18,27 @@ export const FONT_FAMILY = `${FONT_KEY}, monospace`;
 /** The default text colour of labels and panel copy. */
 export const TEXT_COLOR = '#d8e6c8';
 
-/** The base text style, at the 8 px label size; spread it and override `fontSize` or `color`. */
-export const LABEL_STYLE = { fontFamily: FONT_FAMILY, fontSize: '8px', color: TEXT_COLOR };
+/** A text style of `px` logical px in the default colour; spread it and override `color`. */
+function style(px: number) {
+  return { fontFamily: FONT_FAMILY, fontSize: `${String(px)}px`, color: TEXT_COLOR };
+}
 
-/** The base style at the 10 px size of panel copy and the title's text. */
-export const BODY_STYLE = { ...LABEL_STYLE, fontSize: '10px' };
+/** The label style (8 px at the desktop scale) for `ui`. */
+export function labelStyle(ui: UiMetrics) {
+  return style(ui.label);
+}
+
+/** The panel copy and button style (10 px at the desktop scale) for `ui`. */
+export function bodyStyle(ui: UiMetrics) {
+  return style(ui.body);
+}
+
+/**
+ * The fixed 8 and 10 px styles of the tree inspector, whose layout does not
+ * follow the UI metrics yet (backlog #88).
+ */
+export const LABEL_STYLE = style(8);
+export const BODY_STYLE = style(10);
 
 /**
  * Whether the pixel font is loaded and registered. `document.fonts.check` is

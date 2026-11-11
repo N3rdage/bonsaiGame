@@ -8,26 +8,42 @@ import {
   tutorialStepLabel,
 } from '../sim/tutorial';
 import { GARDEN_ROOM } from './gardenRoom';
-import { CARRY_TEXT, INTERACT_BUTTON } from './menu';
+import {
+  CARRY_TEXT,
+  INTERACT_BUTTON,
+  MENU_BUTTON,
+  NOTEBOOK_BUTTON,
+  VIEW_BUTTON,
+  menuItems,
+} from './menu';
 import { PEDESTAL_LABEL_DY } from './roomArt';
 import { SHED_ROOM, type Prop } from './shedRoom';
 import { PANEL_INSET, panelClose, panelTitleY } from './panels';
 import {
   SKIP_CONFIRM_PANEL,
   TUTORIAL_BOX,
-  TUTORIAL_LINE_H,
   skipConfirmPanel,
+  tutorialLineH,
   tutorialPanel,
+  tutorialWrap,
 } from './tutorialPanel';
+import {
+  DESKTOP_UI,
+  PHONE_UI,
+  estimatedBox,
+  hitRect,
+  rectsOverlap,
+  type UiMetrics,
+  type UiRect,
+} from './uiScale';
 
-// 8 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph (4.8 px) and a 10 px line; 10 px: 6 and 12. Generous upper bounds.
-const GLYPH_8 = 4.9;
+// 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph (6 px) and a 12 px line. Generous upper bounds.
 const GLYPH_10 = 6;
 const LINE_10 = 12;
 
 describe('tutorial corner panel', () => {
   it('shows the heading, the step label, the wrapped body and the hint while a step is active', () => {
-    const m = tutorialPanel(TUTORIAL_WATER, false);
+    const m = tutorialPanel(TUTORIAL_WATER, false, DESKTOP_UI);
     expect(m?.texts.map((t) => t.text)).toEqual([
       'Tutorial',
       "Water Granny's juniper",
@@ -39,48 +55,104 @@ describe('tutorial corner panel', () => {
   });
 
   it('is hidden once the tutorial is done', () => {
-    expect(tutorialPanel(TUTORIAL_DONE, false)).toBeUndefined();
+    expect(tutorialPanel(TUTORIAL_DONE, false, DESKTOP_UI)).toBeUndefined();
   });
 
   it('disables Skip while a modal panel is open', () => {
-    expect(tutorialPanel(TUTORIAL_WATER, true)?.skip.enabled).toBe(false);
+    expect(tutorialPanel(TUTORIAL_WATER, true, DESKTOP_UI)?.skip.enabled).toBe(false);
   });
 
   it('grows upward with the body: one line pitch per extra body line, Skip where it was', () => {
-    const two = tutorialPanel(TUTORIAL_WATER, false);
-    const three = tutorialPanel(TUTORIAL_TRAIN, false);
+    const two = tutorialPanel(TUTORIAL_WATER, false, DESKTOP_UI);
+    const three = tutorialPanel(TUTORIAL_TRAIN, false, DESKTOP_UI);
     expect(two?.texts).toHaveLength(5);
     expect(three?.texts).toHaveLength(6);
-    expect((three?.box.h ?? 0) - (two?.box.h ?? 0)).toBe(TUTORIAL_LINE_H);
-    expect(three?.box.y).toBe((two?.box.y ?? 0) - TUTORIAL_LINE_H);
+    expect((three?.box.h ?? 0) - (two?.box.h ?? 0)).toBe(tutorialLineH(DESKTOP_UI));
+    expect(three?.box.y).toBe((two?.box.y ?? 0) - tutorialLineH(DESKTOP_UI));
     expect(three?.skip.y).toBe(two?.skip.y);
   });
 
   it('fits every step inside its box, bottom-right, under the carry line and above Interact', () => {
-    const { x, bottom, w } = TUTORIAL_BOX;
-    expect(x + w).toBeLessThanOrEqual(480 - 8);
-    for (const step of tutorialAllSteps()) {
-      const m = tutorialPanel(step, false);
-      if (!m) throw new Error('no panel');
-      expect(m.box.y + m.box.h).toBe(bottom);
-      expect(m.box.y).toBeGreaterThanOrEqual(CARRY_TEXT.top + LINE_10);
-      for (const t of m.texts) {
-        expect(t.x + t.text.length * GLYPH_8).toBeLessThanOrEqual(x + w);
-        expect(t.y + TUTORIAL_LINE_H).toBeLessThanOrEqual(m.skip.y + LINE_10);
+    const { bottom } = TUTORIAL_BOX;
+    const right = TUTORIAL_BOX.x + TUTORIAL_BOX.w;
+    expect(right).toBeLessThanOrEqual(480 - 8);
+    for (const ui of [DESKTOP_UI, PHONE_UI]) {
+      // 0.6 em a glyph in the monospace fallback: 4.8 px at 8 px, 6 at 10.
+      const glyph = ui.label * 0.6 + 0.1;
+      for (const step of tutorialAllSteps()) {
+        const m = tutorialPanel(step, false, ui);
+        if (!m) throw new Error('no panel');
+        expect(m.box.y + m.box.h).toBeLessThanOrEqual(bottom);
+        expect(m.box.x + m.box.w).toBe(right);
+        // Clear of the Notebook button's tap target to its left.
+        expect(m.box.x).toBeGreaterThan(NOTEBOOK_BUTTON.left + 'Notebook (J)'.length * GLYPH_10);
+        expect(m.box.y).toBeGreaterThanOrEqual(CARRY_TEXT.top + LINE_10);
+        let above = -Infinity;
+        for (const t of m.texts) {
+          expect(t.x + t.text.length * glyph).toBeLessThanOrEqual(right);
+          expect(t.y + ui.label).toBeLessThanOrEqual(m.skip.y + LINE_10);
+          expect(t.y - above).toBeGreaterThanOrEqual(ui.label);
+          above = t.y;
+        }
+        const hint = m.texts.at(-1);
+        expect((hint?.x ?? 0) + 'Press J for notebook'.length * glyph).toBeLessThan(
+          m.skip.x - 'Skip'.length * GLYPH_10,
+        );
+        expect(m.skip.y + LINE_10).toBeLessThanOrEqual(m.box.y + m.box.h);
+        expect(m.box.y + m.box.h).toBeLessThan(INTERACT_BUTTON.bottom - LINE_10);
+        expect(m.texts[1]?.text).toBe(tutorialStepLabel(step));
+        expect(
+          m.texts
+            .slice(2, -1)
+            .map((t) => t.text)
+            .join(' '),
+        ).toBe(tutorialStepBody(step));
       }
-      const hint = m.texts.at(-1);
-      expect((hint?.x ?? 0) + 'Press J for notebook'.length * GLYPH_8).toBeLessThan(
-        m.skip.x - 'Skip'.length * GLYPH_10,
-      );
-      expect(m.skip.y + LINE_10).toBeLessThanOrEqual(m.box.y + m.box.h);
-      expect(m.box.y + m.box.h).toBeLessThan(INTERACT_BUTTON.bottom - LINE_10);
-      expect(m.texts[1]?.text).toBe(tutorialStepLabel(step));
-      expect(
-        m.texts
-          .slice(2, -1)
-          .map((t) => t.text)
-          .join(' '),
-      ).toBe(tutorialStepBody(step));
+    }
+  });
+
+  it('is laid out as before at the desktop scale and wraps shorter at 10 px', () => {
+    expect(tutorialLineH(DESKTOP_UI)).toBe(10);
+    expect(tutorialWrap(DESKTOP_UI)).toBe(36);
+    expect(tutorialWrap(PHONE_UI)).toBe(28);
+    expect(tutorialLineH(PHONE_UI)).toBe(12);
+    const m = tutorialPanel(TUTORIAL_WATER, false, DESKTOP_UI);
+    expect(m?.box).toEqual({ x: 282, y: 185, w: 190, h: 63 });
+    expect(m?.texts.map((t) => t.y)).toEqual([189, 198, 208, 218, 234]);
+    expect(m?.skip).toEqual({ x: 466, y: 232, enabled: true });
+  });
+
+  it("keeps the HUD's visible tap targets apart and inside the canvas on the phone", () => {
+    const hud = (ui: UiMetrics, step: number, carrying: boolean): UiRect[] => {
+      const m = tutorialPanel(step, false, ui);
+      if (!m) throw new Error('no panel');
+      const boxes = [
+        estimatedBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, ui),
+        estimatedBox('Notebook (J)', NOTEBOOK_BUTTON.left, NOTEBOOK_BUTTON.bottom, 0, 1, ui),
+        estimatedBox('Menu', MENU_BUTTON.left, MENU_BUTTON.top, 0, 0, ui),
+        estimatedBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
+        estimatedBox('Skip', m.skip.x, m.skip.y, 1, 0, ui),
+        ...menuItems(carrying, ui).map((item) =>
+          estimatedBox(item.label, item.x, item.y, 0, 0.5, ui),
+        ),
+      ];
+      return boxes.map((b) => hitRect(b, ui.hit));
+    };
+    for (const ui of [PHONE_UI, DESKTOP_UI]) {
+      for (const step of tutorialAllSteps()) {
+        for (const carrying of [false, true]) {
+          const rects = hud(ui, step, carrying);
+          rects.forEach((a, i) => {
+            expect(a.w).toBeGreaterThanOrEqual(ui.hit);
+            expect(a.h).toBeGreaterThanOrEqual(ui.hit);
+            expect(a.x).toBeGreaterThanOrEqual(0);
+            expect(a.y).toBeGreaterThanOrEqual(0);
+            expect(a.x + a.w).toBeLessThanOrEqual(480);
+            expect(a.y + a.h).toBeLessThanOrEqual(270);
+            for (const b of rects.slice(i + 1)) expect(rectsOverlap(a, b)).toBe(false);
+          });
+        }
+      }
     }
   });
 
@@ -92,7 +164,7 @@ describe('tutorial corner panel', () => {
     );
     expect(props).toHaveLength(5);
     for (const step of tutorialAllSteps()) {
-      const m = tutorialPanel(step, false);
+      const m = tutorialPanel(step, false, DESKTOP_UI);
       if (!m) throw new Error('no panel');
       for (const p of props) expect(m.box.y).toBeGreaterThan(below(p));
     }

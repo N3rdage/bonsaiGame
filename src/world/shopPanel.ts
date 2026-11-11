@@ -8,7 +8,8 @@
 import { inventoryCount } from '../sim/inventory';
 import { SHOP_CATALOGUE, type ShopItem } from '../sim/shop';
 import type { GameState } from '../sim/types';
-import { PANEL_INSET, rowY, type PanelModel, type PanelRow } from './panels';
+import { PANEL_INSET, needsFit, panelClose, rowY, type PanelModel, type PanelRow } from './panels';
+import { DESKTOP_UI, type UiMetrics } from './uiScale';
 
 /** The prop whose interaction opens the shop. */
 export const SHOP_KIOSK_KEY = 'shop_kiosk';
@@ -39,8 +40,15 @@ export function shopItemFor(id: string): ShopItem | undefined {
   return SHOP_CATALOGUE.find((item) => buyId(item) === id);
 }
 
-/** The shop over `state`: a Buy is enabled only while the player can afford one unit. */
-export function shopPanel(state: Pick<GameState, 'money' | 'inventory'>): PanelModel {
+/**
+ * The shop over `state`: a Buy is enabled only while the player can afford
+ * one unit. Where the Buy rows need a taller pitch (`needsFit`), the footer
+ * moves onto Close's line, left of it, so the box still fits the canvas.
+ */
+export function shopPanel(
+  state: Pick<GameState, 'money' | 'inventory'>,
+  ui: UiMetrics = DESKTOP_UI,
+): PanelModel {
   const cell = (line: number, x: number, text: string, color = ITEM_COLOR): PanelRow => ({
     text,
     id: '',
@@ -65,11 +73,9 @@ export function shopPanel(state: Pick<GameState, 'money' | 'inventory'>): PanelM
       enabled: state.money >= item.price,
     },
   ]);
-  const footer = cell(
-    SHOP_CATALOGUE.length + 1,
-    SHOP_COLUMNS.item,
-    `Money: $${String(state.money)}`,
-    SHOP_FOOTER_COLOR,
-  );
+  const money = `Money: $${String(state.money)}`;
+  const footer = needsFit(SHOP_PANEL, ui)
+    ? { ...cell(0, SHOP_COLUMNS.item, money, SHOP_FOOTER_COLOR), y: panelClose(SHOP_PANEL).y }
+    : cell(SHOP_CATALOGUE.length + 1, SHOP_COLUMNS.item, money, SHOP_FOOTER_COLOR);
   return { key: 'shop', title: 'Shop', box: SHOP_PANEL, rows: [...header, ...items, footer] };
 }

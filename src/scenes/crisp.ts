@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, cameraZoom } from '../world/resolution';
+import { cssPerLogical, hitRect, uiMetrics, type UiMetrics } from '../world/uiScale';
 
 /** Device px per logical px the scene's main camera renders at, horizontally. */
 export function sceneZoom(scene: Phaser.Scene): number {
@@ -61,6 +62,53 @@ export function fitCamera(
   scene.events.once('shutdown', () => {
     scene.scale.off('resize', refit);
   });
+}
+
+/**
+ * The screen's UI metrics (src/world/uiScale.ts): the fitted canvas's CSS
+ * size (`scale.displaySize`) and whether the device has a touch screen.
+ * `zoom` is the camera's own zoom over the canvas, 1 for the HUD's.
+ */
+export function sceneUi(scene: Phaser.Scene, zoom = 1): UiMetrics {
+  const { width, height } = scene.scale.displaySize;
+  return uiMetrics(cssPerLogical(width, height) * zoom, scene.sys.game.device.input.touch);
+}
+
+/**
+ * Makes `text` a control whose tappable area is `hitRect` of its bounds:
+ * at least `hit` square round its centre and inside the canvas. The area is
+ * given in the Text's local space (0..width, 0..height whatever its origin),
+ * so it must be applied after the origin is set; applying it again (on a
+ * resize) replaces it.
+ */
+export function setHitArea(text: Phaser.GameObjects.Text, hit: number): Phaser.GameObjects.Text {
+  const topLeft = text.getTopLeft();
+  const r = hitRect({ x: topLeft.x, y: topLeft.y, w: text.width, h: text.height }, hit);
+  const local = new Phaser.Geom.Rectangle(r.x - topLeft.x, r.y - topLeft.y, r.w, r.h);
+  if (text.input) {
+    text.input.hitArea = local;
+    return text;
+  }
+  return text.setInteractive({
+    hitArea: local,
+    hitAreaCallback: (area: Phaser.Geom.Rectangle, x: number, y: number) =>
+      Phaser.Geom.Rectangle.Contains(area, x, y),
+    useHandCursor: true,
+  });
+}
+
+/** The tappable area `setHitArea` gave `text`, in logical px (top-left and size), for the test hook. */
+export function hitArea(text: Phaser.GameObjects.Text): {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+} {
+  const topLeft = text.getTopLeft();
+  const area = text.input?.hitArea as Phaser.Geom.Rectangle | undefined;
+  return area
+    ? { x: topLeft.x + area.x, y: topLeft.y + area.y, w: area.width, h: area.height }
+    : { x: topLeft.x, y: topLeft.y, w: text.width, h: text.height };
 }
 
 /** A Text in logical px whose texture is drawn at the main camera's zoom, so its glyphs land 1:1 on device px. */

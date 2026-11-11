@@ -6,7 +6,9 @@
  */
 
 import { TUTORIAL_DONE, tutorialStepBody, tutorialStepLabel } from '../sim/tutorial';
+import { INTERACT_BUTTON } from './menu';
 import { PANEL_INSET, panelClose, rowY, wrapLines, type PanelModel } from './panels';
+import { estimatedBox, hitRect, type UiMetrics } from './uiScale';
 
 /**
  * The corner box's left edge, bottom and width; its height follows the body,
@@ -18,18 +20,44 @@ import { PANEL_INSET, panelClose, rowY, wrapLines, type PanelModel } from './pan
 export const TUTORIAL_BOX = { x: 282, bottom: 248, w: 190 } as const;
 /** Left inset of the texts. */
 export const TUTORIAL_INSET = 6;
-/** Pitch of the 8 px body lines. */
-export const TUTORIAL_LINE_H = 10;
-/** Characters per body line: the inner width at 8 px in the monospace fallback (about 4.8 px a glyph; VT323 is 3.2). */
+/** Characters per body line at 8 px: the inner width in the monospace fallback (about 4.8 px a glyph; VT323 is 3.2). */
 export const TUTORIAL_WRAP = 36;
 /** Height of the hint and Skip line (Skip is a 10 px button). */
 const SKIP_LINE_H = 12;
-/** Offsets from the top: the heading, the step label, the first body line (prototype 8, 26, 46, halved). */
+/**
+ * Offset of the heading from the top; the step label sits a label and 1 px
+ * below it, the body a line pitch below that (at 8 px: 4, 13, 23, the
+ * prototype's 8, 26, 46 halved).
+ */
 const HEADING_DY = 4;
-const LABEL_DY = 13;
-const BODY_DY = 23;
 /** Gap above the hint and Skip line, and under it. */
 const GAP = 4;
+
+/** Pitch of the label-sized body lines: 10 at 8 px. */
+export function tutorialLineH(ui: UiMetrics): number {
+  return ui.label + 2;
+}
+
+/** Characters per body line at `ui`'s label size: TUTORIAL_WRAP at 8 px, fewer as the glyphs grow. */
+export function tutorialWrap(ui: UiMetrics): number {
+  return Math.floor((TUTORIAL_WRAP * 8) / ui.label);
+}
+
+/**
+ * The lowest the box's bottom can sit for Skip's tap target to clear
+ * `Interact (E)`'s: TUTORIAL_BOX.bottom while the targets are small, higher
+ * where they are taller.
+ */
+function boxBottom(ui: UiMetrics): number {
+  const interact = hitRect(
+    estimatedBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
+    ui.hit,
+  );
+  // Skip's text sits SKIP_LINE_H + GAP above the bottom; its target reaches half a target below its centre.
+  const below = ui.body / 2 + Math.max(ui.hit, ui.body) / 2;
+  const skipY = Math.floor(interact.y - below);
+  return Math.min(TUTORIAL_BOX.bottom, skipY + SKIP_LINE_H + GAP);
+}
 
 /** The prototype's heading green rgb(170, 200, 150), body grey rgb(190, 190, 190) and hint rgb(140, 160, 130). */
 export const TUTORIAL_HEADING_COLOR = '#aac896';
@@ -53,24 +81,38 @@ export interface TutorialPanelModel {
   readonly skip: { readonly x: number; readonly y: number; readonly enabled: boolean };
 }
 
-/** The corner panel for `step`, or undefined once the tutorial is done. */
-export function tutorialPanel(step: number, modalOpen: boolean): TutorialPanelModel | undefined {
+/**
+ * The corner panel for `step` at `ui`'s sizes, or undefined once the tutorial
+ * is done. The texts are label-sized; the box rises where Skip's tap target
+ * would reach `Interact (E)`'s.
+ */
+export function tutorialPanel(
+  step: number,
+  modalOpen: boolean,
+  ui: UiMetrics,
+): TutorialPanelModel | undefined {
   if (step === TUTORIAL_DONE) return undefined;
-  const { x, bottom, w } = TUTORIAL_BOX;
+  // Wider in proportion to the label size, from the same right edge, so the longest step label still fits.
+  const w = Math.round((TUTORIAL_BOX.w * ui.label) / 8);
+  const x = TUTORIAL_BOX.x + TUTORIAL_BOX.w - w;
+  const bottom = boxBottom(ui);
   const left = x + TUTORIAL_INSET;
-  const body = wrapLines(tutorialStepBody(step), TUTORIAL_WRAP);
-  const h = BODY_DY + body.length * TUTORIAL_LINE_H + GAP + SKIP_LINE_H + GAP;
+  const lineH = tutorialLineH(ui);
+  const labelDy = HEADING_DY + ui.label + 1;
+  const bodyDy = labelDy + lineH;
+  const body = wrapLines(tutorialStepBody(step), tutorialWrap(ui));
+  const h = bodyDy + body.length * lineH + GAP + SKIP_LINE_H + GAP;
   const y = bottom - h;
-  const skipY = y + BODY_DY + body.length * TUTORIAL_LINE_H + GAP;
+  const skipY = y + bodyDy + body.length * lineH + GAP;
   return {
     box: { x, y, w, h },
     texts: [
       { text: 'Tutorial', x: left, y: y + HEADING_DY, color: TUTORIAL_HEADING_COLOR },
-      { text: tutorialStepLabel(step), x: left, y: y + LABEL_DY, color: LABEL_COLOR },
+      { text: tutorialStepLabel(step), x: left, y: y + labelDy, color: LABEL_COLOR },
       ...body.map((text, i) => ({
         text,
         x: left,
-        y: y + BODY_DY + i * TUTORIAL_LINE_H,
+        y: y + bodyDy + i * lineH,
         color: BODY_COLOR,
       })),
       { text: 'Press J for notebook', x: left, y: skipY + 2, color: HINT_COLOR },
