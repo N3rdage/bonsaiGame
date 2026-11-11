@@ -68,7 +68,8 @@ export function plantSelection(
 
 /** The species of each `kind` in stock, in SPECIES_KEYS order, with the count. */
 function inStock(state: Pick<GameState, 'inventory'>, kind: Origin): [SpeciesKey, number][] {
-  const keys: Partial<Record<SpeciesKey, InventoryKey>> = kind === 'seed' ? SEED_KEYS : CUTTING_KEYS;
+  const keys: Partial<Record<SpeciesKey, InventoryKey>> =
+    kind === 'seed' ? SEED_KEYS : CUTTING_KEYS;
   return SPECIES_KEYS.flatMap((species): [SpeciesKey, number][] => {
     const key = keys[species];
     const count = key === undefined ? 0 : inventoryCount(state.inventory, key);

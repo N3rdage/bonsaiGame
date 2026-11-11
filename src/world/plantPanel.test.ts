@@ -136,7 +136,7 @@ describe('plant panel', () => {
       ['Plant Cutting'],
     ]);
     const model = plantPanel(state, NO_SELECTION);
-    expect(model.rows.filter((r) => r.text === 'Juniper  x1')[0]?.x).toBe(240);
+    expect(model.rows.find((r) => r.text === 'Juniper  x1')?.x).toBe(240);
     expect(controls(state)).toEqual([
       'panel-select-juniper',
       'panel-select-seed-juniper',
