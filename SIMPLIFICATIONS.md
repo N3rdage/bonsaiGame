@@ -54,6 +54,10 @@ Entries should record:
 - **Display revenue is flat per day.** Real-world: audience fatigue (same tree shown too long loses appeal), seasonal interest peaks (autumn maple shows fetch more in autumn).
 - **No collector reputation / commission system.** Real-world: a hobbyist economy runs on relationships, themed shows, judged competitions.
 
+## Audio
+
+- **The game is silent, and the mixer is two switches.** Settings has `Sound` and `Music` on/off rows and every future play call goes through `audioAllowed` (`src/platform/audio.ts`), but no file plays until backlog 7-b (sound effects) and 7-c (music) land. There are no volume sliders or separate ambience channel. Notes: the prototype had no mixer; a volume slider would be a design decision for Drew.
+
 ---
 
 When adding a new entry: keep it to 2–3 lines. If it grows enough to need real explanation, it probably wants a design doc instead.

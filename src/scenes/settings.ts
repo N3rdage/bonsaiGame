@@ -9,7 +9,8 @@ export function fullscreenState(scene: Phaser.Scene): FullscreenState {
 }
 
 /**
- * Applies a Settings panel toggle (`panel-fullscreen` or `panel-weather`) to
+ * Applies a Settings panel toggle (`panel-fullscreen`, `panel-weather`,
+ * `panel-sound` or `panel-music`) to
  * the shared settings and saves them. Called inside the tap, the user gesture
  * the browser requires before it enters fullscreen.
  */
@@ -21,6 +22,10 @@ export function toggleSetting(scene: Phaser.Scene, ctx: SharedSceneData, id: str
     ctx.settings.fullscreen = enter;
   } else if (id === 'panel-weather') {
     ctx.settings.weather = !ctx.settings.weather;
+  } else if (id === 'panel-sound') {
+    ctx.settings.sound = !ctx.settings.sound;
+  } else if (id === 'panel-music') {
+    ctx.settings.music = !ctx.settings.music;
   } else {
     return;
   }
