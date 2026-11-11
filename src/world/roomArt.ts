@@ -3,13 +3,22 @@
  * (obj_game_controller Draw_0), the wall and fence runs (Other_4's ring,
  * obj_wall Draw_0), the garden's mitred fence corners (Draw_73), the shed's
  * floor dim and rug, each prop's sprite and the drop shadows (the props' Draw
- * events). The prototype's numbers are in prototype px and halved here.
+ * events), with each room's sheets and extras in one table, ROOM_STYLES. The
+ * prototype's numbers are in prototype px and halved here.
  */
 
 import { SHEETS, PEDESTAL_SCALE, SPRITE_SCALE, floorFrame, sourcePlantFrame } from './assets';
 import type { Sheet } from './assets';
 import { DOORWAY } from './gardenRoom';
-import { fromPrototype, insideWalls, type Prop, type Rect, type Room } from './shedRoom';
+import {
+  fromPrototype,
+  insideWalls,
+  type Gap,
+  type Prop,
+  type Rect,
+  type Room,
+  type RoomKey,
+} from './shedRoom';
 
 /** One prototype tile, 32 px, in logical px. */
 export const TILE = fromPrototype(32);
@@ -21,16 +30,79 @@ export interface FloorTiles {
   readonly frames: readonly (readonly number[])[];
 }
 
+/** Draw_0: the shed floor dimmed by black at 0.12 alpha. */
+export const SHED_FLOOR_DIM = 0.12;
+
+/** Draw_0's central rug: prototype (360, 220)..(600, 360), its outline and the border inset 7 px. */
+export const SHED_RUG = {
+  x: fromPrototype(360),
+  y: fromPrototype(220),
+  w: fromPrototype(600 - 360),
+  h: fromPrototype(360 - 220),
+  inset: fromPrototype(7),
+  fill: 0x784842,
+  outline: 0x55322e,
+  border: 0x9b6e5f,
+} as const;
+
+/** How a room's static art is drawn: its sheets, and what lies on and around its floor. */
+export interface RoomStyle {
+  readonly floor: Sheet;
+  /** The ring's top and bottom rows, and its left and right columns. */
+  readonly wallRow: Sheet;
+  readonly wallColumn: Sheet;
+  /** An inset room's floor fills only the inside of its ring; an outdoor one fills the canvas. */
+  readonly inset: boolean;
+  /** The ring's four corner tiles are left out for the mitred fence corners (fenceCorners). */
+  readonly fenced: boolean;
+  /** A gap in the ring's left column (the garden's doorway). */
+  readonly leftGap?: Gap;
+  /** Black over the floor at this alpha, 0 for none. */
+  readonly floorDim: number;
+  readonly rug?: typeof SHED_RUG;
+}
+
+/** The lounge (new content) is drawn as the shed is, with its own carpet and papered walls and no dim or rug. */
+export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
+  shed: {
+    floor: SHEETS.floorShed,
+    wallRow: SHEETS.wall,
+    wallColumn: SHEETS.wall,
+    inset: true,
+    fenced: false,
+    floorDim: SHED_FLOOR_DIM,
+    rug: SHED_RUG,
+  },
+  garden: {
+    floor: SHEETS.floorGarden,
+    wallRow: SHEETS.fence,
+    wallColumn: SHEETS.fenceV,
+    inset: false,
+    fenced: true,
+    leftGap: DOORWAY,
+    floorDim: 0,
+  },
+  lounge: {
+    floor: SHEETS.floorLounge,
+    wallRow: SHEETS.wallLounge,
+    wallColumn: SHEETS.wallLounge,
+    inset: true,
+    fenced: false,
+    floorDim: 0,
+  },
+};
+
 /**
- * Draw_0: the shed floor fills only the inside of its ring, (SHED_X0 + 32,
- * SHED_Y0 + 32) to (SHED_X1, SHED_Y1), the dark background showing round it;
- * the garden's fills the room. Each tile's frame hashes its column and row in
- * the room, so a tile keeps its frame wherever the area starts.
+ * Draw_0: an inset room's floor (the shed's, the lounge's) fills only the
+ * inside of its ring, (SHED_X0 + 32, SHED_Y0 + 32) to (SHED_X1, SHED_Y1), the
+ * dark background showing round it; the garden's fills the room. Each tile's
+ * frame hashes its column and row in the room, so a tile keeps its frame
+ * wherever the area starts.
  */
 export function floorTiles(room: Room): FloorTiles {
-  const shed = room.key === 'shed';
-  const sheet = shed ? SHEETS.floorShed : SHEETS.floorGarden;
-  const area = shed ? insideWalls(room) : { x: 0, y: 0, w: room.width, h: room.height };
+  const style = ROOM_STYLES[room.key];
+  const sheet = style.floor;
+  const area = style.inset ? insideWalls(room) : { x: 0, y: 0, w: room.width, h: room.height };
   const column0 = area.x / TILE;
   const row0 = area.y / TILE;
   const frames = Array.from({ length: Math.ceil(area.h / TILE) }, (_, row) =>
@@ -52,26 +124,24 @@ export interface WallRun extends Rect {
  * left one broken by the doorway). The garden's rows start at 0 and
  * room_height - 32, so on its 540 px room the side columns' last tile overlaps
  * the bottom row; the shed's ring, SHED_X0..SHED_Y1, is whole tiles. The shed's
- * tiles are all `spr_wall`; the garden's rows are `spr_fence`, its columns
- * `spr_fence_v`, and its four corner tiles are left out (obj_wall Draw_0) for
- * the mitred corners.
+ * tiles are all `spr_wall` and the lounge's all `spr_wall_lounge`; the
+ * garden's rows are `spr_fence`, its columns `spr_fence_v`, and its four
+ * corner tiles are left out (obj_wall Draw_0) for the mitred corners.
  */
 export function wallRuns(room: Room): WallRun[] {
-  const garden = room.key === 'garden';
+  const { wallRow: row, wallColumn: column, fenced, leftGap } = ROOM_STYLES[room.key];
   const { x, y, w, h } = room.bounds;
   const bottom = y + h - TILE;
   const right = x + w - TILE;
-  const rowFrom = garden ? x + TILE : x;
-  const rowW = w - (garden ? 2 * TILE : 0);
-  const row = garden ? SHEETS.fence : SHEETS.wall;
-  const column = garden ? SHEETS.fenceV : SHEETS.wall;
+  const rowFrom = fenced ? x + TILE : x;
+  const rowW = w - (fenced ? 2 * TILE : 0);
   const top = y + TILE;
   // Other_4: for (_wy = _y0 + 32; _wy < _y1; _wy += 32), so the last tile starts before the bottom row.
   const columnEnd = top + TILE * Math.ceil((bottom - top) / TILE);
-  const left: Rect[] = garden
+  const left: Rect[] = leftGap
     ? [
-        { x, y: top, w: TILE, h: DOORWAY.top - top },
-        { x, y: DOORWAY.bottom, w: TILE, h: columnEnd - DOORWAY.bottom },
+        { x, y: top, w: TILE, h: leftGap.top - top },
+        { x, y: leftGap.bottom, w: TILE, h: columnEnd - leftGap.bottom },
       ]
     : [{ x, y: top, w: TILE, h: columnEnd - top }];
   return [
@@ -99,10 +169,10 @@ const TILE_PX = 32;
 /**
  * Draw_73: each garden corner tile mitres the two rails of the runs it joins
  * into two nested L's, each leg a 3 px rail (mid, a light first pixel, a dark
- * last one). Rects in logical px, in draw order; none for the shed.
+ * last one). Rects in logical px, in draw order; none for the indoor rooms.
  */
 export function fenceCorners(room: Room): ColourRect[] {
-  if (room.key !== 'garden') return [];
+  if (!ROOM_STYLES[room.key].fenced) return [];
   const w = room.width * 2;
   const h = room.height * 2;
   const corners = [
@@ -150,21 +220,6 @@ export function fenceCorners(room: Room): ColourRect[] {
   }
   return rects;
 }
-
-/** Draw_0: the shed floor dimmed by black at 0.12 alpha. */
-export const SHED_FLOOR_DIM = 0.12;
-
-/** Draw_0's central rug: prototype (360, 220)..(600, 360), its outline and the border inset 7 px. */
-export const SHED_RUG = {
-  x: fromPrototype(360),
-  y: fromPrototype(220),
-  w: fromPrototype(600 - 360),
-  h: fromPrototype(360 - 220),
-  inset: fromPrototype(7),
-  fill: 0x784842,
-  outline: 0x55322e,
-  border: 0x9b6e5f,
-} as const;
 
 /** A prop's sprite: sheet and frame, centred on (x, y) at `scale`, drawn at `depth`. */
 export interface PropSprite {

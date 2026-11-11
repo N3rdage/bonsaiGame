@@ -1,6 +1,6 @@
 /**
  * The shed, the room a new game starts in, as pure data, and the shape every
- * room shares (the garden is in gardenRoom.ts).
+ * room shares (the garden is in gardenRoom.ts, the lounge in loungeRoom.ts).
  *
  * The prototype's rooms are 960x540; the web build's logical canvas is 480x270
  * (`GAME_WIDTH`/`GAME_HEIGHT` in resolution.ts), so every prototype coordinate and
@@ -29,7 +29,7 @@ export interface Rect {
 }
 
 /** The rooms the world can show; also the `location` of a tree on that room's floor. */
-export type RoomKey = 'shed' | 'garden';
+export type RoomKey = 'shed' | 'garden' | 'lounge';
 
 /** Where a door leads (obj_door's `target_room`, `target_x`, `target_y`), logical px. */
 export interface DoorTarget {
@@ -117,7 +117,8 @@ export const SHED_RING = {
   y1: fromPrototype(416),
 } as const;
 
-const SHED_BOUNDS: Rect = {
+/** The shed ring's outer edge; the lounge shares it. */
+export const SHED_BOUNDS: Rect = {
   x: SHED_RING.x0,
   y: SHED_RING.y0,
   w: SHED_RING.x1 + WALL_BAND - SHED_RING.x0,
@@ -168,6 +169,12 @@ export const SHED_ROOM: Room = {
     {
       ...prop('door', 'Door', 'To Garden', 464 + 16, 416 + 16, 16, 16),
       target: { room: 'garden', x: fromPrototype(100), y: fromPrototype(450) },
+    },
+    // New content (the prototype had no interiors): the lounge door, the same
+    // 32 px square in the top wall, landing 26 px below it in the lounge.
+    {
+      ...prop('door_lounge', 'Door', 'To Lounge', 464 + 16, 96 + 16, 16, 16),
+      target: { room: 'lounge', x: 240, y: 190 },
     },
   ],
   // rm_shed's background colour 4279770660 is ABGR 0xff181e24.
