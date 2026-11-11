@@ -34,13 +34,6 @@ export function bodyStyle(ui: UiMetrics) {
 }
 
 /**
- * The fixed 8 and 10 px styles of the tree inspector, whose layout does not
- * follow the UI metrics yet (backlog #88).
- */
-export const LABEL_STYLE = style(8);
-export const BODY_STYLE = style(10);
-
-/**
  * Whether the pixel font is loaded and registered. `document.fonts.check` is
  * not enough: it also answers true when no face of the family exists at all.
  */
