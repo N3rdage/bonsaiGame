@@ -9,7 +9,7 @@
 
 import { clamp } from './vec3';
 import { inventoryHas, inventoryRemove } from './inventory';
-import { seasonForDay, seasonGrowthMultiplier, seasonWaterMultiplier } from './seasons';
+import { seasonForDay, seasonGrowthMultiplier, seasonWaterMultiplier, type Season } from './seasons';
 import { getSpecies } from './species';
 import { addBranch, markDirty } from './tree';
 import type { BonsaiTree, GameState, InventoryKey, PotTier, Rng, SoilTier } from './types';
@@ -28,6 +28,8 @@ export const PREMIUM_SOIL_STRESS_MULT = 0.5;
 
 /** Minimum days between repots. */
 export const REPOT_COOLDOWN_DAYS = 60;
+/** The seasons a tree can be repotted in. */
+export const REPOT_SEASONS: readonly Season[] = ['spring'];
 
 /** Natural branch spawning stops once a tree has this many branches. */
 export const MAX_NATURAL_BRANCHES = 15;
@@ -138,9 +140,9 @@ export function fertilizeTree(tree: BonsaiTree, state: GameState): boolean {
 
 export type RepotStatus = 'ok' | 'out_of_season' | 'cooldown';
 
-/** Whether the tree can be repotted now: spring only, REPOT_COOLDOWN_DAYS apart. */
+/** Whether the tree can be repotted now: in REPOT_SEASONS (spring) only, REPOT_COOLDOWN_DAYS apart. */
 export function repotCheck(tree: BonsaiTree, state: GameState): RepotStatus {
-  if (seasonForDay(state.day) !== 'spring') return 'out_of_season';
+  if (!REPOT_SEASONS.includes(seasonForDay(state.day))) return 'out_of_season';
   if (state.day - tree.lastRepotDay < REPOT_COOLDOWN_DAYS) return 'cooldown';
   return 'ok';
 }
