@@ -6,6 +6,7 @@
 
 import { getSpecies } from '../sim/species';
 import type { SpeciesKey } from '../sim/types';
+import { LOUNGE_ROOM } from './loungeRoom';
 import {
   SHED_ROOM,
   fromPrototype,
@@ -67,4 +68,8 @@ export const GARDEN_ROOM: Room = {
   floor: 0x30502c,
 };
 
-export const ROOMS: Record<RoomKey, Room> = { shed: SHED_ROOM, garden: GARDEN_ROOM };
+export const ROOMS: Record<RoomKey, Room> = {
+  shed: SHED_ROOM,
+  garden: GARDEN_ROOM,
+  lounge: LOUNGE_ROOM,
+};

@@ -3,7 +3,9 @@
  * (which loads them), the world scene and the tests. Each sheet is one
  * prototype sprite, packed by `npm run art:sheets` (art/sheets.mjs) from
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
- * horizontal strip in the order of the sprite's `.yy` frames.
+ * horizontal strip in the order of the sprite's `.yy` frames. The lounge's
+ * tiles have no prototype sprite; `npm run art:interiors` (art/interiors.mjs)
+ * draws them.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -38,6 +40,9 @@ export const SHEETS = {
   plantingTable: sheet('spr_planting_table'),
   shopKiosk: sheet('spr_shop_kiosk'),
   pedestal: sheet('spr_pedestal'),
+  // The lounge's placeholder tiles, drawn by art/interiors.mjs (the prototype had no interiors).
+  floorLounge: sheet('spr_floor_lounge', 3),
+  wallLounge: sheet('spr_wall_lounge'),
 } as const satisfies Record<string, Sheet>;
 
 /** Every sheet, in load order. */

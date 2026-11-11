@@ -141,12 +141,12 @@ export const SHED_WEATHER_AREA: WeatherArea = {
 /** Spawn and wrap band just outside the area: the prototype's 24 px, halved. */
 export const WEATHER_MARGIN = fromPrototype(24);
 
-/** Whether a room has the indoor motes; the garden has the season's weather. */
+/** Whether a room has the indoor motes (the shed, the lounge); the garden has the season's weather. */
 export function isIndoor(room: Room): boolean {
-  return room.key === 'shed';
+  return room.key === 'shed' || room.key === 'lounge';
 }
 
-/** The shed's interior, or the whole room for the garden. */
+/** The shed's interior (which the lounge shares), or the whole room for the garden. */
 export function weatherArea(room: Room): WeatherArea {
   return isIndoor(room) ? SHED_WEATHER_AREA : { x0: 0, y0: 0, x1: room.width, y1: room.height };
 }
