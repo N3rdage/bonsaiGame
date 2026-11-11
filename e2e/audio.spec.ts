@@ -9,6 +9,7 @@ import {
   interact,
   openInspector,
   openSettingsFromMenu,
+  openSettingsFromTitle,
   startNewGame,
   tapControl,
   test,
@@ -73,17 +74,17 @@ test.describe('sound effects', () => {
     page,
   }) => {
     const errors = collectErrors(page);
-    await bootWorld(page);
-    await openSettingsFromMenu(page);
-    await setSound(page, false);
-
-    // A fresh page with the stored switch off: nothing has played yet.
+    // A fresh page: Sound off on the title's Settings, then a new world, where nothing has played.
     await toTitle(page);
-    expect((await hook(page)).settings.sound).toBe(false);
+    await openSettingsFromTitle(page);
+    await setSound(page, false);
+    await tapControl(page, 'panel-close');
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
     await startNewGame(page);
     await page.waitForFunction(
       () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
     );
+    expect((await hook(page)).lastSound).toBe('');
     await inspectStarter(page);
     await inspectorAction(page, 'water');
     await page.waitForFunction(() => window.__bonsai?.inspected?.waterLevel === 100);
