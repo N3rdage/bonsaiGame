@@ -1,7 +1,8 @@
 /**
  * The Settings panel (obj_ui_settings) as a PanelModel in the standard PANEL:
- * `Fullscreen: On|Off` and `Weather effects: On|Off`, each a toggle, then
- * Close. Pure; the title and the world draw it, apply a toggle, save and
+ * `Fullscreen: On|Off`, `Weather effects: On|Off`, `Sound: On|Off` and
+ * `Music: On|Off`, each a toggle, then Close (fitRows grows the box to hold
+ * them at phone tap targets). Pure; the title and the world draw it, apply a toggle, save and
  * reopen it. The prototype's Window scale row is not ported.
  */
 
@@ -32,6 +33,8 @@ export function settingsPanel(settings: Settings, fullscreen: FullscreenState): 
         ? { text: `Fullscreen: ${onOff(fullscreen.active)}`, id: 'panel-fullscreen' }
         : { text: 'Fullscreen: not available', id: 'panel-fullscreen', enabled: false },
       { text: `Weather effects: ${onOff(settings.weather)}`, id: 'panel-weather' },
+      { text: `Sound: ${onOff(settings.sound)}`, id: 'panel-sound' },
+      { text: `Music: ${onOff(settings.music)}`, id: 'panel-music' },
     ]),
   };
 }

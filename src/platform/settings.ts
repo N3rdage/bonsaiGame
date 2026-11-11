@@ -9,10 +9,19 @@
 export interface Settings {
   fullscreen: boolean;
   weather: boolean;
+  /** Sound effects on or off; every play call goes through audioAllowed (audio.ts). */
+  sound: boolean;
+  /** Music on or off, gated the same way. */
+  music: boolean;
 }
 
-/** init_settings: windowed, weather particles on. */
-export const DEFAULT_SETTINGS: Readonly<Settings> = { fullscreen: false, weather: true };
+/** init_settings: windowed, weather particles on; sound and music on (the prototype had no mixer). */
+export const DEFAULT_SETTINGS: Readonly<Settings> = {
+  fullscreen: false,
+  weather: true,
+  sound: true,
+  music: true,
+};
 
 /** Where the settings text lives; read gives undefined when there is none or it cannot be read. */
 export interface SettingsStorage {
@@ -46,5 +55,6 @@ export function loadSettings(storage: SettingsStorage): Settings {
 
 /** save_settings. */
 export function saveSettings(storage: SettingsStorage, settings: Settings): void {
-  storage.write(JSON.stringify({ fullscreen: settings.fullscreen, weather: settings.weather }));
+  const { fullscreen, weather, sound, music } = settings;
+  storage.write(JSON.stringify({ fullscreen, weather, sound, music }));
 }

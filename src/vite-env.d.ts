@@ -44,7 +44,7 @@ interface BonsaiTestHook {
   readonly paused: boolean;
   /** The 3D tree viewer, once the scene has created it. */
   readonly viewer?: BonsaiViewerHook;
-  /** Key of the room the world is showing, 'shed' or 'garden'; '' on the title. */
+  /** Key of the room the world is showing, 'shed', 'garden', 'lounge', 'hallway' or 'study'; '' on the title. */
   readonly room: string;
   /** The 2D player in logical px (feet position) and its facing: 'right', 'left', 'down' or 'up'. */
   readonly player: { readonly x: number; readonly y: number; readonly facing: string };
@@ -65,10 +65,15 @@ interface BonsaiTestHook {
   readonly toast: string;
   /** Title only: the open panel, 'new' or 'load' (slot picker) or 'confirm' (overwrite); '' otherwise. */
   readonly picker: string;
-  /** World: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'plant' (Plant a Cutting), 'notebook', 'inventory', 'tutorial-skip' (the Skip confirmation) or 'settings'; '' otherwise. Title: 'settings' while its Settings panel is up, else ''. */
+  /** World: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'plant' (the planting table's Plant), 'notebook', 'inventory', 'tutorial-skip' (the Skip confirmation) or 'settings'; '' otherwise. Title: 'settings' while its Settings panel is up, else ''. */
   readonly panel: string;
-  /** Both scenes: the stored settings (the Fullscreen row itself shows the live state, which can differ). */
-  readonly settings: { readonly fullscreen: boolean; readonly weather: boolean };
+  /** Both scenes: the stored settings, the Sound and Music switches included (the Fullscreen row itself shows the live state, which can differ). */
+  readonly settings: {
+    readonly fullscreen: boolean;
+    readonly weather: boolean;
+    readonly sound: boolean;
+    readonly music: boolean;
+  };
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
   /** World only: label (name, or species display name) of the tree carried (location 'inventory'), or '' (always on the title). */
@@ -83,9 +88,11 @@ interface BonsaiTestHook {
   readonly inventory: Readonly<Record<string, number>>;
   /** World: `state.tutorialStep` (0 Water, 1 Skip a week, ..., -1 done). Title: -1. */
   readonly tutorialStep: number;
-  /** World only: the step label the tutorial corner panel shows, '' while it is not shown (tutorial done, or under the viewer). */
+  /** World only: the label the tutorial corner panel shows (the step's, or the season tip's first sentence while the tip is held), '' while it is not shown (tutorial done and no tip, or under the viewer). */
   readonly tutorialLabel?: string;
-  /** World only: the open notebook page's indicator ('Page 1 / 5'), title and badge ('done', 'in progress', 'not yet', '' on the finale); undefined while the notebook is closed. */
+  /** World only: the first-dormancy season tip the corner panel holds ('Winter: Japanese Maple is dormant. ...'), '' when none. */
+  readonly seasonTip?: string;
+  /** World only: the open notebook page's indicator ('Page 1 / 6'), title and badge ('done', 'in progress', 'not yet', '' on Seasons and the finale); undefined while the notebook is closed. */
   readonly notebook?:
     { readonly indicator: string; readonly title: string; readonly badge: string } | undefined;
   /** World only: the open Inventory panel's sections ('Resources', 'Seeds', 'Cuttings') with the labels and counts they list (zeros hidden); undefined while it is closed. */
@@ -127,11 +134,12 @@ interface BonsaiTestHook {
    * not listed); the sub-panels' 'panel-soil', 'panel-repot-standard', 'panel-repot-fancy' (each only with a pot in stock),
    * 'panel-rename-save', 'panel-style-<key>', 'panel-style-none' and 'panel-sell'; 'panel-place' (an empty pedestal's
    * panel while carrying) and 'menu-putdown' (the HUD menu while carrying); 'notebook' (the HUD's Notebook (J)) and
-   * 'tutorial-skip' (the tutorial corner panel's Skip, with no modal open); the notebook's 'panel-prev' and 'panel-next'
-   * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant a Cutting's
-   * 'panel-select-<species>' (unselected cuttings), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
+   * 'tutorial-skip' (the tutorial corner panel's Skip, with no modal open) or, while it holds the season tip,
+   * 'tip-dismiss' (its Got it) in Skip's place; the notebook's 'panel-prev' and 'panel-next'
+   * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant's
+   * 'panel-select-<species>' (unselected cuttings), 'panel-select-seed-<species>' (unselected seeds), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
    * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), and the Settings panel's 'panel-fullscreen' (only where the browser offers
-   * fullscreen), 'panel-weather' and 'panel-close', in the world and on the title (whose menu button is 'settings').
+   * fullscreen), 'panel-weather', 'panel-sound', 'panel-music' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    * `hit` is the control's tap target (the rect the scene gave Phaser's setInteractive) in logical px, top-left and
    * size: its text box grown to the UI metrics' `hit` (src/world/uiScale.ts) and kept inside the canvas.
    */

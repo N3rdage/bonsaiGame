@@ -45,7 +45,7 @@ import {
   pedestalPanel,
   type PanelModel,
 } from '../world/panels';
-import { makePot, plantCutting } from '../sim/planting';
+import { makePot, plantCutting, plantSeed } from '../sim/planting';
 import {
   NO_SELECTION,
   PLANTING_TABLE_KEY,
@@ -104,11 +104,13 @@ import {
 } from '../world/notebook';
 import {
   TUTORIAL_HEADING_COLOR,
+  seasonTipParts,
   skipConfirmPanel,
   tutorialPanel,
   type TutorialPanelModel,
 } from '../world/tutorialPanel';
 import { tutorialSkip, tutorialStepLabel } from '../sim/tutorial';
+import { seasonTipFor } from '../sim/seasonTip';
 import { SETTINGS_KEY, settingsPanel } from '../world/settingsPanel';
 import {
   createParticles,
@@ -126,8 +128,7 @@ import {
   PEDESTAL_EMPTY_COLOUR,
   PEDESTAL_EMPTY_LABEL,
   PEDESTAL_LABEL_DY,
-  SHED_FLOOR_DIM,
-  SHED_RUG,
+  ROOM_STYLES,
   fenceCorners,
   floorTiles,
   playerShadow,
@@ -226,7 +227,7 @@ const BAR_H = 6;
  * sprite depth-sorted at its feet against the props' bottom edges; trees are drawn in code as
  * obj_tree_sprite did (src/world/treeArt.ts). A new or
  * loaded game starts in the shed; a door redraws the scene as its target room
- * (src/world/gardenRoom.ts) with the player at its target spot. Room data,
+ * (`ROOMS` in src/world/gardenRoom.ts) with the player at its target spot. Room data,
  * movement and the HUD text come from the pure modules in src/world/; this
  * scene only reads input, draws and publishes the test hook.
  *
@@ -313,10 +314,12 @@ export class WorldScene extends Phaser.Scene {
   private hud!: Phaser.GameObjects.Text;
   private viewButton!: Phaser.GameObjects.Text;
   private notebookButton!: Phaser.GameObjects.Text;
-  /** The tutorial corner panel's parts, the model they show (JSON, '' for none) and its Skip while enabled. */
+  /** The tutorial corner panel's parts, the model they show (JSON, '' for none) and its button (Skip or Got it) while enabled. */
   private tutorialParts: HudPart[] = [];
   private tutorialDrawn = '';
-  private tutorialSkipButton: Phaser.GameObjects.Text | undefined;
+  private tutorialButton: { id: string; text: Phaser.GameObjects.Text } | undefined;
+  /** The first-dormancy tip while the corner panel holds it; scene state, cleared by Got it or the notebook. */
+  private seasonTip: string | undefined;
   /** The notebook page shown while it is open; scene state, never saved. */
   private notebookPage = 0;
   private menuButton!: Phaser.GameObjects.Text;
@@ -370,7 +373,8 @@ export class WorldScene extends Phaser.Scene {
     this.plants.clear();
     this.tutorialParts = [];
     this.tutorialDrawn = '';
-    this.tutorialSkipButton = undefined;
+    this.tutorialButton = undefined;
+    this.seasonTip = undefined;
     this.player = createPlayer(SHED_ROOM);
     // The scene's own camera becomes the world camera; the HUD's, added after it, draws on top.
     this.worldCamera = this.cameras.main;
@@ -616,7 +620,7 @@ export class WorldScene extends Phaser.Scene {
   private readonly onResize = (): void => {
     this.ui = { ...this.ui, hit: sceneUi(this).hit };
     const buttons = [this.viewButton, this.notebookButton, this.menuButton, this.interactButton];
-    for (const button of [...buttons, this.tutorialSkipButton]) {
+    for (const button of [...buttons, this.tutorialButton?.text]) {
       if (button) setHitArea(button, this.ui.hit);
     }
     this.publishHook();
@@ -810,8 +814,12 @@ export class WorldScene extends Phaser.Scene {
     else if (this.roomKeysLive()) this.openPanel(inventoryPanel(this.ctx.state.inventory));
   }
 
-  /** obj_ui_notebook on `page`, the active step's by default; Prev and Next reopen it on their page. */
+  /**
+   * obj_ui_notebook on `page`, the active step's by default; Prev and Next
+   * reopen it on their page. Opening it puts a held season tip away.
+   */
   private openNotebook(page = notebookOpeningPage(this.ctx.state.tutorialStep)): void {
+    this.seasonTip = undefined;
     const model = notebookPanel(this.ctx.state, page);
     this.notebookPage = page;
     this.openPanel(model, (i) => {
@@ -829,22 +837,32 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * The corner panel for the current step and modal state, redrawn only when
-   * its model changed (gone once the tutorial is done); hidden under the viewer.
+   * The corner panel for the held season tip, else the current step, and the
+   * modal state, redrawn only when its model changed (gone once the tutorial
+   * is done and no tip is held); hidden under the viewer.
    */
   private drawTutorial(): void {
-    const model = tutorialPanel(this.ctx.state.tutorialStep, this.panel?.modal === true, this.ui);
+    const model = tutorialPanel(
+      this.ctx.state.tutorialStep,
+      this.panel?.modal === true,
+      this.ui,
+      this.seasonTip,
+    );
     const drawn = model ? JSON.stringify(model) : '';
     if (drawn !== this.tutorialDrawn) {
       for (const part of this.tutorialParts) part.destroy();
-      this.tutorialSkipButton = undefined;
+      this.tutorialButton = undefined;
       this.tutorialParts = model ? this.tutorialPartsFor(model) : [];
       this.tutorialDrawn = drawn;
     }
     for (const part of this.tutorialParts) part.setVisible(!this.viewer.isOpen);
   }
 
-  /** The box (interactive, so a press on it starts no joystick), the texts and Skip, greyed while disabled. */
+  /**
+   * The box (interactive, so a press on it starts no joystick), the texts and
+   * the button, greyed while disabled: Skip asks to confirm, Got it puts the
+   * season tip away.
+   */
   private tutorialPartsFor(m: TutorialPanelModel): HudPart[] {
     const { x, y, w, h } = m.box;
     const bg = this.add
@@ -855,25 +873,33 @@ export class WorldScene extends Phaser.Scene {
     const texts = m.texts.map((t) =>
       this.text(t.x, t.y, t.text, { ...labelStyle(this.ui), color: t.color }),
     );
-    const skip = m.skip.enabled
+    const { x: bx, y: by, label, id, enabled } = m.button;
+    const button = enabled
       ? this.hudButton(
-          m.skip.x,
-          m.skip.y,
-          'Skip',
+          bx,
+          by,
+          label,
           () => {
-            this.openSkipConfirm();
+            if (id === 'tip-dismiss') this.dismissSeasonTip();
+            else this.openSkipConfirm();
           },
           1,
           0,
         )
-      : this.text(m.skip.x, m.skip.y, 'Skip', {
+      : this.text(bx, by, label, {
           ...bodyStyle(this.ui),
           color: PANEL_DISABLED_COLOR,
         }).setOrigin(1, 0);
-    if (m.skip.enabled) this.tutorialSkipButton = skip;
-    const parts = [bg, ...texts, skip];
+    if (enabled) this.tutorialButton = { id, text: button };
+    const parts = [bg, ...texts, button];
     for (const part of parts) part.setDepth(HUD_DEPTH);
     return parts;
+  }
+
+  /** Got it: the corner panel goes back to the tutorial step, or away once the tutorial is done. */
+  private dismissSeasonTip(): void {
+    this.seasonTip = undefined;
+    this.publishHook();
   }
 
   /** obj_ui_tree_style_picker, one tap per pick. */
@@ -1073,7 +1099,7 @@ export class WorldScene extends Phaser.Scene {
    * E or the Interact button: a floor tree or an occupied pedestal opens the
    * tree's inspector, an empty pedestal the Display Pedestal panel, a door
    * leads to its room, a source plant gives a cutting, the kiosk opens the
-   * shop, the workbench makes a pot and the planting table opens Plant a Cutting.
+   * shop, the workbench makes a pot and the planting table opens Plant.
    */
   private interact(): void {
     const near = this.near;
@@ -1109,7 +1135,8 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * obj_ui_plant_cutting: Select and the toggles reopen it with the new
-   * selection; Plant plants through src/sim/planting.ts and closes it.
+   * selection; Plant plants the cutting or the seed through
+   * src/sim/planting.ts and closes it.
    */
   private openPlant(selection: PlantSelection): void {
     const { state } = this.ctx;
@@ -1117,16 +1144,23 @@ export class WorldScene extends Phaser.Scene {
     const model = plantPanel(state, sel, this.ui);
     this.openPanel(model, (i) => {
       const id = model.rows[i]?.id;
-      const species = SPECIES_KEYS.find((k) => selectId(k) === id);
-      if (species) this.openPlant({ ...sel, species });
+      const choice = (['cutting', 'seed'] as const)
+        .flatMap((kind) => SPECIES_KEYS.map((species) => ({ kind, species })))
+        .find((c) => selectId(c.species, c.kind) === id);
+      if (choice) this.openPlant({ ...sel, ...choice });
       else if (id === 'panel-fancy') this.openPlant({ ...sel, useFancyPot: !sel.useFancyPot });
       else if (id === 'panel-soil') this.openPlant({ ...sel, usePremiumSoil: !sel.usePremiumSoil });
       else if (id === 'panel-plant' && sel.species) {
-        const tree = plantCutting(state, sel.species, sel.useFancyPot, sel.usePremiumSoil);
+        const seed = sel.kind === 'seed';
+        const plant = seed ? plantSeed : plantCutting;
+        const tree = plant(state, sel.species, sel.useFancyPot, sel.usePremiumSoil);
         this.closePanel();
         this.hud.setText(hudText(state));
         this.relocated();
-        if (tree) this.showToast(`Planted a ${getSpecies(tree.speciesKey).displayName}.`);
+        if (tree) {
+          const name = getSpecies(tree.speciesKey).displayName;
+          this.showToast(seed ? `Planted a ${name} seed.` : `Planted a ${name}.`);
+        }
       }
     });
   }
@@ -1223,8 +1257,9 @@ export class WorldScene extends Phaser.Scene {
   /**
    * The room's static art baked once into a texture at prototype px, so each
    * 32 px tile keeps its pixels and a frame draws it as one quad: the room's
-   * colour (the prototype's background layer), the floor tiles, the shed's dim
-   * and rug, the wall or fence runs, then the garden's mitred corners.
+   * colour (the prototype's background layer), the floor tiles, the room
+   * style's dim and rug (the shed's), the wall or fence runs, then the garden's
+   * mitred corners.
    */
   private bakeRoom(key: string, room: Room): Phaser.Textures.DynamicTexture | undefined {
     const texture = this.textures.addDynamicTexture(
@@ -1247,10 +1282,10 @@ export class WorldScene extends Phaser.Scene {
     });
     // roomArt's rects are in logical px; the Graphics scales them up to the texture's prototype px.
     const rug = this.make.graphics({}, false).setScale(PROTOTYPE_SCALE);
-    if (room.key === 'shed') {
-      const r = SHED_RUG;
+    const { floorDim, rug: r } = ROOM_STYLES[room.key];
+    if (floorDim > 0) rug.fillStyle(0x000000, floorDim).fillRect(area.x, area.y, area.w, area.h);
+    if (r) {
       const line = SPRITE_SCALE;
-      rug.fillStyle(0x000000, SHED_FLOOR_DIM).fillRect(area.x, area.y, area.w, area.h);
       rug.fillStyle(r.fill).fillRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
       rug.lineStyle(line, r.outline).strokeRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
       rug
@@ -1493,6 +1528,11 @@ export class WorldScene extends Phaser.Scene {
     const tick = tickClock(state, this.clockS, deltaMs / 1000, timeScale);
     this.clockS = tick.accumulatorS;
     if (tick.days === 0) return;
+    const tip = seasonTipFor(state, state.day - tick.days);
+    if (tip !== undefined) {
+      state.seasonTipShown = true;
+      this.seasonTip = tip;
+    }
     this.drawTrees();
     this.drawPlayer();
     // obj_weather's season recheck: the season only changes with the day.
@@ -1559,13 +1599,15 @@ export class WorldScene extends Phaser.Scene {
     const rows = this.panel?.buttons.map((b) => at(b.id, b.text)) ?? [];
     if (this.panel?.modal) return rows;
     const interact = this.near ? [at('interact', this.interactButton)] : [];
-    const skip = this.tutorialSkipButton ? [at('tutorial-skip', this.tutorialSkipButton)] : [];
+    const tutorial = this.tutorialButton
+      ? [at(this.tutorialButton.id, this.tutorialButton.text)]
+      : [];
     return [
       at('view', this.viewButton),
       at('notebook', this.notebookButton),
       at('menu', this.menuButton),
       ...interact,
-      ...skip,
+      ...tutorial,
       ...rows,
     ];
   }
@@ -1583,8 +1625,11 @@ export class WorldScene extends Phaser.Scene {
       tutorialStep: state.tutorialStep,
       tutorialLabel:
         this.tutorialParts.length > 0 && !this.viewer.isOpen
-          ? tutorialStepLabel(state.tutorialStep)
+          ? this.seasonTip !== undefined
+            ? seasonTipParts(this.seasonTip).label
+            : tutorialStepLabel(state.tutorialStep)
           : '',
+      seasonTip: this.seasonTip ?? '',
       notebook:
         this.panel?.key === NOTEBOOK_KEY ? notebookHeader(state, this.notebookPage) : undefined,
       inventorySections:

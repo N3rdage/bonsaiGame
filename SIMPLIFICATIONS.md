@@ -33,7 +33,7 @@ Entries should record:
 
 - **Cuttings root immediately and always succeed.** Real-world: 2–8 week rooting period, species-dependent success rate (juniper ~50–70%, harder species much lower), failure leaves a wasted cutting.
 - **Cuttings are taken only in spring and summer ([TODO](TODO.md) 2e-a).** Autumn and winter refuse with the day the next spring starts. The tutorial's Take a cutting step therefore waits for spring if the player reaches autumn first; a new game starts on day 0, in spring, so autumn does not arrive until day 57. Real-world: softwood and semi-hardwood cuttings in spring and summer are the easy case, but hardwood cuttings are taken in late autumn and winter.
-- **Only cuttings (juniper) implemented; seeds in [#3](TODO.md).** Real-world: also air layering, grafting, division. Each unlocks different morphology starting points.
+- **Only cuttings (juniper) and seeds implemented ([#3](TODO.md)).** A seed in the inventory plants at the planting table as a 2 cm sprout that is already up: no germination time, no failure, no stratification. Seeds cannot be collected yet (the new game's juniper and maple seed are the only ones; collection waits on backlog #93). Real-world: also air layering, grafting, division. Each unlocks different morphology starting points.
 
 ## Morphology / growth
 
@@ -53,6 +53,10 @@ Entries should record:
 - **Shop catalogue is static.** Prices and inventory never change. Real-world: seasonal availability (pots scarce in spring, etc.), supplier reputation.
 - **Display revenue is flat per day.** Real-world: audience fatigue (same tree shown too long loses appeal), seasonal interest peaks (autumn maple shows fetch more in autumn).
 - **No collector reputation / commission system.** Real-world: a hobbyist economy runs on relationships, themed shows, judged competitions.
+
+## Audio
+
+- **The game is silent, and the mixer is two switches.** Settings has `Sound` and `Music` on/off rows and every future play call goes through `audioAllowed` (`src/platform/audio.ts`), but no file plays until backlog 7-b (sound effects) and 7-c (music) land. There are no volume sliders or separate ambience channel. Notes: the prototype had no mixer; a volume slider would be a design decision for Drew.
 
 ---
 

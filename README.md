@@ -14,7 +14,7 @@ There's a running dev blog in [`blog/`](./blog) written by Claude in first perso
 
 ## Status
 
-**Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed and the back garden, water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser.
+**Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed, the back garden and the house (the lounge, the hallway and the study), water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser.
 
 On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
 
@@ -75,12 +75,13 @@ On a phone the game runs fullscreen in landscape: the first tap on New Game, Con
 
 1. You begin in the shed with Granny's juniper on the floor; the tutorial panel in the corner walks you through the first steps.
 2. Walk to the door marked "To Garden" and press E (or tap Interact) to enter the back garden.
-3. Find a juniper bush (juniper is the only species that accepts cuttings at the moment — maple and pine can only be grown from seed, which isn't implemented yet). Cuttings can be taken in spring and summer only.
+3. Find a juniper bush (juniper is the only species that accepts cuttings at the moment — maple and pine can only be grown from seed, and seeds can't be collected yet). Cuttings can be taken in spring and summer only.
 4. Press E on the bush to take a cutting. Each bush gives 3 cuttings before needing two weeks to recover.
 5. Return to the shed through the "Back to Shed" door.
-6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting."
+6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting." (The panel also lists the juniper and maple seed you start with; select one and click "Plant Seed" to sow it.)
 7. A new tree sprite appears. Press E on it to open the inspector.
 8. Water it, use Skip 7d to grow it a week, and use View in 3D to see it in 3D and wire, clip or (in winter) prune its branches.
+9. To show a tree off, pick it up in the inspector and place it on a display pedestal: two stand in the shed, two more in the lounge, through the shed's top door marked "To Lounge", and two in the study, through the lounge's right-hand door to the hallway and on through its far door.
 
 ## Game mechanics
 
@@ -102,7 +103,7 @@ Time passes in **game days**. One game day passes every five real minutes, and t
 ### Propagation
 
 - **Cutting:** Take a small branch from an existing plant, plant it in a pot. Starts as an 8cm twig with two small side branches. Not all species accept cuttings — junipers do, maples don't.
-- **Seed:** Not yet implemented. Will allow growing species that can't be cut. Starts as a 2cm sprout.
+- **Seed:** Plant a seed from your inventory at the planting table, in a pot. Starts as a 2cm sprout with no branches. Grows species that can't be cut, such as the Japanese maple. A new game starts with one juniper and one maple seed; collecting more isn't implemented yet.
 
 ### Training — what each operation does
 
@@ -126,7 +127,7 @@ The tree remembers when each wire was applied. If you remove a wire after 8+ wee
 
 ### Pots and resources
 
-- **Clay** is used at the workbench to make pots.
+- **Pots** are needed to plant cuttings and seeds. Each one planted consumes one pot.
 - **Pots** are needed to plant cuttings. Each cutting consumes one pot.
 - **Fertilizer** is consumed when you skip time forward on a tree. Cost is roughly half a fertilizer per day skipped.
 - **Wire** is used up by each bend in the 3D viewer's wire mode.

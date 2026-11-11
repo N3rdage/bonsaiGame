@@ -69,7 +69,7 @@ export function tutorialStepBody(step: number): string {
     case TUTORIAL_SKIP_WEEK:
       return 'On the inspector, click Skip 7d to fast-forward a week.';
     case TUTORIAL_TRAIN:
-      return 'Inspect the tree, click Inspect 3D, pick a tool (Wire / Clip / Prune), then click a branch.';
+      return 'Inspect the tree, click Inspect 3D, pick Wire or Clip (Prune in winter only), then click a branch.';
     case TUTORIAL_TAKE_CUTTING:
       return 'Head out to the back garden and press E on the source plant.';
     case TUTORIAL_PLANT:
@@ -89,7 +89,7 @@ export function tutorialStepFlavour(step: number): string {
     case TUTORIAL_SKIP_WEEK:
       return "Real bonsai is a slow craft - you might wait a season for a branch to thicken. Skip 7d fast-forwards a week of care, costing fertilizer (it stands in for the daily attention you'd be giving the tree).";
     case TUTORIAL_TRAIN:
-      return 'Three tools shape a tree. Wire bends a branch (sets permanently after about 8 weeks). Clip shortens a branch without removing it. Prune removes the branch entirely. Open the 3D viewer from the inspector, pick a mode, and click a branch.';
+      return 'Three tools shape a tree. Wire bends a branch (sets permanently after about 8 weeks). Clip shortens a branch without removing it, any time of year. Prune removes the branch entirely, in winter only. Open the 3D viewer from the inspector, pick a mode, and click a branch.';
     case TUTORIAL_TAKE_CUTTING:
       return 'Junipers propagate easily from cuttings - snip a branch and root it in soil to get a clone of the parent. Source plants live in the back garden; each offers a few cuttings before needing time to recover.';
     case TUTORIAL_PLANT:

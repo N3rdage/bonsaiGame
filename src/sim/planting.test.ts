@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { makePot, plantCutting } from './planting';
+import { makePot, plantCutting, plantSeed } from './planting';
 import { createNewGameState } from './state';
 import { TUTORIAL_DONE, TUTORIAL_PLANT, TUTORIAL_WATER } from './tutorial';
 
@@ -102,6 +102,83 @@ describe('plantCutting', () => {
     expect(state.tutorialStep).toBe(TUTORIAL_WATER);
     state.tutorialStep = TUTORIAL_PLANT;
     plantCutting(state, 'juniper', false, false);
+    expect(state.tutorialStep).toBe(TUTORIAL_DONE);
+  });
+});
+
+describe('plantSeed', () => {
+  const withSeeds = () => {
+    const state = createNewGameState();
+    state.inventory.fancy_pot = 1;
+    state.inventory.soil_premium = 1;
+    return state;
+  };
+
+  it('uses a pot and the starting maple seed and puts a 2 cm sprout in the shed', () => {
+    const state = withSeeds();
+    const before = { ...state.inventory };
+    expect(before.seed_maple).toBe(1);
+    const tree = plantSeed(state, 'maple', false, false);
+    expect(state.inventory).toEqual({ ...before, pot: before.pot - 1, seed_maple: 0 });
+    expect(tree).toBe(state.trees[1]);
+    expect(tree).toMatchObject({
+      id: 1,
+      speciesKey: 'maple',
+      origin: 'seed',
+      name: 'New Japanese Maple',
+      potTier: 0,
+      soilTier: 0,
+      location: 'shed',
+      vitality: 100,
+      foliageDensity: 0.1,
+      trunk: { heightCm: 2, girthMm: 1.5 },
+      branches: [],
+    });
+    expect(state.nextTreeId).toBe(2);
+  });
+
+  it('uses a fancy pot and premium soil when asked', () => {
+    const state = withSeeds();
+    const before = { ...state.inventory };
+    const tree = plantSeed(state, 'juniper', true, true);
+    expect(state.inventory).toEqual({
+      ...before,
+      fancy_pot: 0,
+      soil_premium: 0,
+      seed_juniper: 0,
+    });
+    expect([tree?.name, tree?.potTier, tree?.soilTier]).toEqual(['New Juniper', 1, 1]);
+  });
+
+  it('plants without soil when premium soil is asked for but out of stock', () => {
+    const state = withSeeds();
+    state.inventory.soil_premium = 0;
+    expect(plantSeed(state, 'maple', false, true)?.soilTier).toBe(0);
+    expect(state.inventory.soil_premium).toBe(0);
+  });
+
+  it('refuses without the chosen pot kind, or without the seed, and consumes nothing', () => {
+    const state = withSeeds();
+    state.inventory.fancy_pot = 0;
+    const before = { ...state.inventory };
+    expect(plantSeed(state, 'maple', true, true)).toBeUndefined();
+    state.inventory.pot = 0;
+    expect(plantSeed(state, 'maple', false, true)).toBeUndefined();
+    state.inventory.pot = before.pot;
+    state.inventory.seed_juniper = 0;
+    expect(plantSeed(state, 'juniper', false, true)).toBeUndefined();
+    expect(plantSeed(state, 'pine', false, true)).toBeUndefined();
+    expect(state.inventory).toEqual({ ...before, seed_juniper: 0 });
+    expect(state.trees).toHaveLength(1);
+    expect(state.nextTreeId).toBe(1);
+  });
+
+  it('advances the tutorial only from its Plant step', () => {
+    const state = withSeeds();
+    plantSeed(state, 'juniper', false, false);
+    expect(state.tutorialStep).toBe(TUTORIAL_WATER);
+    state.tutorialStep = TUTORIAL_PLANT;
+    plantSeed(state, 'maple', false, false);
     expect(state.tutorialStep).toBe(TUTORIAL_DONE);
   });
 });
