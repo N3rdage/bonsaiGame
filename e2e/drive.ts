@@ -1,5 +1,4 @@
 import { test as base, type Page } from '@playwright/test';
-import { MOVE_SPEED } from '../src/world/player';
 
 export { expect } from '@playwright/test';
 
@@ -145,10 +144,11 @@ export const pickPanelSlot = (page: Page, n: number): Promise<void> =>
 /**
  * How far off its row a walk may stop before the horizontal leg. Every walk's
  * row is its target's own row except the shed door's, which is already in
- * reach when that leg lands. 6 px off the row the 20 px reach circle still
- * spans 38 px of it, more than one release lag, and a few nudges get there.
+ * reach when that leg lands. 12 px off the row the 20 px reach circle still
+ * spans a 32 px chord of it, and the horizontal leg ends on `near` anyway. A
+ * nudge moves under 12 px, so under twice this, and the settle converges.
  */
-const ROW_TOLERANCE = 6;
+const ROW_TOLERANCE = 12;
 /** Nudges allowed to bring the player back to its row or into reach before the walk fails. */
 const SETTLE_TRIES = 12;
 /** A long leg that takes this long has failed; the test budget stays for the rest. */
@@ -157,8 +157,12 @@ const LEG_BUDGET_MS = 20_000;
 const STALL = { frames: 30, ms: 500 };
 /** The player has stopped once unmoved for this many frames and this long (up to `budgetMs`). */
 const STILL = { frames: 3, ms: 50, budgetMs: 2_000 };
-/** A nudge holds its key until the player moves one step toward its goal, or this long. */
-const NUDGE_MS = 200;
+/**
+ * A nudge holds its key until one world frame has stepped, or this long: the
+ * smallest move the game makes, from 1 step (1.25 px) to about a frame of
+ * release lag (under 12 px); 0 px when down and up land in one frame.
+ */
+const NUDGE_MS = 300;
 
 /** What a watch below waits for, checked every frame. */
 type Watch =
@@ -166,8 +170,8 @@ type Watch =
   | { until: 'row'; row: number; down: boolean }
   /** A long leg: until `near` is `key`. */
   | { until: 'near'; key: string }
-  /** A nudge: until the player moves one step along `axis` from `from` in direction `sign`, or `near` is `key`. */
-  | { until: 'step'; axis: 'x' | 'y'; from: number; sign: number; key: string }
+  /** A nudge: until the hook's `frames` passes `from`. */
+  | { until: 'frame'; from: number }
   /** Until the player stops. */
   | { until: 'still' };
 
@@ -178,12 +182,12 @@ interface Watched {
   readonly y: number;
   readonly near: string;
   readonly room: string;
+  readonly frames: number;
 }
 
 /** Polls the hook every frame until `w`'s goal, a stall (long legs only) or its time budget. */
 function watch(page: Page, w: Watch): Promise<Watched> {
   const limits = {
-    step: MOVE_SPEED,
     legMs: LEG_BUDGET_MS,
     nudgeMs: NUDGE_MS,
     stall: STALL,
@@ -194,7 +198,7 @@ function watch(page: Page, w: Watch): Promise<Watched> {
       new Promise<Watched>((resolve) => {
         const start = performance.now();
         const budget =
-          w.until === 'step'
+          w.until === 'frame'
             ? limits.nudgeMs
             : w.until === 'still'
               ? limits.still.budgetMs
@@ -207,7 +211,7 @@ function watch(page: Page, w: Watch): Promise<Watched> {
           const h = window.__bonsai;
           if (h) {
             const { x, y } = h.player;
-            const at = { x, y, near: h.near, room: h.room };
+            const at = { x, y, near: h.near, room: h.room, frames: h.frames };
             const pos = `${String(x)},${String(y)}`;
             if (pos === last) {
               sameFrames += 1;
@@ -226,8 +230,8 @@ function watch(page: Page, w: Watch): Promise<Watched> {
               case 'near':
                 reached = h.near === w.key;
                 break;
-              case 'step':
-                reached = h.near === w.key || w.sign * (at[w.axis] - w.from) >= limits.step;
+              case 'frame':
+                reached = h.frames > w.from;
                 break;
               case 'still':
                 reached = unmoved(limits.still);
@@ -253,6 +257,12 @@ async function hold(page: Page, key: string, w: Watch): Promise<Watched> {
   const at = await watch(page, w);
   await page.keyboard.up(key);
   return at;
+}
+
+/** Taps `key` for one world frame from where the player stopped, `at`, and waits for it to stop again. */
+async function nudge(page: Page, key: string, at: Watched): Promise<Watched> {
+  await hold(page, key, { until: 'frame', from: at.frames });
+  return watch(page, { until: 'still' });
 }
 
 /**
@@ -287,22 +297,17 @@ export async function walkTo(
     tries -= 1
   ) {
     if (tries === 0) throw fail(`could not settle on row ${String(y)}`, at);
-    const sign = at.y < y ? 1 : -1;
-    const nudge: Watch = { until: 'step', axis: 'y', from: at.y, sign, key };
-    await hold(page, sign > 0 ? 'ArrowDown' : 'ArrowUp', nudge);
-    at = await watch(page, { until: 'still' });
+    at = await nudge(page, at.y < y ? 'ArrowDown' : 'ArrowUp', at);
   }
   if (at.near === key) return;
 
   const leg = await hold(page, dx === 'left' ? 'ArrowLeft' : 'ArrowRight', { until: 'near', key });
   if (!leg.reached) throw fail(`never came in reach walking ${dx}`, leg);
   at = await watch(page, { until: 'still' });
-  const back = dx === 'left' ? 1 : -1;
+  const back = dx === 'left' ? 'ArrowRight' : 'ArrowLeft';
   for (let tries = SETTLE_TRIES; at.near !== key; tries -= 1) {
     if (tries === 0) throw fail(`carried out of reach walking ${dx}`, at);
-    const nudge: Watch = { until: 'step', axis: 'x', from: at.x, sign: back, key };
-    await hold(page, back > 0 ? 'ArrowRight' : 'ArrowLeft', nudge);
-    at = await watch(page, { until: 'still' });
+    at = await nudge(page, back, at);
   }
 }
 
