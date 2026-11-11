@@ -4,8 +4,9 @@
  * Ported from archive/gamemaker/scripts/scr_save_load/scr_save_load.gml.
  * Version 1 is the GameMaker prototype's snake_case shape (every number written
  * as a float, plus a trailing NUL byte); `importPrototypeSave` converts it to
- * the TS model. Version 2 is this port's camelCase shape; version 3
- * (`SaveFileV3`) adds `seasonTipShown`, read as false from older saves.
+ * the TS model. Version 2 is this port's camelCase shape; version 3 adds
+ * `seasonTipShown`, read as false from older saves; version 4 (`SaveFileV4`)
+ * is version 3 with the display spots' final keys (`PRE_V4_DISPLAY_KEYS`).
  * Storage is injected (MemorySaveStorage here, localStorage in src/platform)
  * so this module stays free of DOM APIs.
  */
@@ -13,7 +14,7 @@
 import { createInventory } from './inventory';
 import { SPECIES_KEYS } from './species';
 import { STYLE_KEYS } from './styles';
-import { createTree } from './tree';
+import { DISPLAYED_PREFIX, createTree } from './tree';
 import { tutorialStepFromSave } from './tutorial';
 import type {
   BonsaiTree,
@@ -31,12 +32,15 @@ import type {
   WireRecord,
 } from './types';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 export const SAVE_SLOT_COUNT = 3;
 
-/** The shape `serializeState` writes. Version 2 was the same without `seasonTipShown`. */
-export interface SaveFileV3 {
-  version: 3;
+/**
+ * The shape `serializeState` writes. Version 3 was the same with the old
+ * display keys; version 2 was version 3 without `seasonTipShown`.
+ */
+export interface SaveFileV4 {
+  version: 4;
   savedAt: string;
   day: number;
   money: number;
@@ -95,9 +99,9 @@ export function formatSaveTimestamp(date: Date): string {
   );
 }
 
-/** Writes a version-3 save. `state.paused` is transient and never written; loads start unpaused. */
+/** Writes a version-4 save. `state.paused` is transient and never written; loads start unpaused. */
 export function serializeState(state: GameState, now: Date): string {
-  const file: SaveFileV3 = {
+  const file: SaveFileV4 = {
     version: SAVE_VERSION,
     savedAt: formatSaveTimestamp(now),
     day: state.day,
@@ -130,8 +134,9 @@ export function deserializeSave(text: string): GameState {
   // GameMaker writes the prototype's version as 1.0; Number() compares it as 1.
   const version = Number(raw.version);
   if (version === 1) return importPrototypeSave(raw);
-  if (version === 2) return readV2Save(raw);
-  if (version === 3) return readV3Save(raw);
+  if (version === 2) return migrateDisplayKeys(readV2Save(raw));
+  if (version === 3) return migrateDisplayKeys(readV3Save(raw));
+  if (version === 4) return readV4Save(raw);
   throw new Error(`Unsupported save version: ${String(raw.version)}`);
 }
 
@@ -310,7 +315,7 @@ function coerceTrees(trees: unknown, where: string): BonsaiTree[] {
 export function importPrototypeSave(raw: unknown): GameState {
   if (!isRecord(raw)) throw new Error('Prototype save is not an object');
   const trees = coerceTrees(camelizeKeys(raw.trees), 'Prototype save');
-  return {
+  return migrateDisplayKeys({
     day: int(raw.game_day, 0),
     money: num(raw.money, 0),
     inventory: mergeInventory(raw.inventory),
@@ -322,11 +327,11 @@ export function importPrototypeSave(raw: unknown): GameState {
     // The prototype had no season tip, so it can still fire once.
     seasonTipShown: false,
     paused: false,
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------
-// Versions 2 and 3: this port's shape
+// Versions 2 to 4: this port's shape
 
 /** A version-2 save: version 3's fields without `seasonTipShown`, which migrates as false so the tip can still fire once. */
 function readV2Save(raw: Record<string, unknown>, where = 'Save v2'): GameState {
@@ -345,8 +350,46 @@ function readV2Save(raw: Record<string, unknown>, where = 'Save v2'): GameState 
 }
 
 /** A version-3 save: version 2 plus `seasonTipShown`. */
-function readV3Save(raw: Record<string, unknown>): GameState {
-  return { ...readV2Save(raw, 'Save v3'), seasonTipShown: raw.seasonTipShown === true };
+function readV3Save(raw: Record<string, unknown>, where = 'Save v3'): GameState {
+  return { ...readV2Save(raw, where), seasonTipShown: raw.seasonTipShown === true };
+}
+
+/** A version-4 save: version 3's shape, its display keys already final. */
+function readV4Save(raw: Record<string, unknown>): GameState {
+  return readV3Save(raw, 'Save v4');
+}
+
+/**
+ * The display keys version 4 renamed, old pedestal key to new, in priority
+ * order. The shed's pedestals (the prototype's too) moved to the lounge, and the
+ * lounge's and study's spots took the furniture names they keep from then on.
+ * The plain renames come first, so a lounge tree keeps its spot over a shed tree.
+ */
+const PRE_V4_DISPLAY_KEYS: readonly (readonly [string, string])[] = [
+  ['lounge_main', 'lounge_mantel'],
+  ['lounge_window', 'lounge_side_table'],
+  ['study_main', 'study_desk'],
+  ['study_window', 'study_bookshelf'],
+  ['shed_main', 'lounge_mantel'],
+  ['shed_window', 'lounge_side_table'],
+];
+
+/**
+ * Every save from before version 4 passes through here: each displayed tree
+ * moves to its key's new name. A shed tree whose lounge spot is already taken
+ * (a version-3 save with trees on both) is put down on the shed floor instead.
+ */
+function migrateDisplayKeys(state: GameState): GameState {
+  const renamed = new Set(PRE_V4_DISPLAY_KEYS.map(([from]) => DISPLAYED_PREFIX + from));
+  const taken = new Set(state.trees.map((t) => t.location).filter((l) => !renamed.has(l)));
+  for (const [from, to] of PRE_V4_DISPLAY_KEYS) {
+    for (const t of state.trees) {
+      if (t.location !== DISPLAYED_PREFIX + from) continue;
+      t.location = taken.has(DISPLAYED_PREFIX + to) ? 'shed' : DISPLAYED_PREFIX + to;
+      taken.add(t.location);
+    }
+  }
+  return state;
 }
 
 // ---------------------------------------------------------------------------

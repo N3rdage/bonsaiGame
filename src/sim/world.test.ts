@@ -36,7 +36,7 @@ describe('advanceDayAllTrees', () => {
   });
 
   it('pays round(total * 0.1) per day for a displayed tree', () => {
-    const state = stateWith('displayed:shed_main');
+    const state = stateWith('displayed:lounge_mantel');
     const money = state.money;
     const revenue = advanceDayAllTrees(state, 3, rng);
     const tree = must(state.trees[0]);
@@ -47,7 +47,7 @@ describe('advanceDayAllTrees', () => {
   });
 
   it('pays the 1.25x rate for a fancy pot', () => {
-    const state = stateWith('displayed:shed_main');
+    const state = stateWith('displayed:lounge_mantel');
     must(state.trees[0]).potTier = 1;
     const money = state.money;
     const revenue = advanceDayAllTrees(state, 2, rng);
@@ -57,7 +57,7 @@ describe('advanceDayAllTrees', () => {
   });
 
   it('does nothing while paused, and resumes once unpaused', () => {
-    const state = stateWith('shed', 'displayed:shed_main');
+    const state = stateWith('shed', 'displayed:lounge_mantel');
     state.paused = true;
     const trees = structuredClone(state.trees);
     const money = state.money;

@@ -81,7 +81,7 @@ On a phone the game runs fullscreen in landscape: the first tap on New Game, Con
 6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting." (The panel also lists the juniper and maple seed you start with; select one and click "Plant Seed" to sow it.)
 7. A new tree sprite appears. Press E on it to open the inspector.
 8. Water it, use Skip 7d to grow it a week, and use View in 3D to see it in 3D and wire, clip or (in winter) prune its branches.
-9. To show a tree off, pick it up in the inspector and place it on a display pedestal: two stand in the shed, two more in the lounge, through the shed's top door marked "To Lounge", and two in the study, through the lounge's right-hand door to the hallway and on through its far door.
+9. To show a tree off, pick it up in the inspector and place it on a display pedestal: two stand in the lounge, through the shed's top door marked "To Lounge", and two in the study, through the lounge's right-hand door to the hallway and on through its far door.
 
 ## Game mechanics
 

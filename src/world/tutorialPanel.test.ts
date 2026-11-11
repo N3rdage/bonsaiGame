@@ -22,7 +22,9 @@ import {
   menuItems,
 } from './menu';
 import { PEDESTAL_LABEL_DY } from './roomArt';
-import { SHED_ROOM, type Prop } from './shedRoom';
+import { LOUNGE_ROOM } from './loungeRoom';
+import type { Prop } from './shedRoom';
+import { STUDY_ROOM } from './studyRoom';
 import { PANEL_INSET, panelClose, panelTitleY } from './panels';
 import {
   SKIP_CONFIRM_PANEL,
@@ -175,13 +177,13 @@ describe('tutorial corner panel', () => {
     }
   });
 
-  it('clears the shed pedestals with their labels and the garden source plants', () => {
+  it('clears the house pedestals with their labels and the garden source plants', () => {
     const below = (p: Prop): number =>
       p.pedestalKey === undefined ? p.y + p.h / 2 : PEDESTAL_LABEL_DY + p.y + LINE_10;
-    const props = [...SHED_ROOM.props, ...GARDEN_ROOM.props].filter(
+    const props = [...LOUNGE_ROOM.props, ...STUDY_ROOM.props, ...GARDEN_ROOM.props].filter(
       (p) => p.pedestalKey !== undefined || p.speciesKey !== undefined,
     );
-    expect(props).toHaveLength(5);
+    expect(props).toHaveLength(7);
     for (const step of tutorialAllSteps()) {
       const m = tutorialPanel(step, false, DESKTOP_UI);
       if (!m) throw new Error('no panel');

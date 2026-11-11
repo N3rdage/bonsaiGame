@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { serializeState } from '../src/sim/save';
+import { createNewGameState } from '../src/sim/state';
 import {
   bootWorld,
   collectErrors,
@@ -6,9 +8,6 @@ import {
   expect,
   hook,
   interact,
-  pickUpTree,
-  placeTree,
-  saveGame,
   test,
   toTitle,
   walkTo,
@@ -75,16 +74,18 @@ test.describe('the garden', () => {
 test.describe('the day clock', () => {
   test('a displayed tree earns display revenue as the days pass', async ({ page }) => {
     const errors = collectErrors(page);
-    // The carrying happens at 1x: a passing day rebuilds an open inspector, and
-    // at speed that can land between a tap's pointerdown and pointerup. The
-    // placement is saved, then continued at 150x (a day every 2 s).
-    await bootWorld(page);
-    await walkTo(page, 160, 'left', 'tree:0');
-    await pickUpTree(page);
-    await walkTo(page, 85, 'right', 'pedestal_1');
-    await placeTree(page);
-    await saveGame(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
+    // A new game with Granny's juniper on the lounge's mantel, continued at 150x (a day every 2 s).
+    const state = createNewGameState();
+    const [starter] = state.trees;
+    if (!starter) throw new Error('no starter');
+    starter.location = 'displayed:lounge_mantel';
+    await page.goto('/');
+    await page.evaluate(
+      (text) => {
+        localStorage.setItem('bonsai.save.1', text);
+      },
+      serializeState(state, new Date(2026, 10, 11, 0, 0)),
+    );
 
     await toTitle(page, '/?timeScale=150');
     await continueGame(page);
@@ -93,7 +94,7 @@ test.describe('the day clock', () => {
     );
     const before = await hook(page);
     expect(before.treeLocations).toEqual([
-      { id: 0, name: "Granny's", location: 'displayed:shed_main' },
+      { id: 0, name: "Granny's", location: 'displayed:lounge_mantel' },
     ]);
     const handle = await page.waitForFunction(
       (day) => {
