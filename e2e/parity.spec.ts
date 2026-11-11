@@ -1,4 +1,3 @@
-import type { Page } from '@playwright/test';
 import {
   bootWorld,
   closePanel,
@@ -20,20 +19,16 @@ import {
   test,
   walkTo,
 } from './drive';
+import { shedToLounge, throughDoor, toLoungePedestal } from './rooms';
 
 // Epic #8's acceptance: the whole loop in one flow on the phone profile, walking
 // on the arrow keys and taking every action by tap. It runs in the
 // `s22-landscape-parity` project only (playwright.config.ts), after the four
 // per-step projects; they cover the same actions one step at a time.
-// Shed: floor spot 0 (170, 160), pedestal shed_main (310, 85), workbench
-// (125, 90), planting table (165, 90), kiosk (125, 145), door (240, 216) in the
-// bottom wall to the garden at (50, 225); garden: juniper (140, 90), door
-// (16, 228) back to (240, 190).
-
-async function throughDoor(page: Page, room: string): Promise<void> {
-  await interact(page);
-  await page.waitForFunction((r) => window.__bonsai?.room === r, room);
-}
+// Shed: floor spot 0 (170, 160), workbench (125, 90), planting table
+// (165, 90), kiosk (125, 145), door (240, 216) in the bottom wall to the garden
+// at (50, 225); garden: juniper (140, 90), door (16, 228) back to (240, 190);
+// the lounge's mantel through the shed's top door (rooms.ts).
 
 test.describe('parity', () => {
   test('plays the loop from a new game through save, reload and Continue', async ({ page }) => {
@@ -71,16 +66,12 @@ test.describe('parity', () => {
     h = await hook(page);
     expect([h.inventory.wire, h.tutorialStep]).toEqual([9, 3]);
 
-    // Display it on shed_main.
+    // Carry it while the shed's work is done; it goes on the lounge's mantel last.
     await pickUpTree(page);
-    await walkTo(page, 85, 'right', 'pedestal_1');
-    await placeTree(page);
-    expect((await hook(page)).treeLocations).toEqual([
-      { id: 0, name: "Granny's", location: 'displayed:shed_main' },
-    ]);
+    expect((await hook(page)).carrying).toBe("Granny's");
 
     // Take a cutting from the garden's juniper.
-    await walkTo(page, 200, 'left', 'door');
+    await walkTo(page, 200, 'right', 'door');
     await throughDoor(page, 'garden');
     await walkTo(page, 90, 'right', 'source_juniper');
     await interact(page);
@@ -103,7 +94,7 @@ test.describe('parity', () => {
     await page.waitForFunction(() => window.__bonsai?.panel === '');
     h = await hook(page);
     expect(h.treeLocations).toEqual([
-      { id: 0, name: "Granny's", location: 'displayed:shed_main' },
+      { id: 0, name: "Granny's", location: 'inventory' },
       { id: 1, name: 'New Juniper', location: 'shed' },
     ]);
     expect([h.inventory.clay, h.inventory.pot, h.inventory.cutting_juniper]).toEqual([4, 2, 0]);
@@ -116,7 +107,16 @@ test.describe('parity', () => {
     await page.waitForFunction(() => window.__bonsai?.money === 90);
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
+
+    // Display Granny's juniper on the lounge's mantel.
+    await shedToLounge(page);
+    await toLoungePedestal(page, 1);
+    await placeTree(page);
     const saved = await hook(page);
+    expect(saved.treeLocations).toEqual([
+      { id: 0, name: "Granny's", location: 'displayed:lounge_mantel' },
+      { id: 1, name: 'New Juniper', location: 'shed' },
+    ]);
     expect(saved.inventory.fertilizer).toBe(47);
 
     // Save, reload the page and Continue: the same game comes back.

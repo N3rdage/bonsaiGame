@@ -21,32 +21,38 @@ import {
   toTitle,
   walkTo,
 } from './drive';
+import { shedToLounge, toLoungePedestal } from './rooms';
 
-/** A real prototype save: 'Starter' in the shed, 'Fancy #1' on displayed:shed_window. */
+/** A real prototype save: 'Starter' in the shed, 'Fancy #1' on displayed:shed_window, now the lounge's side table. */
 const PROTOTYPE_SAVE = readFileSync(
   path.join(import.meta.dirname, '../src/sim/__fixtures__/prototype-save-v1-day14.json'),
   'utf8',
 );
 
-// Floor spot 0 (170, 160); pedestals shed_main (310, 85) and shed_window (350, 85).
+// Floor spot 0 (170, 160); the pedestals are the lounge's (rooms.ts).
 const toFloorTree = (page: Page, id: number): Promise<void> =>
   walkTo(page, 160, 'left', `tree:${String(id)}`);
-const toMainPedestal = (page: Page): Promise<void> => walkTo(page, 85, 'right', 'pedestal_1');
-const toWindowPedestal = (page: Page): Promise<void> => walkTo(page, 85, 'right', 'pedestal_2');
+/** From the shed floor to the lounge's mantel, pedestal_1. */
+async function toMantel(page: Page): Promise<void> {
+  await shedToLounge(page);
+  await toLoungePedestal(page, 1);
+}
 
 const locations = async (page: Page): Promise<string[]> =>
   (await hook(page)).treeLocations.map((t) => t.location);
 const ids = (h: BonsaiTestHook): string[] => h.controls.map((c) => c.id);
 
-async function carryStarterToMainPedestal(page: Page): Promise<void> {
+async function carryStarterToMantel(page: Page): Promise<void> {
   await toFloorTree(page, 0);
   await pickUpTree(page);
-  await toMainPedestal(page);
+  await toMantel(page);
   await placeTree(page);
 }
 
 test.describe('trees in the room', () => {
-  test('picks the starter up from the floor and displays it on shed_main', async ({ page }) => {
+  test("picks the starter up from the floor and displays it on the lounge's mantel", async ({
+    page,
+  }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
     let h = await hook(page);
@@ -75,13 +81,13 @@ test.describe('trees in the room', () => {
     // Off the floor: the floor tree is no longer an interactable.
     expect(h.near).not.toBe('tree:0');
 
-    await toMainPedestal(page);
+    await toMantel(page);
     await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.panel === 'pedestal:shed_main');
+    await page.waitForFunction(() => window.__bonsai?.panel === 'pedestal:lounge_mantel');
     await tapControl(page, 'panel-place');
     await page.waitForFunction(() => window.__bonsai?.panel === '');
     h = await hook(page);
-    expect(await locations(page)).toEqual(['displayed:shed_main']);
+    expect(await locations(page)).toEqual(['displayed:lounge_mantel']);
     expect(h.carrying).toBe('');
 
     // The pedestal now offers the tree itself.
@@ -97,9 +103,9 @@ test.describe('trees in the room', () => {
 
   test('an empty pedestal explains itself when nothing is carried', async ({ page }) => {
     await bootWorld(page);
-    await toMainPedestal(page);
+    await toMantel(page);
     await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.panel === 'pedestal:shed_main');
+    await page.waitForFunction(() => window.__bonsai?.panel === 'pedestal:lounge_mantel');
     expect(ids(await hook(page))).toEqual(['panel-close']);
   });
 
@@ -115,36 +121,36 @@ test.describe('trees in the room', () => {
     const before = (await hook(page)).treeLocations;
     expect(before.map((t) => [t.name, t.location])).toEqual([
       ['Starter', 'shed'],
-      ['Fancy #1', 'displayed:shed_window'],
+      ['Fancy #1', 'displayed:lounge_side_table'],
     ]);
     const [floor, shown] = before;
     if (!floor || !shown) throw new Error('fixture trees');
 
-    // The imported tree stands on shed_window: its pedestal offers it.
-    await toWindowPedestal(page);
+    await toFloorTree(page, floor.id);
+    await pickUpTree(page);
+    expect(await locations(page)).toEqual(['inventory', 'displayed:lounge_side_table']);
+
+    // The imported tree stands on the lounge's side table: its pedestal offers it.
+    await shedToLounge(page);
+    await toLoungePedestal(page, 2);
     await interact(page);
     await page.waitForFunction((id) => window.__bonsai?.panel === `tree:${String(id)}`, shown.id);
     expect(ids(await hook(page))).toContain('panel-pickup');
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
 
-    await toFloorTree(page, floor.id);
-    await pickUpTree(page);
-    expect(await locations(page)).toEqual(['inventory', 'displayed:shed_window']);
-
-    await toWindowPedestal(page);
     await pickUpTree(page);
     const h = await hook(page);
     expect(h.toast).toBe('Already carrying Starter');
     expect(h.carrying).toBe('Starter');
-    expect(await locations(page)).toEqual(['inventory', 'displayed:shed_window']);
+    expect(await locations(page)).toEqual(['inventory', 'displayed:lounge_side_table']);
     expect(errors).toEqual([]);
   });
 
   test('a displayed tree survives save and reload', async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
-    await carryStarterToMainPedestal(page);
+    await carryStarterToMantel(page);
     await saveGame(page);
     await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
 
@@ -153,17 +159,17 @@ test.describe('trees in the room', () => {
     expect(await locations(page)).toEqual(['inventory']);
     await loadGame(page);
     await page.waitForFunction(() => window.__bonsai?.carrying === '');
-    expect(await locations(page)).toEqual(['displayed:shed_main']);
+    expect(await locations(page)).toEqual(['displayed:lounge_mantel']);
 
     // And across a page reload, through Continue.
     await page.reload();
     await page.waitForFunction(() => window.__bonsai?.scene === 'title');
     await continueGame(page);
     await page.waitForFunction(() => window.__bonsai?.scene === 'world');
-    expect(await locations(page)).toEqual(['displayed:shed_main']);
+    expect(await locations(page)).toEqual(['displayed:lounge_mantel']);
     expect((await hook(page)).carrying).toBe('');
     // Drawn on the pedestal, not the floor: no floor tree to reach, the pedestal offers it.
-    await toMainPedestal(page);
+    await toMantel(page);
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.panel === 'tree:0');
     expect(errors).toEqual([]);
