@@ -23,30 +23,41 @@ async function throughDoor(page: Page, room: string): Promise<void> {
   await page.waitForFunction((r) => window.__bonsai?.room === r, room);
 }
 
+type Arrow = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
+
 /**
- * Walks straight up or down until `key` is in reach. Both doors here sit in
- * the wall the player walks into, right above or below where the player
- * stands, so the wall stops the walk inside the door's reach however late the
- * key is released; walkTo's row-then-along approach would release the along
- * key with the door already in reach and let a slow runner carry the player
- * past it (backlog #81).
+ * Holds `arrow` until `key` is in reach, or not at all if it already is. The
+ * walks here end against the wall the player walks into (both doors sit in
+ * one, the pedestals in a corner), so the wall stops the walk inside reach
+ * however late the key is released; walkTo's row-then-along approach would
+ * release the along key with the target already in reach and let a slow
+ * runner carry the player past it (backlog #81).
  */
-async function walkInto(page: Page, dy: 'up' | 'down', key: string): Promise<void> {
-  const vertical = dy === 'up' ? 'ArrowUp' : 'ArrowDown';
-  await page.keyboard.down(vertical);
+async function holdUntilNear(page: Page, arrow: Arrow, key: string): Promise<void> {
+  if ((await hook(page)).near === key) return;
+  await page.keyboard.down(arrow);
   await page.waitForFunction((k) => window.__bonsai?.near === k, key);
-  await page.keyboard.up(vertical);
+  await page.keyboard.up(arrow);
 }
 
-/** Walks left until the player's x is at most `x`; the left wall bounds a late release the same way. */
-async function walkLeftTo(page: Page, x: number): Promise<void> {
-  await page.keyboard.down('ArrowLeft');
-  await page.waitForFunction((limit) => (window.__bonsai?.player.x ?? NaN) <= limit, x);
-  await page.keyboard.up('ArrowLeft');
+/** Holds `arrow` (up or left) until the player's coordinate on `axis` is at most `max`; a late release ends at the wall. */
+async function holdUntilAtMost(
+  page: Page,
+  arrow: Arrow,
+  axis: 'x' | 'y',
+  max: number,
+): Promise<void> {
+  await page.keyboard.down(arrow);
+  await page.waitForFunction(([a, limit]) => (window.__bonsai?.player[a] ?? NaN) <= limit, [
+    axis,
+    max,
+  ] as const);
+  await page.keyboard.up(arrow);
 }
 
+/** From under the door (a new game starts at (240, 135)): straight up into the top wall. */
 async function toLounge(page: Page): Promise<void> {
-  await walkInto(page, 'up', 'door_lounge');
+  await holdUntilNear(page, 'ArrowUp', 'door_lounge');
   await throughDoor(page, 'lounge');
 }
 
@@ -61,7 +72,7 @@ test.describe('the lounge', () => {
     expect([h.room, h.player.x, h.player.y]).toEqual(['lounge', 240, 190]);
     expect(h.near).toBe('');
 
-    await walkInto(page, 'down', 'door');
+    await holdUntilNear(page, 'ArrowDown', 'door');
     await throughDoor(page, 'shed');
     h = await hook(page);
     expect([h.room, h.player.x, h.player.y]).toEqual(['shed', 240, 82]);
@@ -76,10 +87,16 @@ test.describe('the lounge', () => {
     await bootWorld(page);
     await walkTo(page, 160, 'left', 'tree:0');
     await pickUpTree(page);
-    await toLounge(page);
+    // From the tree's spot (x about 190): up into the top wall, then right along it until the door
+    // is in reach. Along the wall row the door's reach spans 36 px, wider than the release lag seen
+    // on CI; the pass back left covers a longer one (it does nothing while the door is in reach).
+    await holdUntilAtMost(page, 'ArrowUp', 'y', 66);
+    await holdUntilNear(page, 'ArrowRight', 'door_lounge');
+    await holdUntilNear(page, 'ArrowLeft', 'door_lounge');
+    await throughDoor(page, 'lounge');
     // Into the top-left corner: the left wall then the top wall stop the walk with the pedestal in reach.
-    await walkLeftTo(page, 110);
-    await walkInto(page, 'up', 'pedestal_1');
+    await holdUntilAtMost(page, 'ArrowLeft', 'x', 110);
+    await holdUntilNear(page, 'ArrowUp', 'pedestal_1');
     await placeTree(page);
     let h = await hook(page);
     expect(h.carrying).toBe('');
