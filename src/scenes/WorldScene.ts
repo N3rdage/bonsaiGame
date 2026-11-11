@@ -26,11 +26,11 @@ import {
   HUD_BADGE,
   INTERACT_BUTTON,
   MENU_BUTTON,
-  MENU_PANEL,
   NOTEBOOK_BUTTON,
   TOAST_X,
   VIEW_BUTTON,
   menuItems,
+  menuPanel,
 } from '../world/menu';
 import {
   PANEL,
@@ -38,6 +38,7 @@ import {
   PANEL_DISABLED_COLOR,
   PANEL_INSET,
   PANEL_TEXT_COLOR,
+  fitRows,
   loadSlotsPanel,
   panelClose,
   panelTitleY,
@@ -58,6 +59,7 @@ import { clamp } from '../sim/vec3';
 import {
   DISABLED_COLOR,
   FOOTER_COLOR,
+  INSPECTOR_BUTTON_PITCH,
   INSPECTOR_CLOSE_LABEL,
   INSPECTOR_INSET,
   INSPECTOR_PANEL,
@@ -85,8 +87,8 @@ import {
 } from '../world/shedRoom';
 import { treeSprites, treeTargets, treeLabel, type TreeTarget } from '../world/treeSprites';
 import {
-  RENAME_INPUT,
   renameCounter,
+  renameInput,
   renamePanel,
   repotPanel,
   sellPanel,
@@ -136,10 +138,27 @@ import {
 } from '../world/roomArt';
 import { treeArt, type TreeArt } from '../world/treeArt';
 import { viewSize, worldView, worldZoom, type WorldView } from '../world/worldCamera';
-import { crispText, fitCamera, sceneZoom, textZoom, type DeviceZoom } from './crisp';
+import type { UiMetrics } from '../world/uiScale';
+import {
+  crispText,
+  fitCamera,
+  hitArea,
+  sceneUi,
+  sceneZoom,
+  setHitArea,
+  textZoom,
+  type DeviceZoom,
+} from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
-import { FONT_FAMILY, LABEL_STYLE, fontLoaded } from './textStyle';
+import {
+  BODY_STYLE,
+  FONT_FAMILY,
+  LABEL_STYLE,
+  bodyStyle,
+  fontLoaded,
+  labelStyle,
+} from './textStyle';
 
 const TOAST_MS = 2000;
 /** The player sprite's drawn height, round its centre: spr_player's 32 px at 1.5x, halved. */
@@ -318,6 +337,13 @@ export class WorldScene extends Phaser.Scene {
   /** The prop or floor tree in interact range of the player, if any. */
   private near: Prop | TreeTarget | undefined;
   private panel: OpenPanel | undefined;
+  /**
+   * The UI metrics of the HUD and panels (src/world/uiScale.ts), read at
+   * create; a resize updates only `hit`, so text sizes stay until a restart.
+   */
+  private ui!: UiMetrics;
+  /** The metrics at the world camera's zoom, for the texts it draws (the prompt and tree labels). */
+  private worldUi!: UiMetrics;
   private accumulatorMs = 0;
   private frames = 0;
   private joystick: { id: number; x: number; y: number; input: MoveInput } | undefined;
@@ -360,7 +386,9 @@ export class WorldScene extends Phaser.Scene {
       this.worldCamera.ignore(o);
     };
     this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, toHud);
-    fitCamera(this, this.publishHook, this.fitWorld);
+    this.ui = sceneUi(this);
+    this.worldUi = sceneUi(this, worldZoom(window.innerWidth, window.innerHeight));
+    fitCamera(this, this.onResize, this.fitWorld);
 
     this.shadowGfx = this.inWorld(this.add.graphics().setDepth(SHADOW_DEPTH));
     this.drawRoom();
@@ -375,30 +403,33 @@ export class WorldScene extends Phaser.Scene {
       this.add.sprite(0, 0, SHEETS.player.key, 0).setScale(PLAYER_SCALE),
     );
     this.promptText = this.inWorld(
-      this.text(0, 0, '', { ...LABEL_STYLE, color: '#ffffff' })
+      this.text(0, 0, '', { ...labelStyle(this.worldUi), color: '#ffffff' })
         .setOrigin(0.5, 1)
         .setDepth(HUD_DEPTH),
     );
 
     this.hud = this.text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), {
-      ...LABEL_STYLE,
-      fontSize: '10px',
+      ...bodyStyle(this.ui),
       color: '#ffffff',
     })
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
-    this.carryText = this.text(CARRY_TEXT.right, CARRY_TEXT.top, '', {
-      ...LABEL_STYLE,
-      fontSize: '10px',
-    })
+    this.carryText = this.text(CARRY_TEXT.right, CARRY_TEXT.top, '', bodyStyle(this.ui))
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
     this.treeParts = [];
     this.drawTrees();
     this.drawPlayer();
-    this.viewButton = this.hudButton(VIEW_BUTTON.left, VIEW_BUTTON.bottom, 'View tree (V)', () => {
-      this.openViewer();
-    }).setOrigin(0, 1);
+    this.viewButton = this.hudButton(
+      VIEW_BUTTON.left,
+      VIEW_BUTTON.bottom,
+      'View tree (V)',
+      () => {
+        this.openViewer();
+      },
+      0,
+      1,
+    );
     this.notebookButton = this.hudButton(
       NOTEBOOK_BUTTON.left,
       NOTEBOOK_BUTTON.bottom,
@@ -406,7 +437,9 @@ export class WorldScene extends Phaser.Scene {
       () => {
         this.toggleNotebook();
       },
-    ).setOrigin(0, 1);
+      0,
+      1,
+    );
     this.menuButton = this.hudButton(MENU_BUTTON.left, MENU_BUTTON.top, 'Menu', () => {
       if (this.panel?.modal) return;
       if (this.panel) this.closePanel();
@@ -419,12 +452,12 @@ export class WorldScene extends Phaser.Scene {
       () => {
         this.interact();
       },
-    ).setOrigin(1, 1);
-    this.toast = this.text(TOAST_X, 2, '', {
-      ...LABEL_STYLE,
-      fontSize: '10px',
-      color: '#ffffff',
-    }).setDepth(HUD_DEPTH);
+      1,
+      1,
+    );
+    this.toast = this.text(TOAST_X, 2, '', { ...bodyStyle(this.ui), color: '#ffffff' }).setDepth(
+      HUD_DEPTH,
+    );
 
     const keyboard = this.input.keyboard;
     if (!keyboard) throw new Error('WorldScene needs the keyboard plugin');
@@ -567,18 +600,35 @@ export class WorldScene extends Phaser.Scene {
     this.worldCamera.centerOn(this.view.scrollX + w / 2, this.view.scrollY + h / 2);
   }
 
+  /**
+   * A text button at the body size, anchored at (`x`, `y`) by its origin,
+   * tappable over `hitRect` of its bounds (setHitArea) at least `hit` square.
+   */
   private hudButton(
     x: number,
     y: number,
     label: string,
     onTap: () => void,
+    originX = 0,
+    originY = originX,
+    hit = this.ui.hit,
   ): Phaser.GameObjects.Text {
-    const button = this.text(x, y, label, { ...LABEL_STYLE, fontSize: '10px' })
-      .setDepth(HUD_DEPTH)
-      .setInteractive({ useHandCursor: true });
-    button.on('pointerup', onTap);
+    const button = this.text(x, y, label, bodyStyle(this.ui))
+      .setOrigin(originX, originY)
+      .setDepth(HUD_DEPTH);
+    setHitArea(button, hit).on('pointerup', onTap);
     return button;
   }
+
+  /** On a resize, after the cameras are refitted: the new tap target size on the HUD's buttons, then a publish. */
+  private readonly onResize = (): void => {
+    this.ui = { ...this.ui, hit: sceneUi(this).hit };
+    const buttons = [this.viewButton, this.notebookButton, this.menuButton, this.interactButton];
+    for (const button of [...buttons, this.tutorialSkipButton]) {
+      if (button) setHitArea(button, this.ui.hit);
+    }
+    this.publishHook();
+  };
 
   /** No viewer and no modal panel: the room's own keys and buttons act. */
   private roomKeysLive(): boolean {
@@ -596,7 +646,8 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private openMenu(): void {
-    const bg = this.panelBox(MENU_PANEL, HUD_DEPTH);
+    const carrying = carriedTree(this.ctx.state) !== undefined;
+    const bg = this.panelBox(menuPanel(carrying, this.ui), HUD_DEPTH);
     const actions = {
       inventory: () => {
         this.toggleInventory();
@@ -622,24 +673,26 @@ export class WorldScene extends Phaser.Scene {
         this.relocated();
       },
     };
-    const buttons = menuItems(carriedTree(this.ctx.state) !== undefined).map((item) => ({
+    const buttons = menuItems(carrying, this.ui).map((item) => ({
       id: `menu-${item.id}`,
-      text: this.hudButton(item.x, item.y, item.label, actions[item.id]).setOrigin(0, 0.5),
+      text: this.hudButton(item.x, item.y, item.label, actions[item.id], 0, 0.5),
     }));
     this.panel = { key: 'menu', modal: false, parts: [bg], buttons };
     this.publishHook();
   }
 
   /**
-   * A modal panel over the dimmed room (obj_ui_panel): title, rows and Close.
-   * A row with an id is a button and `onRow` gets its index.
+   * A modal panel over the dimmed room (obj_ui_panel): title, rows and Close,
+   * laid out by `fitRows` for the screen's tap targets. A row with an id is a
+   * button and `onRow` gets its index.
    */
   private openPanel(
-    model: PanelModel,
+    unfitted: PanelModel,
     onRow: (index: number) => void = () => undefined,
   ): Phaser.GameObjects.Text[] {
     this.closePanel();
     this.joystick = undefined;
+    const model = fitRows(unfitted, this.ui);
     const box = model.box ?? PANEL;
     const dim = this.add
       .rectangle(0, 0, this.room.width, this.room.height, 0x000000, 0.5)
@@ -647,7 +700,7 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(MODAL_DEPTH)
       .setInteractive();
     const left = box.x + PANEL_INSET;
-    const style = { ...LABEL_STYLE, fontSize: '10px', color: '#ffffff' };
+    const style = bodyStyle(this.ui);
     const text = (y: number, label: string, color: string, x = left) =>
       this.text(x, y, label, { ...style, color })
         .setOrigin(0, 0.5)
@@ -667,17 +720,30 @@ export class WorldScene extends Phaser.Scene {
         parts.push(t);
         return t;
       }
-      const button = this.hudButton(row.x ?? left, row.y, row.text, () => {
-        onRow(i);
-      });
-      buttons.push({ id: row.id, text: button.setOrigin(0, 0.5).setColor(row.color ?? '#ffffff') });
+      const button = this.hudButton(
+        row.x ?? left,
+        row.y,
+        row.text,
+        () => {
+          onRow(i);
+        },
+        0,
+        0.5,
+      );
+      buttons.push({ id: row.id, text: button.setColor(row.color ?? '#ffffff') });
       return button;
     });
     const at = panelClose(box);
-    const close = this.hudButton(at.x, at.y, PANEL_CLOSE_LABEL, () => {
-      this.closePanel();
-    });
-    buttons.push({ id: 'panel-close', text: close.setOrigin(0.5) });
+    const close = this.hudButton(
+      at.x,
+      at.y,
+      PANEL_CLOSE_LABEL,
+      () => {
+        this.closePanel();
+      },
+      0.5,
+    );
+    buttons.push({ id: 'panel-close', text: close });
     for (const b of buttons) b.text.setDepth(MODAL_DEPTH);
     this.panel = { key: model.key, modal: true, parts, buttons };
     this.publishHook();
@@ -698,7 +764,7 @@ export class WorldScene extends Phaser.Scene {
   /** obj_ui_tree_repot_confirm; the soil toggle reopens it with the flag flipped. */
   private openRepot(tree: BonsaiTree, premiumSoil = false): void {
     const { state } = this.ctx;
-    const model = repotPanel(tree, state, premiumSoil);
+    const model = repotPanel(tree, state, premiumSoil, this.ui);
     this.openPanel(model, (i) => {
       const id = model.rows[i]?.id;
       if (id === 'panel-soil') {
@@ -731,7 +797,7 @@ export class WorldScene extends Phaser.Scene {
   /** obj_ui_shop: a Buy buys one, then the HUD and the reopened shop show the new money and count. */
   private openShop(): void {
     const { state } = this.ctx;
-    const model = shopPanel(state);
+    const model = shopPanel(state, this.ui);
     this.openPanel(model, (i) => {
       const item = shopItemFor(model.rows[i]?.id ?? '');
       if (item) shopBuy(state, item.key, 1, item.price);
@@ -775,7 +841,7 @@ export class WorldScene extends Phaser.Scene {
    * its model changed (gone once the tutorial is done); hidden under the viewer.
    */
   private drawTutorial(): void {
-    const model = tutorialPanel(this.ctx.state.tutorialStep, this.panel?.modal === true);
+    const model = tutorialPanel(this.ctx.state.tutorialStep, this.panel?.modal === true, this.ui);
     const drawn = model ? JSON.stringify(model) : '';
     if (drawn !== this.tutorialDrawn) {
       for (const part of this.tutorialParts) part.destroy();
@@ -795,26 +861,32 @@ export class WorldScene extends Phaser.Scene {
       .setStrokeStyle(1, Phaser.Display.Color.HexStringToColor(TUTORIAL_HEADING_COLOR).color)
       .setInteractive();
     const texts = m.texts.map((t) =>
-      this.text(t.x, t.y, t.text, { ...LABEL_STYLE, color: t.color }),
+      this.text(t.x, t.y, t.text, { ...labelStyle(this.ui), color: t.color }),
     );
     const skip = m.skip.enabled
-      ? this.hudButton(m.skip.x, m.skip.y, 'Skip', () => {
-          this.openSkipConfirm();
-        })
+      ? this.hudButton(
+          m.skip.x,
+          m.skip.y,
+          'Skip',
+          () => {
+            this.openSkipConfirm();
+          },
+          1,
+          0,
+        )
       : this.text(m.skip.x, m.skip.y, 'Skip', {
-          ...LABEL_STYLE,
-          fontSize: '10px',
+          ...bodyStyle(this.ui),
           color: PANEL_DISABLED_COLOR,
-        });
+        }).setOrigin(1, 0);
     if (m.skip.enabled) this.tutorialSkipButton = skip;
-    const parts = [bg, ...texts, skip.setOrigin(1, 0)];
+    const parts = [bg, ...texts, skip];
     for (const part of parts) part.setDepth(HUD_DEPTH);
     return parts;
   }
 
   /** obj_ui_tree_style_picker, one tap per pick. */
   private openStyle(tree: BonsaiTree): void {
-    const model = stylePanel(tree);
+    const model = stylePanel(tree, this.ui);
     this.openPanel(model, (i) => {
       const key = model.rows[i]?.id.replace('panel-style-', '') ?? '';
       const style = STYLE_KEYS.find((k) => k === key);
@@ -841,16 +913,18 @@ export class WorldScene extends Phaser.Scene {
     input.style.color = '#ffffff';
     input.style.border = '1px solid #8ca078';
     input.style.fontFamily = FONT_FAMILY;
+    const model = renamePanel(tree, input.value);
+    // Where openPanel draws the New name row: the model as fitted to the screen's tap targets.
+    const box = renameInput(fitRows(model, this.ui));
     const place = (): void => {
       const r = this.game.canvas.getBoundingClientRect();
       const sx = r.width / this.room.width;
       const sy = r.height / this.room.height;
-      const box = RENAME_INPUT;
       input.style.left = `${String(r.left + box.x * sx)}px`;
       input.style.top = `${String(r.top + (box.y - box.h / 2) * sy)}px`;
       input.style.width = `${String(box.w * sx)}px`;
       input.style.height = `${String(box.h * sy)}px`;
-      input.style.fontSize = `${String(10 * sy)}px`;
+      input.style.fontSize = `${String(this.ui.body * sy)}px`;
     };
     const save = (): void => {
       const name = renameTree(tree, input.value);
@@ -858,7 +932,7 @@ export class WorldScene extends Phaser.Scene {
       this.relocated();
       this.showToast(`Renamed to ${name}`);
     };
-    const texts = this.openPanel(renamePanel(tree, input.value), save);
+    const texts = this.openPanel(model, save);
     input.addEventListener('input', () => {
       texts[2]?.setText(renameCounter(input.value));
     });
@@ -892,7 +966,7 @@ export class WorldScene extends Phaser.Scene {
     const box = INSPECTOR_PANEL;
     const line = (l: InspectorText, color = INSPECTOR_TEXT) =>
       this.text(l.x, l.y, l.text, { ...LABEL_STYLE, color }).setOrigin(0, 0.5);
-    const big = { ...LABEL_STYLE, fontSize: '10px', color: INSPECTOR_TEXT };
+    const big = { ...BODY_STYLE, color: INSPECTOR_TEXT };
     const parts: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Depth)[] = [
       this.add
         .rectangle(0, 0, this.room.width, this.room.height, 0x000000, 0.5)
@@ -953,10 +1027,12 @@ export class WorldScene extends Phaser.Scene {
       },
     };
     const buttons: OpenPanel['buttons'] = [];
+    // Tap targets no taller than the button rows' pitch, so the rows' never overlap, until backlog #88 lays the inspector out for touch.
+    const hit = Math.min(this.ui.hit, INSPECTOR_BUTTON_PITCH);
     for (const b of m.buttons) {
       if (b.enabled) {
-        const text = this.hudButton(b.x, b.y, b.label, actions[b.id]).setColor(INSPECTOR_TEXT);
-        buttons.push({ id: `panel-${b.id}`, text: text.setOrigin(0, 0.5) });
+        const text = this.hudButton(b.x, b.y, b.label, actions[b.id], 0, 0.5, hit);
+        buttons.push({ id: `panel-${b.id}`, text: text.setColor(INSPECTOR_TEXT) });
       } else {
         parts.push(
           this.text(b.x, b.y, b.label, { ...big, color: DISABLED_COLOR }).setOrigin(0, 0.5),
@@ -970,8 +1046,11 @@ export class WorldScene extends Phaser.Scene {
       () => {
         this.closePanel();
       },
+      1,
+      0.5,
+      hit,
     );
-    buttons.push({ id: 'panel-close', text: close.setOrigin(1, 0.5).setColor(INSPECTOR_HINT) });
+    buttons.push({ id: 'panel-close', text: close.setColor(INSPECTOR_HINT) });
     for (const part of parts) part.setDepth(MODAL_DEPTH);
     for (const b of buttons) b.text.setDepth(MODAL_DEPTH);
     this.destroyPanel();
@@ -1046,7 +1125,7 @@ export class WorldScene extends Phaser.Scene {
   private openPlant(selection: PlantSelection): void {
     const { state } = this.ctx;
     const sel = plantSelection(state, selection);
-    const model = plantPanel(state, sel);
+    const model = plantPanel(state, sel, this.ui);
     this.openPanel(model, (i) => {
       const id = model.rows[i]?.id;
       const species = SPECIES_KEYS.find((k) => selectId(k) === id);
@@ -1286,7 +1365,9 @@ export class WorldScene extends Phaser.Scene {
       if (s.pedestalKey !== undefined) return [g];
       return [
         g,
-        this.text(s.x, art.labelY, s.label, LABEL_STYLE).setOrigin(0.5, 1).setDepth(s.depth),
+        this.text(s.x, art.labelY, s.label, labelStyle(this.worldUi))
+          .setOrigin(0.5, 1)
+          .setDepth(s.depth),
       ];
     });
     for (const p of this.room.props) {
@@ -1294,11 +1375,11 @@ export class WorldScene extends Phaser.Scene {
       const tree = treeOnPedestal(state, p.pedestalKey);
       const label = tree
         ? this.text(p.x, p.y + PEDESTAL_LABEL_DY, treeLabel(tree), {
-            ...LABEL_STYLE,
+            ...labelStyle(this.worldUi),
             color: '#ffffff',
           })
         : this.text(p.x, p.y + PEDESTAL_LABEL_DY, PEDESTAL_EMPTY_LABEL, {
-            ...LABEL_STYLE,
+            ...labelStyle(this.worldUi),
             color: PEDESTAL_EMPTY_COLOUR,
           });
       this.treeParts.push(label.setOrigin(0.5, 0).setDepth(p.y + p.h / 2));
@@ -1479,12 +1560,12 @@ export class WorldScene extends Phaser.Scene {
     this.publishHook();
   }
 
-  /** Centres of the tappable controls on screen, for the test hook; none under the viewer, only the panel's under a modal. */
+  /** Centres and tap targets of the tappable controls on screen, for the test hook; none under the viewer, only the panel's under a modal. */
   private controls(): BonsaiTestHook['controls'] {
     if (this.viewer.isOpen) return [];
     const at = (id: string, text: Phaser.GameObjects.Text) => {
       const c = text.getCenter();
-      return { id, x: c.x, y: c.y };
+      return { id, x: c.x, y: c.y, hit: hitArea(text) };
     };
     const rows = this.panel?.buttons.map((b) => at(b.id, b.text)) ?? [];
     if (this.panel?.modal) return rows;
