@@ -158,9 +158,12 @@ const STALL = { frames: 30, ms: 500 };
 /** The player has stopped once unmoved for this many frames and this long (up to `budgetMs`). */
 const STILL = { frames: 3, ms: 50, budgetMs: 2_000 };
 /**
- * A nudge holds its key until one world frame has stepped, or this long: the
- * smallest move the game makes, from 1 step (1.25 px) to about a frame of
- * release lag (under 12 px); 0 px when down and up land in one frame.
+ * A nudge presses its key, reads the hook's `frames` (world steps so far) and
+ * holds the key until a later frame has stepped, or this long, then releases
+ * it. The world reads keys at the start of each frame, so that frame stepped
+ * with the key down: the player moves at least 1 step (1.25 px) plus the
+ * release lag, under 12 px. It can still move 0 px when Phaser sees the down
+ * and the up in one frame; that costs one try.
  */
 const NUDGE_MS = 300;
 
@@ -170,7 +173,7 @@ type Watch =
   | { until: 'row'; row: number; down: boolean }
   /** A long leg: until `near` is `key`. */
   | { until: 'near'; key: string }
-  /** A nudge: until the hook's `frames` passes `from`. */
+  /** A nudge: until the hook's `frames` passes `from`, read once the key was down. */
   | { until: 'frame'; from: number }
   /** Until the player stops. */
   | { until: 'still' };
@@ -182,7 +185,6 @@ interface Watched {
   readonly y: number;
   readonly near: string;
   readonly room: string;
-  readonly frames: number;
 }
 
 /** Polls the hook every frame until `w`'s goal, a stall (long legs only) or its time budget. */
@@ -211,7 +213,7 @@ function watch(page: Page, w: Watch): Promise<Watched> {
           const h = window.__bonsai;
           if (h) {
             const { x, y } = h.player;
-            const at = { x, y, near: h.near, room: h.room, frames: h.frames };
+            const at = { x, y, near: h.near, room: h.room };
             const pos = `${String(x)},${String(y)}`;
             if (pos === last) {
               sameFrames += 1;
@@ -251,17 +253,25 @@ function watch(page: Page, w: Watch): Promise<Watched> {
   );
 }
 
-/** Holds `key` while watching `w`, then releases it. */
+/** Holds `key` while watching `w`, then releases it, also when the watch throws. */
 async function hold(page: Page, key: string, w: Watch): Promise<Watched> {
   await page.keyboard.down(key);
-  const at = await watch(page, w);
-  await page.keyboard.up(key);
-  return at;
+  try {
+    return await watch(page, w);
+  } finally {
+    await page.keyboard.up(key);
+  }
 }
 
-/** Taps `key` for one world frame from where the player stopped, `at`, and waits for it to stop again. */
-async function nudge(page: Page, key: string, at: Watched): Promise<Watched> {
-  await hold(page, key, { until: 'frame', from: at.frames });
+/** Presses `key` for one stepped world frame (see `NUDGE_MS`) and waits for the player to stop. */
+async function nudge(page: Page, key: string): Promise<Watched> {
+  await page.keyboard.down(key);
+  try {
+    const from = await page.evaluate(() => window.__bonsai?.frames ?? 0);
+    await watch(page, { until: 'frame', from });
+  } finally {
+    await page.keyboard.up(key);
+  }
   return watch(page, { until: 'still' });
 }
 
@@ -297,7 +307,7 @@ export async function walkTo(
     tries -= 1
   ) {
     if (tries === 0) throw fail(`could not settle on row ${String(y)}`, at);
-    at = await nudge(page, at.y < y ? 'ArrowDown' : 'ArrowUp', at);
+    at = await nudge(page, at.y < y ? 'ArrowDown' : 'ArrowUp');
   }
   if (at.near === key) return;
 
@@ -307,7 +317,7 @@ export async function walkTo(
   const back = dx === 'left' ? 'ArrowRight' : 'ArrowLeft';
   for (let tries = SETTLE_TRIES; at.near !== key; tries -= 1) {
     if (tries === 0) throw fail(`carried out of reach walking ${dx}`, at);
-    at = await nudge(page, back, at);
+    at = await nudge(page, back);
   }
 }
 
