@@ -9,7 +9,12 @@
 
 import { clamp } from './vec3';
 import { inventoryHas, inventoryRemove } from './inventory';
-import { seasonForDay, seasonGrowthMultiplier, seasonWaterMultiplier, type Season } from './seasons';
+import {
+  seasonForDay,
+  seasonGrowthMultiplier,
+  seasonWaterMultiplier,
+  type Season,
+} from './seasons';
 import { getSpecies } from './species';
 import { addBranch, markDirty } from './tree';
 import type { BonsaiTree, GameState, InventoryKey, PotTier, Rng, SoilTier } from './types';

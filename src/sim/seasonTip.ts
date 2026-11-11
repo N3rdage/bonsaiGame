@@ -36,9 +36,7 @@ export function seasonTipFor(state: GameState, previousDay: number): string | un
   if (state.seasonTipShown) return undefined;
   const season = seasonForDay(state.day);
   if (season === seasonForDay(previousDay)) return undefined;
-  const tree = state.trees.find(
-    (t) => !isSold(t) && isDormant(getSpecies(t.speciesKey), season),
-  );
+  const tree = state.trees.find((t) => !isSold(t) && isDormant(getSpecies(t.speciesKey), season));
   if (!tree) return undefined;
   const species = getSpecies(tree.speciesKey);
   return (
