@@ -14,16 +14,33 @@ import {
   type PickerMode,
   type SlotRow,
 } from '../world/saveSlots';
-import { PANEL, PANEL_CLOSE_LABEL, PANEL_INSET, panelClose, panelTitleY } from '../world/panels';
+import {
+  PANEL,
+  PANEL_CLOSE_LABEL,
+  PANEL_INSET,
+  fitRows,
+  panelClose,
+  panelTitleY,
+} from '../world/panels';
 import { SETTINGS_KEY, settingsPanel } from '../world/settingsPanel';
-import { crispText, fitCamera, sceneZoom } from './crisp';
+import type { UiMetrics } from '../world/uiScale';
+import { crispText, fitCamera, hitArea, sceneUi, sceneZoom, setHitArea } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { IDLE_HOOK, type TitleSceneData, type WorldSceneData } from './sceneData';
-import { BODY_STYLE, fontLoaded } from './textStyle';
+import { TEXT_COLOR, bodyStyle, fontLoaded } from './textStyle';
 
-const TEXT = BODY_STYLE;
 const DISABLED = '#5f6b58';
 const CENTER_X = 240;
+/** The title's size, and the menu buttons' (never under the copy's). */
+const TITLE_PX = 20;
+const TITLE_BUTTON_PX = 12;
+/** The menu buttons: the first's centre and the pitch, widened to the tap target where that is taller. */
+const MENU_TOP = 110;
+const MENU_PITCH = 26;
+/** The slot picker's rows: the first's centre and the pitch (likewise widened), and Cancel's lowest centre. */
+const PICKER_TOP = 112;
+const PICKER_PITCH = 24;
+const PICKER_CANCEL_Y = 200;
 /** The short SHA the version line shows. */
 const COMMIT = shortCommit(__APP_COMMIT__);
 
@@ -57,6 +74,8 @@ export class TitleScene extends Phaser.Scene {
   private buttons: { id: string; text: Phaser.GameObjects.Text }[] = [];
   /** The version line, a link to the commit the build came from. */
   private versionLink!: Phaser.GameObjects.Text;
+  /** The UI metrics (src/world/uiScale.ts), read at create; a resize updates only `hit`. */
+  private ui!: UiMetrics;
 
   constructor() {
     super('title');
@@ -68,7 +87,12 @@ export class TitleScene extends Phaser.Scene {
     this.message = corruptSlotsMessage(this.rows);
     this.view = { kind: 'menu' };
     this.layer = this.add.container(0, 0);
+    this.ui = sceneUi(this);
+    // A resize gives the buttons the new tap target size; the layout and text sizes stay until the next view or restart.
     fitCamera(this, () => {
+      this.ui = { ...this.ui, hit: sceneUi(this).hit };
+      for (const { text } of this.buttons) setHitArea(text, this.ui.hit);
+      setHitArea(this.versionLink, this.ui.hit);
       this.publishHook();
     });
 
@@ -173,6 +197,10 @@ export class TitleScene extends Phaser.Scene {
     this.draw();
   }
 
+  /**
+   * A button of `size` px anchored by its origin, tappable over `hitRect` of
+   * its bounds while enabled, else grey and not a control.
+   */
   private button(
     id: string,
     x: number,
@@ -180,19 +208,29 @@ export class TitleScene extends Phaser.Scene {
     label: string,
     enabled: boolean,
     onClick: () => void,
+    { size = this.buttonPx(), originX = 0.5 }: { size?: number; originX?: number } = {},
   ): Phaser.GameObjects.Text {
     const text = this.text(x, y, label, {
-      ...TEXT,
-      fontSize: '12px',
+      ...this.style(),
+      fontSize: `${String(size)}px`,
       color: enabled ? '#ffffff' : DISABLED,
-    }).setOrigin(0.5);
+    }).setOrigin(originX, 0.5);
     if (enabled) {
-      text.setInteractive({ useHandCursor: true });
-      text.on('pointerup', onClick);
+      setHitArea(text, this.ui.hit).on('pointerup', onClick);
       this.buttons.push({ id, text });
     }
     this.layer.add(text);
     return text;
+  }
+
+  /** The title's copy style, from the UI metrics. */
+  private style() {
+    return bodyStyle(this.ui);
+  }
+
+  /** The title menu's buttons are a step larger than the copy. */
+  private buttonPx(): number {
+    return Math.max(TITLE_BUTTON_PX, this.ui.body);
   }
 
   private text(
@@ -204,8 +242,8 @@ export class TitleScene extends Phaser.Scene {
     return crispText(this, x, y, text, style);
   }
 
-  private label(x: number, y: number, text: string, color = TEXT.color): void {
-    this.layer.add(this.text(x, y, text, { ...TEXT, color }).setOrigin(0.5));
+  private label(x: number, y: number, text: string, color = TEXT_COLOR): void {
+    this.layer.add(this.text(x, y, text, { ...this.style(), color }).setOrigin(0.5));
   }
 
   private draw(): void {
@@ -213,39 +251,40 @@ export class TitleScene extends Phaser.Scene {
     this.buttons = [];
     this.layer.add(
       this.text(CENTER_X, 34, 'Bonsai Greenhouse', {
-        ...TEXT,
-        fontSize: '20px',
+        ...this.style(),
+        fontSize: `${String(TITLE_PX)}px`,
         color: '#ffffff',
       }).setOrigin(0.5),
     );
     this.label(CENTER_X, 56, 'A cozy bonsai-growing sim', '#a0b496');
     this.versionLink = this.text(474, 264, `v${__APP_VERSION__} (${COMMIT})`, {
-      ...TEXT,
+      ...this.style(),
       color: DISABLED,
-    })
-      .setOrigin(1, 1)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerup', () => {
-        window.open(__APP_COMMIT_URL__, '_blank', 'noopener');
-      });
+    }).setOrigin(1, 1);
+    setHitArea(this.versionLink, this.ui.hit).on('pointerup', () => {
+      window.open(__APP_COMMIT_URL__, '_blank', 'noopener');
+    });
     this.layer.add(this.versionLink);
 
     const view = this.view;
+    // Rows one tap target apart where that is more than the layout's own pitch.
+    const pitch = (base: number): number => Math.max(base, this.ui.hit);
     if (view.kind === 'menu') {
       const anySave = this.rows.some((r) => r.status !== 'empty');
-      this.button('new', CENTER_X, 110, 'New Game (Enter)', true, () => {
+      const y = (i: number): number => MENU_TOP + i * pitch(MENU_PITCH);
+      this.button('new', CENTER_X, y(0), 'New Game (Enter)', true, () => {
         this.phoneFullscreen();
         this.newGame();
       });
-      this.button('continue', CENTER_X, 136, 'Continue (C)', this.continueSlot > 0, () => {
+      this.button('continue', CENTER_X, y(1), 'Continue (C)', this.continueSlot > 0, () => {
         this.phoneFullscreen();
         this.continueGame();
       });
-      this.button('load', CENTER_X, 162, 'Load Game (L)', anySave, () => {
+      this.button('load', CENTER_X, y(2), 'Load Game (L)', anySave, () => {
         this.phoneFullscreen();
         this.openPicker('load');
       });
-      this.button('settings', CENTER_X, 188, 'Settings (S)', true, () => {
+      this.button('settings', CENTER_X, y(3), 'Settings (S)', true, () => {
         this.show({ kind: 'settings' });
       });
     } else if (view.kind === 'settings') {
@@ -260,21 +299,24 @@ export class TitleScene extends Phaser.Scene {
         view.mode === 'new' ? 'New Game - Pick a Slot' : 'Load Game',
         '#ffffff',
       );
+      const y = (i: number): number => PICKER_TOP + i * pitch(PICKER_PITCH);
       this.rows.forEach((row, i) => {
         const action =
           view.mode === 'new' ? (row.status === 'empty' ? 'Use' : 'Overwrite') : 'Load';
         this.button(
           `slot-${String(row.slot)}`,
           CENTER_X,
-          112 + i * 24,
+          y(i),
           `${String(row.slot)}: ${slotRowText(row)}  [${action}]`,
           canPickSlot(view.mode, row),
           () => {
             this.pickSlot(view.mode, row.slot);
           },
-        ).setFontSize(10);
+          { size: this.ui.body },
+        );
       });
-      this.button('cancel', CENTER_X, 200, 'Cancel (Esc)', true, () => {
+      const cancelY = Math.max(PICKER_CANCEL_Y, y(this.rows.length));
+      this.button('cancel', CENTER_X, cancelY, 'Cancel (Esc)', true, () => {
         this.show({ kind: 'menu' });
       });
     } else {
@@ -296,34 +338,50 @@ export class TitleScene extends Phaser.Scene {
     this.publishHook();
   }
 
-  /** The Settings panel model in its box, as the world draws it; a toggle applies, saves and redraws it. */
+  /** The Settings panel model in its box, fitted as the world fits it; a toggle applies, saves and redraws it. */
   private drawSettings(): void {
-    const model = settingsPanel(this.ctx.settings, fullscreenState(this));
+    const model = fitRows(settingsPanel(this.ctx.settings, fullscreenState(this)), this.ui);
+    const box = model.box ?? PANEL;
     this.layer.add(
       this.add
-        .rectangle(PANEL.x, PANEL.y, PANEL.w, PANEL.h, 0x28322a)
+        .rectangle(box.x, box.y, box.w, box.h, 0x28322a)
         .setOrigin(0)
         .setStrokeStyle(1, 0x8ca078),
     );
-    const left = PANEL.x + PANEL_INSET;
+    const left = box.x + PANEL_INSET;
     this.layer.add(
-      this.text(left, panelTitleY(PANEL), model.title, { ...TEXT, color: '#ffffff' }).setOrigin(
-        0,
-        0.5,
-      ),
+      this.text(left, panelTitleY(box), model.title, {
+        ...this.style(),
+        color: '#ffffff',
+      }).setOrigin(0, 0.5),
     );
+    const size = this.ui.body;
     for (const row of model.rows) {
-      this.button(row.id, left, row.y, row.text, row.enabled !== false, () => {
-        toggleSetting(this, this.ctx, row.id);
-        this.draw();
-      })
-        .setFontSize(10)
-        .setOrigin(0, 0.5);
+      this.button(
+        row.id,
+        left,
+        row.y,
+        row.text,
+        row.enabled !== false,
+        () => {
+          toggleSetting(this, this.ctx, row.id);
+          this.draw();
+        },
+        { size, originX: 0 },
+      );
     }
-    const close = panelClose(PANEL);
-    this.button('panel-close', close.x, close.y, PANEL_CLOSE_LABEL, true, () => {
-      this.show({ kind: 'menu' });
-    }).setFontSize(10);
+    const close = panelClose(box);
+    this.button(
+      'panel-close',
+      close.x,
+      close.y,
+      PANEL_CLOSE_LABEL,
+      true,
+      () => {
+        this.show({ kind: 'menu' });
+      },
+      { size },
+    );
   }
 
   private publishHook(): void {
@@ -342,7 +400,7 @@ export class TitleScene extends Phaser.Scene {
       toast: this.message,
       controls: this.buttons.map(({ id, text }) => {
         const c = text.getCenter();
-        return { id, x: c.x, y: c.y };
+        return { id, x: c.x, y: c.y, hit: hitArea(text) };
       }),
       picker: this.pickerHook(),
       panel: this.view.kind === 'settings' ? SETTINGS_KEY : '',

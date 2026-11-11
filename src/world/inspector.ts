@@ -56,7 +56,9 @@ const SCORE_X = INSPECTOR_PANEL.x + 220;
 const SCORE_VALUE_X = SCORE_X + 125;
 /** Two button rows: care and carrying, then the sub-panels. */
 const BUTTON_Y = INSPECTOR_PANEL.y + INSPECTOR_PANEL.h - 44;
-const BUTTON2_Y = BUTTON_Y + 14;
+/** The button rows' pitch; their tap targets are no taller, so they never overlap (backlog #88 lays them out for touch). */
+export const INSPECTOR_BUTTON_PITCH = 14;
+const BUTTON2_Y = BUTTON_Y + INSPECTOR_BUTTON_PITCH;
 const FOOTER_Y = INSPECTOR_PANEL.y + INSPECTOR_PANEL.h - 12;
 
 /** The close hint, right-aligned in the title bar opposite the tree's label. */
