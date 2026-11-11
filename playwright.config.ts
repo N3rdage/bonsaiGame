@@ -34,9 +34,9 @@ export default defineConfig<RouteOptions>({
   testDir: './e2e',
   fullyParallel: true,
   // Walks are frame-paced (src/world/player.ts), so a starved runner stretches
-  // a long walk past Playwright's 30 s default (two CI runs in three today on
-  // s22-landscape); N3rdage/agentic-gaming#81 is the fix, this is the budget
-  // until it lands.
+  // a long test past Playwright's 30 s default. Since N3rdage/agentic-gaming#81
+  // walkTo (e2e/drive.ts) settles on its row and fails fast with where the
+  // player stopped; the 60 s budget stays for slow runners.
   timeout: 60_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
