@@ -4,7 +4,8 @@
  * conventions: the same canvas and inset ring (so the dark background frames
  * it and the camera clamp and floor grid work unchanged), solid walls, a door
  * drawn on the bottom wall back to the shed, one on the right wall on to the
- * hallway, and two display pedestals.
+ * hallway, and the two display pedestals that were the shed's (saves from
+ * before version 4 move the shed's displayed trees onto them).
  */
 
 import { SHED_BOUNDS, SHED_ROOM, fromPrototype, prop, ringWalls, type Room } from './shedRoom';
@@ -24,11 +25,11 @@ export const LOUNGE_ROOM: Room = {
     // walk into the corner always ends with the pedestal in range.
     {
       ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 200, 160, 16, 16),
-      pedestalKey: 'lounge_main',
+      pedestalKey: 'lounge_mantel',
     },
     {
       ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 760, 160, 16, 16),
-      pedestalKey: 'lounge_window',
+      pedestalKey: 'lounge_side_table',
     },
     // The shed garden door's square in the bottom wall, back to 26 px below the shed's lounge door.
     {

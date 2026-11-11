@@ -62,7 +62,7 @@ describe('a new game played for a season', () => {
     const state = createNewGameState();
     const starter = state.trees[0];
     if (!starter) throw new Error('no starter');
-    starter.location = 'displayed:shed_main';
+    starter.location = 'displayed:lounge_mantel';
     const expected = roundHalfToEven(scoreTree(starter).total * 0.1);
     const earned = advanceDayAllTrees(state, 1, () => 0.99);
     // Score may shift by one tick of growth, so compare against the post-tick value.

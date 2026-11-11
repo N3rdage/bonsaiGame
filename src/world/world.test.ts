@@ -50,8 +50,6 @@ describe('shed room', () => {
       ['workbench', 125, 90],
       ['planting_table', 165, 90],
       ['shop_kiosk', 125, 145],
-      ['pedestal_1', 310, 85],
-      ['pedestal_2', 350, 85],
       ['door', 240, 216],
       ['door_lounge', 240, 56],
     ]);
@@ -182,12 +180,12 @@ describe('lounge room', () => {
     expect(hitsWall(LOUNGE_ROOM, 240, 190)).toBe(false);
   });
 
-  it('has two pedestals, lounge_main and lounge_window, and a door in the bottom wall', () => {
+  it('has two pedestals, lounge_mantel and lounge_side_table, and a door in the bottom wall', () => {
     expect(
       LOUNGE_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
-      ['pedestal_1', 'Pedestal', 'Use Pedestal', 100, 80, 16, 16, 'lounge_main'],
-      ['pedestal_2', 'Pedestal', 'Use Pedestal', 380, 80, 16, 16, 'lounge_window'],
+      ['pedestal_1', 'Pedestal', 'Use Pedestal', 100, 80, 16, 16, 'lounge_mantel'],
+      ['pedestal_2', 'Pedestal', 'Use Pedestal', 380, 80, 16, 16, 'lounge_side_table'],
       ['door', 'Door', 'Back to Shed', 240, 216, 16, 16, undefined],
       ['door_hallway', 'Door', 'To Hallway', 392, 190, 16, 16, undefined],
     ]);
@@ -272,12 +270,12 @@ describe('study room', () => {
     expect(STUDY_ROOM.floor).toBe(0x2a1618);
   });
 
-  it('has two pedestals, study_main and study_window, and a door in the left wall', () => {
+  it('has two pedestals, study_desk and study_bookshelf, and a door in the left wall', () => {
     expect(
       STUDY_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
-      ['pedestal_1', 'Pedestal', 'Use Pedestal', 100, 80, 16, 16, 'study_main'],
-      ['pedestal_2', 'Pedestal', 'Use Pedestal', 380, 80, 16, 16, 'study_window'],
+      ['pedestal_1', 'Pedestal', 'Use Pedestal', 100, 80, 16, 16, 'study_desk'],
+      ['pedestal_2', 'Pedestal', 'Use Pedestal', 380, 80, 16, 16, 'study_bookshelf'],
       ['door_hallway', 'Door', 'To Hallway', 88, 190, 16, 16, undefined],
     ]);
     expect(door(STUDY_ROOM, 'door_hallway').target).toEqual({ room: 'hallway', x: 366, y: 190 });

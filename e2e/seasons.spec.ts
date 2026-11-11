@@ -28,7 +28,7 @@ const START = WINTER - 40;
 const FAST = '/?timeScale=10000';
 
 /**
- * A version-3 save with the tutorial done, on day START, owning one shed tree
+ * A save with the tutorial done, on day START, owning one shed tree
  * of each of `species` (no Granny's juniper): written with the game's own
  * serializeState, since a new game has no way to own a maple yet.
  */

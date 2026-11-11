@@ -1,10 +1,10 @@
-import type { Page } from '@playwright/test';
+import { serializeState } from '../src/sim/save';
+import { createNewGameState } from '../src/sim/state';
 import {
   bootWorld,
   collectErrors,
   continueGame,
   expect,
-  holdUntilAtMost,
   holdUntilNear,
   hook,
   interact,
@@ -15,20 +15,16 @@ import {
   toTitle,
   walkTo,
 } from './drive';
+import { shedToLounge, throughDoor, toLoungePedestal } from './rooms';
 
-// Shed lounge door (240, 56), in the top wall, to the lounge at (240, 190);
-// lounge door (240, 216) back to the shed at (240, 82). Lounge pedestals:
-// lounge_main (100, 80) and lounge_window (380, 80), in the top corners.
-
-async function throughDoor(page: Page, room: string): Promise<void> {
-  await interact(page);
-  await page.waitForFunction((r) => window.__bonsai?.room === r, room);
-}
-
-/** From under the door (a new game starts at (240, 135)): straight up into the top wall. */
-async function toLounge(page: Page): Promise<void> {
-  await holdUntilNear(page, 'ArrowUp', 'door_lounge');
-  await throughDoor(page, 'lounge');
+/** A version-3 save, before the shed's pedestals moved, with Granny's juniper on the shed's shed_main. */
+function v3SaveOnShedMain(): string {
+  const state = createNewGameState();
+  const [starter] = state.trees;
+  if (!starter) throw new Error('no starter');
+  starter.location = 'displayed:shed_main';
+  const v4 = JSON.parse(serializeState(state, new Date(2026, 10, 11, 0, 0))) as object;
+  return JSON.stringify({ ...v4, version: 3 });
 }
 
 test.describe('the lounge', () => {
@@ -37,7 +33,8 @@ test.describe('the lounge', () => {
     await bootWorld(page);
     expect((await hook(page)).room).toBe('shed');
 
-    await toLounge(page);
+    // From under the door (a new game starts at (240, 135)): straight up into the top wall.
+    await shedToLounge(page);
     let h = await hook(page);
     expect([h.room, h.player.x, h.player.y]).toEqual(['lounge', 240, 190]);
     expect(h.near).toBe('');
@@ -57,21 +54,13 @@ test.describe('the lounge', () => {
     await bootWorld(page);
     await walkTo(page, 160, 'left', 'tree:0');
     await pickUpTree(page);
-    // From the tree's spot (x about 190): up into the top wall, then right along it until the door
-    // is in reach. Along the wall row the door's reach spans 36 px, wider than the release lag seen
-    // on CI; the pass back left covers a longer one (it does nothing while the door is in reach).
-    await holdUntilAtMost(page, 'ArrowUp', 'y', 66);
-    await holdUntilNear(page, 'ArrowRight', 'door_lounge');
-    await holdUntilNear(page, 'ArrowLeft', 'door_lounge');
-    await throughDoor(page, 'lounge');
-    // Into the top-left corner: the left wall then the top wall stop the walk with the pedestal in reach.
-    await holdUntilAtMost(page, 'ArrowLeft', 'x', 110);
-    await holdUntilNear(page, 'ArrowUp', 'pedestal_1');
+    await shedToLounge(page);
+    await toLoungePedestal(page, 1);
     await placeTree(page);
     let h = await hook(page);
     expect(h.carrying).toBe('');
     expect(h.treeLocations).toEqual([
-      { id: 0, name: "Granny's", location: 'displayed:lounge_main' },
+      { id: 0, name: "Granny's", location: 'displayed:lounge_mantel' },
     ]);
     await saveGame(page);
     await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
@@ -84,8 +73,34 @@ test.describe('the lounge', () => {
     h = await hook(page);
     expect(h.room).toBe('shed');
     expect(h.treeLocations).toEqual([
-      { id: 0, name: "Granny's", location: 'displayed:lounge_main' },
+      { id: 0, name: "Granny's", location: 'displayed:lounge_mantel' },
     ]);
+    expect(errors).toEqual([]);
+  });
+
+  test("a version-3 save's tree on the shed pedestal loads on the lounge's mantel", async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await page.goto('/');
+    await page.evaluate((text) => {
+      localStorage.setItem('bonsai.save.1', text);
+    }, v3SaveOnShedMain());
+    await toTitle(page);
+    await continueGame(page);
+    await page.waitForFunction(
+      () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
+    );
+    const h = await hook(page);
+    expect(h.room).toBe('shed');
+    expect(h.treeLocations).toEqual([
+      { id: 0, name: "Granny's", location: 'displayed:lounge_mantel' },
+    ]);
+    // Drawn on the lounge's pedestal: it offers the tree itself.
+    await shedToLounge(page);
+    await toLoungePedestal(page, 1);
+    await interact(page);
+    await page.waitForFunction(() => window.__bonsai?.panel === 'tree:0');
     expect(errors).toEqual([]);
   });
 });

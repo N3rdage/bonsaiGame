@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { INTERACT_RANGE, nearestInteractable, promptFor } from './interactables';
+import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM, type Prop } from './shedRoom';
 
 function prop(key: string): Prop {
@@ -37,10 +38,12 @@ describe('interactables', () => {
       ['workbench', 'E: Make Pot'],
       ['planting_table', 'E: Plant Cutting'],
       ['shop_kiosk', 'E: Shop'],
-      ['pedestal_1', 'E: Use Pedestal'],
-      ['pedestal_2', 'E: Use Pedestal'],
       ['door', 'E: To Garden'],
       ['door_lounge', 'E: To Lounge'],
+    ]);
+    expect(LOUNGE_ROOM.props.map(promptFor).slice(0, 2)).toEqual([
+      'E: Use Pedestal',
+      'E: Use Pedestal',
     ]);
   });
 });

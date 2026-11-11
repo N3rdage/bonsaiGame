@@ -15,6 +15,7 @@ import {
   toTitle,
   walkTo,
 } from './drive';
+import { shedToLounge, toLoungePedestal } from './rooms';
 
 interface FixtureTree {
   name: string;
@@ -92,8 +93,10 @@ test.describe('tree inspector', () => {
     // Day 730, autumn (the juniper still grows), 3 fertiliser: less than Skip's 4.
     const save = fixture('prototype-save-v1-day730.json');
     await continueSave(page, save.text);
+    // The prototype's shed_main tree now stands on the lounge's mantel.
     const main = save.trees.findIndex((t) => t.location === 'displayed:shed_main');
-    await walkTo(page, 85, 'right', 'pedestal_1');
+    await shedToLounge(page);
+    await toLoungePedestal(page, 1);
     await openInspector(page);
     let h = await hook(page);
     expect(h.panel).toBe(`tree:${String(h.treeLocations[main]?.id)}`);
@@ -121,7 +124,9 @@ test.describe('tree inspector', () => {
     expect(second.vitality).not.toBe(first.vitality);
 
     await continueSave(page, save.text);
-    await walkTo(page, 85, 'right', 'pedestal_2');
+    // On the lounge's side table since the shed's pedestals moved there.
+    await shedToLounge(page);
+    await toLoungePedestal(page, 2);
     await openInspector(page);
     await inspectorAction(page, 'view');
     await page.waitForFunction(() => window.__bonsai?.viewer?.open === true);
