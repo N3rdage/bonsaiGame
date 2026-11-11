@@ -11,18 +11,20 @@ import {
   TOAST_X,
   VIEW_BUTTON,
   menuItems,
+  menuPanel,
+  menuRowPitch,
 } from './menu';
+import { DESKTOP_UI, PHONE_UI } from './uiScale';
 
 // 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
 const LINE_H = 12;
 
 const panelRight = MENU_PANEL.x + MENU_PANEL.w;
-const panelBottom = MENU_PANEL.y + MENU_PANEL.h;
 
 describe('world HUD menu layout', () => {
   it('has Inventory, Save, Load, Settings and Title, in that order', () => {
-    expect(menuItems(false).map((i) => [i.id, i.label])).toEqual([
+    expect(menuItems(false, DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
       ['inventory', 'Inventory (I)'],
       ['save', 'Save (F5)'],
       ['load', 'Load (F9)'],
@@ -32,7 +34,7 @@ describe('world HUD menu layout', () => {
   });
 
   it('adds Put down first while a tree is carried', () => {
-    expect(menuItems(true).map((i) => [i.id, i.label])).toEqual([
+    expect(menuItems(true, DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
       ['putdown', 'Put down'],
       ['inventory', 'Inventory (I)'],
       ['save', 'Save (F5)'],
@@ -42,18 +44,31 @@ describe('world HUD menu layout', () => {
     ]);
   });
 
-  it('puts every row inside the panel, with or without Put down', () => {
-    for (const item of [...menuItems(false), ...menuItems(true)]) {
-      expect(item.x).toBeGreaterThan(MENU_PANEL.x);
-      expect(item.x + item.label.length * GLYPH_W).toBeLessThanOrEqual(panelRight);
-      expect(item.y - MENU_ROW_SPACING / 2).toBeGreaterThanOrEqual(MENU_PANEL.y);
-      expect(item.y + MENU_ROW_SPACING / 2).toBeLessThanOrEqual(panelBottom);
+  it('puts every row inside the panel, with or without Put down, at either scale', () => {
+    for (const ui of [DESKTOP_UI, PHONE_UI]) {
+      for (const carrying of [false, true]) {
+        const panel = menuPanel(carrying, ui);
+        const pitch = menuRowPitch(ui);
+        for (const item of menuItems(carrying, ui)) {
+          expect(item.x).toBeGreaterThan(panel.x);
+          expect(item.x + item.label.length * GLYPH_W).toBeLessThanOrEqual(panel.x + panel.w);
+          expect(item.y - pitch / 2).toBeGreaterThanOrEqual(panel.y);
+          expect(item.y + pitch / 2).toBeLessThanOrEqual(panel.y + panel.h);
+        }
+      }
     }
+  });
+
+  it('is MENU_PANEL with rows MENU_ROW_SPACING apart at the desktop scale', () => {
+    expect(menuPanel(true, DESKTOP_UI)).toEqual(MENU_PANEL);
+    expect(menuPanel(false, DESKTOP_UI)).toEqual(MENU_PANEL);
+    expect(menuItems(false, DESKTOP_UI).map((i) => i.y)).toEqual([35, 51, 67, 83, 99]);
+    expect(menuRowPitch(PHONE_UI)).toBe(PHONE_UI.hit);
   });
 
   it('keeps rows apart by more than a line of text', () => {
     for (const carrying of [false, true]) {
-      const ys = menuItems(carrying).map((i) => i.y);
+      const ys = menuItems(carrying, DESKTOP_UI).map((i) => i.y);
       for (let i = 1; i < ys.length; i += 1) {
         expect((ys[i] ?? 0) - (ys[i - 1] ?? 0)).toBeGreaterThanOrEqual(LINE_H);
       }
@@ -76,17 +91,23 @@ describe('world HUD menu layout', () => {
     expect(MENU_BUTTON.left + 'Menu'.length * GLYPH_W).toBeLessThan(TOAST_X);
   });
 
-  it('stays inside the room, clear of the badge and the View tree button', () => {
-    expect(MENU_PANEL.x).toBeGreaterThanOrEqual(0);
-    expect(MENU_PANEL.y).toBeGreaterThanOrEqual(0);
-    expect(panelRight).toBeLessThanOrEqual(480);
-    expect(panelBottom).toBeLessThanOrEqual(270);
-    // The widest badge a long game could reach still starts right of the panel and the toast.
-    const badge = hudText({ day: 9999, money: 9_999_999 });
-    const badgeLeft = HUD_BADGE.right - badge.length * GLYPH_W;
-    expect(badgeLeft).toBeGreaterThan(panelRight);
-    expect(badgeLeft).toBeGreaterThan(TOAST_X + 'Could not save to slot 3'.length * GLYPH_W);
-    expect(VIEW_BUTTON.bottom - LINE_H).toBeGreaterThan(panelBottom);
+  it('stays inside the room, clear of the badge and the View tree button, at either scale', () => {
+    for (const ui of [DESKTOP_UI, PHONE_UI]) {
+      const panel = menuPanel(true, ui);
+      const right = panel.x + panel.w;
+      const bottom = panel.y + panel.h;
+      expect(panel.x).toBeGreaterThanOrEqual(0);
+      expect(panel.y).toBeGreaterThanOrEqual(0);
+      expect(right).toBeLessThanOrEqual(480);
+      expect(bottom).toBeLessThanOrEqual(270);
+      // The widest badge a long game could reach still starts right of the panel and the toast.
+      const badge = hudText({ day: 9999, money: 9_999_999 });
+      const badgeLeft = HUD_BADGE.right - badge.length * GLYPH_W;
+      expect(badgeLeft).toBeGreaterThan(right);
+      expect(badgeLeft).toBeGreaterThan(TOAST_X + 'Could not save to slot 3'.length * GLYPH_W);
+      // Clear of View tree's tap target too, which grows up from the bottom edge.
+      expect(Math.min(VIEW_BUTTON.bottom - LINE_H, 270 - ui.hit)).toBeGreaterThan(bottom);
+    }
   });
 
   it('puts the Notebook button beside View tree, clear of it and of Interact', () => {

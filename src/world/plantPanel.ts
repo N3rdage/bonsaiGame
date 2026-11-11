@@ -10,7 +10,8 @@ import { inventoryCount } from '../sim/inventory';
 import { CUTTING_KEYS } from '../sim/sourcePlant';
 import { SPECIES_KEYS, getSpecies } from '../sim/species';
 import type { GameState, SpeciesKey } from '../sim/types';
-import { PANEL_INSET, TALL_PANEL, rowY, type PanelModel, type PanelRow } from './panels';
+import { PANEL_INSET, TALL_PANEL, needsFit, rowY, type PanelModel, type PanelRow } from './panels';
+import { DESKTOP_UI, type UiMetrics } from './uiScale';
 
 /** The prop whose interaction opens the panel. */
 export const PLANTING_TABLE_KEY = 'planting_table';
@@ -23,6 +24,8 @@ export const HINT_COLOR = '#969696';
 const TEXT_COLOR = '#ffffff';
 /** The Select column, near the box's right edge as the prototype's button was. */
 const SELECT_X = TALL_PANEL.x + TALL_PANEL.w - 80;
+/** The hint's left edge beside Plant Cutting: past the button's 13 characters at 6 px, and a gap. */
+const HINT_BESIDE_X = TALL_PANEL.x + PANEL_INSET + 'Plant Cutting'.length * 6 + 12;
 
 /** The panel's scene state, never saved: the chosen species and the two flags. */
 export interface PlantSelection {
@@ -65,10 +68,15 @@ function cuttings(state: Pick<GameState, 'inventory'>): [SpeciesKey, number][] {
 
 const toggle = (on: boolean, label: string): string => `[${on ? 'x' : ' '}] ${label}`;
 
-/** Plant a Cutting over `state` with `selection` (flags cleared at 0 stock first). */
+/**
+ * Plant a Cutting over `state` with `selection` (flags cleared at 0 stock
+ * first). Where the rows need a taller pitch (`needsFit`), the hint shares the
+ * Plant Cutting line, right of it, so the box still fits the canvas.
+ */
 export function plantPanel(
   state: Pick<GameState, 'inventory'>,
   selection: PlantSelection,
+  ui: UiMetrics = DESKTOP_UI,
 ): PanelModel {
   const sel = plantSelection(state, selection);
   const count = (key: 'pot' | 'fancy_pot' | 'soil_premium') => inventoryCount(state.inventory, key);
@@ -107,12 +115,17 @@ export function plantPanel(
   }
   const potHave = count(sel.useFancyPot ? 'fancy_pot' : 'pot');
   const canPlant = sel.species !== undefined && potHave > 0;
+  const plant = { text: 'Plant Cutting', id: 'panel-plant', enabled: canPlant };
   // The prototype's `You need a fancy pot.` never shows: the fancy flag clears at 0 stock first.
-  if (!canPlant) {
-    const hint = sel.species === undefined ? 'Select a cutting first.' : 'You need a pot.';
-    lines.push(plain(hint, HINT_COLOR));
+  const hint = canPlant
+    ? []
+    : plain(sel.species === undefined ? 'Select a cutting first.' : 'You need a pot.', HINT_COLOR);
+  if (needsFit(TALL_PANEL, ui)) {
+    lines.push([plant, ...hint.map((row) => ({ ...row, x: HINT_BESIDE_X }))]);
+  } else {
+    if (hint.length > 0) lines.push(hint);
+    lines.push([plant]);
   }
-  lines.push([{ text: 'Plant Cutting', id: 'panel-plant', enabled: canPlant }]);
   return {
     key: 'plant',
     title: 'Plant a Cutting',

@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../sim/state';
 import { STYLE_KEYS } from '../sim/styles';
 import type { BonsaiTree, GameState } from '../sim/types';
-import { PANEL, PANEL_INSET, panelClose, panelTitleY, type PanelModel } from './panels';
+import { PANEL, PANEL_INSET, fitRows, panelClose, panelTitleY, type PanelModel } from './panels';
+import { DESKTOP_UI, PHONE_UI } from './uiScale';
 import {
   PRICE_COLOR,
-  RENAME_INPUT,
   renameCounter,
+  renameInput,
   renamePanel,
   repotPanel,
   sellPanel,
@@ -152,11 +153,18 @@ describe('rename panel', () => {
 
   it('puts the input on the New name row, right of its label, inside the box', () => {
     const { tree } = starter();
-    const row = renamePanel(tree, '').rows[1];
-    if (!row) throw new Error('no row');
-    expect(RENAME_INPUT.y).toBe(row.y);
-    expect(RENAME_INPUT.x).toBeGreaterThan(PANEL.x + PANEL_INSET + row.text.length * GLYPH_W);
-    expect(RENAME_INPUT.x + RENAME_INPUT.w).toBeLessThanOrEqual(PANEL.x + PANEL.w - PANEL_INSET);
-    expect(RENAME_INPUT.h).toBeLessThan(PANEL.rowSpacing);
+    for (const ui of [DESKTOP_UI, PHONE_UI]) {
+      const m = fitRows(renamePanel(tree, ''), ui);
+      const box = m.box ?? PANEL;
+      const row = m.rows[1];
+      if (!row) throw new Error('no row');
+      const input = renameInput(m);
+      expect(input.y).toBe(row.y);
+      expect(input.x).toBeGreaterThan(box.x + PANEL_INSET + row.text.length * GLYPH_W);
+      expect(input.x + input.w).toBeLessThanOrEqual(box.x + box.w - PANEL_INSET);
+      expect(input.h).toBeLessThan(box.rowSpacing);
+    }
+    // At the desktop scale the panel is drawn as modelled, the input where it always was.
+    expect(renameInput(renamePanel(tree, ''))).toEqual({ x: 120, y: 118, w: 310, h: 16 });
   });
 });
