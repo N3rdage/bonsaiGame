@@ -182,7 +182,7 @@ export async function openShop(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__bonsai?.panel === 'shop');
 }
 
-/** Walks up to the planting table's row and left to it (from right of it), then opens Plant a Cutting. */
+/** Walks up to the planting table's row and left to it (from right of it), then opens the Plant panel. */
 export async function openPlanting(page: Page): Promise<void> {
   await walkTo(page, 90, 'left', 'planting_table');
   await interact(page);
