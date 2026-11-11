@@ -23,8 +23,23 @@ async function throughDoor(page: Page, room: string): Promise<void> {
   await page.waitForFunction((r) => window.__bonsai?.room === r, room);
 }
 
+/**
+ * Walks straight up or down until `key` is in reach. Both doors here sit in
+ * the wall the player walks into, right above or below where the player
+ * stands, so the wall stops the walk inside the door's reach however late the
+ * key is released; walkTo's row-then-along approach would release the along
+ * key with the door already in reach and let a slow runner carry the player
+ * past it (backlog #81).
+ */
+async function walkInto(page: Page, dy: 'up' | 'down', key: string): Promise<void> {
+  const vertical = dy === 'up' ? 'ArrowUp' : 'ArrowDown';
+  await page.keyboard.down(vertical);
+  await page.waitForFunction((k) => window.__bonsai?.near === k, key);
+  await page.keyboard.up(vertical);
+}
+
 async function toLounge(page: Page): Promise<void> {
-  await walkTo(page, 70, 'right', 'door_lounge');
+  await walkInto(page, 'up', 'door_lounge');
   await throughDoor(page, 'lounge');
 }
 
@@ -39,7 +54,7 @@ test.describe('the lounge', () => {
     expect([h.room, h.player.x, h.player.y]).toEqual(['lounge', 240, 190]);
     expect(h.near).toBe('');
 
-    await walkTo(page, 200, 'left', 'door');
+    await walkInto(page, 'down', 'door');
     await throughDoor(page, 'shed');
     h = await hook(page);
     expect([h.room, h.player.x, h.player.y]).toEqual(['shed', 240, 82]);
