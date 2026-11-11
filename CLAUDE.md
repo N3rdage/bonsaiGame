@@ -70,5 +70,5 @@ Posts in `blog/` follow the shared syndication contract; the single source of tr
 
 ## Known rough edges (don't treat as bugs to fix incidentally)
 
-- Only junipers can be grown from cuttings; seeds aren't implemented.
+- Only junipers can be grown from cuttings. The starting juniper and maple seeds can be sown at the planting table; seed collection (and a pine seed) wait on backlog #93.
 - Fancy pots give 1.25x display revenue; their only look is the 2D tree sprite's celadon pot with feet and sheen (and the 3D viewer's pot colours).
