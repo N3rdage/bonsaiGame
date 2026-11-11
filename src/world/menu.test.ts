@@ -59,6 +59,23 @@ describe('world HUD menu layout', () => {
     }
   });
 
+  it("hugs its rows on the phone, below the Menu button's tap target, rows centred", () => {
+    for (const carrying of [false, true]) {
+      const panel = menuPanel(carrying, PHONE_UI);
+      const items = menuItems(carrying, PHONE_UI);
+      const pitch = menuRowPitch(PHONE_UI);
+      // The Menu button's tap target reaches y 31 (its text grown to 31 px from the top edge).
+      expect(items[0]?.y).toBe(31 + pitch / 2);
+      expect(panel.y).toBe(28);
+      expect(panel.y).toBeGreaterThanOrEqual(MENU_PANEL.y);
+      const first = (items[0]?.y ?? 0) - pitch / 2;
+      const last = (items.at(-1)?.y ?? 0) + pitch / 2;
+      expect(first - panel.y).toBe(panel.y + panel.h - last);
+      expect(first - panel.y).toBe(3);
+      expect(panel.y + panel.h).toBeLessThanOrEqual(270 - PHONE_UI.hit);
+    }
+  });
+
   it('is MENU_PANEL with rows MENU_ROW_SPACING apart at the desktop scale', () => {
     expect(menuPanel(true, DESKTOP_UI)).toEqual(MENU_PANEL);
     expect(menuPanel(false, DESKTOP_UI)).toEqual(MENU_PANEL);

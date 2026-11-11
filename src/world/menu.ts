@@ -66,20 +66,26 @@ function menuButtonHitBottom(ui: UiMetrics): number {
   return r.y + r.h;
 }
 
-/** Where the rows start and the panel's height: MENU_PANEL's, grown to hold rows of `ui`'s pitch below the Menu button's tap target. */
-function layout(carrying: boolean, ui: UiMetrics): { top: number; h: number } {
+/**
+ * The panel's top and height and where its rows start: MENU_PANEL, its top
+ * lowered to just above the Menu button's tap target and its height grown to
+ * hold rows of `ui`'s pitch, the rows centred in it.
+ */
+function layout(carrying: boolean, ui: UiMetrics): { y: number; h: number; top: number } {
   const rowsH = entries(carrying).length * menuRowPitch(ui);
   const minTop = Math.max(MENU_PANEL.y + MENU_PAD, menuButtonHitBottom(ui));
-  const h = Math.max(MENU_PANEL.h, minTop - MENU_PANEL.y + rowsH + MENU_PAD);
-  return { top: Math.max(minTop, MENU_PANEL.y + (h - rowsH) / 2), h };
+  const y = Math.max(MENU_PANEL.y, minTop - MENU_PAD);
+  const h = Math.max(MENU_PANEL.h, rowsH + 2 * MENU_PAD);
+  return { y, h, top: y + (h - rowsH) / 2 };
 }
 
-/** The open panel's rectangle: MENU_PANEL, taller where `ui`'s rows need it. */
+/** The open panel's rectangle: MENU_PANEL, lower and taller where `ui`'s rows need it. */
 export function menuPanel(
   carrying: boolean,
   ui: UiMetrics,
 ): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } {
-  return { ...MENU_PANEL, h: layout(carrying, ui).h };
+  const { y, h } = layout(carrying, ui);
+  return { ...MENU_PANEL, y, h };
 }
 
 /**
