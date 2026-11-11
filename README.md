@@ -75,10 +75,10 @@ On a phone the game runs fullscreen in landscape: the first tap on New Game, Con
 
 1. You begin in the shed with Granny's juniper on the floor; the tutorial panel in the corner walks you through the first steps.
 2. Walk to the door marked "To Garden" and press E (or tap Interact) to enter the back garden.
-3. Find a juniper bush (juniper is the only species that accepts cuttings at the moment — maple and pine can only be grown from seed, which isn't implemented yet). Cuttings can be taken in spring and summer only.
+3. Find a juniper bush (juniper is the only species that accepts cuttings at the moment — maple and pine can only be grown from seed, and seeds can't be collected yet). Cuttings can be taken in spring and summer only.
 4. Press E on the bush to take a cutting. Each bush gives 3 cuttings before needing two weeks to recover.
 5. Return to the shed through the "Back to Shed" door.
-6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting."
+6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting." (The panel also lists the juniper and maple seed you start with; select one and click "Plant Seed" to sow it.)
 7. A new tree sprite appears. Press E on it to open the inspector.
 8. Water it, use Skip 7d to grow it a week, and use View in 3D to see it in 3D and wire, clip or (in winter) prune its branches.
 
@@ -102,7 +102,7 @@ Time passes in **game days**. One game day passes every five real minutes, and t
 ### Propagation
 
 - **Cutting:** Take a small branch from an existing plant, plant it in a pot. Starts as an 8cm twig with two small side branches. Not all species accept cuttings — junipers do, maples don't.
-- **Seed:** Not yet implemented. Will allow growing species that can't be cut. Starts as a 2cm sprout.
+- **Seed:** Plant a seed from your inventory at the planting table, in a pot. Starts as a 2cm sprout with no branches. Grows species that can't be cut, such as the Japanese maple. A new game starts with one juniper and one maple seed; collecting more isn't implemented yet.
 
 ### Training — what each operation does
 
@@ -126,7 +126,7 @@ The tree remembers when each wire was applied. If you remove a wire after 8+ wee
 
 ### Pots and resources
 
-- **Clay** is used at the workbench to make pots.
+- **Pots** are needed to plant cuttings and seeds. Each one planted consumes one pot.
 - **Pots** are needed to plant cuttings. Each cutting consumes one pot.
 - **Fertilizer** is consumed when you skip time forward on a tree. Cost is roughly half a fertilizer per day skipped.
 - **Wire** is used up by each bend in the 3D viewer's wire mode.

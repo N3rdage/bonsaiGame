@@ -45,7 +45,7 @@ import {
   pedestalPanel,
   type PanelModel,
 } from '../world/panels';
-import { makePot, plantCutting } from '../sim/planting';
+import { makePot, plantCutting, plantSeed } from '../sim/planting';
 import {
   NO_SELECTION,
   PLANTING_TABLE_KEY,
@@ -1100,7 +1100,7 @@ export class WorldScene extends Phaser.Scene {
    * E or the Interact button: a floor tree or an occupied pedestal opens the
    * tree's inspector, an empty pedestal the Display Pedestal panel, a door
    * leads to its room, a source plant gives a cutting, the kiosk opens the
-   * shop, the workbench makes a pot and the planting table opens Plant a Cutting.
+   * shop, the workbench makes a pot and the planting table opens Plant.
    */
   private interact(): void {
     const near = this.near;
@@ -1136,7 +1136,8 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * obj_ui_plant_cutting: Select and the toggles reopen it with the new
-   * selection; Plant plants through src/sim/planting.ts and closes it.
+   * selection; Plant plants the cutting or the seed through
+   * src/sim/planting.ts and closes it.
    */
   private openPlant(selection: PlantSelection): void {
     const { state } = this.ctx;
@@ -1144,16 +1145,23 @@ export class WorldScene extends Phaser.Scene {
     const model = plantPanel(state, sel, this.ui);
     this.openPanel(model, (i) => {
       const id = model.rows[i]?.id;
-      const species = SPECIES_KEYS.find((k) => selectId(k) === id);
-      if (species) this.openPlant({ ...sel, species });
+      const choice = (['cutting', 'seed'] as const)
+        .flatMap((kind) => SPECIES_KEYS.map((species) => ({ kind, species })))
+        .find((c) => selectId(c.species, c.kind) === id);
+      if (choice) this.openPlant({ ...sel, ...choice });
       else if (id === 'panel-fancy') this.openPlant({ ...sel, useFancyPot: !sel.useFancyPot });
       else if (id === 'panel-soil') this.openPlant({ ...sel, usePremiumSoil: !sel.usePremiumSoil });
       else if (id === 'panel-plant' && sel.species) {
-        const tree = plantCutting(state, sel.species, sel.useFancyPot, sel.usePremiumSoil);
+        const seed = sel.kind === 'seed';
+        const plant = seed ? plantSeed : plantCutting;
+        const tree = plant(state, sel.species, sel.useFancyPot, sel.usePremiumSoil);
         this.closePanel();
         this.hud.setText(hudText(state));
         this.relocated();
-        if (tree) this.showToast(`Planted a ${getSpecies(tree.speciesKey).displayName}.`);
+        if (tree) {
+          const name = getSpecies(tree.speciesKey).displayName;
+          this.showToast(seed ? `Planted a ${name} seed.` : `Planted a ${name}.`);
+        }
       }
     });
   }

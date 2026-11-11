@@ -131,8 +131,9 @@ function everyPanel(ui: UiMetrics): PanelModel[] {
   const poor = { ...createNewGameState(), money: 0 };
   const selections: PlantSelection[] = [
     NO_SELECTION,
-    { species: 'juniper', useFancyPot: true, usePremiumSoil: true },
-    { species: 'maple', useFancyPot: false, usePremiumSoil: false },
+    { kind: 'cutting', species: 'juniper', useFancyPot: true, usePremiumSoil: true },
+    { kind: 'cutting', species: 'maple', useFancyPot: false, usePremiumSoil: false },
+    { kind: 'seed', species: 'maple', useFancyPot: true, usePremiumSoil: true },
   ];
   const noPots = createNewGameState();
   noPots.inventory.pot = 0;
