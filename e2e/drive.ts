@@ -134,154 +134,162 @@ export const closePanel = (page: Page): Promise<void> => phaser(page, 'Escape', 
 export const pickPanelSlot = (page: Page, n: number): Promise<void> =>
   phaser(page, String(n), `panel-slot-${String(n)}`);
 
-// Walking. A key release reaches Phaser only after the page notices the goal,
-// Playwright sends keyboard.up and the next frame runs, and the player keeps
-// walking meanwhile: on a slow CI runner 25 to 32 px, more than the 20 px
-// interact reach (INTERACT_RANGE), which once parked a garden walk on the far
-// fence until the test budget ran out (N3rdage/agentic-gaming#81). So every
-// leg below is settled from the position the player stops at, not trusted.
+// Walking. Each leg runs inside the page in one evaluate: it dispatches the
+// arrow's keydown on window (Phaser's KeyboardManager listens there, reads
+// keyCode and applies the event as it is dispatched), watches the hook every
+// animation frame, and dispatches the keyup in the callback that sees the
+// goal. Releasing with Playwright's keyboard.up instead cost a round trip,
+// during which a slow CI runner walked the player 25 to 32 px on, past the
+// 20 px interact reach (INTERACT_RANGE), and once parked a garden walk on the
+// far fence until the test budget ran out (N3rdage/agentic-gaming#81).
 
-/**
- * How far off its row a walk may stop before the horizontal leg. Every walk's
- * row is its target's own row except the shed door's, which is already in
- * reach when that leg lands. 12 px off the row the 20 px reach circle still
- * spans a 32 px chord of it, and the horizontal leg ends on `near` anyway. A
- * nudge moves under 12 px, so under twice this, and the settle converges.
- */
-const ROW_TOLERANCE = 12;
-/** Nudges allowed to bring the player back to its row or into reach before the walk fails. */
-const SETTLE_TRIES = 12;
-/** A long leg that takes this long has failed; the test budget stays for the rest. */
+/** A leg that takes this long has failed; the test budget stays for the rest. */
 const LEG_BUDGET_MS = 20_000;
 /** A held key that moves the player for neither this many frames nor this long is pinned against a wall. */
 const STALL = { frames: 30, ms: 500 };
-/** The player has stopped once unmoved for this many frames and this long (up to `budgetMs`). */
-const STILL = { frames: 3, ms: 50, budgetMs: 2_000 };
-/**
- * A nudge presses its key, reads the hook's `frames` (world steps so far) and
- * holds the key until a later frame has stepped, or this long, then releases
- * it. The world reads keys at the start of each frame, so that frame stepped
- * with the key down: the player moves at least 1 step (1.25 px) plus the
- * release lag, under 12 px. It can still move 0 px when Phaser sees the down
- * and the up in one frame; that costs one try.
- */
-const NUDGE_MS = 300;
+/** How long a leg waits after its keyup for the world step that shows where the player stopped. */
+const STOP_MS = 250;
 
-/** What a watch below waits for, checked every frame. */
-type Watch =
-  /** A long leg: until `y` reaches `row`. */
+/** The arrows' legacy keyCodes, which Phaser keys on. */
+const ARROWS = { ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39 } as const;
+
+/** What a leg holds its arrow until, checked every animation frame. */
+type Goal =
+  /** Until `y` reaches `row`. */
   | { until: 'row'; row: number; down: boolean }
-  /** A long leg: until `near` is `key`. */
-  | { until: 'near'; key: string }
-  /** A nudge: until the hook's `frames` passes `from`, read once the key was down. */
-  | { until: 'frame'; from: number }
-  /** Until the player stops. */
-  | { until: 'still' };
+  /** Until `near` is `key`. */
+  | { until: 'near'; key: string };
 
-interface Watched {
-  /** False when the watch ended on a stall or its time budget instead of its goal. */
-  readonly reached: boolean;
+interface Stop {
   readonly x: number;
   readonly y: number;
   readonly near: string;
   readonly room: string;
 }
 
-/** Polls the hook every frame until `w`'s goal, a stall (long legs only) or its time budget. */
-function watch(page: Page, w: Watch): Promise<Watched> {
-  const limits = {
+interface Leg {
+  /** False when the leg ended on a stall or its time budget instead of its goal. */
+  readonly reached: boolean;
+  /** Where the player stood on the last frame before the leg ended. */
+  readonly before: Stop;
+  /** Where the player stopped, read on the first world step after the keyup. */
+  readonly stop: Stop;
+}
+
+interface LegArgs {
+  readonly arrow: keyof typeof ARROWS;
+  readonly keyCode: number;
+  readonly goal: Goal;
+  readonly legMs: number;
+  readonly stall: { readonly frames: number; readonly ms: number };
+  readonly stopMs: number;
+}
+
+/**
+ * Holds `arrow` until `goal`, a stall or the leg budget, all in the page. The
+ * keyup goes out in the animation-frame callback that first sees the goal in
+ * the hook, and Phaser's KeyboardPlugin applies it as it is dispatched, before
+ * the world's next step. So the player moves past the goal by at most the
+ * steps of the frame that reached it: MAX_STEPS_PER_FRAME (5) steps of
+ * 1.25 px, 6.25 px, however slow the runner.
+ */
+async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<Leg> {
+  const args: LegArgs = {
+    arrow,
+    keyCode: ARROWS[arrow],
+    goal,
     legMs: LEG_BUDGET_MS,
-    nudgeMs: NUDGE_MS,
     stall: STALL,
-    still: STILL,
+    stopMs: STOP_MS,
   };
-  return page.evaluate(
-    ([w, limits]) =>
-      new Promise<Watched>((resolve) => {
-        const start = performance.now();
-        const budget =
-          w.until === 'frame'
-            ? limits.nudgeMs
-            : w.until === 'still'
-              ? limits.still.budgetMs
-              : limits.legMs;
-        let last = '';
-        let sameFrames = 0;
-        let sameSince = start;
-        const tick = (): void => {
-          const now = performance.now();
-          const h = window.__bonsai;
-          if (h) {
-            const { x, y } = h.player;
-            const at = { x, y, near: h.near, room: h.room };
-            const pos = `${String(x)},${String(y)}`;
-            if (pos === last) {
+  try {
+    return await page.evaluate(
+      (a) =>
+        new Promise<Leg>((resolve) => {
+          const send = (type: 'keydown' | 'keyup'): void => {
+            // KeyboardEventInit's keyCode is deprecated; Phaser keys on it, so it goes on the event.
+            const event = new KeyboardEvent(type, { key: a.arrow, code: a.arrow, bubbles: true });
+            Object.defineProperty(event, 'keyCode', { value: a.keyCode });
+            window.dispatchEvent(event);
+          };
+          const at = (): Stop | undefined => {
+            const h = window.__bonsai;
+            return h && { x: h.player.x, y: h.player.y, near: h.near, room: h.room };
+          };
+          const start = performance.now();
+          let before = at() ?? { x: NaN, y: NaN, near: '', room: '' };
+          let sameFrames = 0;
+          let sameSince = start;
+          send('keydown');
+          const tick = (): void => {
+            const now = performance.now();
+            const h = window.__bonsai;
+            const pos = at();
+            if (!h || !pos) {
+              requestAnimationFrame(tick);
+              return;
+            }
+            const reached =
+              a.goal.until === 'row'
+                ? a.goal.down
+                  ? pos.y >= a.goal.row
+                  : pos.y <= a.goal.row
+                : pos.near === a.goal.key;
+            if (pos.x === before.x && pos.y === before.y) {
               sameFrames += 1;
             } else {
-              last = pos;
               sameFrames = 0;
               sameSince = now;
             }
-            const unmoved = (n: { frames: number; ms: number }): boolean =>
-              sameFrames >= n.frames && now - sameSince >= n.ms;
-            let reached: boolean;
-            switch (w.until) {
-              case 'row':
-                reached = w.down ? y >= w.row : y <= w.row;
-                break;
-              case 'near':
-                reached = h.near === w.key;
-                break;
-              case 'frame':
-                reached = h.frames > w.from;
-                break;
-              case 'still':
-                reached = unmoved(limits.still);
-                break;
-            }
-            const stalled = (w.until === 'row' || w.until === 'near') && unmoved(limits.stall);
-            if (reached || stalled || now - start >= budget) {
-              resolve({ reached, ...at });
+            const stalled = sameFrames >= a.stall.frames && now - sameSince >= a.stall.ms;
+            if (!reached && !stalled && now - start < a.legMs) {
+              before = pos;
+              requestAnimationFrame(tick);
               return;
             }
-          }
+            send('keyup');
+            const released = h.frames;
+            const settle = (): void => {
+              const after = window.__bonsai;
+              if (after && after.frames <= released && performance.now() - now < a.stopMs) {
+                requestAnimationFrame(settle);
+                return;
+              }
+              resolve({ reached, before, stop: at() ?? pos });
+            };
+            requestAnimationFrame(settle);
+          };
           requestAnimationFrame(tick);
-        };
-        requestAnimationFrame(tick);
-      }),
-    [w, limits] as const,
-  );
-}
-
-/** Holds `key` while watching `w`, then releases it, also when the watch throws. */
-async function hold(page: Page, key: string, w: Watch): Promise<Watched> {
-  await page.keyboard.down(key);
-  try {
-    return await watch(page, w);
-  } finally {
-    await page.keyboard.up(key);
+        }),
+      args,
+    );
+  } catch (err) {
+    // The evaluate failed mid-leg; if the page is still there, let go of the arrow.
+    await page
+      .evaluate((a) => {
+        const event = new KeyboardEvent('keyup', { key: a.arrow, code: a.arrow, bubbles: true });
+        Object.defineProperty(event, 'keyCode', { value: a.keyCode });
+        window.dispatchEvent(event);
+      }, args)
+      .catch(() => undefined);
+    throw err;
   }
-}
-
-/** Presses `key` for one stepped world frame (see `NUDGE_MS`) and waits for the player to stop. */
-async function nudge(page: Page, key: string): Promise<Watched> {
-  await page.keyboard.down(key);
-  try {
-    const from = await page.evaluate(() => window.__bonsai?.frames ?? 0);
-    await watch(page, { until: 'frame', from });
-  } finally {
-    await page.keyboard.up(key);
-  }
-  return watch(page, { until: 'still' });
 }
 
 /**
  * Walks with the arrow keys (movement stays keys on every project): to row
  * `y` first, then along it toward `dx` until `near` is `key`, and returns
- * with the player stopped in reach of `key`. Each leg is settled with short
- * nudges where the release lag carried the player past it, and a walk that
- * cannot arrive (pinned on a wall, out of nudges or out of time) throws with
- * where the player stopped instead of running out the test's budget.
+ * with the player stopped in reach of `key`. Each leg stops at most one
+ * frame's steps (6.25 px) past its goal (see `leg`), so the row leg lands
+ * within 6.25 px of the row and the along leg inside the 20 px reach; nothing
+ * is nudged afterwards. A walk that cannot arrive (pinned on a wall for 30
+ * frames and 500 ms, or 20 s on one leg) throws with where the player
+ * stopped instead of running out the test's budget.
+ *
+ * Every walk is recorded as a `walk` annotation on its test, and on CI as a
+ * `[walk]` log line: the target, how far the player stopped past the row and
+ * past its last position before `near` became the key ('-' for a leg not
+ * walked), the nudges taken (always 0) and the walk's wall time.
  */
 export async function walkTo(
   page: Page,
@@ -289,36 +297,43 @@ export async function walkTo(
   dx: 'left' | 'right',
   key: string,
 ): Promise<void> {
-  const fail = (what: string, at: Watched): Error =>
+  const began = Date.now();
+  const fail = (what: string, at: Stop): Error =>
     new Error(
       `walkTo(${key}): ${what}: stopped at (${String(at.x)}, ${String(at.y)}), near='${at.near}', room=${at.room}`,
     );
+  const record = (row?: number, reach?: number): void => {
+    const px = (n?: number): string => (n === undefined ? '-' : n.toFixed(2));
+    const description = `key=${key} row_overshoot=${px(row)} reach_overshoot=${px(reach)} nudges=0 ms=${String(Date.now() - began)}`;
+    test.info().annotations.push({ type: 'walk', description });
+    // Worker stdout reaches the CI log through the github reporter (no-console allows only warn and error).
+    if (process.env.CI) process.stdout.write(`[walk] ${description}\n`);
+  };
 
-  const from = (await hook(page)).player.y;
-  if (from !== y) {
-    const down = from < y;
-    const leg = await hold(page, down ? 'ArrowDown' : 'ArrowUp', { until: 'row', row: y, down });
-    if (!leg.reached) throw fail(`never reached row ${String(y)}`, leg);
+  const h = await hook(page);
+  let at: Stop = { x: h.player.x, y: h.player.y, near: h.near, room: h.room };
+  let rowOvershoot: number | undefined;
+  if (at.y !== y) {
+    const down = at.y < y;
+    const vertical = await leg(page, down ? 'ArrowDown' : 'ArrowUp', {
+      until: 'row',
+      row: y,
+      down,
+    });
+    at = vertical.stop;
+    if (!vertical.reached) throw fail(`never reached row ${String(y)}`, at);
+    rowOvershoot = down ? at.y - y : y - at.y;
   }
-  let at = await watch(page, { until: 'still' });
-  for (
-    let tries = SETTLE_TRIES;
-    at.near !== key && Math.abs(at.y - y) > ROW_TOLERANCE;
-    tries -= 1
-  ) {
-    if (tries === 0) throw fail(`could not settle on row ${String(y)}`, at);
-    at = await nudge(page, at.y < y ? 'ArrowDown' : 'ArrowUp');
+  if (at.near === key) {
+    record(rowOvershoot);
+    return;
   }
-  if (at.near === key) return;
 
-  const leg = await hold(page, dx === 'left' ? 'ArrowLeft' : 'ArrowRight', { until: 'near', key });
-  if (!leg.reached) throw fail(`never came in reach walking ${dx}`, leg);
-  at = await watch(page, { until: 'still' });
-  const back = dx === 'left' ? 'ArrowRight' : 'ArrowLeft';
-  for (let tries = SETTLE_TRIES; at.near !== key; tries -= 1) {
-    if (tries === 0) throw fail(`carried out of reach walking ${dx}`, at);
-    at = await nudge(page, back);
-  }
+  const along = await leg(page, dx === 'left' ? 'ArrowLeft' : 'ArrowRight', { until: 'near', key });
+  at = along.stop;
+  if (!along.reached) throw fail(`never came in reach walking ${dx}`, at);
+  if (at.near !== key) throw fail(`carried out of reach walking ${dx}`, at);
+  record(rowOvershoot, Math.abs(at.x - along.before.x));
 }
 
 export type Arrow = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
@@ -327,9 +342,9 @@ export type Arrow = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
  * Holds `arrow` until `key` is in reach, or not at all if it already is. The
  * walks here end against the wall the player walks into (both doors sit in
  * one, the pedestals in a corner), so the wall stops the walk inside reach
- * however late the key is released; walkTo's row-then-along approach would
- * release the along key with the target already in reach and let a slow
- * runner carry the player past it (backlog #81).
+ * however late Playwright's key release lands. (Before backlog #81 walkTo
+ * released through Playwright too and a slow runner could carry the player
+ * past its target; these walks were written to avoid that.)
  */
 export async function holdUntilNear(page: Page, arrow: Arrow, key: string): Promise<void> {
   if ((await hook(page)).near === key) return;
