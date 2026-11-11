@@ -62,7 +62,7 @@ export interface RoomStyle {
   readonly rug?: typeof SHED_RUG;
 }
 
-/** The lounge (new content) is drawn as the shed is, with its own carpet and papered walls and no dim or rug. */
+/** The house rooms (new content: lounge, hallway, study) are drawn as the shed is, each with its own floor and walls and no dim or rug. */
 export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
   shed: {
     floor: SHEETS.floorShed,
@@ -90,10 +90,26 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     fenced: false,
     floorDim: 0,
   },
+  hallway: {
+    floor: SHEETS.floorHallway,
+    wallRow: SHEETS.wallHallway,
+    wallColumn: SHEETS.wallHallway,
+    inset: true,
+    fenced: false,
+    floorDim: 0,
+  },
+  study: {
+    floor: SHEETS.floorStudy,
+    wallRow: SHEETS.wallStudy,
+    wallColumn: SHEETS.wallStudy,
+    inset: true,
+    fenced: false,
+    floorDim: 0,
+  },
 };
 
 /**
- * Draw_0: an inset room's floor (the shed's, the lounge's) fills only the
+ * Draw_0: an inset room's floor (the shed's, the house rooms') fills only the
  * inside of its ring, (SHED_X0 + 32, SHED_Y0 + 32) to (SHED_X1, SHED_Y1), the
  * dark background showing round it; the garden's fills the room. Each tile's
  * frame hashes its column and row in the room, so a tile keeps its frame
@@ -124,7 +140,7 @@ export interface WallRun extends Rect {
  * left one broken by the doorway). The garden's rows start at 0 and
  * room_height - 32, so on its 540 px room the side columns' last tile overlaps
  * the bottom row; the shed's ring, SHED_X0..SHED_Y1, is whole tiles. The shed's
- * tiles are all `spr_wall` and the lounge's all `spr_wall_lounge`; the
+ * tiles are all `spr_wall` and each house room's all its own wall sheet; the
  * garden's rows are `spr_fence`, its columns `spr_fence_v`, and its four
  * corner tiles are left out (obj_wall Draw_0) for the mitred corners.
  */

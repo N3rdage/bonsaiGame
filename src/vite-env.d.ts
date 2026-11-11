@@ -44,7 +44,7 @@ interface BonsaiTestHook {
   readonly paused: boolean;
   /** The 3D tree viewer, once the scene has created it. */
   readonly viewer?: BonsaiViewerHook;
-  /** Key of the room the world is showing, 'shed' or 'garden'; '' on the title. */
+  /** Key of the room the world is showing, 'shed', 'garden', 'lounge', 'hallway' or 'study'; '' on the title. */
   readonly room: string;
   /** The 2D player in logical px (feet position) and its facing: 'right', 'left', 'down' or 'up'. */
   readonly player: { readonly x: number; readonly y: number; readonly facing: string };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SHEETS } from './assets';
 import { DOORWAY, GARDEN_ROOM } from './gardenRoom';
+import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import {
   PEDESTAL_LABEL_DY,
@@ -17,6 +18,7 @@ import {
   wallRuns,
 } from './roomArt';
 import { SHED_ROOM, hitsWall, type Prop } from './shedRoom';
+import { STUDY_ROOM } from './studyRoom';
 
 const propByKey = (props: readonly Prop[], key: string): Prop => {
   const p = props.find((q) => q.key === key);
@@ -54,10 +56,23 @@ describe('floor', () => {
     expect(lounge.frames).toEqual(floorTiles(SHED_ROOM).frames);
   });
 
+  it("tiles only the inside of the hallway's and the study's rings with their own floors", () => {
+    for (const [room, sheet] of [
+      [HALLWAY_ROOM, SHEETS.floorHallway],
+      [STUDY_ROOM, SHEETS.floorStudy],
+    ] as const) {
+      const tiles = floorTiles(room);
+      expect(tiles.sheet).toBe(sheet);
+      expect(tiles.area).toEqual(floorTiles(SHED_ROOM).area);
+      expect(tiles.frames).toEqual(floorTiles(SHED_ROOM).frames);
+      expect(ROOM_STYLES[room.key]).toMatchObject({ inset: true, fenced: false });
+    }
+  });
+
   it('dims and rugs the shed floor only', () => {
     expect(ROOM_STYLES.shed).toMatchObject({ floorDim: SHED_FLOOR_DIM, rug: SHED_RUG });
     expect(SHED_FLOOR_DIM).toBe(0.12);
-    for (const key of ['garden', 'lounge'] as const) {
+    for (const key of ['garden', 'lounge', 'hallway', 'study'] as const) {
       expect(ROOM_STYLES[key].floorDim).toBe(0);
       expect(ROOM_STYLES[key].rug).toBeUndefined();
     }
@@ -101,6 +116,20 @@ describe('walls', () => {
     expect(runs.map(({ x, y, w, h }) => [x, y, w, h])).toEqual(
       wallRuns(SHED_ROOM).map(({ x, y, w, h }) => [x, y, w, h]),
     );
+  });
+
+  it('rings the hallway with spr_wall_hallway and the study with spr_wall_study', () => {
+    for (const [room, sheet] of [
+      [HALLWAY_ROOM, SHEETS.wallHallway],
+      [STUDY_ROOM, SHEETS.wallStudy],
+    ] as const) {
+      const runs = wallRuns(room);
+      expect(runs.every((r) => r.sheet === sheet)).toBe(true);
+      expect(runs.map(({ x, y, w, h }) => [x, y, w, h])).toEqual(
+        wallRuns(SHED_ROOM).map(({ x, y, w, h }) => [x, y, w, h]),
+      );
+      expect(fenceCorners(room)).toEqual([]);
+    }
   });
 
   it('mitres the garden corners with two rails each, three bands a leg, inside the corner tiles', () => {
@@ -171,6 +200,19 @@ describe('props', () => {
     expect(at(LOUNGE_ROOM.props, 'door')).toEqual(['spr_door', 240, 216, 0.5, 208]);
     const topWall = wallRuns(SHED_ROOM)[0];
     expect(at(SHED_ROOM.props, 'door_lounge')).toEqual(['spr_door', 240, 56, 0.5, topWall?.y]);
+  });
+
+  it('draws the doors on the row y 190 in the side walls, sorted at their top edge', () => {
+    const at = (props: readonly Prop[], key: string) => {
+      const s = propSprite(propByKey(props, key));
+      return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
+    };
+    expect(at(LOUNGE_ROOM.props, 'door_hallway')).toEqual(['spr_door', 392, 190, 0.5, 182]);
+    expect(at(HALLWAY_ROOM.props, 'door_lounge')).toEqual(['spr_door', 88, 190, 0.5, 182]);
+    expect(at(HALLWAY_ROOM.props, 'door_study')).toEqual(['spr_door', 392, 190, 0.5, 182]);
+    expect(at(STUDY_ROOM.props, 'door_hallway')).toEqual(['spr_door', 88, 190, 0.5, 182]);
+    expect(at(STUDY_ROOM.props, 'pedestal_1')).toEqual(['spr_pedestal', 100, 80, 0.75, 88]);
+    expect(at(STUDY_ROOM.props, 'pedestal_2')).toEqual(['spr_pedestal', 380, 80, 0.75, 88]);
   });
 
   it('puts the pedestal label 30 prototype px below its centre', () => {
