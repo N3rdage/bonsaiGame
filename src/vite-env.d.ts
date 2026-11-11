@@ -67,8 +67,13 @@ interface BonsaiTestHook {
   readonly picker: string;
   /** World: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'plant' (the planting table's Plant), 'notebook', 'inventory', 'tutorial-skip' (the Skip confirmation) or 'settings'; '' otherwise. Title: 'settings' while its Settings panel is up, else ''. */
   readonly panel: string;
-  /** Both scenes: the stored settings (the Fullscreen row itself shows the live state, which can differ). */
-  readonly settings: { readonly fullscreen: boolean; readonly weather: boolean };
+  /** Both scenes: the stored settings, the Sound and Music switches included (the Fullscreen row itself shows the live state, which can differ). */
+  readonly settings: {
+    readonly fullscreen: boolean;
+    readonly weather: boolean;
+    readonly sound: boolean;
+    readonly music: boolean;
+  };
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
   /** World only: label (name, or species display name) of the tree carried (location 'inventory'), or '' (always on the title). */
@@ -134,7 +139,7 @@ interface BonsaiTestHook {
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant's
    * 'panel-select-<species>' (unselected cuttings), 'panel-select-seed-<species>' (unselected seeds), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
    * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), and the Settings panel's 'panel-fullscreen' (only where the browser offers
-   * fullscreen), 'panel-weather' and 'panel-close', in the world and on the title (whose menu button is 'settings').
+   * fullscreen), 'panel-weather', 'panel-sound', 'panel-music' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    * `hit` is the control's tap target (the rect the scene gave Phaser's setInteractive) in logical px, top-left and
    * size: its text box grown to the UI metrics' `hit` (src/world/uiScale.ts) and kept inside the canvas.
    */
