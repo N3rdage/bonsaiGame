@@ -3,11 +3,14 @@ import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { nearestInteractable } from './interactables';
+import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM, insideWalls } from './shedRoom';
+import { STUDY_ROOM } from './studyRoom';
 import {
   FLOOR_GRID,
   FLOOR_LAP_DEPTH,
+  floorRows,
   floorSpot,
   SPRITE_MAX_PX,
   SPRITE_MIN_PX,
@@ -82,9 +85,29 @@ describe('tree sprites', () => {
     );
     const sprites = treeSprites(state, LOUNGE_ROOM);
     expect(sprites.map((s) => [s.tree.id, s.pedestalKey, s.x, s.y, s.depth])).toEqual([
-      [1, 'lounge_mantel', 100, 72, 88.5],
-      [0, 'lounge_side_table', 380, 72, 88.5],
+      [1, 'lounge_mantel', 68, 120, 136.5],
+      [0, 'lounge_side_table', 412, 120, 136.5],
     ]);
+  });
+
+  it("keeps only the grid's second row in the hallway, whose corridor floor is too low for the first", () => {
+    expect(floorRows(SHED_ROOM)).toEqual([160, 200]);
+    expect(floorRows(LOUNGE_ROOM)).toEqual([160, 200]);
+    expect(floorRows(STUDY_ROOM)).toEqual([160, 200]);
+    expect(floorRows(HALLWAY_ROOM)).toEqual([200]);
+    const sprites = treeSprites(
+      stateWith(...Array.from({ length: 6 }, () => 'hallway')),
+      HALLWAY_ROOM,
+    );
+    expect(sprites.map(at)).toEqual([
+      [170, 200],
+      [202, 200],
+      [234, 200],
+      [266, 200],
+      [298, 200],
+      [170, 200],
+    ]);
+    expect(sprites[5]?.depth).toBeLessThan(sprites[0]?.depth ?? 0);
   });
 
   it('draws no displayed tree in the shed, which has no pedestals', () => {

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { PHONE_MAX_SHORT_SIDE } from '../platform/orientation';
 import { GARDEN_ROOM } from './gardenRoom';
+import { HALLWAY_ROOM } from './hallwayRoom';
+import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM } from './shedRoom';
+import { STUDY_ROOM } from './studyRoom';
 import { PHONE_WORLD_ZOOM, viewSize, worldView, worldZoom } from './worldCamera';
 
 const SHED = SHED_ROOM.bounds;
@@ -79,6 +82,38 @@ describe('worldView', () => {
       expect(worldView(at, SHED, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 0 });
       expect(worldView(at, GARDEN, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 0 });
     }
+  });
+
+  it("follows along the house rooms' own extents and centres those shorter than the view", () => {
+    // Lounge (48, 96) 384x128: x follows in 48..192, y centred on its middle, 160, wherever the player is.
+    for (const y of [112.5, 190, 207.5]) {
+      expect(worldView({ x: 64, y }, LOUNGE_ROOM.bounds, 2)).toEqual({
+        zoom: 2,
+        scrollX: 48,
+        scrollY: 160 - 67.5,
+      });
+    }
+    expect(worldView({ x: 420, y: 112.5 }, LOUNGE_ROOM.bounds, 2).scrollX).toBe(192);
+    // Study (128, 96) 224x128: smaller than the view both ways, so centred on (240, 160).
+    expect(worldView({ x: 144.5, y: 112.5 }, STUDY_ROOM.bounds, 2)).toEqual({
+      zoom: 2,
+      scrollX: 120,
+      scrollY: 92.5,
+    });
+    // Hallway (80, 160) 320x64: x follows in 80..160, y stays on the corridor's centre line, 192.
+    for (const y of [176.25, 190, 207.5]) {
+      expect(worldView({ x: 114, y }, HALLWAY_ROOM.bounds, 2)).toEqual({
+        zoom: 2,
+        scrollX: 80,
+        scrollY: 192 - 67.5,
+      });
+    }
+    expect(worldView({ x: 366, y: 190 }, HALLWAY_ROOM.bounds, 2).scrollX).toBe(160);
+    expect(worldView({ x: 114, y: 190 }, HALLWAY_ROOM.bounds, 1)).toEqual({
+      zoom: 1,
+      scrollX: 0,
+      scrollY: 0,
+    });
   });
 
   it('centres an extent smaller than the view, inside the canvas', () => {

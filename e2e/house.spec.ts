@@ -14,15 +14,13 @@ import {
   toTitle,
   walkTo,
 } from './drive';
-import { shedToLounge, throughDoor } from './rooms';
+import { hallwayToStudy, loungeToHallway, shedToLounge, throughDoor } from './rooms';
 
-// Every door past the shed sits on the row y 190, in a side wall: the lounge's
-// door_hallway (392, 190) to the hallway at (114, 190); the hallway's
-// door_lounge (88, 190) back to the lounge at (366, 190) and door_study
-// (392, 190) to the study at (114, 190); the study's door_hallway (88, 190)
-// back to the hallway at (366, 190). Each walk to a door is straight along the
-// row into its wall, which stops the player in reach however late the key is
-// released. Study pedestals: study_desk (100, 80) and study_bookshelf (380, 80).
+// The doors and landings are in rooms.ts. The hallway is a corridor, x 80..400
+// and y 160..224: its floor is y 176..208, so a walk up or down it stops at
+// y 176.25 or 207.5 on the 1.25 px step grid. The study's floor is x 144..336,
+// y 112..208; its pedestals, study_desk (148, 128) and study_bookshelf
+// (332, 128), stand in its top corners.
 
 async function expectAt(page: Page, room: string, x: number, y: number): Promise<void> {
   const h = await hook(page);
@@ -33,12 +31,25 @@ async function expectAt(page: Page, room: string, x: number, y: number): Promise
 
 /** From the lounge's landing: right along the row into the right wall, then on to the study. */
 async function loungeToStudy(page: Page): Promise<void> {
-  await holdUntilNear(page, 'ArrowRight', 'door_hallway');
-  await throughDoor(page, 'hallway');
+  await loungeToHallway(page);
   await expectAt(page, 'hallway', 114, 190);
-  await holdUntilNear(page, 'ArrowRight', 'door_study');
-  await throughDoor(page, 'study');
-  await expectAt(page, 'study', 114, 190);
+  await hallwayToStudy(page);
+  await expectAt(page, 'study', 162, 190);
+}
+
+/** Holds `arrow` until the player reaches `wallY`, then 60 frames more, and expects the wall to have kept it there. */
+async function holdAgainstWall(
+  page: Page,
+  arrow: 'ArrowUp' | 'ArrowDown',
+  wallY: number,
+): Promise<void> {
+  await page.keyboard.down(arrow);
+  await page.waitForFunction((y) => window.__bonsai?.player.y === y, wallY);
+  const frames = (await hook(page)).frames;
+  await page.waitForFunction((n) => (window.__bonsai?.frames ?? 0) >= n + 60, frames);
+  await page.keyboard.up(arrow);
+  const h = await hook(page);
+  expect([h.room, h.player.x, h.player.y]).toEqual(['hallway', 114, wallY]);
 }
 
 test.describe('the house', () => {
@@ -54,7 +65,18 @@ test.describe('the house', () => {
     await expectAt(page, 'hallway', 366, 190);
     await holdUntilNear(page, 'ArrowLeft', 'door_lounge');
     await throughDoor(page, 'lounge');
-    await expectAt(page, 'lounge', 366, 190);
+    await expectAt(page, 'lounge', 398, 190);
+    expect(errors).toEqual([]);
+  });
+
+  test('the hallway is a corridor: a walk up or down it stops at its walls', async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await shedToLounge(page);
+    await loungeToHallway(page);
+    await expectAt(page, 'hallway', 114, 190);
+    await holdAgainstWall(page, 'ArrowUp', 176.25);
+    await holdAgainstWall(page, 'ArrowDown', 207.5);
     expect(errors).toEqual([]);
   });
 
@@ -67,7 +89,7 @@ test.describe('the house', () => {
     await loungeToStudy(page);
     // Into the top-left corner (past the study's door, in reach on the way): the left wall then
     // the top wall stop the walk with the pedestal in reach.
-    await holdUntilAtMost(page, 'ArrowLeft', 'x', 110);
+    await holdUntilAtMost(page, 'ArrowLeft', 'x', 150);
     await holdUntilNear(page, 'ArrowUp', 'pedestal_1');
     await placeTree(page);
     let h = await hook(page);

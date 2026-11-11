@@ -39,6 +39,7 @@ describe('sprite sheets', () => {
       ['spr_wall_hallway', 32, 32, 1],
       ['spr_floor_study', 32, 32, 3],
       ['spr_wall_study', 32, 32, 1],
+      ['spr_window', 32, 32, 1],
     ]);
   });
 
@@ -50,6 +51,7 @@ describe('sprite sheets', () => {
       SHEETS.wallHallway,
       SHEETS.floorStudy,
       SHEETS.wallStudy,
+      SHEETS.window,
     ]) {
       expect(ALL_SHEETS).toContain(s);
     }
