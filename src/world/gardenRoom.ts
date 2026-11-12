@@ -14,6 +14,7 @@ import {
   fromPrototype,
   prop,
   ringWalls,
+  type Furniture,
   type Gap,
   type Prop,
   type Rect,
@@ -50,6 +51,21 @@ function sourcePlant(speciesKey: SpeciesKey, px: number, py: number): Prop {
   };
 }
 
+/**
+ * New content: the shed's back wall round the garden door, 32x56 from the
+ * fence's left edge, its dark opening the door's 16x16 rect at (8, 220) and
+ * the rest over the fence column's end tiles and the grass. Drawn, not solid:
+ * the doorway's gap in the fence is the only collision there.
+ */
+export const SHED_EXTERIOR: Furniture = {
+  sheet: SHEETS.shedExterior,
+  x: 0,
+  y: 196,
+  w: fromPrototype(SHEETS.shedExterior.frameWidth),
+  h: fromPrototype(SHEETS.shedExterior.frameHeight),
+  solid: false,
+};
+
 export const GARDEN_ROOM: Room = {
   key: 'garden',
   width: WIDTH,
@@ -60,7 +76,7 @@ export const GARDEN_ROOM: Room = {
   // The garden is only entered through a door, which sets the spot.
   playerStart: { x: fromPrototype(100), y: fromPrototype(450) },
   walls: ringWalls(BOUNDS, DOORWAY),
-  furniture: [],
+  furniture: [SHED_EXTERIOR],
   props: [
     sourcePlant('juniper', 280, 180),
     sourcePlant('maple', 520, 160),
