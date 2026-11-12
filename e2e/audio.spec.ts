@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import {
   bootWorld,
   closePanel,
+  closeViewer,
   collectErrors,
   expect,
   hook,
@@ -10,6 +11,7 @@ import {
   openInspector,
   openSettingsFromMenu,
   openSettingsFromTitle,
+  openViewer,
   startNewGame,
   tapControl,
   test,
@@ -100,6 +102,57 @@ test.describe('sound effects', () => {
 
     await inspectorAction(page, 'water');
     await page.waitForFunction(() => window.__bonsai?.lastSound === 'water');
+    expect(errors).toEqual([]);
+  });
+});
+
+// The hook's `track` is the loop the world's MusicPlayer is playing after the
+// Music gate; like `lastSound`, it is what the game asked for, not what was heard.
+
+/** Taps the Settings panel's Music row and waits for the stored switch to become `to`. */
+async function setMusic(page: Page, to: boolean): Promise<void> {
+  await tapControl(page, 'panel-music');
+  await page.waitForFunction((v) => window.__bonsai?.settings.music === v, to);
+}
+
+test.describe('ambient music', () => {
+  test('a new game plays the shed loop, the garden door the garden one, the viewer its own', async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    expect((await hook(page)).track).toBe('shed');
+
+    await walkTo(page, 200, 'left', 'door');
+    await interact(page);
+    await page.waitForFunction(() => window.__bonsai?.room === 'garden');
+    expect((await hook(page)).track).toBe('garden');
+
+    await openViewer(page);
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === true);
+    expect((await hook(page)).track).toBe('viewer');
+    await closeViewer(page);
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
+    expect((await hook(page)).track).toBe('garden');
+    expect(errors).toEqual([]);
+  });
+
+  test('Music off in Settings stops the loop, and on again starts it without a reload', async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await openSettingsFromMenu(page);
+    await setMusic(page, false);
+    expect((await hook(page)).track).toBe('');
+    await setMusic(page, true);
+    expect((await hook(page)).track).toBe('shed');
+
+    await setMusic(page, false);
+    await closeAndStep(page);
+    await openViewer(page);
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === true);
+    expect((await hook(page)).track).toBe('');
     expect(errors).toEqual([]);
   });
 });
