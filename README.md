@@ -77,7 +77,7 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 
 1. You begin in the shed with Granny's juniper on the floor; the tutorial panel in the corner walks you through the first steps.
 2. Walk to the door marked "To Garden" and press E (or tap Interact) to enter the back garden.
-3. Find a juniper bush (juniper is the only species that accepts cuttings at the moment — maple and pine can only be grown from seed, and seeds can't be collected yet). Cuttings can be taken in spring and summer only.
+3. Find a juniper bush (juniper is the only species that accepts cuttings at the moment — maple and pine can only be grown from seed). Cuttings can be taken in spring and summer only; in autumn the same plants give seeds (Take Seeds), and the shop sells seed packets all year.
 4. Press E on the bush to take a cutting. Each bush gives 3 cuttings before needing two weeks to recover.
 5. Return to the shed through the "Back to Shed" door.
 6. Walk to the planting table, press E to open the planting panel. Select your cutting, click "Plant Cutting." (The panel also lists the juniper and maple seed you start with; select one and click "Plant Seed" to sow it.)
@@ -105,7 +105,7 @@ Time passes in **game days**. One game day passes every five real minutes, and t
 ### Propagation
 
 - **Cutting:** Take a small branch from an existing plant, plant it in a pot. Starts as an 8cm twig with two small side branches. Not all species accept cuttings — junipers do, maples don't.
-- **Seed:** Plant a seed from your inventory at the planting table, in a pot. Starts as a 2cm sprout with no branches. Grows species that can't be cut, such as the Japanese maple. A new game starts with one juniper and one maple seed; collecting more isn't implemented yet.
+- **Seed:** Plant a seed from your inventory at the planting table, in a pot. Starts as a 2cm sprout with no branches. Grows species that can't be cut, such as the Japanese maple. A new game starts with one juniper and one maple seed. More come from the garden's plants in autumn (Take Seeds, one at a time, up to three before the plant needs two weeks to recover, shared with cuttings) or from the shop as $9 packets of juniper, maple or pine, all year.
 
 ### Training — what each operation does
 

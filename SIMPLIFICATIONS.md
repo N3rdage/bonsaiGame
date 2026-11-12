@@ -33,7 +33,7 @@ Entries should record:
 
 - **Cuttings root immediately and always succeed.** Real-world: 2–8 week rooting period, species-dependent success rate (juniper ~50–70%, harder species much lower), failure leaves a wasted cutting.
 - **Cuttings are taken only in spring and summer ([TODO](TODO.md) 2e-a).** Autumn and winter refuse with the day the next spring starts. The tutorial's Take a cutting step therefore waits for spring if the player reaches autumn first; a new game starts on day 0, in spring, so autumn does not arrive until day 57. Real-world: softwood and semi-hardwood cuttings in spring and summer are the easy case, but hardwood cuttings are taken in late autumn and winter.
-- **Only cuttings (juniper) and seeds implemented ([#3](TODO.md)).** A seed in the inventory plants at the planting table as a 2 cm sprout that is already up: no germination time, no failure, no stratification. Seeds cannot be collected yet (the new game's juniper and maple seed are the only ones; collection waits on backlog #93). Real-world: also air layering, grafting, division. Each unlocks different morphology starting points.
+- **Only cuttings (juniper) and seeds implemented ([#3](TODO.md)).** A seed in the inventory plants at the planting table as a 2 cm sprout that is already up: no germination time, no failure, no stratification. Seeds come from the garden's source plants in autumn (one per take, under the cuttings' limit of three a visit and two weeks' recovery, shared with them) and as $9 packets from the shop all year; there is no seed ripening, viability or storage. Real-world: also air layering, grafting, division. Each unlocks different morphology starting points.
 
 ## Morphology / growth
 
