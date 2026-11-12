@@ -128,9 +128,7 @@ function musicStub(): { loops: FakeLoop[]; add: (key: string) => FakeLoop } {
 
 /** The loops still sounding, as key@volume. */
 function sounding(loops: FakeLoop[]): string[] {
-  return loops
-    .filter((l) => l.state !== 'stopped')
-    .map((l) => `${l.key}@${l.volume.toFixed(2)}`);
+  return loops.filter((l) => l.state !== 'stopped').map((l) => `${l.key}@${l.volume.toFixed(2)}`);
 }
 
 describe('MusicPlayer', () => {
