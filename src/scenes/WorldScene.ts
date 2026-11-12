@@ -18,7 +18,7 @@ import {
   setTargetStyle,
   treeOnPedestal,
 } from '../sim/tree';
-import type { BonsaiTree, GameState } from '../sim/types';
+import type { BonsaiTree, GameState, PlaceableKind } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
 import { hudText } from '../world/hud';
 import { nearestInteractable, promptFor } from '../world/interactables';
@@ -96,16 +96,22 @@ import { ROOMS } from '../world/gardenRoom';
 import {
   PICK_UP_PROMPT,
   PLACEABLES,
+  PLACEABLE_ROOMS,
+  ghostFootprint,
   pickUpItem,
+  placeItem,
   placedFurniture,
   placedProps,
   placedSpots,
+  placementCheck,
+  type PlacementRefusal,
 } from '../world/placement';
 import {
   PROTOTYPE_SCALE,
   SHED_ROOM,
   type DoorTarget,
   type Prop,
+  type Rect,
   type Room,
 } from '../world/shedRoom';
 import { treeSprites, treeTargets, treeLabel, type TreeTarget } from '../world/treeSprites';
@@ -213,6 +219,16 @@ const HUD_DEPTH = 10_000;
 const MODAL_DEPTH = 10_001;
 /** Weather falls past the room, props, trees and player (depth = bottom y, at most 270), under the HUD. */
 const WEATHER_DEPTH = 9_000;
+/** The placement ghost lies on the floor, under the drop shadows, sorted furniture and the player. */
+const GHOST_DEPTH = FLOOR_DEPTH + 0.5;
+/** The ghost's colour where its kind can go down, and where it is refused. */
+const GHOST_OK = 0x5ad26a;
+const GHOST_REFUSED = 0xd25a5a;
+
+/** A placement refusal as the prompt and toast say it: `In the way`. */
+function refusalText(reason: PlacementRefusal | 'none left'): string {
+  return reason.charAt(0).toUpperCase() + reason.slice(1);
+}
 
 /** The particle field of the room shown, built for one season (obj_weather's instance). */
 interface WeatherField {
@@ -365,6 +381,12 @@ export class WorldScene extends Phaser.Scene {
   /** The prop or floor tree in interact range of the player, if any. */
   private near: Prop | TreeTarget | undefined;
   private panel: OpenPanel | undefined;
+  /** Placement mode (P): the kind being put down; scene state, never saved. */
+  private placing: { kind: PlaceableKind } | undefined;
+  /** While placing: the ghost drawn on the floor, the footprint it shows and its placement check. */
+  private ghost:
+    | { gfx: Phaser.GameObjects.Graphics; rect: Rect; check: ReturnType<typeof placementCheck> }
+    | undefined;
   /**
    * The UI metrics of the HUD and panels (src/world/uiScale.ts), read at
    * create; a resize updates only `hit`, so text sizes stay until a restart.
@@ -405,6 +427,8 @@ export class WorldScene extends Phaser.Scene {
     this.frames = 0;
     this.joystick = undefined;
     this.panel = undefined;
+    this.placing = undefined;
+    this.ghost = undefined;
     this.clockS = 0;
     this.room = SHED_ROOM;
     this.roomParts = [];
@@ -528,6 +552,9 @@ export class WorldScene extends Phaser.Scene {
     onKeyDown(keyboard, 'Z', () => {
       this.goToSleep(1);
     });
+    onKeyDown(keyboard, 'P', () => {
+      this.togglePlacing();
+    });
     (['ONE', 'TWO', 'THREE'] as const).forEach((name, i) => {
       onKeyDown(keyboard, name, () => {
         if (this.panel?.buttons.some((b) => b.id === `panel-slot-${String(i + 1)}`)) {
@@ -549,6 +576,7 @@ export class WorldScene extends Phaser.Scene {
     onKeyDown(keyboard, 'ESC', (event) => {
       if (this.viewer.isOpen || event.timeStamp <= this.viewerClosedAt) return;
       if (this.panel) this.closePanel();
+      else if (this.placing) this.stopPlacing();
       else this.toTitle();
     });
 
@@ -710,8 +738,15 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private openMenu(): void {
-    const carrying = carriedTree(this.ctx.state) !== undefined;
-    const bg = this.panelBox(menuPanel(carrying, this.ui), HUD_DEPTH);
+    const placing = this.placing?.kind;
+    const next = placing === undefined ? undefined : this.nextStockedKind(placing);
+    const options = {
+      carrying: carriedTree(this.ctx.state) !== undefined,
+      placeable: this.placeable(),
+      placing: placing !== undefined,
+      nextKind: next !== undefined && next !== placing ? PLACEABLES[next].label : undefined,
+    };
+    const bg = this.panelBox(menuPanel(options, this.ui), HUD_DEPTH);
     const actions = {
       inventory: () => {
         this.toggleInventory();
@@ -742,8 +777,17 @@ export class WorldScene extends Phaser.Scene {
         this.closePanel();
         this.relocated();
       },
+      place: () => {
+        this.closePanel();
+        if (this.placing) this.stopPlacing();
+        else this.togglePlacing();
+      },
+      'place-next': () => {
+        this.closePanel();
+        this.togglePlacing();
+      },
     };
-    const buttons = menuItems(carrying, this.ui).map((item) => ({
+    const buttons = menuItems(options, this.ui).map((item) => ({
       id: `menu-${item.id}`,
       text: this.hudButton(item.x, item.y, item.label, actions[item.id], 0, 0.5),
     }));
@@ -1175,14 +1219,20 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * E or the Interact button: a floor tree or an occupied pedestal opens the
-   * tree's inspector, an empty pedestal the Display Pedestal panel, a door
+   * E or the Interact button: while placing, the ghost's kind goes down.
+   * Otherwise a floor tree or an occupied pedestal opens the tree's
+   * inspector, an empty pedestal the Display Pedestal panel, a door
    * leads to its room, a source plant gives a cutting, the kiosk opens the
    * shop, the workbench makes a pot and the planting table opens Plant.
    */
   private interact(): void {
+    if (!this.roomKeysLive()) return;
+    if (this.placing) {
+      this.placeHere(this.placing.kind);
+      return;
+    }
     const near = this.near;
-    if (!this.roomKeysLive() || !near) return;
+    if (!near) return;
     const { state } = this.ctx;
     if ('tree' in near) {
       this.openInspector(near.tree);
@@ -1254,6 +1304,7 @@ export class WorldScene extends Phaser.Scene {
    * new visit, as the prototype's room instances were recreated on entry.
    */
   private enterRoom(target: DoorTarget): void {
+    this.stopPlacing();
     this.sfx.play('door');
     this.room = ROOMS[target.room];
     this.music.play(trackFor(this.room.key));
@@ -1496,6 +1547,97 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+  /** The placeable kinds in stock, in PLACEABLES order. */
+  private stockedKinds(): PlaceableKind[] {
+    const kinds = Object.keys(PLACEABLES) as PlaceableKind[];
+    return kinds.filter((k) => inventoryHas(this.ctx.state.inventory, k));
+  }
+
+  /** The stocked kind after `kind`, wrapping (`kind` itself when it is the only one); undefined with none. */
+  private nextStockedKind(kind: PlaceableKind): PlaceableKind | undefined {
+    const order = Object.keys(PLACEABLES);
+    const stocked = this.stockedKinds();
+    return stocked.find((k) => order.indexOf(k) > order.indexOf(kind)) ?? stocked[0];
+  }
+
+  /** The room takes furniture and some is in stock: placement mode can start. */
+  private placeable(): boolean {
+    return PLACEABLE_ROOMS.includes(this.room.key) && this.stockedKinds().length > 0;
+  }
+
+  /** P, and the menu's Place item and Next: start placing the first stocked kind, or switch to the next. */
+  private togglePlacing(): void {
+    if (this.placing) {
+      const next = this.nextStockedKind(this.placing.kind);
+      if (next) this.placing = { kind: next };
+    } else if (this.placeable() && this.roomKeysLive()) {
+      const [first] = this.stockedKinds();
+      if (first) this.placing = { kind: first };
+    }
+    this.drawPlayer();
+    this.publishHook();
+  }
+
+  /** Leaves placement mode, the ghost with it; the props and trees answer E again. */
+  private stopPlacing(): void {
+    if (!this.placing) return;
+    this.placing = undefined;
+    this.ghost?.gfx.destroy();
+    this.ghost = undefined;
+    this.drawPlayer();
+    this.publishHook();
+  }
+
+  /** E while placing: `kind` down at the ghost, then the next stocked kind once it runs out; or the refusal as a toast. */
+  private placeHere(kind: PlaceableKind): void {
+    const { x, y } = ghostFootprint(kind, this.player);
+    const result = placeItem(this.ctx.state, this.room, kind, x, y, this.player);
+    if (typeof result === 'string') {
+      this.showToast(refusalText(result));
+      return;
+    }
+    if (!inventoryHas(this.ctx.state.inventory, kind)) {
+      const next = this.nextStockedKind(kind);
+      if (next) this.placing = { kind: next };
+      else this.stopPlacing();
+    }
+    this.drawRoom();
+    this.relocated();
+    this.showToast(`Placed ${PLACEABLES[kind].label}`);
+  }
+
+  /**
+   * While placing, the ghost on the tile the player faces, green where its
+   * kind can go down and red where it is refused; nothing otherwise.
+   */
+  private drawGhost(): void {
+    if (!this.placing) return;
+    const { kind } = this.placing;
+    const rect = ghostFootprint(kind, this.player);
+    const check = placementCheck(this.room, this.ctx.state, kind, rect.x, rect.y, this.player);
+    const gfx = this.ghost?.gfx ?? this.inWorld(this.add.graphics().setDepth(GHOST_DEPTH));
+    const colour = check === 'ok' ? GHOST_OK : GHOST_REFUSED;
+    gfx
+      .clear()
+      .fillStyle(colour, 0.35)
+      .fillRect(rect.x, rect.y, rect.w, rect.h)
+      .lineStyle(1, colour)
+      .strokeRect(rect.x, rect.y, rect.w, rect.h);
+    this.ghost = { gfx, rect, check };
+  }
+
+  /** The prompt over the player: the placement's (Place <label>, or why not) while placing, else the near target's. */
+  private prompt(): string {
+    if (this.placing && this.ghost) {
+      const { kind } = this.placing;
+      const { rect, check } = this.ghost;
+      return check === 'ok'
+        ? promptFor({ ...rect, key: kind, prompt: `Place ${PLACEABLES[kind].label}` })
+        : refusalText(check);
+    }
+    return this.near ? this.nearPrompt(this.near) : '';
+  }
+
   /** After a location change: redraw the trees and the carry line, publish. */
   private relocated(): void {
     this.drawTrees();
@@ -1579,6 +1721,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private toTitle(): void {
+    this.stopPlacing();
     const { storage, overrides, settings, settingsStorage } = this.ctx;
     const data: TitleSceneData = { storage, overrides, settings, settingsStorage };
     this.scene.start('title', data);
@@ -1601,6 +1744,7 @@ export class WorldScene extends Phaser.Scene {
    * (obj_game_controller/Step_0.gml lines 31-41), and Close keeps the unsaved game.
    */
   private reload(): void {
+    this.stopPlacing();
     const { storage, slot } = this.ctx;
     let state: GameState | undefined;
     try {
@@ -1626,7 +1770,8 @@ export class WorldScene extends Phaser.Scene {
     this.music.update(delta);
     const viewerOpen = this.viewer.isOpen;
     const modal = this.panel?.modal === true;
-    const showInteract = this.near !== undefined && !viewerOpen && !modal;
+    const showInteract =
+      (this.near !== undefined || this.placing !== undefined) && !viewerOpen && !modal;
     this.hud.setVisible(!viewerOpen);
     this.carryText.setVisible(!viewerOpen);
     this.menuButton.setVisible(!viewerOpen && !modal);
@@ -1730,10 +1875,10 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(y + PLAYER_H / 2);
     const shadow = playerShadow(x, y);
     this.playerShadow.setPosition(shadow.x, shadow.y);
-    this.near = nearestInteractable(this.player, this.targets);
-    this.promptText
-      .setText(this.near ? this.nearPrompt(this.near) : '')
-      .setPosition(x, y - PLAYER_H / 2 - 2);
+    // Placing suppresses the props and trees: E puts the ghost's kind down instead.
+    this.near = this.placing ? undefined : nearestInteractable(this.player, this.targets);
+    this.drawGhost();
+    this.promptText.setText(this.prompt()).setPosition(x, y - PLAYER_H / 2 - 2);
     this.follow();
   }
 
@@ -1746,6 +1891,7 @@ export class WorldScene extends Phaser.Scene {
     if (!viewTree || !this.roomKeysLive()) return;
     this.joystick = undefined;
     this.closePanel();
+    this.stopPlacing();
     this.viewer.open(viewTree, overrides.season ?? seasonForDay(state.day), state);
     this.music.play(trackFor('viewer'));
     this.hud.setVisible(false);
@@ -1767,7 +1913,7 @@ export class WorldScene extends Phaser.Scene {
     };
     const rows = this.panel?.buttons.map((b) => at(b.id, b.text)) ?? [];
     if (this.panel?.modal) return rows;
-    const interact = this.near ? [at('interact', this.interactButton)] : [];
+    const interact = this.near || this.placing ? [at('interact', this.interactButton)] : [];
     const tutorial = this.tutorialButton
       ? [at(this.tutorialButton.id, this.tutorialButton.text)]
       : [];
@@ -1833,7 +1979,7 @@ export class WorldScene extends Phaser.Scene {
       track: this.music.track,
       musicPaused: this.music.paused,
       near: this.near?.key ?? '',
-      prompt: this.near ? this.nearPrompt(this.near) : '',
+      prompt: this.prompt(),
       carrying: carried ? treeLabel(carried) : '',
       treeLocations: state.trees.map((t) => ({
         id: t.id,
@@ -1863,6 +2009,10 @@ export class WorldScene extends Phaser.Scene {
           h: PLACEABLES[p.kind].h,
           spots: placedSpots(p).map((s) => s.key),
         })),
+      placing:
+        this.placing && this.ghost
+          ? { kind: this.placing.kind, ...this.ghost.rect, check: this.ghost.check }
+          : undefined,
       hud: hudText(state),
       frames: this.frames,
     };
