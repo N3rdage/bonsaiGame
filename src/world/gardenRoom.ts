@@ -5,6 +5,7 @@
  */
 
 import { getSpecies } from '../sim/species';
+import { SHEETS } from './assets';
 import type { SpeciesKey } from '../sim/types';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
@@ -69,6 +70,14 @@ export const GARDEN_ROOM: Room = {
     {
       ...prop('door', 'Door', 'Back to Shed', 16 + 16, 440 + 16, 16, 16),
       target: { room: 'shed', x: fromPrototype(480), y: fromPrototype(380) },
+    },
+    // New content: a glazed door drawn on the right fence's band on the row y 190, back to 26 px
+    // above the study's glass doors. A walk right along the row stops against the fence at x 463.5,
+    // 8.5 px short of its centre.
+    {
+      ...prop('door_study', 'Door', 'To Study', 944, 380, 16, 16),
+      target: { room: 'study', x: 320, y: 190 },
+      sheet: SHEETS.doorGlassSingle,
     },
   ],
   // rm_garden_back's background colour 4281094192 is ABGR 0xff2c5030.

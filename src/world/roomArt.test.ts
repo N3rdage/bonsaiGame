@@ -321,6 +321,42 @@ describe('props', () => {
     expect(at(STUDY_ROOM.props, 'door_hallway')).toEqual(['spr_door', 136, 190, 0.5, 182]);
   });
 
+  it("draws the study's glazed double door over its 32x16 rect and the garden's glazed leaf on its fence, sorted at their top edge", () => {
+    expect(SHEETS.doorGlass).toEqual({
+      key: 'spr_door_glass',
+      frameWidth: 64,
+      frameHeight: 32,
+      frames: 1,
+    });
+    expect(SHEETS.doorGlassSingle).toEqual({
+      key: 'spr_door_glass_single',
+      frameWidth: 32,
+      frameHeight: 32,
+      frames: 1,
+    });
+    const at = (props: readonly Prop[], key: string) => {
+      const p = propByKey(props, key);
+      const s = propSprite(p);
+      // The frame at the sprite's scale covers the prop's rect exactly.
+      expect(s && [s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale]).toEqual([p.w, p.h]);
+      return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
+    };
+    expect(at(STUDY_ROOM.props, 'door_garden')).toEqual(['spr_door_glass', 320, 216, 0.5, 208]);
+    expect(at(GARDEN_ROOM.props, 'door_study')).toEqual([
+      'spr_door_glass_single',
+      472,
+      190,
+      0.5,
+      182,
+    ]);
+    // Every other door keeps the prototype's spr_door.
+    const doors = Object.values(ROOMS).flatMap((r) => r.props.filter((p) => p.target));
+    expect(doors.filter((p) => propSprite(p)?.sheet !== SHEETS.door).map((p) => p.key)).toEqual([
+      'door_study',
+      'door_garden',
+    ]);
+  });
+
   it("puts a spot's label 30 prototype px below its centre, just under the furniture's front edge", () => {
     expect(PEDESTAL_LABEL_DY).toBe(15);
     for (const room of [LOUNGE_ROOM, STUDY_ROOM]) {

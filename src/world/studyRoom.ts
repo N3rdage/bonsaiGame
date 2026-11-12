@@ -2,8 +2,9 @@
  * The study, as pure data: new content (the prototype had no interiors), an
  * indoor display room at the end of the hallway. A small room (an inset ring
  * of solid walls on the shed's canvas, narrower than the shed), one window in
- * its top wall, its one door in the left wall on the row y 190, and a desk and
- * a low bookcase against the top wall, each carrying a display spot.
+ * its top wall, a door to the hallway in the left wall on the row y 190, glazed
+ * double doors out to the garden in the bottom wall, and a desk and a low
+ * bookcase against the top wall, each carrying a display spot.
  */
 
 import { SHEETS } from './assets';
@@ -61,6 +62,14 @@ export const STUDY_ROOM: Room = {
     {
       ...prop('door_hallway', 'Door', 'To Hallway', 256 + 16, 364 + 16, 16, 16),
       target: { room: 'hallway', x: 366, y: 190 },
+    },
+    // Glazed double doors to the garden in the bottom wall's band, x 304..336, just left of the
+    // corner tile. A walk into the right wall and down stops at (335.75, 207.5) on the 1.25 px
+    // step grid, 17.9 px from the doors' centre; the garden's study door lands 26 px left of it.
+    {
+      ...prop('door_garden', 'Door', 'To Garden', 640, 432, 32, 16),
+      target: { room: 'garden', x: 446, y: 190 },
+      sheet: SHEETS.doorGlass,
     },
   ],
   // A deep wine-brown behind the ring, to suit the red parquet.
