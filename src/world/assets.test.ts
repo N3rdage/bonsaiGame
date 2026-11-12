@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ALL_SHEETS,
-  PEDESTAL_SCALE,
   PLAYER_SCALE,
   SHEETS,
   SPRITE_SCALE,
@@ -32,7 +31,6 @@ describe('sprite sheets', () => {
       ['spr_workbench', 32, 32, 1],
       ['spr_planting_table', 32, 32, 1],
       ['spr_shop_kiosk', 32, 32, 1],
-      ['spr_pedestal', 32, 32, 1],
       ['spr_floor_lounge', 32, 32, 3],
       ['spr_wall_lounge', 32, 32, 1],
       ['spr_floor_hallway', 32, 32, 3],
@@ -40,10 +38,16 @@ describe('sprite sheets', () => {
       ['spr_floor_study', 32, 32, 3],
       ['spr_wall_study', 32, 32, 1],
       ['spr_window', 32, 32, 1],
+      ['spr_fireplace', 64, 48, 1],
+      ['spr_side_table', 32, 32, 1],
+      ['spr_desk', 64, 32, 1],
+      ['spr_bookshelf', 32, 32, 1],
+      ['spr_runner', 416, 48, 1],
+      ['spr_hall_table', 32, 24, 1],
     ]);
   });
 
-  it("loads the house rooms' generated tiles with the rest", () => {
+  it("loads the house rooms' generated tiles and furniture with the rest", () => {
     for (const s of [
       SHEETS.floorLounge,
       SHEETS.wallLounge,
@@ -52,6 +56,12 @@ describe('sprite sheets', () => {
       SHEETS.floorStudy,
       SHEETS.wallStudy,
       SHEETS.window,
+      SHEETS.fireplace,
+      SHEETS.sideTable,
+      SHEETS.desk,
+      SHEETS.bookshelf,
+      SHEETS.runner,
+      SHEETS.hallTable,
     ]) {
       expect(ALL_SHEETS).toContain(s);
     }
@@ -71,10 +81,9 @@ describe('sprite sheets', () => {
     expect(sheetUrl('/game/', SHEETS.door)).toBe('/game/assets/spr_door.png');
   });
 
-  it('halves prototype px, and draws the player and pedestal at the prototype 1.5x', () => {
+  it('halves prototype px, and draws the player at the prototype 1.5x', () => {
     expect(SPRITE_SCALE).toBe(0.5);
     expect(PLAYER_SCALE).toBe(0.75);
-    expect(PEDESTAL_SCALE).toBe(0.75);
     expect(SHEETS.player.frameHeight * PLAYER_SCALE).toBe(24);
   });
 });
