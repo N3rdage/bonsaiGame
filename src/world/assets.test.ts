@@ -51,6 +51,7 @@ describe('sprite sheets', () => {
       ['spr_watering_can', 32, 30, 1],
       ['spr_pot_stack', 40, 40, 1],
       ['spr_sack', 32, 34, 1],
+      ['spr_shed_exterior', 64, 112, 1],
     ]);
   });
 
@@ -66,7 +67,7 @@ describe('sprite sheets', () => {
     }
   });
 
-  it("loads the house rooms' generated tiles and furniture with the rest", () => {
+  it("loads the house rooms' generated tiles and furniture and the shed's back wall with the rest", () => {
     for (const s of [
       SHEETS.floorLounge,
       SHEETS.wallLounge,
@@ -81,6 +82,7 @@ describe('sprite sheets', () => {
       SHEETS.bookshelf,
       SHEETS.runner,
       SHEETS.hallTable,
+      SHEETS.shedExterior,
     ]) {
       expect(ALL_SHEETS).toContain(s);
     }

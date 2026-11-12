@@ -102,13 +102,14 @@ describe('walls', () => {
     }
   });
 
-  it('fences the garden, rows spr_fence and columns spr_fence_v, without corners or the doorway', () => {
+  it("fences the garden, rows spr_fence and columns spr_fence_v, without corners or the doorway, then the shed's back wall", () => {
     expect(wallRuns(GARDEN_ROOM).map((r) => [r.sheet.key, r.x, r.y, r.w, r.h])).toEqual([
       ['spr_fence', 16, 0, 448, 16],
       ['spr_fence', 16, 254, 448, 16],
       ['spr_fence_v', 0, 16, 16, DOORWAY.top - 16],
       ['spr_fence_v', 0, DOORWAY.bottom, 16, 16],
       ['spr_fence_v', 464, 16, 16, 240],
+      ['spr_shed_exterior', 0, 196, 32, 56],
     ]);
   });
 
@@ -228,11 +229,12 @@ describe('walls', () => {
         // A one-frame piece is its sheet's size, halved; a run is whole tiles of it.
         expect((r.w * 2) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
         expect(r.h * 2).toBe(r.sheet.frameHeight);
-        // On the floor, clear of the walls' bands.
+        // On the floor, clear of the walls' bands, but for the shed's back wall over the garden's fence.
         const f = insideWalls(room);
-        expect(r.x >= f.x && r.x + r.w <= f.x + f.w && r.y >= f.y && r.y + r.h <= f.y + f.h).toBe(
-          true,
-        );
+        expect(
+          r.x >= f.x && r.x + r.w <= f.x + f.w && r.y >= f.y && r.y + r.h <= f.y + f.h,
+          `${room.key} ${r.sheet.key}`,
+        ).toBe(r.sheet !== SHEETS.shedExterior);
       }
     }
     expect(furniture(SHED_ROOM)).toEqual([
@@ -242,7 +244,21 @@ describe('walls', () => {
       ['spr_pot_stack', 343, 174, 20, 20],
       ['spr_sack', 142, 175, 16, 17],
     ]);
-    expect(furnitureRuns(GARDEN_ROOM)).toEqual([]);
+    expect(furniture(GARDEN_ROOM)).toEqual([['spr_shed_exterior', 0, 196, 32, 56]]);
+  });
+
+  it("bakes the shed's back wall after the fence, over the doorway's end tiles, with no shadow", () => {
+    const runs = wallRuns(GARDEN_ROOM);
+    const surround = runs.at(-1);
+    expect(surround).toEqual({ sheet: SHEETS.shedExterior, x: 0, y: 196, w: 32, h: 56 });
+    // The left fence column's tiles either side of the doorway, which the surround overlaps.
+    const [above, below] = runs.filter((r) => r.sheet === SHEETS.fenceV && r.x === 0);
+    expect(above && above.y + above.h).toBe(DOORWAY.top);
+    expect(below?.y).toBe(DOORWAY.bottom);
+    expect(furnitureShadows(GARDEN_ROOM)).toEqual([]);
+    // The door is drawn over the bake, in the surround's opening, sorted at its top edge as before.
+    const d = propSprite(propByKey(GARDEN_ROOM.props, 'door'));
+    expect(d && [d.sheet.key, d.x, d.y, d.scale, d.depth]).toEqual(['spr_door', 16, 228, 0.5, 220]);
   });
 
   it('mitres the garden corners with two rails each, three bands a leg, inside the corner tiles', () => {

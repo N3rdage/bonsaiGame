@@ -85,6 +85,7 @@ committed bytes. Hard pixel edges, a small palette near `pixel.py`'s wood tones.
 | `spr_wall_hallway.png` | 32×32 | 1 | `interiors.mjs`: plaster over a dado rail and a wooden skirting board |
 | `spr_floor_study.png` | 96×32 | 3 | `interiors.mjs`: deep-red herringbone parquet repeating every 16 px (seamless), grain per frame |
 | `spr_wall_study.png` | 32×32 | 1 | `interiors.mjs`: dark wooden panelling, two raised panels, over a skirting board |
+| `spr_shed_exterior.png` | 64×112 | 1 | `interiors.mjs`: the shed's back wall round the garden door, a shingled eave over `spr_wall`'s planks, a lintel and jambs round a dark opening, a stone sill and footing |
 
 The decor sprites (`make_decor.py`: shelf, tools, watering can, pot stack,
 sack, window) are not in the web build yet. `spr_foliage` is the 3D viewer's
