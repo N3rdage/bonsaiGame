@@ -6,10 +6,14 @@ import { advanceDayAllTrees } from '../sim/world';
 import { SHEETS } from './assets';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import {
+  DISPLAY_PROMPT,
+  PICK_UP_PROMPT,
   PLACEABLES,
   footprint,
   pickUpItem,
   placeItem,
+  placedFurniture,
+  placedProps,
   placedSpots,
   placementCheck,
   snapToGrid,
@@ -145,5 +149,62 @@ describe('placement', () => {
     const revenue = advanceDayAllTrees(state, 1, () => 0.999);
     expect(revenue).toBeGreaterThan(0);
     expect(state.money).toBe(money + revenue);
+  });
+});
+
+describe('placed furniture in the room', () => {
+  function laidOut(): GameState {
+    const state = createNewGameState();
+    state.placed = [
+      { id: 0, kind: 'pedestal', room: 'greenhouse', x: 240, y: 160 },
+      { id: 1, kind: 'floor_shelf', room: 'greenhouse', x: 304, y: 160 },
+      { id: 2, kind: 'pedestal', room: 'lounge', x: 96, y: 160 },
+    ];
+    state.nextPlacedId = 3;
+    return state;
+  }
+
+  it("gives each spot of the room's items a prop centred on its tile, nothing for another room's", () => {
+    const props = placedProps(laidOut(), GREENHOUSE_ROOM, false);
+    expect(
+      props.map((p) => [p.key, p.label, p.pedestalKey, p.placedId, p.x, p.y, p.w, p.h]),
+    ).toEqual([
+      ['placed_0', 'Pedestal', 'placed_0', 0, 248, 168, 16, 16],
+      ['placed_1', 'Floor shelf', 'placed_1', 1, 312, 168, 16, 16],
+      ['placed_1_2', 'Floor shelf', 'placed_1_2', 1, 328, 168, 16, 16],
+    ]);
+    expect(placedProps(laidOut(), SHED_ROOM, false)).toEqual([]);
+  });
+
+  it('prompts Pick up at an empty spot empty-handed, else Display', () => {
+    const state = laidOut();
+    expect(PICK_UP_PROMPT).toBe('Pick up');
+    expect(DISPLAY_PROMPT).toBe('Display');
+    expect(placedProps(state, GREENHOUSE_ROOM, false).map((p) => p.prompt)).toEqual([
+      PICK_UP_PROMPT,
+      PICK_UP_PROMPT,
+      PICK_UP_PROMPT,
+    ]);
+    expect(placedProps(state, GREENHOUSE_ROOM, true).map((p) => p.prompt)).toEqual([
+      DISPLAY_PROMPT,
+      DISPLAY_PROMPT,
+      DISPLAY_PROMPT,
+    ]);
+    const [tree] = state.trees;
+    if (!tree) throw new Error('no starter tree');
+    tree.location = `${DISPLAYED_PREFIX}placed_1_2`;
+    expect(placedProps(state, GREENHOUSE_ROOM, false).map((p) => p.prompt)).toEqual([
+      PICK_UP_PROMPT,
+      PICK_UP_PROMPT,
+      DISPLAY_PROMPT,
+    ]);
+  });
+
+  it("draws the room's items as sorted walk-through furniture over their footprints", () => {
+    expect(placedFurniture(laidOut(), GREENHOUSE_ROOM)).toEqual([
+      { x: 240, y: 160, w: 16, h: 16, sheet: SHEETS.pedestal, solid: false, sorted: true },
+      { x: 304, y: 160, w: 32, h: 16, sheet: SHEETS.floorShelf, solid: false, sorted: true },
+    ]);
+    expect(placedFurniture(laidOut(), SHED_ROOM)).toEqual([]);
   });
 });

@@ -50,6 +50,16 @@ interface BonsaiTestHook {
   readonly player: { readonly x: number; readonly y: number; readonly facing: string };
   /** World only: the room's sorted furniture, each sheet key and its depth (its bottom edge); the player's depth is its y + 12. */
   readonly sortedDecor?: readonly { readonly sheet: string; readonly depth: number }[];
+  /** World only: the furniture placed in the current room, its footprint (top-left, logical px) and its display spot keys. */
+  readonly placed?: readonly {
+    readonly id: number;
+    readonly kind: string;
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+    readonly spots: readonly string[];
+  }[];
   /** The world HUD badge text (it is drawn only while the viewer is closed). */
   readonly hud: string;
   /** Fixed 60 Hz world steps run so far; the world does not step while the viewer is open. */
