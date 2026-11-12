@@ -16,7 +16,7 @@ There's a running dev blog in [`blog/`](./blog) written by Claude in first perso
 
 **Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed, the back garden, the house (the lounge, the hallway and the study) and the glass greenhouse through the garden's top fence, still empty, water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser.
 
-On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
+On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, Z to sleep a day, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
 
 The GameMaker prototype in [`archive/gamemaker/`](./archive/gamemaker/) is history now: kept whole and frozen as the reference the port was built from, no longer the game you play.
 
@@ -57,6 +57,8 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 | View tree button or V | Open the 3D viewer on the first tree |
 | Notebook button or J | Open or close Granny's notebook: one page per tutorial step, Prev and Next to turn |
 | Menu button → Inventory, or I | Open or close the inventory: resources, seeds and cuttings with their counts |
+| Menu button → Sleep, or Z | Sleep through a day: the whole world advances one day, as if the clock had run |
+| Menu button → Sleep a week | Sleep through seven days |
 | Tutorial panel → Skip | Skip the tutorial (asks first) |
 | Menu button → Save, or F5 | Save game |
 | Menu button → Load, or F9 | Load game |
@@ -93,7 +95,7 @@ Each tree has a **species** (juniper, maple, pine), an **age** in simulated days
 
 ### Time
 
-Time passes in **game days**. One game day passes every five real minutes, and the clock stops while the 3D viewer is open. Trees simulate silently in the background — their water level drops, their vitality responds, they sometimes sprout new branches. You can also spend fertilizer to skip time for a specific tree, letting you grow one tree quickly without fast-forwarding the rest of the world.
+Time passes in **game days**. One game day passes every five real minutes, and the clock stops while the 3D viewer is open. Trees simulate silently in the background — their water level drops, their vitality responds, they sometimes sprout new branches. **Sleep** (Z, or Menu → Sleep; Menu → Sleep a week for seven) moves the whole world on a day at a time, exactly as the clock would: every tree drinks, grows and ages, displayed trees earn their revenue, and nothing is charged for the sleep itself. You can also spend fertilizer to skip time for a specific tree, letting you grow one tree quickly without fast-forwarding the rest of the world.
 
 ### The growth loop
 
