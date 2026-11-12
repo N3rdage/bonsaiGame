@@ -48,6 +48,8 @@ interface BonsaiTestHook {
   readonly room: string;
   /** The 2D player in logical px (feet position) and its facing: 'right', 'left', 'down' or 'up'. */
   readonly player: { readonly x: number; readonly y: number; readonly facing: string };
+  /** World only: the room's sorted furniture, each sheet key and its depth (its bottom edge); the player's depth is its y + 12. */
+  readonly sortedDecor?: readonly { readonly sheet: string; readonly depth: number }[];
   /** The world HUD badge text (it is drawn only while the viewer is closed). */
   readonly hud: string;
   /** Fixed 60 Hz world steps run so far; the world does not step while the viewer is open. */
