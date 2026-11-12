@@ -181,6 +181,7 @@ export type InventoryKey =
   | 'fertilizer'
   | 'seed_juniper'
   | 'seed_maple'
+  | 'seed_pine'
   | 'cutting_juniper'
   | 'cutting_maple';
 
