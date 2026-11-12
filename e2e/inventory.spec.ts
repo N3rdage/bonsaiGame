@@ -27,6 +27,7 @@ function expected(inv: Readonly<Record<string, number>>) {
       entries: listed([
         ['seed_juniper', 'Juniper'],
         ['seed_maple', 'Japanese Maple'],
+        ['seed_pine', 'Pine'],
       ]),
     },
     {
