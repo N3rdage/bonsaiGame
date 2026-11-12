@@ -23,6 +23,7 @@ import {
   test,
   toTitle,
   walkTo,
+  walkToRow,
 } from './drive';
 import { gardenToGreenhouse, shedToGarden } from './rooms';
 
@@ -90,8 +91,13 @@ test.describe('placement mode', () => {
     await nextPlacingKind(page);
     expect((await hook(page)).placing?.kind).toBe('pedestal');
 
-    // On the landing facing down, the ghost is the landing tile, inside the door's clearance ring.
+    // The player came in facing up. A step up and back down to y 196..202.25, facing down:
+    // the ghost is the landing tile, inside the door's clearance ring.
+    await walkToRow(page, 190);
+    await walkToRow(page, 196);
+    await settle(page);
     let h = await hook(page);
+    expect(h.player.facing).toBe('down');
     expect(h.placing).toEqual({
       kind: 'pedestal',
       x: 240,
