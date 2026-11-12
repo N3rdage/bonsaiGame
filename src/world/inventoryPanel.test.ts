@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createInventory } from '../sim/inventory';
 import type { Inventory } from '../sim/types';
 import {
-  INVENTORY_COUNT_RIGHT,
+  INVENTORY_COLUMNS,
   INVENTORY_PANEL,
   inventoryPanel,
   inventorySections,
@@ -44,21 +44,23 @@ describe('inventory panel', () => {
         ],
       },
       { title: 'Cuttings', entries: [] },
+      { title: 'Furniture', entries: [] },
     ]);
   });
 
-  it('labels every item: Fancy Pots, Akadama Mix and cuttings by species name', () => {
+  it('labels every item: Fancy Pots, Akadama Mix, cuttings by species name and the furniture', () => {
     const labels = inventorySections(full()).map((s) => [s.title, s.entries.map((e) => e.label)]);
     expect(labels).toEqual([
       ['Resources', ['Clay', 'Pots', 'Fancy Pots', 'Akadama Mix', 'Wire', 'Fertilizer']],
       ['Seeds', ['Juniper', 'Japanese Maple', 'Pine']],
       ['Cuttings', ['Juniper', 'Japanese Maple']],
+      ['Furniture', ['Pedestals', 'Floor shelves']],
     ]);
   });
 
   it('lists seeds and cuttings in species order, however the inventory was built', () => {
     const reversed = Object.fromEntries(Object.entries(full()).reverse()) as Inventory;
-    expect(Object.keys(reversed)[0]).toBe('cutting_maple');
+    expect(Object.keys(reversed)[0]).toBe('floor_shelf');
     expect(inventorySections(reversed)).toEqual(inventorySections(full()));
   });
 
@@ -71,6 +73,8 @@ describe('inventory panel', () => {
       'Seeds',
       '(none)',
       'Cuttings',
+      '(none)',
+      'Furniture',
       '(none)',
     ]);
     expect(m.rows.every((r) => r.id === '')).toBe(true);
@@ -93,31 +97,50 @@ describe('inventory panel', () => {
       '1',
       'Cuttings',
       '(none)',
+      'Furniture',
+      '(none)',
     ]);
   });
 
-  it('fits a full inventory inside 480x270: lines inside the box, apart, and above Close', () => {
+  it('puts Resources and Seeds in the left column, Cuttings and Furniture in the right', () => {
+    const headers = inventoryPanel(empty())
+      .rows.filter((r) => r.color === '#8cb478')
+      .map((r) => [r.text, r.x, r.y]);
+    const [left, right] = INVENTORY_COLUMNS;
+    expect(headers).toEqual([
+      ['Resources', left.left, INVENTORY_PANEL.y + 36],
+      ['Seeds', left.left, INVENTORY_PANEL.y + 36 + 2 * LINE_H + 8],
+      ['Cuttings', right.left, INVENTORY_PANEL.y + 36],
+      ['Furniture', right.left, INVENTORY_PANEL.y + 36 + 2 * LINE_H + 8],
+    ]);
+  });
+
+  it('fits a full inventory inside 480x270: lines inside the box and their column, apart, and above Close', () => {
     const box = INVENTORY_PANEL;
     expect(box.x * 2 + box.w).toBe(480);
     expect(box.y * 2 + box.h).toBe(270);
     const close = panelClose(box);
     for (const inv of [full(), empty(), createInventory()]) {
       const rows = inventoryPanel(inv).rows;
-      let above = panelTitleY(box);
+      const above = INVENTORY_COLUMNS.map(() => panelTitleY(box));
       for (const row of rows) {
         // A right-aligned row's x is its right edge.
         const width = row.text.length * GLYPH_W;
         const left = row.align === 'right' ? (row.x ?? NaN) - width : (row.x ?? NaN);
         const right = left + width;
+        const c = INVENTORY_COLUMNS.findIndex((col) => left >= col.left && right <= col.countRight);
+        const column = INVENTORY_COLUMNS[c];
+        if (column === undefined) throw new Error(`${row.text} is in no column`);
         expect(left).toBeGreaterThanOrEqual(box.x + PANEL_INSET);
         expect(right).toBeLessThanOrEqual(box.x + box.w - PANEL_INSET);
         // Counts are right-aligned on the column's edge; a label stays clear of a six-digit count.
-        if (row.align === 'right') expect(row.x).toBe(INVENTORY_COUNT_RIGHT);
-        else expect(right).toBeLessThan(INVENTORY_COUNT_RIGHT - 6 * GLYPH_W);
-        expect(row.y - above === 0 || row.y - above >= LINE_H).toBe(true);
-        above = row.y;
+        if (row.align === 'right') expect(row.x).toBe(column.countRight);
+        else expect(right).toBeLessThan(column.countRight - 6 * GLYPH_W);
+        const prev = above[c] ?? NaN;
+        expect(row.y - prev === 0 || row.y - prev >= LINE_H).toBe(true);
+        above[c] = row.y;
       }
-      expect(above + LINE_H / 2).toBeLessThanOrEqual(close.y - LINE_H / 2);
+      for (const y of above) expect(y + LINE_H / 2).toBeLessThanOrEqual(close.y - LINE_H / 2);
     }
   });
 });
