@@ -338,7 +338,10 @@ describe('props', () => {
       const p = propByKey(props, key);
       const s = propSprite(p);
       // The frame at the sprite's scale covers the prop's rect exactly.
-      expect(s && [s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale]).toEqual([p.w, p.h]);
+      expect(s && [s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale]).toEqual([
+        p.w,
+        p.h,
+      ]);
       return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
     };
     expect(at(STUDY_ROOM.props, 'door_garden')).toEqual(['spr_door_glass', 320, 216, 0.5, 208]);
