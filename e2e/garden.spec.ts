@@ -9,6 +9,8 @@ import {
   hook,
   interact,
   openMenu,
+  openSettingsFromMenu,
+  skipTutorial,
   tapControl,
   test,
   toTitle,
@@ -102,6 +104,28 @@ test.describe('the garden', () => {
     expect((await hook(page)).toast).toBe('Took a Japanese Maple seed  (2 in inventory)');
     expect(await mapleSeeds(page)).toBe(2);
     expect(errors).toEqual([]);
+  });
+});
+
+test.describe('garden screenshot', () => {
+  // The shed door's landing on the S22 in landscape: the garden door set in the
+  // shed's back wall, as the phone's zoomed camera shows it. Weather off and
+  // the tutorial skipped, as in interiors.spec.ts, so nothing moves or covers it.
+  test("the garden's entry, its door in the shed's back wall", async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape baseline only');
+    await bootWorld(page);
+    await openSettingsFromMenu(page);
+    await tapControl(page, 'panel-weather');
+    await page.waitForFunction(() => window.__bonsai?.settings.weather === false);
+    await tapControl(page, 'panel-close');
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+
+    await toGarden(page);
+    const h = await hook(page);
+    expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 50, 225, '']);
+    await expect(page).toHaveScreenshot('garden-entry.png');
   });
 });
 
