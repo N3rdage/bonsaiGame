@@ -1,7 +1,7 @@
 /**
  * How a room is drawn, as pure data in logical px: the floor tiles
  * (obj_game_controller Draw_0), the wall and fence runs (Other_4's ring,
- * obj_wall Draw_0), the windows and furniture of the house rooms, the
+ * obj_wall Draw_0), the rooms' windows and furniture (the shed's decor), the
  * garden's mitred fence corners (Draw_73), the shed's
  * floor dim and rug, each prop's sprite and the drop shadows (the props' Draw
  * events), with each room's sheets and extras in one table, ROOM_STYLES. The
