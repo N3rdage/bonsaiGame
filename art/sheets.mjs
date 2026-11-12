@@ -32,6 +32,11 @@ const NAMES = [
   'spr_planting_table',
   'spr_shop_kiosk',
   'spr_pedestal',
+  'spr_shelf',
+  'spr_tools',
+  'spr_watering_can',
+  'spr_pot_stack',
+  'spr_sack',
 ];
 
 /** GameMaker's .yy is JSON with trailing commas. */
