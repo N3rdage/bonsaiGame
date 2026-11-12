@@ -28,6 +28,7 @@ import {
   SHED_ROOM,
   WALL_BAND,
   fromPrototype,
+  furnitureWalls,
   hitsWall,
   insideWalls,
   ringWalls,
@@ -178,18 +179,21 @@ describe('lounge room', () => {
       { x: 48, y: 208, w: 384, h: 16 },
       { x: 48, y: 96, w: 16, h: 128 },
       { x: 416, y: 96, w: 16, h: 128 },
+      // The fireplace and the side table.
+      { x: 224, y: 112, w: 32, h: 24 },
+      { x: 400, y: 112, w: 16, h: 16 },
     ]);
     expect(insideWalls(LOUNGE_ROOM)).toEqual({ x: 64, y: 112, w: 352, h: 96 });
     expect(LOUNGE_ROOM.playerStart).toEqual({ x: 240, y: 190 });
     expect(hitsWall(LOUNGE_ROOM, 240, 190)).toBe(false);
   });
 
-  it('has two pedestals, lounge_mantel and lounge_side_table, and a door in the bottom wall', () => {
+  it('has two display spots, lounge_mantel and lounge_side_table, on its furniture, and a door in the bottom wall', () => {
     expect(
       LOUNGE_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
-      ['pedestal_1', 'Pedestal', 'Use Pedestal', 68, 128, 16, 16, 'lounge_mantel'],
-      ['pedestal_2', 'Pedestal', 'Use Pedestal', 412, 128, 16, 16, 'lounge_side_table'],
+      ['pedestal_1', 'Pedestal', 'Use Pedestal', 240, 125, 32, 22, 'lounge_mantel'],
+      ['pedestal_2', 'Pedestal', 'Use Pedestal', 408, 122, 16, 12, 'lounge_side_table'],
       ['door', 'Door', 'Back to Shed', 240, 216, 16, 16, undefined],
       ['door_hallway', 'Door', 'To Hallway', 424, 190, 16, 16, undefined],
     ]);
@@ -223,18 +227,23 @@ describe('lounge room', () => {
     expect(nearestInteractable(p, SHED_ROOM.props)?.key).toBe('door_lounge');
   });
 
-  it('keeps each pedestal in reach of a player walked into its corner from either landing, however long the keys are held', () => {
-    for (const [start, dx, key, x] of [
-      [LOUNGE_ROOM.playerStart, -1, 'pedestal_1', 65],
-      [LOUNGE_ROOM.playerStart, 1, 'pedestal_2', 415],
-      [{ x: 398, y: 190 }, -1, 'pedestal_1', 64.25],
-      [{ x: 398, y: 190 }, 1, 'pedestal_2', 415.5],
+  it('keeps the mantel in reach of a walk straight up from the landing, stopped by the fireplace however long the key is held', () => {
+    let p = createPlayer(LOUNGE_ROOM);
+    for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, LOUNGE_ROOM);
+    expect([p.x, p.y]).toEqual([240, 136.25]);
+    expect(nearestInteractable(p, LOUNGE_ROOM.props)?.key).toBe('pedestal_1');
+  });
+
+  it('keeps the side table in reach of a walk into the right wall and up from either landing, stopped by the table', () => {
+    for (const [start, x] of [
+      [LOUNGE_ROOM.playerStart, 415],
+      [{ x: 398, y: 190 }, 415.5],
     ] as const) {
       let p: PlayerState = { ...createPlayer(LOUNGE_ROOM), ...start };
-      for (let i = 0; i < 400; i += 1) p = stepPlayer(p, { x: dx, y: 0 }, LOUNGE_ROOM);
+      for (let i = 0; i < 400; i += 1) p = stepPlayer(p, { x: 1, y: 0 }, LOUNGE_ROOM);
       for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, LOUNGE_ROOM);
-      expect([p.x, p.y]).toEqual([x, 112.5]);
-      expect(nearestInteractable(p, LOUNGE_ROOM.props)?.key).toBe(key);
+      expect([p.x, p.y]).toEqual([x, 128.75]);
+      expect(nearestInteractable(p, LOUNGE_ROOM.props)?.key).toBe('pedestal_2');
     }
   });
 });
@@ -260,7 +269,7 @@ describe('hallway room', () => {
     expect(HALLWAY_ROOM.floor).toBe(0x261c16);
   });
 
-  it('is a corridor: no pedestals, a door in each side wall on the row y 190', () => {
+  it('is a corridor: no display spots, a door in each side wall on the row y 190', () => {
     expect(
       HALLWAY_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.target]),
     ).toEqual([
@@ -290,6 +299,9 @@ describe('study room', () => {
       { x: 128, y: 208, w: 224, h: 16 },
       { x: 128, y: 96, w: 16, h: 128 },
       { x: 336, y: 96, w: 16, h: 128 },
+      // The desk and the bookcase.
+      { x: 144, y: 112, w: 32, h: 16 },
+      { x: 288, y: 112, w: 48, h: 16 },
     ]);
     expect(insideWalls(STUDY_ROOM)).toEqual({ x: 144, y: 112, w: 192, h: 96 });
     expect(STUDY_ROOM.playerStart).toEqual({ x: 162, y: 190 });
@@ -297,20 +309,21 @@ describe('study room', () => {
     expect(STUDY_ROOM.floor).toBe(0x2a1618);
   });
 
-  it('has two pedestals, study_desk and study_bookshelf, and a door in the left wall', () => {
+  it('has two display spots, study_desk and study_bookshelf, on its furniture, and a door in the left wall', () => {
     expect(
       STUDY_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
-      ['pedestal_1', 'Pedestal', 'Use Pedestal', 148, 128, 16, 16, 'study_desk'],
-      ['pedestal_2', 'Pedestal', 'Use Pedestal', 332, 128, 16, 16, 'study_bookshelf'],
+      ['pedestal_1', 'Pedestal', 'Use Pedestal', 160, 123, 32, 10, 'study_desk'],
+      ['pedestal_2', 'Pedestal', 'Use Pedestal', 328, 120.5, 16, 15, 'study_bookshelf'],
       ['door_hallway', 'Door', 'To Hallway', 136, 190, 16, 16, undefined],
     ]);
     expect(door(STUDY_ROOM, 'door_hallway').x - 8).toBe(STUDY_ROOM.walls[2]?.x);
     expect(door(STUDY_ROOM, 'door_hallway').target).toEqual({ room: 'hallway', x: 366, y: 190 });
   });
 
-  it('keeps each pedestal in reach of a player walked into its corner, however long the keys are held', () => {
-    // From (162, 190) on the 1.25 px step grid the walls stop the player at x 144.5 and 335.75.
+  it('keeps each spot in reach of a player walked into a side wall and up against its furniture, however long the keys are held', () => {
+    // From (162, 190) on the 1.25 px step grid the walls stop the player at x 144.5 and 335.75,
+    // the desk and the bookcase at y 128.75.
     for (const [dx, key, x] of [
       [-1, 'pedestal_1', 144.5],
       [1, 'pedestal_2', 335.75],
@@ -318,7 +331,7 @@ describe('study room', () => {
       let p = createPlayer(STUDY_ROOM);
       for (let i = 0; i < 300; i += 1) p = stepPlayer(p, { x: dx, y: 0 }, STUDY_ROOM);
       for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, STUDY_ROOM);
-      expect([p.x, p.y]).toEqual([x, 112.5]);
+      expect([p.x, p.y]).toEqual([x, 128.75]);
       expect(nearestInteractable(p, STUDY_ROOM.props)?.key).toBe(key);
     }
   });
@@ -339,8 +352,29 @@ describe('interior rooms', () => {
   const rectOf = (p: Prop): Rect => ({ x: p.x - p.w / 2, y: p.y - p.h / 2, w: p.w, h: p.h });
 
   for (const room of [LOUNGE_ROOM, HALLWAY_ROOM, STUDY_ROOM]) {
-    it(`${room.key}: doors in its wall bands, each landing and the start on a floor, pedestals on its floor`, () => {
-      expect(room.walls).toEqual(ringWalls(room.bounds));
+    it(`${room.key}: a step into a solid piece of furniture is stopped, a step onto any other is not`, () => {
+      expect(room.walls).toEqual([...ringWalls(room.bounds), ...furnitureWalls(room.furniture)]);
+      expect(room.furniture.length).toBeGreaterThanOrEqual(2);
+      for (const f of room.furniture) {
+        // Just below the piece's front edge, stepping up into it.
+        const below: PlayerState = { ...createPlayer(room), x: f.x + f.w / 2, y: f.y + f.h + 0.5 };
+        expect(hitsWall(room, below.x, below.y)).toBe(false);
+        const p = stepPlayer(below, { x: 0, y: -1 }, room);
+        expect(p.y, `${room.key} ${f.sheet.key}`).toBe(f.solid ? below.y : below.y - 1.25);
+      }
+    });
+
+    it(`${room.key}: every display spot is in reach from the floor below it, where a walk up stops`, () => {
+      for (const s of room.props.filter((p) => p.pedestalKey !== undefined)) {
+        let p: PlayerState = { ...createPlayer(room), x: s.x, y: 190 };
+        for (let i = 0; i < 100; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, room);
+        expect(hitsWall(room, p.x, p.y)).toBe(false);
+        expect(Math.hypot(s.x - p.x, s.y - p.y), s.key).toBeLessThanOrEqual(INTERACT_RANGE);
+        expect(nearestInteractable(p, room.props)?.key).toBe(s.key);
+      }
+    });
+
+    it(`${room.key}: doors in its wall bands, each landing and the start on a floor, display spots on its floor`, () => {
       expect(onFloor(room, room.playerStart, room.edgeMargin)).toBe(true);
       for (const p of room.props) {
         if (p.target) {

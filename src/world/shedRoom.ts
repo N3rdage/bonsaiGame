@@ -14,6 +14,7 @@
  */
 
 import type { SpeciesKey } from '../sim/types';
+import type { Sheet } from './assets';
 
 /** Prototype room px per logical px. */
 export const PROTOTYPE_SCALE = 2;
@@ -49,7 +50,11 @@ export interface Prop {
   readonly y: number;
   readonly w: number;
   readonly h: number;
-  /** Display pedestals only: the prototype's `pedestal_key` (instance creation code), as in `displayed:<pedestalKey>`. */
+  /**
+   * Display spots only: the prototype's `pedestal_key` (instance creation
+   * code), as in `displayed:<pedestalKey>`. A spot is on a piece of furniture
+   * (`displaySpot`) and draws nothing of its own.
+   */
   readonly pedestalKey?: string;
   /** Doors only: the room and spot E takes the player to. */
   readonly target?: DoorTarget;
@@ -67,6 +72,17 @@ export interface RoomWindow {
   readonly w: number;
 }
 
+/**
+ * A piece of house furniture (new content: the prototype had no interiors):
+ * its sheet drawn from the rect's top-left, one frame the rect's size or a
+ * tile repeated over it, baked into the room with the walls (roomArt's
+ * `furnitureRuns`). A solid piece's rect joins the room's walls.
+ */
+export interface Furniture extends Rect {
+  readonly sheet: Sheet;
+  readonly solid: boolean;
+}
+
 export interface Room {
   readonly key: RoomKey;
   /** The canvas the room is drawn on, logical px. */
@@ -80,6 +96,8 @@ export interface Room {
   readonly edgeMargin: number;
   readonly playerStart: { readonly x: number; readonly y: number };
   readonly walls: readonly Rect[];
+  /** Drawn in order, after the walls and windows. */
+  readonly furniture: readonly Furniture[];
   readonly props: readonly Prop[];
   /** Floor colour, from the room's background layer. */
   readonly floor: number;
@@ -114,6 +132,40 @@ export function ringWalls(bounds: Rect, leftGap?: Gap): Rect[] {
     ...left,
     { x: x + w - band, y, w: band, h },
   ];
+}
+
+/** The solid pieces' rects, which a room adds to its `ringWalls`. */
+export function furnitureWalls(furniture: readonly Furniture[]): Rect[] {
+  return furniture.filter((f) => f.solid).map(({ x, y, w, h }) => ({ x, y, w, h }));
+}
+
+/**
+ * A display spot (`Use Pedestal`, as obj_pedestal) on a piece of furniture:
+ * its rect runs across `x`..`x + w` (the whole piece by default) from `top`,
+ * where the displayed tree's pot stands, down to the piece's front edge. So
+ * the tree stands on the rect's top edge as it stood on a pedestal's, the
+ * rect's centre is the interact origin, and the label 15 px below it falls
+ * just under the piece.
+ */
+export function displaySpot(
+  key: string,
+  pedestalKey: string,
+  on: Rect,
+  top: number,
+  x = on.x,
+  w = on.w,
+): Prop {
+  const h = on.y + on.h - top;
+  return {
+    key,
+    label: 'Pedestal',
+    prompt: 'Use Pedestal',
+    x: x + w / 2,
+    y: top + h / 2,
+    w,
+    h,
+    pedestalKey,
+  };
 }
 
 /** The floor inside the ring's bands. */
@@ -165,6 +217,8 @@ export const SHED_ROOM: Room = {
   playerStart: { x: fromPrototype(480), y: fromPrototype(270) },
   // Other_4: solid all round; the door is drawn on the bottom wall, not cut into it.
   walls: ringWalls(SHED_BOUNDS),
+  // The workshop's furniture is its props.
+  furniture: [],
   props: [
     prop('workbench', 'Workbench', 'Make Pot', 250, 180, 40, 20),
     prop('planting_table', 'Planting', 'Plant Cutting', 330, 180, 32, 20),
