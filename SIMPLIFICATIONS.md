@@ -47,6 +47,7 @@ Entries should record:
 ## Seasons / climate
 
 - **Seasonal timing is global and calendar-locked.** Every tree of a species shifts colour / drops foliage on the same calendar day. Real-world: individual variation by tree health, microclimate, hemisphere.
+- **The garden changes with the season by a colour wash only.** Its grass, fence and the shed's back wall are washed brown in autumn and pale in winter; nothing is swapped, so there is no fallen-leaf litter, no snow cover and no bare ground, and the source plants and the door keep their summer look. Real-world: leaf fall, snow lying, frost on the fence, dormant beds.
 - **No weather variation.** Spring is spring. Real-world: late frosts, hot summers, dry autumns — each year is different and matters.
 
 ## Trade / display

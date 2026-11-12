@@ -149,8 +149,10 @@ import {
   playerShadow,
   propShadow,
   propSprite,
+  seasonWash,
   wallRuns,
   type Shadow,
+  type Wash,
 } from '../world/roomArt';
 import { treeArt, type TreeArt } from '../world/treeArt';
 import { viewSize, worldView, worldZoom, type WorldView } from '../world/worldCamera';
@@ -308,6 +310,8 @@ export class WorldScene extends Phaser.Scene {
   private roomParts: Phaser.GameObjects.GameObject[] = [];
   /** The room's static art, baked on entry (bakeRoom); destroyed on leaving the room or the scene. */
   private roomTexture: Phaser.Textures.DynamicTexture | undefined;
+  /** The season's wash the room was baked with (seasonWash), so a season that changes it rebakes the room. */
+  private roomWash: Wash | undefined;
   /** The props', floor trees' and the player's drop shadows, at floor depth. */
   private shadowGfx!: Phaser.GameObjects.Graphics;
   private playerShadow!: Phaser.GameObjects.Ellipse;
@@ -1299,7 +1303,8 @@ export class WorldScene extends Phaser.Scene {
     this.roomTexture?.destroy();
     const room = this.room;
     const key = `room-${room.key}`;
-    this.roomTexture = this.bakeRoom(key, room);
+    this.roomWash = seasonWash(room, seasonForDay(this.ctx.state.day));
+    this.roomTexture = this.bakeRoom(key, room, this.roomWash);
     this.roomParts = [
       this.add
         .shader(ROOM_QUAD, 0, 0, room.width, room.height, [key])
@@ -1324,9 +1329,13 @@ export class WorldScene extends Phaser.Scene {
    * colour (the prototype's background layer), the floor tiles, the room
    * style's dim and rug (the shed's), the decor's ground shadows, the wall or
    * fence runs with the windows and furniture, then the garden's
-   * mitred corners.
+   * mitred corners, and last the season's wash over all of it (the garden's).
    */
-  private bakeRoom(key: string, room: Room): Phaser.Textures.DynamicTexture | undefined {
+  private bakeRoom(
+    key: string,
+    room: Room,
+    wash: Wash | undefined,
+  ): Phaser.Textures.DynamicTexture | undefined {
     const texture = this.textures.addDynamicTexture(
       key,
       room.width * PROTOTYPE_SCALE,
@@ -1365,6 +1374,7 @@ export class WorldScene extends Phaser.Scene {
       texture.repeat(w.sheet.key, 0, w.x * s, w.y * s, w.w * s, w.h * s);
     const corners = this.make.graphics({}, false).setScale(PROTOTYPE_SCALE);
     for (const c of fenceCorners(room)) corners.fillStyle(c.colour).fillRect(c.x, c.y, c.w, c.h);
+    if (wash) corners.fillStyle(wash.colour, wash.alpha).fillRect(0, 0, room.width, room.height);
     texture.draw(corners).render();
     rug.destroy();
     corners.destroy();
@@ -1609,6 +1619,8 @@ export class WorldScene extends Phaser.Scene {
     this.drawPlayer();
     // obj_weather's season recheck: the season only changes with the day.
     if (this.weather && this.weather.season !== seasonForDay(state.day)) this.buildWeather();
+    // The garden's scenery turns with the season too; an indoor room's wash never changes.
+    if (this.roomWash !== seasonWash(this.room, seasonForDay(state.day))) this.drawRoom();
     if (this.panel?.tree) this.openInspector(this.panel.tree);
     this.hud.setText(hudText(state));
     if (tick.revenue > 0) {
