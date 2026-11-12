@@ -1,7 +1,7 @@
 /**
  * The shed, the room a new game starts in, as pure data, and the shape every
  * room shares (the garden is in gardenRoom.ts, the lounge in loungeRoom.ts, the hallway in
- * hallwayRoom.ts, the study in studyRoom.ts).
+ * hallwayRoom.ts, the study in studyRoom.ts, the greenhouse in greenhouseRoom.ts).
  *
  * Every prototype coordinate and distance halves (`fromPrototype`, prototype.ts).
  *
@@ -25,7 +25,7 @@ export interface Rect {
 }
 
 /** The rooms the world can show; also the `location` of a tree on that room's floor. */
-export type RoomKey = 'shed' | 'garden' | 'lounge' | 'hallway' | 'study';
+export type RoomKey = 'shed' | 'garden' | 'lounge' | 'hallway' | 'study' | 'greenhouse';
 
 /** Where a door leads (obj_door's `target_room`, `target_x`, `target_y`), logical px. */
 export interface DoorTarget {

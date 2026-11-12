@@ -24,7 +24,7 @@ export function audioAllowed(settings: Settings, kind: AudioKind): boolean {
 export const SOUND_KEYS = ['water', 'snip', 'wire', 'footstep', 'click', 'door', 'coin'] as const;
 export type SoundKey = (typeof SOUND_KEYS)[number];
 
-/** The music tracks 7-c brings, by file name: one loop per place, the house's three rooms sharing one. */
+/** The music tracks 7-c brings, by file name: one loop per place, the house's three rooms sharing one and the greenhouse the garden's. */
 export const MUSIC_KEYS = ['shed', 'garden', 'house', 'viewer'] as const;
 export type MusicKey = (typeof MUSIC_KEYS)[number];
 
@@ -37,6 +37,7 @@ const TRACKS: Record<MusicPlace, MusicKey> = {
   lounge: 'house',
   hallway: 'house',
   study: 'house',
+  greenhouse: 'garden',
   viewer: 'viewer',
 };
 
