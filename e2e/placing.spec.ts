@@ -3,6 +3,7 @@ import { serializeState } from '../src/sim/save';
 import { createNewGameState } from '../src/sim/state';
 import { CARRIED } from '../src/sim/tree';
 import {
+  closePanel,
   collectErrors,
   continueGame,
   expect,
@@ -89,10 +90,37 @@ test.describe('placement mode', () => {
     await nextPlacingKind(page);
     expect((await hook(page)).placing?.kind).toBe('pedestal');
 
+    // On the landing facing down, the ghost is the landing tile, inside the door's clearance ring.
+    let h = await hook(page);
+    expect(h.placing).toEqual({
+      kind: 'pedestal',
+      x: 240,
+      y: 208,
+      w: 16,
+      h: 16,
+      check: 'blocks the door',
+    });
+    expect(h.prompt).toBe('Blocks the door');
+    expect(h.placingVisible).toBe(true);
+    await interact(page);
+    await page.waitForFunction(() => window.__bonsai?.toast === 'Blocks the door');
+    expect((await hook(page)).placed).toEqual([]);
+
+    // Under the Inventory the mode holds but the ghost is not drawn; closed, it is back.
+    await openMenu(page);
+    await tapControl(page, 'menu-inventory');
+    await page.waitForFunction(() => window.__bonsai?.panel === 'inventory');
+    h = await hook(page);
+    expect(h.placing?.kind).toBe('pedestal');
+    expect(h.placingVisible).toBe(false);
+    await closePanel(page);
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
+    expect((await hook(page)).placingVisible).toBe(true);
+
     // Against the bottom wall facing down, the ghost is over the door's tile, in the wall band.
     await holdUntilAtLeast(page, 'ArrowDown', 'y', 223);
     await settle(page);
-    let h = await hook(page);
+    h = await hook(page);
     expect(h.player.facing).toBe('down');
     expect(h.placing).toEqual({
       kind: 'pedestal',
