@@ -9,6 +9,7 @@
  */
 
 import { SHEETS, SPRITE_SCALE, floorFrame, sourcePlantFrame } from './assets';
+import type { Season } from '../sim/seasons';
 import type { Sheet } from './assets';
 import { DOORWAY } from './gardenRoom';
 import {
@@ -251,6 +252,30 @@ export function fenceCorners(room: Room): ColourRect[] {
     }
   }
   return rects;
+}
+
+/** A translucent colour laid over a room's whole baked art. */
+export interface Wash {
+  readonly colour: number;
+  readonly alpha: number;
+}
+
+/**
+ * The garden's per-season wash (new content, #113): a touch fresher in
+ * spring, today's look in summer, browning in autumn, pale and frosted in
+ * winter. A wash rather than a multiply tint, since a multiply only darkens
+ * and the green grass can neither turn brown nor pale under one.
+ */
+const GARDEN_SEASON_WASHES: Readonly<Record<Season, Wash | undefined>> = {
+  spring: { colour: 0xc8f0a0, alpha: 0.12 },
+  summer: undefined,
+  autumn: { colour: 0xbe6e28, alpha: 0.5 },
+  winter: { colour: 0xe6eef6, alpha: 0.5 },
+};
+
+/** The wash over the room's static art (floor, fence, corners, furniture) in this season, or none; the indoor rooms have none. */
+export function seasonWash(room: Room, season: Season): Wash | undefined {
+  return room.key === 'garden' ? GARDEN_SEASON_WASHES[season] : undefined;
 }
 
 /** A prop's sprite: sheet and frame, centred on (x, y) at `scale`, drawn at `depth`. */
