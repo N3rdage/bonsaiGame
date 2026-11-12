@@ -570,11 +570,17 @@ export class WorldScene extends Phaser.Scene {
       if (this.panel?.key === SETTINGS_KEY) this.openSettings();
     });
     // Phaser's sound manager pauses on blur but not on game.pause() (the rotate prompt, src/main.ts).
+    // Both publish, as the paused game publishes nothing else. RESUME also comes
+    // from the page being shown again, which leaves game.isPaused set, so the
+    // rotate prompt's pause holds until game.resume() clears it.
     const pauseMusic = (): void => {
       this.music.pause();
+      this.publishHook();
     };
     const resumeMusic = (): void => {
+      if (this.game.isPaused) return;
       this.music.resume();
+      this.publishHook();
     };
     this.game.events.on(Phaser.Core.Events.PAUSE, pauseMusic);
     this.game.events.on(Phaser.Core.Events.RESUME, resumeMusic);
@@ -1714,6 +1720,7 @@ export class WorldScene extends Phaser.Scene {
       settings: { ...this.ctx.settings },
       lastSound: this.sfx.lastSound,
       track: this.music.track,
+      musicPaused: this.music.paused,
       near: this.near?.key ?? '',
       carrying: carried ? treeLabel(carried) : '',
       treeLocations: state.trees.map((t) => ({

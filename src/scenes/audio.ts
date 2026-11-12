@@ -98,6 +98,8 @@ function quietly(action: () => void): void {
 export class MusicPlayer {
   /** The loop playing after the gate, or '' (the hook's `track`). */
   track: MusicKey | '' = '';
+  /** Whether `pause()` holds the loops, until `resume()` (the hook's `musicPaused`). */
+  paused = false;
   private wanted: MusicKey | undefined;
   /** The loops sounding: the one fading in or playing last, any fading out before it. */
   private voices: Voice[] = [];
@@ -143,10 +145,12 @@ export class MusicPlayer {
 
   /** Holds every loop where it is (the game paused under the rotate prompt). */
   pause(): void {
+    this.paused = true;
     for (const v of this.voices) quietly(() => v.sound.pause());
   }
 
   resume(): void {
+    this.paused = false;
     for (const v of this.voices) quietly(() => v.sound.resume());
   }
 
