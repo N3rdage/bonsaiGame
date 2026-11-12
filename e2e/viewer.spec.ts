@@ -81,6 +81,8 @@ test.describe('3D viewer', () => {
     { key: 'cutting', meshVertices: 912, foliageVertices: 120, potTier: 0 },
     { key: 'bent', meshVertices: 2064, foliageVertices: 336, potTier: 0 },
     { key: 'cascade', meshVertices: 2304, foliageVertices: 252, potTier: 0 },
+    // `pine` is the young pine in its dark bark with needle tufts, on day 0 (spring).
+    { key: 'pine', meshVertices: 1488, foliageVertices: 396, potTier: 0 },
     { key: 'wired', meshVertices: 9048, foliageVertices: 336, potTier: 0 },
     { key: 'fancy', meshVertices: 2064, foliageVertices: 336, potTier: 1 },
   ];
@@ -110,7 +112,7 @@ test.describe('3D viewer', () => {
     {
       url: '/?tree=maple&season=autumn',
       season: 'autumn',
-      foliageVertices: 252,
+      foliageVertices: 180,
       shot: 'maple-autumn',
     },
   ];

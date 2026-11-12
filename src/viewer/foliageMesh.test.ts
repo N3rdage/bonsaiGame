@@ -131,7 +131,7 @@ describe('addLeaf (_add_quad_xz then _add_quad_yz)', () => {
     const list = new TriangleList();
     const c = { x: 1, y: 2, z: 3 };
     const s = 0.5;
-    addLeaf(list, c, s, { r: 10, g: 20, b: 30 });
+    addLeaf(list, c, s, 1, { r: 10, g: 20, b: 30 });
     const mesh = list.build();
     expect(mesh.positions.length / 3).toBe(12);
 
@@ -168,6 +168,66 @@ describe('addLeaf (_add_quad_xz then _add_quad_yz)', () => {
     expect(Array.from(mesh.colors.slice(0, 3))).toEqual(
       [10 / 255, 20 / 255, 30 / 255].map(Math.fround),
     );
+  });
+
+  it('stretches both quads across by the aspect and keeps their height', () => {
+    const list = new TriangleList();
+    addLeaf(list, { x: 1, y: 2, z: 3 }, 0.5, 2, { r: 0, g: 0, b: 0 });
+    const mesh = list.build();
+    // xz quad: corners 1 and 3 are (c.x + 1, c.y, c.z - 0.5) and (c.x - 1, c.y, c.z + 0.5).
+    expectVec(positionAt(mesh, 1), { x: 2, y: 2, z: 2.5 });
+    expectVec(positionAt(mesh, 5), { x: 0, y: 2, z: 3.5 });
+    // yz quad: the same across y.
+    expectVec(positionAt(mesh, 7), { x: 1, y: 3, z: 2.5 });
+    expectVec(positionAt(mesh, 11), { x: 1, y: 1, z: 3.5 });
+  });
+});
+
+describe('species leaf shape', () => {
+  /** Width (x) and height (z) of the first leaf's xz quad. */
+  function firstLeafSize(mesh: MeshArrays): { w: number; h: number } {
+    const a = positionAt(mesh, 0);
+    const b = positionAt(mesh, 2);
+    return { w: b.x - a.x, h: b.z - a.z };
+  }
+
+  it('the juniper keeps the prototype leaf: square, 7 per cluster at density 0.5', () => {
+    const tree = starterTree();
+    const { w, h } = firstLeafSize(buildFoliageMesh(tree, 'summer'));
+    expect(w).toBeCloseTo(2 * leafHalfSize(0.5), 6);
+    expect(h).toBeCloseTo(2 * leafHalfSize(0.5), 6);
+  });
+
+  it('scales count and size: floor(floor(4 + 6d) * countScale), half-size times sizeScale', () => {
+    expect(leafCount(0.5, 0.8)).toBe(5);
+    expect(leafCount(0.5, 1.6)).toBe(11);
+    expect(leafHalfSize(0.5, 1.3)).toBeCloseTo(0.044 * 1.3, 12);
+  });
+
+  it('a maple leaf is broad (1.6 times as wide as tall) and 1.3 times the size, 5 to a cluster', () => {
+    const maple = createTree('maple', 'seed', 1);
+    maple.trunk.heightCm = 10;
+    markDirty(maple);
+    addBranch(maple, -1, 5, 45, 4);
+    maple.foliageDensity = 0.5;
+    const mesh = buildFoliageMesh(maple, 'summer');
+    expect(mesh.positions.length / 3).toBe(5 * 12);
+    const { w, h } = firstLeafSize(mesh);
+    expect(h).toBeCloseTo(2 * 0.044 * 1.3, 5);
+    expect(w / h).toBeCloseTo(1.6, 5);
+  });
+
+  it('a pine leaf is a needle tuft (0.35 times as wide as tall), 1.1 times the size, 11 to a cluster', () => {
+    const pine = createTree('pine', 'seed', 1);
+    pine.trunk.heightCm = 10;
+    markDirty(pine);
+    addBranch(pine, -1, 5, 45, 4);
+    pine.foliageDensity = 0.5;
+    const mesh = buildFoliageMesh(pine, 'summer');
+    expect(mesh.positions.length / 3).toBe(11 * 12);
+    const { w, h } = firstLeafSize(mesh);
+    expect(h).toBeCloseTo(2 * 0.044 * 1.1, 5);
+    expect(w / h).toBeCloseTo(0.35, 4);
   });
 });
 

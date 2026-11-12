@@ -73,4 +73,12 @@ describe('tree art (obj_tree_sprite Draw_0)', () => {
     // A deciduous maple drops its leaves in winter, as in the 3D viewer.
     expect(treeArt(maple, 'winter', 0, 0, 24).canopy).toBeUndefined();
   });
+
+  it("draws the trunk in the species' sprite colour, the juniper's being Draw_0's rgb(75, 50, 30)", () => {
+    const trunk = (speciesKey: BonsaiTree['speciesKey']): number =>
+      treeArt(tree({ speciesKey }), 'summer', 0, 0, 24).trunk.colour;
+    expect(trunk('juniper')).toBe(0x4b321e);
+    expect(trunk('maple')).toBe(0x5a5650);
+    expect(trunk('pine')).toBe(0x32221a);
+  });
 });
