@@ -6,11 +6,13 @@
  * foliage gate at the end of `build_branch` in
  * archive/gamemaker/scripts/scr_bonsai_mesh/scr_bonsai_mesh.gml. Each leaf is
  * two crossed quads textured with the foliage sprite and tinted by the
- * species' seasonal colour through the vertex colour. The season is an input:
+ * species' seasonal colour through the vertex colour; the species' `look`
+ * stretches the quads (leaf aspect) and scales leaf size and count, all 1 for
+ * the juniper, which is the prototype's leaf. The season is an input:
  * nothing here reads a day counter.
  */
 
-import type { BonsaiTree, Branch, Vec3 } from '../sim/types';
+import type { BonsaiTree, Branch, SpeciesLook, Vec3 } from '../sim/types';
 import { DISPLAY_SCALE, branchPoint } from '../sim/geometry';
 import type { Season } from '../sim/seasons';
 import { getSpecies, speciesSeasonalColor } from '../sim/species';
@@ -39,12 +41,14 @@ export function hexToRgb(hex: string): Rgb {
   return { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) };
 }
 
-export function leafCount(density: number): number {
-  return Math.floor(LEAF_COUNT_BASE + density * LEAF_COUNT_PER_DENSITY);
+/** The prototype's count, scaled by the species' `leafCountScale` and floored again. */
+export function leafCount(density: number, countScale = 1): number {
+  return Math.floor(Math.floor(LEAF_COUNT_BASE + density * LEAF_COUNT_PER_DENSITY) * countScale);
 }
 
-export function leafHalfSize(density: number): number {
-  return (LEAF_SIZE_BASE + density * LEAF_SIZE_PER_DENSITY) * DISPLAY_SCALE;
+/** The prototype's half-size (a leaf's half-height), scaled by the species' `leafSizeScale`. */
+export function leafHalfSize(density: number, sizeScale = 1): number {
+  return (LEAF_SIZE_BASE + density * LEAF_SIZE_PER_DENSITY) * DISPLAY_SCALE * sizeScale;
 }
 
 /** The `build_branch` gate: only branches starting above 30% of trunk height leaf out. */
@@ -74,59 +78,70 @@ function addQuad(list: TriangleList, corners: readonly [Vec3, Vec3, Vec3, Vec3],
   });
 }
 
-/** One leaf: `_add_quad_xz` then `_add_quad_yz` around `c` with half-size `s`. */
-export function addLeaf(list: TriangleList, c: Vec3, s: number, col: Rgb): void {
+/**
+ * One leaf: `_add_quad_xz` then `_add_quad_yz` around `c`, two upright quads
+ * crossed about the vertical (z) axis. Each is `s` half-tall in z and
+ * `aspect * s` half-wide across (x for the first, y for the second), so an
+ * aspect of 1 is the prototype's square leaf, above 1 a broad leaf and below 1
+ * a tall needle tuft.
+ */
+export function addLeaf(list: TriangleList, c: Vec3, s: number, aspect: number, col: Rgb): void {
+  const w = aspect * s;
   addQuad(
     list,
     [
-      { x: c.x - s, y: c.y, z: c.z - s },
-      { x: c.x + s, y: c.y, z: c.z - s },
-      { x: c.x + s, y: c.y, z: c.z + s },
-      { x: c.x - s, y: c.y, z: c.z + s },
+      { x: c.x - w, y: c.y, z: c.z - s },
+      { x: c.x + w, y: c.y, z: c.z - s },
+      { x: c.x + w, y: c.y, z: c.z + s },
+      { x: c.x - w, y: c.y, z: c.z + s },
     ],
     col,
   );
   addQuad(
     list,
     [
-      { x: c.x, y: c.y - s, z: c.z - s },
-      { x: c.x, y: c.y + s, z: c.z - s },
-      { x: c.x, y: c.y + s, z: c.z + s },
-      { x: c.x, y: c.y - s, z: c.z + s },
+      { x: c.x, y: c.y - w, z: c.z - s },
+      { x: c.x, y: c.y + w, z: c.z - s },
+      { x: c.x, y: c.y + w, z: c.z + s },
+      { x: c.x, y: c.y - w, z: c.z + s },
     ],
     col,
   );
 }
 
-/** `add_foliage_cluster`: a seeded scatter of leaves around `centre`. */
+/** `add_foliage_cluster`: a seeded scatter of leaves around `centre`, shaped by the species' look. */
 export function addFoliageCluster(
   list: TriangleList,
   centre: Vec3,
   col: Rgb,
   density: number,
   seed: number,
+  look: SpeciesLook,
 ): void {
   const rng = seededRandom(seed);
-  const count = leafCount(density);
-  const size = leafHalfSize(density);
+  const count = leafCount(density, look.leafCountScale);
+  const size = leafHalfSize(density, look.leafSizeScale);
   for (let i = 0; i < count; i++) {
     const ox = rng.range(-LEAF_SPREAD, LEAF_SPREAD);
     const oy = rng.range(-LEAF_SPREAD, LEAF_SPREAD);
     const oz = rng.range(-LEAF_SPREAD * 0.5, LEAF_SPREAD * 0.5);
-    addLeaf(list, { x: centre.x + ox, y: centre.y + oy, z: centre.z + oz }, size, col);
+    const c = { x: centre.x + ox, y: centre.y + oy, z: centre.z + oz };
+    addLeaf(list, c, size, look.leafAspect, col);
   }
 }
 
 /** Every branch's foliage cluster for `season`; empty when the species is bare that season. */
 export function buildFoliageMesh(tree: BonsaiTree, season: Season): MeshArrays {
   const list = new TriangleList();
-  const hex = speciesSeasonalColor(getSpecies(tree.speciesKey), season);
+  const species = getSpecies(tree.speciesKey);
+  const hex = speciesSeasonalColor(species, season);
   if (hex === undefined) return list.build();
   const col = hexToRgb(hex);
   for (const branch of tree.branches) {
     if (!branchCarriesFoliage(tree, branch)) continue;
     const tip = branchPoint(tree, branch, 1);
-    addFoliageCluster(list, tip, col, tree.foliageDensity, foliageSeed(tree, branch));
+    const seed = foliageSeed(tree, branch);
+    addFoliageCluster(list, tip, col, tree.foliageDensity, seed, species.look);
   }
   return list.build();
 }

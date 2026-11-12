@@ -89,7 +89,7 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 
 ### Trees
 
-Each tree has a **species** (juniper, maple, pine), an **age** in simulated days, **vitality** (how healthy it is, 0-100), **vigor** (growth speed, 0-100), and a **water level**. Trees also have a complete morphological record: trunk height and girth, a list of branches (each with its own angle, length, girth, and bend), and a history of every training operation performed on them. All of this drives the 3D mesh.
+Each tree has a **species** (juniper, maple, pine), an **age** in simulated days, **vitality** (how healthy it is, 0-100), **vigor** (growth speed, 0-100), and a **water level**. Trees also have a complete morphological record: trunk height and girth, a list of branches (each with its own angle, length, girth, and bend), and a history of every training operation performed on them. All of this drives the 3D mesh. Species look different too: a juniper has brown bark and small scale-leaf sprays, a maple smooth grey bark and broad leaves, a pine dark bark and narrow needle tufts, in the 3D viewer and in the room's tree sprite.
 
 ### Time
 
