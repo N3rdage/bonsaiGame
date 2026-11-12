@@ -6,11 +6,13 @@
  * horizontal strip in the order of the sprite's `.yy` frames. The house
  * rooms' tiles (lounge, hallway, study), their window and their furniture have
  * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws them.
+ * The shed's window is the house rooms' window, not the prototype's
+ * `spr_window`, which shares its name.
  */
 
 import type { SpeciesKey } from '../sim/types';
 import type { Facing } from './player';
-import { PROTOTYPE_SCALE } from './shedRoom';
+import { PROTOTYPE_SCALE } from './prototype';
 
 export interface Sheet {
   /** Texture key and file name (without `.png`), the prototype sprite's name. */
@@ -57,6 +59,12 @@ export const SHEETS = {
   bookshelf: sheet('spr_bookshelf'),
   runner: sheet('spr_runner', 1, 416, 48),
   hallTable: sheet('spr_hall_table', 1, 32, 24),
+  // The shed's decor (obj_game_controller Draw_0), packed from the prototype at its size.
+  shelf: sheet('spr_shelf', 1, 56, 44),
+  tools: sheet('spr_tools', 1, 36, 52),
+  wateringCan: sheet('spr_watering_can', 1, 32, 30),
+  potStack: sheet('spr_pot_stack', 1, 40),
+  sack: sheet('spr_sack', 1, 32, 34),
 } as const satisfies Record<string, Sheet>;
 
 /** Every sheet, in load order. */
