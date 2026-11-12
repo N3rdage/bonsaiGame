@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { serializeState } from '../src/sim/save';
+import { DAYS_PER_SEASON, SEASONS } from '../src/sim/seasons';
 import { createNewGameState } from '../src/sim/state';
+import { TUTORIAL_DONE } from '../src/sim/tutorial';
 import {
   bootWorld,
   collectErrors,
@@ -127,6 +129,41 @@ test.describe('garden screenshot', () => {
     expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 50, 225, '']);
     await expect(page).toHaveScreenshot('garden-entry.png');
   });
+
+  // The garden's scenery tinted by the season (seasonTint), on each season's
+  // first day at the base clock (a day is 300 s, so it cannot turn mid-capture).
+  for (const [index, season] of SEASONS.entries()) {
+    test(`the garden in ${season}`, async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape baseline only');
+      const state = createNewGameState();
+      state.day = 1 + index * DAYS_PER_SEASON;
+      state.tutorialStep = TUTORIAL_DONE;
+      await page.goto('/');
+      await page.evaluate(
+        (text) => {
+          localStorage.clear();
+          localStorage.setItem('bonsai.save.1', text);
+        },
+        serializeState(state, new Date(2026, 10, 11, 0, 0)),
+      );
+      await toTitle(page);
+      await continueGame(page);
+      await page.waitForFunction(
+        () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
+      );
+      expect((await hook(page)).season).toBe(season);
+      await openSettingsFromMenu(page);
+      await tapControl(page, 'panel-weather');
+      await page.waitForFunction(() => window.__bonsai?.settings.weather === false);
+      await tapControl(page, 'panel-close');
+      await page.waitForFunction(() => window.__bonsai?.panel === '');
+
+      await toGarden(page);
+      const h = await hook(page);
+      expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 50, 225, '']);
+      await expect(page).toHaveScreenshot(`garden-${season}.png`);
+    });
+  }
 });
 
 /** The Inventory panel's Japanese Maple seed count, opened from the menu and closed again. */

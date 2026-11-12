@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SEASONS } from '../sim/seasons';
 import { SHEETS } from './assets';
 import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
@@ -16,6 +17,7 @@ import {
   playerShadow,
   propShadow,
   propSprite,
+  seasonWash,
   treeShadow,
   wallRuns,
   windowRuns,
@@ -432,5 +434,26 @@ describe('shadows', () => {
     for (const room of [LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM, GARDEN_ROOM]) {
       expect(furnitureShadows(room)).toEqual([]);
     }
+  });
+});
+
+describe('season wash', () => {
+  it('washes the garden per season, summer left as it was', () => {
+    expect(SEASONS.map((season) => seasonWash(GARDEN_ROOM, season))).toEqual([
+      { colour: 0xc8f0a0, alpha: 0.12 },
+      undefined,
+      { colour: 0xbe6e28, alpha: 0.5 },
+      { colour: 0xe6eef6, alpha: 0.5 },
+    ]);
+  });
+
+  it('never washes an indoor room', () => {
+    for (const room of Object.values(ROOMS).filter((r) => r.key !== 'garden')) {
+      for (const season of SEASONS) expect(seasonWash(room, season)).toBeUndefined();
+    }
+  });
+
+  it('is the same wash through a season, so only a season turn rebakes the garden', () => {
+    expect(seasonWash(GARDEN_ROOM, 'winter')).toBe(seasonWash(GARDEN_ROOM, 'winter'));
   });
 });
