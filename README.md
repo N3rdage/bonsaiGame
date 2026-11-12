@@ -16,7 +16,7 @@ There's a running dev blog in [`blog/`](./blog) written by Claude in first perso
 
 **Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed, the back garden, the house (the lounge, the hallway and the study) and the glass greenhouse through the garden's top fence, still empty, water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser. Pedestals and floor shelves set down in the greenhouse are drawn there and display trees like the house's spots, and an empty one is picked back up by interacting with it empty-handed; putting them down in the game comes in a later slice, so for now they arrive only through a save.
 
-On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, Z to sleep a day, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
+On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, Z to sleep a day, P to place furniture in the greenhouse, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
 
 The GameMaker prototype in [`archive/gamemaker/`](./archive/gamemaker/) is history now: kept whole and frozen as the reference the port was built from, no longer the game you play.
 
@@ -53,6 +53,7 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 | Inspector: Rename, Set Style, Sell, Repot | Open the sub-panel: type a name (Enter saves), tap a style, confirm the sale price, or pick a standard or fancy pot (spring, 60 days after the last repot) |
 | Inspector → Pick up, or Interact on an empty pedestal → Place | Carry a tree (one at a time) and display it on an empty pedestal |
 | Menu button → Put down (while carrying) | Put the carried tree down on the floor of the room you are in |
+| Menu button → Place item, or P (in the greenhouse) | Place furniture: a ghost of the pedestal or floor shelf from your inventory shows on the tile you face, green where it fits; E or Interact puts it down, P or Menu → Next switches to the other kind, Esc or Menu → Stop placing cancels |
 | Inspector → View in 3D | Open the 3D viewer on that tree |
 | View tree button or V | Open the 3D viewer on the first tree |
 | Notebook button or J | Open or close Granny's notebook: one page per tutorial step, Prev and Next to turn |
@@ -62,7 +63,7 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 | Tutorial panel → Skip | Skip the tutorial (asks first) |
 | Menu button → Save, or F5 | Save game |
 | Menu button → Load, or F9 | Load game |
-| Menu button → Title, or Esc | Back to title (Esc first closes an open panel or the 3D viewer) |
+| Menu button → Title, or Esc | Back to title (Esc first closes an open panel or the 3D viewer, or ends placing) |
 
 **In the 3D viewer:**
 

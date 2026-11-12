@@ -20,6 +20,7 @@ import {
   NOTEBOOK_BUTTON,
   VIEW_BUTTON,
   menuItems,
+  type MenuOptions,
 } from './menu';
 import { PEDESTAL_LABEL_DY } from './roomArt';
 import { LOUNGE_ROOM } from './loungeRoom';
@@ -140,7 +141,7 @@ describe('tutorial corner panel', () => {
 
   it("keeps the HUD's visible tap targets apart and inside the canvas on the phone", () => {
     const winterTip = seasonTipFor({ ...createNewGameState(), day: WINTER }, WINTER - 1);
-    const hud = (ui: UiMetrics, step: number, carrying: boolean, tip?: string): UiRect[] => {
+    const hud = (ui: UiMetrics, step: number, menu: MenuOptions, tip?: string): UiRect[] => {
       const m = tutorialPanel(step, false, ui, tip);
       if (!m) throw new Error('no panel');
       const boxes = [
@@ -149,9 +150,7 @@ describe('tutorial corner panel', () => {
         estimatedBox('Menu', MENU_BUTTON.left, MENU_BUTTON.top, 0, 0, ui),
         estimatedBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
         estimatedBox(m.button.label, m.button.x, m.button.y, 1, 0, ui),
-        ...menuItems(carrying, ui).map((item) =>
-          estimatedBox(item.label, item.x, item.y, 0, 0.5, ui),
-        ),
+        ...menuItems(menu, ui).map((item) => estimatedBox(item.label, item.x, item.y, 0, 0.5, ui)),
       ];
       return boxes.map((b) => hitRect(b, ui.hit));
     };
@@ -161,8 +160,12 @@ describe('tutorial corner panel', () => {
         ...tutorialAllSteps().map((s) => [s, undefined] as const),
         [TUTORIAL_DONE, winterTip] as const,
       ]) {
-        for (const carrying of [false, true]) {
-          const rects = hud(ui, step, carrying, tip);
+        for (const menu of [
+          { carrying: false, placeable: false, placing: false },
+          { carrying: true, placeable: false, placing: false },
+          { carrying: true, placeable: true, placing: true, nextKind: 'Floor shelf' },
+        ]) {
+          const rects = hud(ui, step, menu, tip);
           rects.forEach((a, i) => {
             expect(a.w).toBeGreaterThanOrEqual(ui.hit);
             expect(a.h).toBeGreaterThanOrEqual(ui.hit);

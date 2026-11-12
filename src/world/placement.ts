@@ -10,6 +10,7 @@ import { inventoryAdd, inventoryRemove } from '../sim/inventory';
 import { DISPLAYED_PREFIX, treeOnPedestal } from '../sim/tree';
 import type { GameState, PlaceableKind, PlacedItem } from '../sim/types';
 import { SHEETS, type Sheet } from './assets';
+import type { Facing } from './player';
 import { TILE } from './roomArt';
 import { insideWalls, type Furniture, type Prop, type Rect, type Room } from './shedRoom';
 
@@ -60,6 +61,31 @@ export function footprint(kind: PlaceableKind, x: number, y: number): Rect {
 /** The spot key of item `id`'s spot `n` (from 1): `placed_<id>`, then `placed_<id>_<n>`. */
 function spotKey(id: number, n: number): string {
   return n === 1 ? `placed_${String(id)}` : `placed_${String(id)}_${String(n)}`;
+}
+
+const FACING_STEP: Readonly<Record<Facing, { readonly dx: number; readonly dy: number }>> = {
+  right: { dx: 1, dy: 0 },
+  left: { dx: -1, dy: 0 },
+  down: { dx: 0, dy: 1 },
+  up: { dx: 0, dy: -1 },
+};
+
+/**
+ * Placement mode's ghost: `kind`'s footprint on the grid tile the player
+ * faces (the tile holding the point one TILE from the feet that way), with
+ * its tile nearest the player on that tile, so it reaches away from the
+ * player. Not clamped: off the floor, `placementCheck` refuses it.
+ */
+export function ghostFootprint(
+  kind: PlaceableKind,
+  player: { x: number; y: number; facing: Facing },
+): Rect {
+  const { dx, dy } = FACING_STEP[player.facing];
+  const tile = snapToGrid(player.x + dx * TILE, player.y + dy * TILE);
+  const { w, h } = PLACEABLES[kind];
+  const x = player.facing === 'left' ? tile.x - (w - TILE) : tile.x;
+  const y = player.facing === 'up' ? tile.y - (h - TILE) : tile.y;
+  return { x, y, w, h };
 }
 
 /** `item`'s display spots, left to right, each its own 16x16 tile of the footprint (centre = interact origin). */

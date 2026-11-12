@@ -1,7 +1,7 @@
 /**
  * Layout of the world HUD: the badge, the View tree and Notebook buttons, the toast and the
- * Menu button with its panel (Put down while carrying, Inventory, Sleep, Sleep a week, Save, Load,
- * Settings, Title), the
+ * Menu button with its panel (Put down while carrying, Place item or Stop placing and Next in a
+ * room that takes furniture, Inventory, Sleep, Sleep a week, Save, Load, Settings, Title), the
  * carry line, in logical px on the 480x270
  * canvas. Pure data; WorldScene draws it.
  */
@@ -31,7 +31,26 @@ export const MENU_ROW_SPACING = 16;
 export const CARRY_TEXT = { right: 472, top: 14 } as const;
 
 export type MenuItemId =
-  'putdown' | 'inventory' | 'sleep' | 'sleep-week' | 'save' | 'load' | 'settings' | 'title';
+  | 'putdown'
+  | 'place'
+  | 'place-next'
+  | 'inventory'
+  | 'sleep'
+  | 'sleep-week'
+  | 'save'
+  | 'load'
+  | 'settings'
+  | 'title';
+
+/** What the panel's leading rows depend on: a carried tree, and the placement mode. */
+export interface MenuOptions {
+  readonly carrying: boolean;
+  /** The room takes furniture and some is in stock: `Place item` while not placing. */
+  readonly placeable: boolean;
+  readonly placing: boolean;
+  /** While placing, the kind `Next:` switches to, if another is in stock. */
+  readonly nextKind?: string | undefined;
+}
 
 export interface MenuItem {
   readonly id: MenuItemId;
@@ -55,8 +74,15 @@ const ITEMS: readonly { id: MenuItemId; label: string }[] = [
 /** The least room between the panel's edge and its rows' bands. */
 const MENU_PAD = 3;
 
-function entries(carrying: boolean): readonly { id: MenuItemId; label: string }[] {
-  return carrying ? [{ id: 'putdown' as const, label: 'Put down' }, ...ITEMS] : ITEMS;
+function entries(o: MenuOptions): readonly { id: MenuItemId; label: string }[] {
+  const lead: { id: MenuItemId; label: string }[] = [];
+  if (o.carrying) lead.push({ id: 'putdown', label: 'Put down' });
+  if (o.placing) lead.push({ id: 'place', label: 'Stop placing' });
+  else if (o.placeable) lead.push({ id: 'place', label: 'Place item' });
+  if (o.placing && o.nextKind !== undefined) {
+    lead.push({ id: 'place-next', label: `Next: ${o.nextKind}` });
+  }
+  return [...lead, ...ITEMS];
 }
 
 /** The row pitch: MENU_ROW_SPACING, or the tap target where that is taller. */
@@ -86,10 +112,10 @@ function viewButtonHitTop(ui: UiMetrics): number {
  * MENU_PANEL.w wide columns as keep it clear, and the panel hugs them.
  */
 function layout(
-  carrying: boolean,
+  options: MenuOptions,
   ui: UiMetrics,
 ): { y: number; h: number; top: number; columns: number; perColumn: number } {
-  const count = entries(carrying).length;
+  const count = entries(options).length;
   const pitch = menuRowPitch(ui);
   const minTop = Math.max(MENU_PANEL.y + MENU_PAD, menuButtonHitBottom(ui));
   const y = Math.max(MENU_PANEL.y, minTop - MENU_PAD);
@@ -103,22 +129,23 @@ function layout(
 
 /** The open panel's rectangle: MENU_PANEL, lower, taller and wider where `ui`'s rows need it. */
 export function menuPanel(
-  carrying: boolean,
+  options: MenuOptions,
   ui: UiMetrics,
 ): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } {
-  const { y, h, columns } = layout(carrying, ui);
+  const { y, h, columns } = layout(options, ui);
   return { ...MENU_PANEL, y, h, w: MENU_PANEL.w * columns };
 }
 
 /**
  * The panel's rows, top to bottom and then column by column, centred in the
  * panel's height and clear of the Menu button's tap target, one
- * `menuRowPitch` apart; `Put down` first while carrying a tree.
+ * `menuRowPitch` apart; `Put down` first while carrying a tree, then
+ * `Place item` (or `Stop placing` and `Next: <kind>` while placing).
  */
-export function menuItems(carrying: boolean, ui: UiMetrics): readonly MenuItem[] {
+export function menuItems(options: MenuOptions, ui: UiMetrics): readonly MenuItem[] {
   const pitch = menuRowPitch(ui);
-  const { top, perColumn } = layout(carrying, ui);
-  return entries(carrying).map((item, i) => ({
+  const { top, perColumn } = layout(options, ui);
+  return entries(options).map((item, i) => ({
     ...item,
     x: MENU_PANEL.x + MENU_ROW_INSET + Math.floor(i / perColumn) * MENU_PANEL.w,
     y: top + ((i % perColumn) + 0.5) * pitch,

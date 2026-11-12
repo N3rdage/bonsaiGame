@@ -60,6 +60,21 @@ interface BonsaiTestHook {
     readonly h: number;
     readonly spots: readonly string[];
   }[];
+  /**
+   * World only: placement mode (P) while on, undefined otherwise: the kind being put down,
+   * its ghost's footprint (top-left, logical px) on the tile the player faces, and the
+   * placement check there ('ok', 'not here', 'off the floor', 'in the way' or 'too close').
+   */
+  readonly placing?:
+    | {
+        readonly kind: string;
+        readonly x: number;
+        readonly y: number;
+        readonly w: number;
+        readonly h: number;
+        readonly check: string;
+      }
+    | undefined;
   /** The world HUD badge text (it is drawn only while the viewer is closed). */
   readonly hud: string;
   /** Fixed 60 Hz world steps run so far; the world does not step while the viewer is open. */
