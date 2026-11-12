@@ -76,6 +76,10 @@ interface BonsaiTestHook {
   };
   /** Both scenes: the last sound effect key the scene's SoundPlayer asked Phaser to play after the Sound gate, or ''. It does not prove audio came out (the e2e suite has no audio device). */
   readonly lastSound: string;
+  /** World only: the ambient loop the world's MusicPlayer is playing after the Music gate ('shed', 'garden', 'house' for the lounge, hallway and study, 'viewer' while the 3D viewer is open), or '' with Music off; absent on the title, which plays no music. Like `lastSound`, it does not prove audio came out. */
+  readonly track?: string;
+  /** World only: whether the world's MusicPlayer holds its loops paused (the game paused under the rotate prompt, or the page hidden); absent on the title. */
+  readonly musicPaused?: boolean;
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
   /** World only: label (name, or species display name) of the tree carried (location 'inventory'), or '' (always on the title). */

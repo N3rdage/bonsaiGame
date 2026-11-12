@@ -56,7 +56,7 @@ Entries should record:
 
 ## Audio
 
-- **Sound effects but no music yet, and the mixer is two switches.** Seven effects (click, footstep, water, snip, wire, door, coin) play through `audioAllowed` (`src/platform/audio.ts`) behind the `Sound` switch; the `Music` switch has nothing to gate until backlog 7-c brings the tracks. No volume sliders or ambience channel, and the effects are generated placeholders (`art/sounds.mjs`), not recorded or designed sounds. Notes: the prototype had no mixer; a volume slider would be a design decision for Drew.
+- **Placeholder sound and short music loops, and the mixer is two switches.** Seven effects (click, footstep, water, snip, wire, door, coin) play through `audioAllowed` (`src/platform/audio.ts`) behind the `Sound` switch, and one ambient loop per place (shed, garden, the house's three rooms sharing one, the 3D viewer) cross-fades behind the `Music` switch. Each loop is 8 seconds of generated low-rate (11025 Hz) pads, so it repeats audibly; there are no longer pieces, no variation by season or time of day, and the title is silent. No volume sliders or separate ambience channel, and both effects and loops are generated placeholders (`art/sounds.mjs`, `art/music.mjs`), not recorded or composed audio. Notes: the prototype had no mixer; a volume slider would be a design decision for Drew.
 
 ---
 
