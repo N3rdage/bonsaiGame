@@ -7,6 +7,7 @@
 import { getSpecies } from '../sim/species';
 import { SHEETS } from './assets';
 import type { SpeciesKey } from '../sim/types';
+import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import {
@@ -95,6 +96,14 @@ export const GARDEN_ROOM: Room = {
       target: { room: 'study', x: 320, y: 190 },
       sheet: SHEETS.doorGlassSingle,
     },
+    // New content: a glazed door drawn on the top fence's band right of the source plants, centred
+    // 2 px right of the study door's landing, back to 26 px above the greenhouse's door. A walk
+    // straight up from that landing (446, 190) stops against the fence at y 16.25, 8.5 px from it.
+    {
+      ...prop('door_greenhouse', 'Door', 'To Greenhouse', 896, 16, 16, 16),
+      target: { room: 'greenhouse', x: 240, y: 206 },
+      sheet: SHEETS.doorGlassSingle,
+    },
   ],
   // rm_garden_back's background colour 4281094192 is ABGR 0xff2c5030.
   floor: 0x30502c,
@@ -106,4 +115,5 @@ export const ROOMS: Record<RoomKey, Room> = {
   lounge: LOUNGE_ROOM,
   hallway: HALLWAY_ROOM,
   study: STUDY_ROOM,
+  greenhouse: GREENHOUSE_ROOM,
 };
