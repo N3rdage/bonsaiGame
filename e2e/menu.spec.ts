@@ -168,7 +168,7 @@ test.describe('world menu', () => {
       cssPerLogical(box.width, box.height),
       test.info().project.use.hasTouch === true,
     );
-    const panel = menuPanel(false, ui);
+    const panel = menuPanel({ carrying: false, placeable: false, placing: false }, ui);
     const x = panel.x + panel.w - 6;
     const y = panel.y + 2;
     await dragLogical(page, x, y, 60);

@@ -10,6 +10,7 @@ import {
   PICK_UP_PROMPT,
   PLACEABLES,
   footprint,
+  ghostFootprint,
   pickUpItem,
   placeItem,
   placedFurniture,
@@ -18,6 +19,7 @@ import {
   placementCheck,
   snapToGrid,
 } from './placement';
+import type { Facing } from './player';
 import { SHED_ROOM, type Room } from './shedRoom';
 
 /** Clear of everything placed in these tests: the door's landing. */
@@ -91,6 +93,58 @@ describe('placement', () => {
   it("refuses a footprint over the player's position", () => {
     expect(check(stocked(), 'pedestal', 240, 192)).toBe('too close');
     expect(check(stocked(), 'pedestal', 240, 208)).toBe('ok');
+  });
+
+  it('puts the ghost on the tile the player faces, reaching away from the player', () => {
+    const at = (facing: Facing) => ({ ...PLAYER, facing });
+    expect(ghostFootprint('pedestal', at('right'))).toEqual({ x: 256, y: 192, w: 16, h: 16 });
+    expect(ghostFootprint('pedestal', at('left'))).toEqual({ x: 224, y: 192, w: 16, h: 16 });
+    expect(ghostFootprint('pedestal', at('down'))).toEqual({ x: 240, y: 208, w: 16, h: 16 });
+    expect(ghostFootprint('pedestal', at('up'))).toEqual({ x: 240, y: 176, w: 16, h: 16 });
+    expect(ghostFootprint('floor_shelf', at('right'))).toEqual({ x: 256, y: 192, w: 32, h: 16 });
+    expect(ghostFootprint('floor_shelf', at('left'))).toEqual({ x: 208, y: 192, w: 32, h: 16 });
+    expect(ghostFootprint('floor_shelf', at('down'))).toEqual({ x: 240, y: 208, w: 32, h: 16 });
+    expect(ghostFootprint('floor_shelf', at('up'))).toEqual({ x: 240, y: 176, w: 32, h: 16 });
+  });
+
+  it('snaps the ghost from a position off the grid', () => {
+    const player = { x: 250.5, y: 199.25 };
+    expect(ghostFootprint('floor_shelf', { ...player, facing: 'left' })).toEqual({
+      x: 208,
+      y: 192,
+      w: 32,
+      h: 16,
+    });
+    expect(ghostFootprint('pedestal', { ...player, facing: 'down' })).toEqual({
+      x: 240,
+      y: 208,
+      w: 16,
+      h: 16,
+    });
+  });
+
+  it("never covers the player's own position, so is never too close", () => {
+    for (const facing of ['right', 'left', 'down', 'up'] as const) {
+      for (const kind of ['pedestal', 'floor_shelf'] as const) {
+        const player = { x: 250.5, y: 199.25, facing };
+        const g = ghostFootprint(kind, player);
+        expect(placementCheck(GREENHOUSE_ROOM, stocked(), kind, g.x, g.y, player)).not.toBe(
+          'too close',
+        );
+      }
+    }
+  });
+
+  it('refuses a ghost over the door or over a placed item', () => {
+    const state = stocked();
+    // Walked down from the landing into the bottom wall (y 223.5): the door's tile is in the wall band.
+    const door = ghostFootprint('pedestal', { x: 240, y: 223.5, facing: 'down' });
+    expect(door).toEqual({ x: 240, y: 224, w: 16, h: 16 });
+    expect(check(state, 'pedestal', door.x, door.y)).toBe('off the floor');
+    const ghost = ghostFootprint('pedestal', { ...PLAYER, facing: 'up' });
+    placed(placeItem(state, GREENHOUSE_ROOM, 'pedestal', ghost.x, ghost.y, PLAYER));
+    const shelf = ghostFootprint('floor_shelf', { ...PLAYER, facing: 'up' });
+    expect(check(state, 'floor_shelf', shelf.x, shelf.y)).toBe('in the way');
   });
 
   it('takes furniture only in the greenhouse', () => {

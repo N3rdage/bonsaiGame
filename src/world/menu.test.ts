@@ -13,8 +13,9 @@ import {
   menuItems,
   menuPanel,
   menuRowPitch,
+  type MenuOptions,
 } from './menu';
-import { DESKTOP_UI, PHONE_UI } from './uiScale';
+import { DESKTOP_UI, PHONE_UI, estimatedBox, hitRect } from './uiScale';
 
 // 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
@@ -22,9 +23,12 @@ const LINE_H = 12;
 
 const panelRight = MENU_PANEL.x + MENU_PANEL.w;
 
+/** The menu outside a room that takes furniture. */
+const opts = (carrying: boolean): MenuOptions => ({ carrying, placeable: false, placing: false });
+
 describe('world HUD menu layout', () => {
   it('has Inventory, Sleep, Sleep a week, Save, Load, Settings and Title, in that order', () => {
-    expect(menuItems(false, DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
+    expect(menuItems(opts(false), DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
       ['inventory', 'Inventory (I)'],
       ['sleep', 'Sleep (Z)'],
       ['sleep-week', 'Sleep a week'],
@@ -36,7 +40,7 @@ describe('world HUD menu layout', () => {
   });
 
   it('adds Put down first while a tree is carried', () => {
-    expect(menuItems(true, DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
+    expect(menuItems(opts(true), DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
       ['putdown', 'Put down'],
       ['inventory', 'Inventory (I)'],
       ['sleep', 'Sleep (Z)'],
@@ -51,9 +55,9 @@ describe('world HUD menu layout', () => {
   it('puts every row inside the panel, with or without Put down, at either scale', () => {
     for (const ui of [DESKTOP_UI, PHONE_UI]) {
       for (const carrying of [false, true]) {
-        const panel = menuPanel(carrying, ui);
+        const panel = menuPanel(opts(carrying), ui);
         const pitch = menuRowPitch(ui);
-        for (const item of menuItems(carrying, ui)) {
+        for (const item of menuItems(opts(carrying), ui)) {
           expect(item.x).toBeGreaterThan(panel.x);
           expect(item.x + item.label.length * GLYPH_W).toBeLessThanOrEqual(panel.x + panel.w);
           expect(item.y - pitch / 2).toBeGreaterThanOrEqual(panel.y);
@@ -65,8 +69,8 @@ describe('world HUD menu layout', () => {
 
   it("hugs its rows on the phone, below the Menu button's tap target, rows centred", () => {
     for (const carrying of [false, true]) {
-      const panel = menuPanel(carrying, PHONE_UI);
-      const items = menuItems(carrying, PHONE_UI);
+      const panel = menuPanel(opts(carrying), PHONE_UI);
+      const items = menuItems(opts(carrying), PHONE_UI);
       const pitch = menuRowPitch(PHONE_UI);
       // The Menu button's tap target reaches y 31 (its text grown to 31 px from the top edge).
       expect(items[0]?.y).toBe(31 + pitch / 2);
@@ -83,24 +87,26 @@ describe('world HUD menu layout', () => {
 
   it('splits its rows into two columns of four on the phone, column by column', () => {
     for (const carrying of [false, true]) {
-      const items = menuItems(carrying, PHONE_UI);
+      const items = menuItems(opts(carrying), PHONE_UI);
       const x = MENU_PANEL.x + 6;
       expect(items.map((i) => i.x)).toEqual(items.map((_, i) => (i < 4 ? x : x + MENU_PANEL.w)));
       expect(items[4]?.y).toBe(items[0]?.y);
-      expect(menuPanel(carrying, PHONE_UI).w).toBe(2 * MENU_PANEL.w);
+      expect(menuPanel(opts(carrying), PHONE_UI).w).toBe(2 * MENU_PANEL.w);
     }
   });
 
   it('is MENU_PANEL with rows MENU_ROW_SPACING apart at the desktop scale', () => {
-    expect(menuPanel(true, DESKTOP_UI)).toEqual(MENU_PANEL);
-    expect(menuPanel(false, DESKTOP_UI)).toEqual(MENU_PANEL);
-    expect(menuItems(false, DESKTOP_UI).map((i) => i.y)).toEqual([35, 51, 67, 83, 99, 115, 131]);
+    expect(menuPanel(opts(true), DESKTOP_UI)).toEqual(MENU_PANEL);
+    expect(menuPanel(opts(false), DESKTOP_UI)).toEqual(MENU_PANEL);
+    expect(menuItems(opts(false), DESKTOP_UI).map((i) => i.y)).toEqual([
+      35, 51, 67, 83, 99, 115, 131,
+    ]);
     expect(menuRowPitch(PHONE_UI)).toBe(PHONE_UI.hit);
   });
 
   it('keeps rows apart by more than a line of text', () => {
     for (const carrying of [false, true]) {
-      const ys = menuItems(carrying, DESKTOP_UI).map((i) => i.y);
+      const ys = menuItems(opts(carrying), DESKTOP_UI).map((i) => i.y);
       for (let i = 1; i < ys.length; i += 1) {
         expect((ys[i] ?? 0) - (ys[i - 1] ?? 0)).toBeGreaterThanOrEqual(LINE_H);
       }
@@ -125,7 +131,7 @@ describe('world HUD menu layout', () => {
 
   it('stays inside the room, clear of the badge and the View tree button, at either scale', () => {
     for (const ui of [DESKTOP_UI, PHONE_UI]) {
-      const panel = menuPanel(true, ui);
+      const panel = menuPanel(opts(true), ui);
       const right = panel.x + panel.w;
       const bottom = panel.y + panel.h;
       expect(panel.x).toBeGreaterThanOrEqual(0);
@@ -139,6 +145,77 @@ describe('world HUD menu layout', () => {
       expect(badgeLeft).toBeGreaterThan(TOAST_X + 'Could not save to slot 3'.length * GLYPH_W);
       // Clear of View tree's tap target too, which grows up from the bottom edge.
       expect(Math.min(VIEW_BUTTON.bottom - LINE_H, 270 - ui.hit)).toBeGreaterThan(bottom);
+    }
+  });
+
+  it('offers Place item where furniture can go, and Stop placing and Next while placing', () => {
+    const rows = (o: MenuOptions) => menuItems(o, DESKTOP_UI).map((i) => [i.id, i.label]);
+    const rest = rows(opts(false));
+    expect(rows({ carrying: false, placeable: true, placing: false })).toEqual([
+      ['place', 'Place item'],
+      ...rest,
+    ]);
+    expect(rows({ carrying: true, placeable: true, placing: false })).toEqual([
+      ['putdown', 'Put down'],
+      ['place', 'Place item'],
+      ...rest,
+    ]);
+    expect(
+      rows({ carrying: false, placeable: true, placing: true, nextKind: 'Floor shelf' }),
+    ).toEqual([['place', 'Stop placing'], ['place-next', 'Next: Floor shelf'], ...rest]);
+    // Placing the last kind in stock: nothing to switch to.
+    expect(rows({ carrying: false, placeable: true, placing: true })).toEqual([
+      ['place', 'Stop placing'],
+      ...rest,
+    ]);
+  });
+
+  const longest: MenuOptions = {
+    carrying: true,
+    placeable: true,
+    placing: true,
+    nextKind: 'Floor shelf',
+  };
+
+  it('lays 8, 9 and 10 rows out column by column on the phone, clear of View tree', () => {
+    const viewTop = hitRect(
+      estimatedBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, PHONE_UI),
+      PHONE_UI.hit,
+    ).y;
+    const cases: [MenuOptions, number, number][] = [
+      [{ carrying: false, placeable: true, placing: false }, 2, 4],
+      [{ carrying: true, placeable: true, placing: false }, 2, 5],
+      [{ carrying: false, placeable: true, placing: true, nextKind: 'Floor shelf' }, 2, 5],
+      [longest, 2, 5],
+    ];
+    const x = MENU_PANEL.x + 6;
+    for (const [o, columns, perColumn] of cases) {
+      const panel = menuPanel(o, PHONE_UI);
+      const items = menuItems(o, PHONE_UI);
+      const pitch = menuRowPitch(PHONE_UI);
+      expect(panel.w).toBe(columns * MENU_PANEL.w);
+      expect(items.map((i) => i.x)).toEqual(
+        items.map((_, i) => x + Math.floor(i / perColumn) * MENU_PANEL.w),
+      );
+      expect(items[perColumn]?.y).toBe(items[0]?.y);
+      expect(panel.y + panel.h).toBeLessThanOrEqual(viewTop);
+      for (const item of items) {
+        const box = estimatedBox(item.label, item.x, item.y, 0, 0.5, PHONE_UI);
+        expect(box.x + box.w).toBeLessThanOrEqual(panel.x + panel.w);
+        expect(item.y + pitch / 2).toBeLessThanOrEqual(panel.y + panel.h);
+      }
+    }
+  });
+
+  it('grows the desktop panel down for 9 and 10 rows, in one column', () => {
+    for (const o of [{ ...longest, carrying: false }, longest]) {
+      const panel = menuPanel(o, DESKTOP_UI);
+      const items = menuItems(o, DESKTOP_UI);
+      expect(panel.w).toBe(MENU_PANEL.w);
+      expect(panel.h).toBe(items.length * MENU_ROW_SPACING + 6);
+      expect(panel.h).toBeGreaterThan(MENU_PANEL.h);
+      expect(items.every((i) => i.x === MENU_PANEL.x + 6)).toBe(true);
+      expect(panel.y + panel.h).toBeLessThan(VIEW_BUTTON.bottom - LINE_H);
     }
   });
 
