@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { trackFor } from '../platform/audio';
 import { loadGame, saveGame } from '../sim/save';
 import { seasonForDay, type Season } from '../sim/seasons';
 import { scoreTree } from '../sim/scoring';
@@ -157,7 +158,7 @@ import {
   type DeviceZoom,
 } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
-import { SoundPlayer } from './audio';
+import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 import { FONT_FAMILY, bodyStyle, fontLoaded, labelStyle } from './textStyle';
 
@@ -352,6 +353,8 @@ export class WorldScene extends Phaser.Scene {
   private joystick: { id: number; x: number; y: number; input: MoveInput } | undefined;
   /** Every sound effect the world plays, behind the Sound switch (src/scenes/audio.ts). */
   private sfx!: SoundPlayer;
+  /** The place's ambient loop, behind the Music switch (src/scenes/audio.ts). */
+  private music!: MusicPlayer;
 
   constructor() {
     super('world');
@@ -361,6 +364,7 @@ export class WorldScene extends Phaser.Scene {
     this.ctx = data;
     // Reads the settings live, so the Settings panel's Sound switch acts at once.
     this.sfx = new SoundPlayer(this.sound, () => this.ctx.settings);
+    this.music = new MusicPlayer(this.sound, () => this.ctx.settings);
     this.viewTree = data.overrides.tree?.() ?? data.state.trees[0];
     const first = data.state.trees[0];
     this.base = {
@@ -559,18 +563,32 @@ export class WorldScene extends Phaser.Scene {
     };
     this.viewer.onClose = () => {
       this.viewerClosedAt = performance.now();
+      this.music.play(trackFor(this.room.key));
       this.publishHook();
     };
     onFullscreenChange(this, () => {
       if (this.panel?.key === SETTINGS_KEY) this.openSettings();
     });
+    // Phaser's sound manager pauses on blur but not on game.pause() (the rotate prompt, src/main.ts).
+    const pauseMusic = (): void => {
+      this.music.pause();
+    };
+    const resumeMusic = (): void => {
+      this.music.resume();
+    };
+    this.game.events.on(Phaser.Core.Events.PAUSE, pauseMusic);
+    this.game.events.on(Phaser.Core.Events.RESUME, resumeMusic);
     this.events.once('shutdown', () => {
       this.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, toHud);
+      this.game.events.off(Phaser.Core.Events.PAUSE, pauseMusic);
+      this.game.events.off(Phaser.Core.Events.RESUME, resumeMusic);
       this.panel?.dispose?.();
       this.viewer.destroy();
+      this.music.stop();
       this.roomTexture?.destroy();
       keyboard.removeCapture([K.F5, K.F9]);
     });
+    this.music.play(trackFor(this.room.key));
     this.publishHook();
   }
 
@@ -770,6 +788,7 @@ export class WorldScene extends Phaser.Scene {
       const id = model.rows[i]?.id ?? '';
       toggleSetting(this, this.ctx, id);
       if (id === 'panel-weather') this.buildWeather();
+      if (id === 'panel-music') this.music.refresh();
       this.openSettings();
     });
   }
@@ -1194,6 +1213,7 @@ export class WorldScene extends Phaser.Scene {
   private enterRoom(target: DoorTarget): void {
     this.sfx.play('door');
     this.room = ROOMS[target.room];
+    this.music.play(trackFor(this.room.key));
     this.plants.clear();
     this.joystick = undefined;
     this.drawRoom();
@@ -1505,6 +1525,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   override update(_time: number, delta: number): void {
+    this.music.update(delta);
     const viewerOpen = this.viewer.isOpen;
     const modal = this.panel?.modal === true;
     const showInteract = this.near !== undefined && !viewerOpen && !modal;
@@ -1609,6 +1630,7 @@ export class WorldScene extends Phaser.Scene {
     this.joystick = undefined;
     this.closePanel();
     this.viewer.open(viewTree, overrides.season ?? seasonForDay(state.day), state);
+    this.music.play(trackFor('viewer'));
     this.hud.setVisible(false);
     this.carryText.setVisible(false);
     this.menuButton.setVisible(false);
@@ -1691,6 +1713,7 @@ export class WorldScene extends Phaser.Scene {
       panel: this.panel?.key ?? '',
       settings: { ...this.ctx.settings },
       lastSound: this.sfx.lastSound,
+      track: this.music.track,
       near: this.near?.key ?? '',
       carrying: carried ? treeLabel(carried) : '',
       treeLocations: state.trees.map((t) => ({
