@@ -146,10 +146,12 @@ import {
   fenceCorners,
   floorTiles,
   furnitureShadows,
+  furnitureSprites,
   playerShadow,
   propShadow,
   propSprite,
   seasonWash,
+  sortedFurnitureShadows,
   wallRuns,
   type Shadow,
   type Wash,
@@ -1295,7 +1297,8 @@ export class WorldScene extends Phaser.Scene {
   /**
    * The room from its sprite sheets (src/world/roomArt.ts), replacing the last
    * room's: its static art baked into one texture (bakeRoom) shown as one
-   * full-room quad, and each prop's sprite at its depth (propSprite). Every
+   * full-room quad, and each prop's and sorted piece of furniture's sprite at
+   * its depth (propSprite, furnitureSprites). Every
    * prototype px is half a logical px.
    */
   private drawRoom(): void {
@@ -1320,6 +1323,12 @@ export class WorldScene extends Phaser.Scene {
             .setDepth(art.depth),
         ];
       }),
+      ...furnitureSprites(room).map((art) =>
+        this.add
+          .sprite(art.x, art.y, art.sheet.key, art.frame)
+          .setScale(art.scale)
+          .setDepth(art.depth),
+      ),
     ].map((part) => this.inWorld(part));
   }
 
@@ -1381,7 +1390,7 @@ export class WorldScene extends Phaser.Scene {
     return texture;
   }
 
-  /** The drop shadows of the room's props and of the trees on its floor (the pedestal trees' are drawn with them). */
+  /** The drop shadows of the room's props, its sorted furniture and the trees on its floor (the pedestal trees' are drawn with them). */
   private drawShadows(trees: readonly TreeArt[]): void {
     const g = this.shadowGfx.clear();
     const fill = (s: Shadow): void => {
@@ -1391,6 +1400,7 @@ export class WorldScene extends Phaser.Scene {
       const s = propShadow(p);
       if (s) fill(s);
     }
+    for (const s of sortedFurnitureShadows(this.room)) fill(s);
     for (const t of trees) fill(t.shadow);
   }
 
@@ -1771,6 +1781,7 @@ export class WorldScene extends Phaser.Scene {
       viewer: this.viewer.snapshot(),
       room: this.room.key,
       player: { x: this.player.x, y: this.player.y, facing: this.player.facing },
+      sortedDecor: furnitureSprites(this.room).map((f) => ({ sheet: f.sheet.key, depth: f.depth })),
       hud: hudText(state),
       frames: this.frames,
     };

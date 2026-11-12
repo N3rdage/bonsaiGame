@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
-import { SHEETS } from './assets';
+import { PLAYER_SCALE, SHEETS } from './assets';
 import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
@@ -14,13 +14,16 @@ import {
   floorTiles,
   furnitureRuns,
   furnitureShadows,
+  furnitureSprites,
   playerShadow,
   propShadow,
   propSprite,
   seasonWash,
+  sortedFurnitureShadows,
   treeShadow,
   wallRuns,
   windowRuns,
+  type Shadow,
 } from './roomArt';
 import { SHED_ROOM, hitsWall, insideWalls, type Prop, type Room } from './shedRoom';
 import { STUDY_ROOM } from './studyRoom';
@@ -239,13 +242,8 @@ describe('walls', () => {
         ).toBe(r.sheet !== SHEETS.shedExterior);
       }
     }
-    expect(furniture(SHED_ROOM)).toEqual([
-      ['spr_shelf', 206, 65, 28, 22],
-      ['spr_tools', 97, 150, 18, 26],
-      ['spr_watering_can', 345, 113, 16, 15],
-      ['spr_pot_stack', 343, 174, 20, 20],
-      ['spr_sack', 142, 175, 16, 17],
-    ]);
+    // The shed's floor clutter is sorted against the player (furnitureSprites); only the wall-mounted shelf is baked.
+    expect(furniture(SHED_ROOM)).toEqual([['spr_shelf', 206, 65, 28, 22]]);
     expect(furniture(GARDEN_ROOM)).toEqual([['spr_shed_exterior', 0, 196, 32, 56]]);
   });
 
@@ -421,10 +419,11 @@ describe('shadows', () => {
   it("puts Draw_0's faint ellipse, (dx - w/3, dy - 4)..(dx + w/3, dy + 2), under each piece of the shed's decor", () => {
     // Centre, width x 3 (the shadow is 2w/3 prototype px wide, halved, so x 3 gives w), height, alpha:
     // spr_shelf's foot at prototype (440, 174) gives x 440 +- 56/3, y 170..176, halved.
-    expect(
-      furnitureShadows(SHED_ROOM).map((s) => [s.x, s.y, Math.round(s.w * 3), s.h, s.alpha]),
-    ).toEqual([
-      [220, 86.5, 56, 3, 0.18],
+    const shadows = (list: readonly Shadow[]) =>
+      list.map((s) => [s.x, s.y, Math.round(s.w * 3), s.h, s.alpha]);
+    // The bake has the shelf's; the sorted pieces' are drawn live, the same ellipses.
+    expect(shadows(furnitureShadows(SHED_ROOM))).toEqual([[220, 86.5, 56, 3, 0.18]]);
+    expect(shadows(sortedFurnitureShadows(SHED_ROOM))).toEqual([
       [106, 175.5, 36, 3, 0.18],
       [353, 127.5, 32, 3, 0.18],
       [353, 193.5, 40, 3, 0.18],
@@ -433,7 +432,30 @@ describe('shadows', () => {
     // The house furniture has none.
     for (const room of [LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM, GARDEN_ROOM]) {
       expect(furnitureShadows(room)).toEqual([]);
+      expect(sortedFurnitureShadows(room)).toEqual([]);
     }
+  });
+
+  it("draws the shed's floor clutter as sprites sorted at their bottom edge, the player behind above it and in front below", () => {
+    expect(
+      furnitureSprites(SHED_ROOM).map((s) => [s.sheet.key, s.frame, s.x, s.y, s.scale, s.depth]),
+    ).toEqual([
+      ['spr_tools', 0, 106, 163, 0.5, 176],
+      ['spr_watering_can', 0, 353, 120.5, 0.5, 128],
+      ['spr_pot_stack', 0, 353, 184, 0.5, 194],
+      ['spr_sack', 0, 150, 183.5, 0.5, 192],
+    ]);
+    // No house room or the garden sorts any furniture; their runs are all of it.
+    for (const room of [LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM, GARDEN_ROOM]) {
+      expect(furnitureSprites(room)).toEqual([]);
+      expect(furnitureRuns(room)).toHaveLength(room.furniture.length);
+    }
+    // drawPlayer: the player's depth is its centre y + PLAYER_H / 2, spr_player's 32 px at 1.5x halved = 24.
+    const playerDepth = (y: number) => y + (SHEETS.player.frameHeight * PLAYER_SCALE) / 2;
+    expect(playerDepth(0)).toBe(12);
+    const sack = furnitureSprites(SHED_ROOM).find((s) => s.sheet === SHEETS.sack);
+    expect(sack && playerDepth(175) < sack.depth).toBe(true);
+    expect(sack && playerDepth(185) > sack.depth).toBe(true);
   });
 });
 

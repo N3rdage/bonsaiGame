@@ -126,6 +126,11 @@ describe('shed room', () => {
       ['spr_sack', 142, 175, 16, 17],
     ]);
     expect(SHED_ROOM.furniture.every((f) => !f.solid && f.shadow === true)).toBe(true);
+    // The floor clutter sorts against the player; the wall-mounted shelf and every other room's furniture are baked.
+    expect(SHED_ROOM.furniture.map((f) => f.sorted)).toEqual([false, true, true, true, true]);
+    for (const room of Object.values(ROOMS).filter((r) => r !== SHED_ROOM)) {
+      expect(room.furniture.some((f) => f.sorted)).toBe(false);
+    }
     // Draw-only, so the walls are still just the ring.
     expect(furnitureWalls(SHED_ROOM.furniture)).toEqual([]);
     expect(SHED_ROOM.walls).toEqual(ringWalls(SHED_ROOM.bounds));
