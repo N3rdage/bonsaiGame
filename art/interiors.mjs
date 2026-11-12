@@ -14,6 +14,10 @@
 // panel per half tile, over a skirting board.
 // spr_window.png: one 32x32 frame, a four-pane window with a sill, transparent
 // round it so it can be drawn over any room's top wall.
+// spr_door_glass.png: the study's glazed double door, 64x32, two leaves of
+// four panes each in a wooden frame, a brass handle on each meeting stile.
+// spr_door_glass_single.png: one such leaf, 32x32, the garden's door back to
+// the study.
 // The house furniture, each one frame at its exact size, transparent where the
 // floor shows through: spr_fireplace.png (64x48, a stone surround under a
 // wooden mantel, a fire in its box, a hearth) and spr_side_table.png (32x32, a
@@ -76,6 +80,8 @@ const BOOKS = [
   [150, 120, 70],
   [96, 58, 80],
 ];
+const BRASS = [212, 176, 88];
+const BRASS_DARK = [150, 116, 52];
 const WINE = [104, 30, 36];
 const WINE_DARK = [76, 20, 26];
 
@@ -397,6 +403,33 @@ function hallTable(png) {
   fill(png, 27, 12, 28, 23, WOOD_DARK);
 }
 
+/**
+ * One glazed door leaf, 32x32 from column `ox`: a dark outline round a wooden
+ * frame, four panes of glass split by a mullion and a transom (lighter at the
+ * top, a diagonal glint, darker at the foot), a kick rail along the bottom and
+ * a brass handle on its right or left stile. Its top row and outer column are
+ * left transparent, so the wall shows round the door.
+ */
+function glassLeaf(png, ox, handleRight) {
+  for (let y = 1; y < SIZE; y += 1) {
+    for (let x = 1; x < SIZE - 1; x += 1) {
+      const glass = x >= 5 && x <= 26 && y >= 5 && y <= 25 && x !== 15 && x !== 16 && y !== 15;
+      let c = WOOD_MID;
+      if (x === 1 || x === SIZE - 2 || y === 1 || y === SIZE - 1) c = WOOD_DARK;
+      else if (y === 2 || y === 26) c = WOOD_LIGHT;
+      else if (glass) {
+        c = y < 9 ? GLASS_LIGHT : GLASS;
+        if ((x + y) % 9 === 0) c = GLASS_LIGHT;
+        if (y >= 23 || y === 13 || y === 14) c = GLASS_DARK;
+      }
+      setPixel(png, ox + x, y, c);
+    }
+  }
+  const hx = handleRight ? 28 : 2;
+  fill(png, ox + hx, 15, ox + hx + 1, 18, BRASS);
+  fill(png, ox + hx, 18, ox + hx + 1, 18, BRASS_DARK);
+}
+
 function write(name, png) {
   writeFileSync(join(OUT, `${name}.png`), PNG.sync.write(png));
   console.log(`${name}.png  ${String(png.width)}x${String(png.height)}`);
@@ -429,6 +462,16 @@ write('spr_wall_study', studyWall);
 const windowPng = new PNG({ width: SIZE, height: SIZE });
 windowPane(windowPng);
 write('spr_window', windowPng);
+
+const doubleDoor = new PNG({ width: SIZE * 2, height: SIZE });
+glassLeaf(doubleDoor, 0, true);
+glassLeaf(doubleDoor, SIZE, false);
+fill(doubleDoor, SIZE - 1, 1, SIZE, SIZE - 1, WOOD_DARK);
+write('spr_door_glass', doubleDoor);
+
+const singleDoor = new PNG({ width: SIZE, height: SIZE });
+glassLeaf(singleDoor, 0, false);
+write('spr_door_glass_single', singleDoor);
 
 for (const [name, draw, width, height] of [
   ['spr_fireplace', fireplace, 64, 48],

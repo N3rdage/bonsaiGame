@@ -58,6 +58,8 @@ export interface Prop {
   readonly pedestalKey?: string;
   /** Doors only: the room and spot E takes the player to. */
   readonly target?: DoorTarget;
+  /** Doors only: the door's sprite when it is not the prototype's `spr_door` (the study's glazed doors and the garden's to them). */
+  readonly sheet?: Sheet;
   /** Garden source plants only (obj_source_plant's `species_key`): what a cutting is of. */
   readonly speciesKey?: SpeciesKey;
 }

@@ -124,6 +124,7 @@ describe('garden room', () => {
       ['source_maple', 'Japanese Maple', 'Take Cutting', 260, 80, 24, 24, 'maple'],
       ['source_pine', 'Pine', 'Take Cutting', 380, 100, 24, 24, 'pine'],
       ['door', 'Door', 'Back to Shed', 16, 228, 16, 16, undefined],
+      ['door_study', 'Door', 'To Study', 472, 190, 16, 16, undefined],
     ]);
   });
 
@@ -159,6 +160,15 @@ describe('garden room', () => {
     expect(hitsWall(GARDEN_ROOM, 240, 16)).toBe(false);
     expect(hitsWall(GARDEN_ROOM, 240, 253.9)).toBe(false);
     expect(hitsWall(GARDEN_ROOM, 240, 254)).toBe(true);
+  });
+
+  it("draws the study door on the right fence's band on the row y 190, back to above the study's glass doors", () => {
+    const d = door(GARDEN_ROOM, 'door_study');
+    const fence = GARDEN_ROOM.walls[4];
+    expect(fence).toEqual({ x: 464, y: 0, w: 16, h: 270 });
+    expect([d.x - d.w / 2, d.x + d.w / 2]).toEqual([464, 480]);
+    expect(d.target).toEqual({ room: 'study', x: 320, y: 190 });
+    expect(ROOMS[d.target?.room ?? 'garden']).toBe(STUDY_ROOM);
   });
 
   it('lets the player walk out through the doorway to the clamp', () => {
@@ -309,16 +319,54 @@ describe('study room', () => {
     expect(STUDY_ROOM.floor).toBe(0x2a1618);
   });
 
-  it('has two display spots, study_desk and study_bookshelf, on its furniture, and a door in the left wall', () => {
+  it('has two display spots, study_desk and study_bookshelf, on its furniture, a door in the left wall and glass doors in the bottom', () => {
     expect(
       STUDY_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
       ['pedestal_1', 'Pedestal', 'Use Pedestal', 160, 123, 32, 10, 'study_desk'],
       ['pedestal_2', 'Pedestal', 'Use Pedestal', 328, 120.5, 16, 15, 'study_bookshelf'],
       ['door_hallway', 'Door', 'To Hallway', 136, 190, 16, 16, undefined],
+      ['door_garden', 'Door', 'To Garden', 320, 216, 32, 16, undefined],
     ]);
     expect(door(STUDY_ROOM, 'door_hallway').x - 8).toBe(STUDY_ROOM.walls[2]?.x);
     expect(door(STUDY_ROOM, 'door_hallway').target).toEqual({ room: 'hallway', x: 366, y: 190 });
+  });
+
+  it("puts the glass doors in the bottom wall's band, x 304..336 left of the corner tile, leading to the garden and back", () => {
+    const d = door(STUDY_ROOM, 'door_garden');
+    expect(STUDY_ROOM.walls[1]).toEqual({ x: 128, y: 208, w: 224, h: 16 });
+    expect([d.x - d.w / 2, d.x + d.w / 2, d.y - d.h / 2, d.y + d.h / 2]).toEqual([
+      304, 336, 208, 224,
+    ]);
+    expect(d.target).toEqual({ room: 'garden', x: 446, y: 190 });
+    expect(ROOMS[d.target?.room ?? 'study']).toBe(GARDEN_ROOM);
+    // Each landing 26 px from the door leading back: left of the garden's door, above the glass doors.
+    const back = door(GARDEN_ROOM, 'door_study');
+    expect(d.target).toEqual({ room: 'garden', x: back.x - 26, y: back.y });
+    expect(back.target).toEqual({ room: 'study', x: d.x, y: d.y - 26 });
+  });
+
+  it('keeps the glass doors in reach of a walk into the right wall and down, however long the keys are held', () => {
+    const d = door(STUDY_ROOM, 'door_garden');
+    // From the hallway's landing and the garden's, along the row y 190 into the right wall, then down into the bottom wall.
+    // On the 1.25 px step grid the wall stops them at x 335.75 and 335, 17.9 and 17.2 px from the doors' centre.
+    for (const [start, x, gap] of [
+      [STUDY_ROOM.playerStart, 335.75, 17.9],
+      [{ x: 320, y: 190 }, 335, 17.2],
+    ] as const) {
+      let p: PlayerState = { ...createPlayer(STUDY_ROOM), ...start };
+      for (let i = 0; i < 300; i += 1) p = stepPlayer(p, { x: 1, y: 0 }, STUDY_ROOM);
+      expect([p.x, p.y]).toEqual([x, 190]);
+      for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: 1 }, STUDY_ROOM);
+      expect([p.x, p.y]).toEqual([x, 207.5]);
+      expect(Math.hypot(d.x - p.x, d.y - p.y)).toBeCloseTo(gap, 1);
+      expect(nearestInteractable(p, STUDY_ROOM.props)?.key).toBe('door_garden');
+    }
+    // From the garden's landing straight down: the bottom wall stops the walk 8.5 px above the doors' centre.
+    let p: PlayerState = { ...createPlayer(STUDY_ROOM), x: 320, y: 190 };
+    for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: 1 }, STUDY_ROOM);
+    expect([p.x, p.y]).toEqual([320, 207.5]);
+    expect(nearestInteractable(p, STUDY_ROOM.props)?.key).toBe('door_garden');
   });
 
   it('keeps each spot in reach of a player walked into a side wall and up against its furniture, however long the keys are held', () => {
@@ -412,7 +460,7 @@ describe('rooms', () => {
     const doors = Object.values(ROOMS).flatMap((from) =>
       from.props.flatMap((d) => (d.target ? [{ from, d, target: d.target }] : [])),
     );
-    expect(doors).toHaveLength(8);
+    expect(doors).toHaveLength(10);
     for (const { from, d, target } of doors) {
       const to = ROOMS[target.room];
       const back = to.props.filter((p) => p.target?.room === from.key);
@@ -433,6 +481,7 @@ describe('rooms', () => {
       [HALLWAY_ROOM, 'door_lounge', -1, 96.5],
       [HALLWAY_ROOM, 'door_study', 1, 383.5],
       [STUDY_ROOM, 'door_hallway', -1, 144.5],
+      [GARDEN_ROOM, 'door_study', 1, 463.5],
     ] as const) {
       const d = door(room, key);
       const start = { x: d.x - 26 * dx, y: 190 };

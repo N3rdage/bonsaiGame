@@ -272,7 +272,8 @@ const PROP_SHEETS: Record<string, Sheet> = {
 /**
  * The prop's sprite, centred on the prop: the workbench, planting table and
  * kiosk at 1x, a door at 1x on the centre of its rect (spr_door's origin is
- * its top-left; each door's rect is that 32 px square, halved), a source
+ * its top-left; each door's rect is that 32 px square, halved), in its own
+ * `sheet` if it has one (the study's glazed double door is 64x32), a source
  * plant's species frame at 1x, and none for a display spot, which is drawn
  * by the furniture it is on (obj_pedestal's 1.5x pedestal is gone). A prop sorts
  * against the player at its bottom edge; a door sits in its wall or fence, so
@@ -285,7 +286,7 @@ export function propSprite(prop: Prop): PropSprite | undefined {
     return { ...at, sheet: SHEETS.sourcePlant, frame: sourcePlantFrame(prop.speciesKey) };
   }
   if (prop.pedestalKey !== undefined) return undefined;
-  if (prop.target) return { ...at, sheet: SHEETS.door, depth: prop.y - prop.h / 2 };
+  if (prop.target) return { ...at, sheet: prop.sheet ?? SHEETS.door, depth: prop.y - prop.h / 2 };
   const sheet = PROP_SHEETS[prop.key];
   return sheet && { ...at, sheet };
 }
