@@ -37,6 +37,8 @@ describe('sprite sheets', () => {
       ['spr_wall_hallway', 32, 32, 1],
       ['spr_floor_study', 32, 32, 3],
       ['spr_wall_study', 32, 32, 1],
+      ['spr_floor_greenhouse', 32, 32, 3],
+      ['spr_wall_glass', 32, 32, 1],
       ['spr_window', 32, 32, 1],
       ['spr_door_glass', 64, 32, 1],
       ['spr_door_glass_single', 32, 32, 1],
@@ -67,7 +69,7 @@ describe('sprite sheets', () => {
     }
   });
 
-  it("loads the house rooms' generated tiles and furniture and the shed's back wall with the rest", () => {
+  it("loads the house rooms' and the greenhouse's generated tiles and furniture and the shed's back wall with the rest", () => {
     for (const s of [
       SHEETS.floorLounge,
       SHEETS.wallLounge,
@@ -75,6 +77,8 @@ describe('sprite sheets', () => {
       SHEETS.wallHallway,
       SHEETS.floorStudy,
       SHEETS.wallStudy,
+      SHEETS.floorGreenhouse,
+      SHEETS.wallGlass,
       SHEETS.window,
       SHEETS.fireplace,
       SHEETS.sideTable,

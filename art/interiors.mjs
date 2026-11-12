@@ -12,6 +12,10 @@
 // spr_floor_study.png: three frames of deep-red herringbone parquet that
 // repeats every 16 px. spr_wall_study.png: dark wooden panelling, a raised
 // panel per half tile, over a skirting board.
+// spr_floor_greenhouse.png: three frames of grey paving, 16x16 stones in rows
+// staggered by 8 px, each frame with its own scatter of moss flecks.
+// spr_wall_glass.png: one frame of the greenhouse's glass, four pale panes in
+// a whitewashed frame with a diagonal highlight, drawn on every side.
 // spr_window.png: one 32x32 frame, a four-pane window with a sill, transparent
 // round it so it can be drawn over any room's top wall.
 // spr_door_glass.png: the study's glazed double door, 64x32, two leaves of
@@ -73,6 +77,15 @@ const GLASS_DARK = [78, 104, 116];
 const STONE = [128, 118, 106];
 const STONE_DARK = [92, 84, 76];
 const STONE_LIGHT = [156, 146, 132];
+const PAVING = [134, 134, 126];
+const PAVING_DARK = [98, 98, 92];
+const PAVING_LIGHT = [158, 158, 148];
+const MOSS = [86, 116, 60];
+const MOSS_DARK = [62, 88, 46];
+const WHITEWASH = [204, 208, 200];
+const WHITEWASH_DARK = [150, 156, 150];
+const PANE = [140, 172, 174];
+const PANE_LIGHT = [190, 214, 212];
 const SOOT = [28, 22, 20];
 const FLAME = [226, 120, 40];
 const FLAME_LIGHT = [250, 200, 90];
@@ -226,6 +239,47 @@ function panelling(png) {
     }
   }
   skirting(png);
+}
+
+/**
+ * One greenhouse floor frame at column offset `ox`: 16x16 paving stones, each
+ * row of stones staggered 8 px, a dark joint on each stone's last row and
+ * column and a lit first row, then `frame`'s moss flecks, mostly in the joints.
+ */
+function paving(png, ox, frame) {
+  for (let y = 0; y < SIZE; y += 1) {
+    for (let x = 0; x < SIZE; x += 1) {
+      const sx = (x + Math.floor(y / 16) * 8) % 16;
+      let c = PAVING;
+      if (y % 16 === 15 || sx === 15) c = PAVING_DARK;
+      else if (y % 16 === 0) c = PAVING_LIGHT;
+      setPixel(png, ox + x, y, c);
+    }
+  }
+  const rng = seeded(1400 + frame);
+  for (let i = 0; i < 12; i += 1) {
+    const x = Math.floor(rng() * SIZE);
+    const y = rng() < 0.6 ? 15 + 16 * Math.floor(rng() * 2) : Math.floor(rng() * SIZE);
+    setPixel(png, ox + x, y, rng() < 0.5 ? MOSS : MOSS_DARK);
+  }
+}
+
+/**
+ * The greenhouse's glass wall, 32x32: a whitewashed frame 2 px wide round the
+ * tile with a glazing bar across the middle each way, four pale panes inside,
+ * a diagonal highlight across them, and a whitewashed sill on the bottom 4 rows.
+ */
+function glassWall(png) {
+  for (let y = 0; y < SIZE; y += 1) {
+    for (let x = 0; x < SIZE; x += 1) {
+      const bar = x < 2 || x > 29 || y < 2 || x === 15 || x === 16 || y === 14 || y === 15;
+      let c = PANE;
+      if (y >= 28) c = y === 28 ? WHITEWASH_DARK : WHITEWASH;
+      else if (bar) c = x === 1 || x === 16 || y === 15 || y === 1 ? WHITEWASH_DARK : WHITEWASH;
+      else if ((x + y) % 14 === 0 || (x + y) % 14 === 1) c = PANE_LIGHT;
+      setPixel(png, x, y, c);
+    }
+  }
 }
 
 /**
@@ -525,6 +579,14 @@ write('spr_floor_study', studyFloor);
 const studyWall = new PNG({ width: SIZE, height: SIZE });
 panelling(studyWall);
 write('spr_wall_study', studyWall);
+
+const greenhouseFloor = new PNG({ width: SIZE * 3, height: SIZE });
+for (let frame = 0; frame < 3; frame += 1) paving(greenhouseFloor, frame * SIZE, frame);
+write('spr_floor_greenhouse', greenhouseFloor);
+
+const glassPng = new PNG({ width: SIZE, height: SIZE });
+glassWall(glassPng);
+write('spr_wall_glass', glassPng);
 
 const windowPng = new PNG({ width: SIZE, height: SIZE });
 windowPane(windowPng);

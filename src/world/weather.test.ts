@@ -6,6 +6,7 @@ import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM } from './shedRoom';
 import { STUDY_ROOM } from './studyRoom';
+import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import {
   SHED_WEATHER_AREA,
   WEATHER_MARGIN,
@@ -113,13 +114,14 @@ describe('weatherArea', () => {
     expect(WEATHER_MARGIN).toBe(12);
   });
 
-  it("gives the lounge, hallway and study the shed's indoor motes over each room's own ring", () => {
+  it("gives the lounge, hallway, study and greenhouse the shed's indoor motes over each room's own ring", () => {
     expect(isIndoor(SHED_ROOM)).toBe(true);
     expect(isIndoor(GARDEN_ROOM)).toBe(false);
     for (const [room, area] of [
       [LOUNGE_ROOM, { x0: 48, y0: 96, x1: 416, y1: 208 }],
       [HALLWAY_ROOM, { x0: 80, y0: 160, x1: 384, y1: 208 }],
       [STUDY_ROOM, { x0: 128, y0: 96, x1: 336, y1: 208 }],
+      [GREENHOUSE_ROOM, { x0: 48, y0: 48, x1: 416, y1: 224 }],
     ] as const) {
       expect(isIndoor(room)).toBe(true);
       expect(weatherArea(room)).toEqual(area);
