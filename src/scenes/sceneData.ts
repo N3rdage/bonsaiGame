@@ -56,6 +56,7 @@ export const IDLE_HOOK = {
     fertilizer: 0,
     seed_juniper: 0,
     seed_maple: 0,
+    seed_pine: 0,
     cutting_juniper: 0,
     cutting_maple: 0,
   },

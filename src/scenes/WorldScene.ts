@@ -81,7 +81,14 @@ import {
   type PlayerState,
 } from '../world/player';
 import { occupiedSlots, readSlotRows } from '../world/saveSlots';
-import { createSourcePlant, takeCutting, type SourcePlantState } from '../sim/sourcePlant';
+import {
+  createSourcePlant,
+  sourcePlantAction,
+  sourcePlantPrompt,
+  takeCutting,
+  takeSeeds,
+  type SourcePlantState,
+} from '../sim/sourcePlant';
 import type { SpeciesKey } from '../sim/types';
 import { BASE_TIME_SCALE, tickClock } from '../world/clock';
 import { ROOMS } from '../world/gardenRoom';
@@ -1169,7 +1176,7 @@ export class WorldScene extends Phaser.Scene {
     } else if (target) {
       this.enterRoom(target);
     } else if (speciesKey) {
-      this.takeCutting(near.key, speciesKey);
+      this.takeFromPlant(near.key, speciesKey);
     } else if (near.key === SHOP_KIOSK_KEY) {
       this.openShop();
     } else if (near.key === WORKBENCH_KEY) {
@@ -1265,11 +1272,19 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
-  /** obj_source_plant: the cutting rule in src/sim/sourcePlant.ts, its message as a toast. */
-  private takeCutting(plantKey: string, speciesKey: SpeciesKey): void {
+  /** obj_source_plant: the season's cutting or seed rule in src/sim/sourcePlant.ts, its message as a toast. */
+  private takeFromPlant(plantKey: string, speciesKey: SpeciesKey): void {
+    const { state } = this.ctx;
     const plant = this.plants.get(plantKey) ?? createSourcePlant();
     this.plants.set(plantKey, plant);
-    this.showToast(takeCutting(this.ctx.state, plant, speciesKey));
+    const take = sourcePlantAction(state.day) === 'seed' ? takeSeeds : takeCutting;
+    this.showToast(take(state, plant, speciesKey));
+  }
+
+  /** The near target's prompt; a source plant's follows the season (Take Seeds in autumn). */
+  private nearPrompt(near: Prop | TreeTarget): string {
+    const seasonal = !('tree' in near) && near.speciesKey !== undefined;
+    return promptFor(seasonal ? { ...near, prompt: sourcePlantPrompt(this.ctx.state.day) } : near);
   }
 
   /**
@@ -1621,7 +1636,7 @@ export class WorldScene extends Phaser.Scene {
     this.playerShadow.setPosition(shadow.x, shadow.y);
     this.near = nearestInteractable(this.player, this.targets);
     this.promptText
-      .setText(this.near ? promptFor(this.near) : '')
+      .setText(this.near ? this.nearPrompt(this.near) : '')
       .setPosition(x, y - PLAYER_H / 2 - 2);
     this.follow();
   }
@@ -1722,6 +1737,7 @@ export class WorldScene extends Phaser.Scene {
       track: this.music.track,
       musicPaused: this.music.paused,
       near: this.near?.key ?? '',
+      prompt: this.near ? this.nearPrompt(this.near) : '',
       carrying: carried ? treeLabel(carried) : '',
       treeLocations: state.trees.map((t) => ({
         id: t.id,

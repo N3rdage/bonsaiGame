@@ -30,7 +30,10 @@ export const DOORWAY: Gap = { top: fromPrototype(416), bottom: fromPrototype(480
 /** Other_4 fences the whole room. */
 const BOUNDS: Rect = { x: 0, y: 0, w: WIDTH, h: HEIGHT };
 
-/** obj_source_plant: 48 px sprite, centred; prompt `Take Cutting`, labelled with the species. */
+/**
+ * obj_source_plant: 48 px sprite, centred; prompt `Take Cutting`, labelled with
+ * the species. WorldScene shows `sourcePlantPrompt` instead (Take Seeds in autumn).
+ */
 function sourcePlant(speciesKey: SpeciesKey, px: number, py: number): Prop {
   return {
     ...prop(
