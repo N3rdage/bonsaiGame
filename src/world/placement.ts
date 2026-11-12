@@ -10,6 +10,7 @@ import { inventoryAdd, inventoryRemove } from '../sim/inventory';
 import { DISPLAYED_PREFIX, treeOnPedestal } from '../sim/tree';
 import type { GameState, PlaceableKind, PlacedItem } from '../sim/types';
 import { SHEETS, type Sheet } from './assets';
+import { ROOMS } from './gardenRoom';
 import type { Facing } from './player';
 import { TILE } from './roomArt';
 import { insideWalls, type Furniture, type Prop, type Rect, type Room } from './shedRoom';
@@ -40,7 +41,8 @@ export const PICK_UP_PROMPT = 'Pick up';
 export const PLACEABLE_ROOMS: readonly string[] = ['greenhouse'];
 
 /** Why a placement is refused, in the order `placementCheck` tests. */
-export type PlacementRefusal = 'not here' | 'off the floor' | 'in the way' | 'too close';
+export type PlacementRefusal =
+  'not here' | 'off the floor' | 'in the way' | 'blocks the door' | 'too close';
 
 /** A placed item's display spot: its key (as in `displayed:<key>`) and its tile's rect, top-left. */
 export interface PlacedSpot extends Rect {
@@ -152,10 +154,27 @@ function inside(inner: Rect, outer: Rect): boolean {
 }
 
 /**
+ * The 16x16 tiles a player arrives on in `room`: where its own start and every
+ * door into it from the `rooms` registry set the player down. Kept clear of
+ * furniture, so a player never arrives inside a piece.
+ */
+export function landingTiles(room: Room, rooms: Readonly<Record<string, Room>> = ROOMS): Rect[] {
+  const doorsIn = Object.values(rooms).flatMap((r) =>
+    r.props.flatMap((p) => (p.target?.room === room.key ? [p.target] : [])),
+  );
+  return [room.playerStart, ...doorsIn].map((at) => ({
+    ...snapToGrid(at.x, at.y),
+    w: TILE,
+    h: TILE,
+  }));
+}
+
+/**
  * Whether `kind` can go down with its top-left at (x, y) in `room`, or the
  * first refusal: a room that takes no furniture, a footprint off the floor
  * inside the wall band, one over a wall, prop, solid furniture or another
- * placed item, or one over the player's own position.
+ * placed item, one within a tile of a door (its clearance ring) or over a
+ * tile a door lands the player on, or one over the player's own position.
  */
 export function placementCheck(
   room: Room,
@@ -168,13 +187,21 @@ export function placementCheck(
   if (!PLACEABLE_ROOMS.includes(room.key)) return 'not here';
   const rect = footprint(kind, x, y);
   if (!inside(rect, insideWalls(room))) return 'off the floor';
+  const propRect = (p: Prop): Rect => ({ x: p.x - p.w / 2, y: p.y - p.h / 2, w: p.w, h: p.h });
   const blockers: Rect[] = [
     ...room.walls,
-    ...room.props.map((p) => ({ x: p.x - p.w / 2, y: p.y - p.h / 2, w: p.w, h: p.h })),
+    ...room.props.map(propRect),
     ...room.furniture.filter((f) => f.solid),
     ...placedIn(state, room).map((p) => footprint(p.kind, p.x, p.y)),
   ];
   if (blockers.some((b) => overlaps(rect, b))) return 'in the way';
+  const doorRings = room.props
+    .filter((p) => p.target !== undefined)
+    .map(propRect)
+    .map((d) => ({ x: d.x - TILE, y: d.y - TILE, w: d.w + 2 * TILE, h: d.h + 2 * TILE }));
+  if ([...doorRings, ...landingTiles(room)].some((r) => overlaps(rect, r))) {
+    return 'blocks the door';
+  }
   const covers =
     player.x >= rect.x &&
     player.x < rect.x + rect.w &&

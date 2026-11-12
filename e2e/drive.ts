@@ -358,6 +358,19 @@ export async function walkTo(
   record(rowOvershoot, Math.abs(at.x - along.before.x));
 }
 
+/** Walks straight up or down to row `y`, stopping at most 6.25 px past it (see `leg`), facing the way it walked. */
+export async function walkToRow(page: Page, y: number): Promise<void> {
+  const down = (await hook(page)).player.y < y;
+  const { reached, stop } = await leg(page, down ? 'ArrowDown' : 'ArrowUp', {
+    until: 'row',
+    row: y,
+    down,
+  });
+  if (!reached) {
+    throw new Error(`walkToRow(${String(y)}): stopped at (${String(stop.x)}, ${String(stop.y)})`);
+  }
+}
+
 export type Arrow = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
 
 /**

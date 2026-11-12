@@ -11,6 +11,7 @@ import {
   PLACEABLES,
   footprint,
   ghostFootprint,
+  landingTiles,
   pickUpItem,
   placeItem,
   placedFurniture,
@@ -74,11 +75,9 @@ describe('placement', () => {
 
   it('refuses a footprint over a prop, solid furniture or another placed item', () => {
     const state = stocked();
-    const door = GREENHOUSE_ROOM.props[0];
-    if (door === undefined) throw new Error('the greenhouse has its door');
     const room: Room = {
       ...GREENHOUSE_ROOM,
-      props: [{ ...door, x: 104, y: 104 }],
+      props: [{ key: 'urn', label: 'Urn', prompt: 'Look', x: 104, y: 104, w: 16, h: 16 }],
       furniture: [{ x: 160, y: 160, w: 32, h: 16, solid: true, sheet: SHEETS.sideTable }],
     };
     const at = (x: number, y: number) => placementCheck(room, state, 'pedestal', x, y, PLAYER);
@@ -91,8 +90,67 @@ describe('placement', () => {
   });
 
   it("refuses a footprint over the player's position", () => {
-    expect(check(stocked(), 'pedestal', 240, 192)).toBe('too close');
-    expect(check(stocked(), 'pedestal', 240, 208)).toBe('ok');
+    const player = { x: 100, y: 100 };
+    const at = (x: number, y: number) =>
+      placementCheck(GREENHOUSE_ROOM, stocked(), 'pedestal', x, y, player);
+    expect(at(96, 96)).toBe('too close');
+    expect(at(96, 80)).toBe('ok');
+  });
+
+  it('keeps a tile of clearance round every door', () => {
+    const state = stocked();
+    for (const kind of ['pedestal', 'floor_shelf'] as const) {
+      expect(check(state, kind, 240, 208)).toBe('blocks the door');
+      expect(check(state, kind, 224, 208)).toBe('blocks the door');
+      expect(check(state, kind, 256, 208)).toBe('blocks the door');
+    }
+    // The door's x 232..248 grows to 216..264, half a tile off the grid, so it reaches into 208 and 256.
+    expect(check(state, 'pedestal', 208, 208)).toBe('blocks the door');
+    expect(check(state, 'pedestal', 192, 208)).toBe('ok');
+    expect(check(state, 'pedestal', 272, 208)).toBe('ok');
+    expect(check(state, 'floor_shelf', 192, 208)).toBe('blocks the door');
+    expect(check(state, 'floor_shelf', 176, 208)).toBe('ok');
+  });
+
+  it('reports off the floor and in the way before blocks the door', () => {
+    const state = stocked();
+    expect(check(state, 'pedestal', 240, 224)).toBe('off the floor');
+    state.placed = [{ id: 0, kind: 'pedestal', room: 'greenhouse', x: 240, y: 208 }];
+    state.nextPlacedId = 1;
+    expect(check(state, 'pedestal', 240, 208)).toBe('in the way');
+  });
+
+  it("keeps the tile a door lands the player on clear, ahead of the player's own tile", () => {
+    const state = stocked();
+    // The garden's greenhouse door (and the room's own start) lands the player at (240, 206), tile (240, 192).
+    expect(landingTiles(GREENHOUSE_ROOM)).toEqual([
+      { x: 240, y: 192, w: 16, h: 16 },
+      { x: 240, y: 192, w: 16, h: 16 },
+    ]);
+    const away = { x: 100, y: 100 };
+    for (const kind of ['pedestal', 'floor_shelf'] as const) {
+      expect(placementCheck(GREENHOUSE_ROOM, state, kind, 240, 192, away)).toBe('blocks the door');
+      // Standing on the landing itself, the door's refusal comes before `too close`.
+      expect(check(state, kind, 240, 192)).toBe('blocks the door');
+    }
+    // A shelf beside the landing covers it; a pedestal beside it, or the tile above, does not.
+    expect(placementCheck(GREENHOUSE_ROOM, state, 'floor_shelf', 224, 192, away)).toBe(
+      'blocks the door',
+    );
+    expect(placementCheck(GREENHOUSE_ROOM, state, 'pedestal', 224, 192, away)).toBe('ok');
+    expect(placementCheck(GREENHOUSE_ROOM, state, 'pedestal', 256, 192, away)).toBe('ok');
+    expect(check(state, 'pedestal', 240, 176)).toBe('ok');
+    expect(check(state, 'floor_shelf', 224, 176)).toBe('ok');
+  });
+
+  it('keeps no ring in a room without doors, only the landings from the other rooms', () => {
+    const room: Room = { ...GREENHOUSE_ROOM, props: [] };
+    const state = stocked();
+    expect(placementCheck(room, state, 'pedestal', 240, 208, PLAYER)).toBe('ok');
+    expect(placementCheck(room, state, 'floor_shelf', 224, 208, PLAYER)).toBe('ok');
+    expect(placementCheck(room, state, 'pedestal', 240, 192, PLAYER)).toBe('blocks the door');
+    const lone: Room = { ...room, key: 'greenhouse', playerStart: { x: 100, y: 100 } };
+    expect(landingTiles(lone, {})).toEqual([{ x: 96, y: 96, w: 16, h: 16 }]);
   });
 
   it('puts the ghost on the tile the player faces, reaching away from the player', () => {
