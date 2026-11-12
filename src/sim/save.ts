@@ -6,7 +6,9 @@
  * as a float, plus a trailing NUL byte); `importPrototypeSave` converts it to
  * the TS model. Version 2 is this port's camelCase shape; version 3 adds
  * `seasonTipShown`, read as false from older saves; version 4 (`SaveFileV4`)
- * is version 3 with the display spots' final keys (`PRE_V4_DISPLAY_KEYS`).
+ * is version 3 with the display spots' final keys (`PRE_V4_DISPLAY_KEYS`);
+ * version 5 (`SaveFileV5`) adds the placed furniture (`placed`, `nextPlacedId`),
+ * read as none from older saves.
  * Storage is injected (MemorySaveStorage here, localStorage in src/platform)
  * so this module stays free of DOM APIs.
  */
@@ -24,6 +26,8 @@ import type {
   Inventory,
   InventoryKey,
   Origin,
+  PlaceableKind,
+  PlacedItem,
   PruneRecord,
   RepotRecord,
   SpeciesKey,
@@ -32,15 +36,16 @@ import type {
   WireRecord,
 } from './types';
 
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 export const SAVE_SLOT_COUNT = 3;
 
 /**
- * The shape `serializeState` writes. Version 3 was the same with the old
- * display keys; version 2 was version 3 without `seasonTipShown`.
+ * The shape `serializeState` writes. Version 4 was the same without `placed`
+ * and `nextPlacedId`; version 3 was version 4 with the old display keys;
+ * version 2 was version 3 without `seasonTipShown`.
  */
-export interface SaveFileV4 {
-  version: 4;
+export interface SaveFileV5 {
+  version: 5;
   savedAt: string;
   day: number;
   money: number;
@@ -49,6 +54,8 @@ export interface SaveFileV4 {
   nextTreeId: number;
   tutorialStep: number;
   seasonTipShown: boolean;
+  placed: PlacedItem[];
+  nextPlacedId: number;
 }
 
 export interface SaveStorage {
@@ -99,9 +106,9 @@ export function formatSaveTimestamp(date: Date): string {
   );
 }
 
-/** Writes a version-4 save. `state.paused` is transient and never written; loads start unpaused. */
+/** Writes a version-5 save. `state.paused` is transient and never written; loads start unpaused. */
 export function serializeState(state: GameState, now: Date): string {
-  const file: SaveFileV4 = {
+  const file: SaveFileV5 = {
     version: SAVE_VERSION,
     savedAt: formatSaveTimestamp(now),
     day: state.day,
@@ -111,6 +118,8 @@ export function serializeState(state: GameState, now: Date): string {
     nextTreeId: state.nextTreeId,
     tutorialStep: state.tutorialStep,
     seasonTipShown: state.seasonTipShown,
+    placed: state.placed,
+    nextPlacedId: state.nextPlacedId,
   };
   // The JSON text is the deep copy: nothing read back from it aliases `state`.
   return JSON.stringify(file);
@@ -137,6 +146,7 @@ export function deserializeSave(text: string): GameState {
   if (version === 2) return migrateDisplayKeys(readV2Save(raw));
   if (version === 3) return migrateDisplayKeys(readV3Save(raw));
   if (version === 4) return readV4Save(raw);
+  if (version === 5) return readV5Save(raw);
   throw new Error(`Unsupported save version: ${String(raw.version)}`);
 }
 
@@ -326,14 +336,20 @@ export function importPrototypeSave(raw: unknown): GameState {
     ),
     // The prototype had no season tip, so it can still fire once.
     seasonTipShown: false,
+    placed: [],
+    nextPlacedId: 0,
     paused: false,
   });
 }
 
 // ---------------------------------------------------------------------------
-// Versions 2 to 4: this port's shape
+// Versions 2 to 5: this port's shape
 
-/** A version-2 save: version 3's fields without `seasonTipShown`, which migrates as false so the tip can still fire once. */
+/**
+ * A version-2 save: version 3's fields without `seasonTipShown`, which
+ * migrates as false so the tip can still fire once. No version before 5 had
+ * placed furniture, so they all load with none.
+ */
 function readV2Save(raw: Record<string, unknown>, where = 'Save v2'): GameState {
   return {
     day: int(raw.day, 0),
@@ -345,6 +361,8 @@ function readV2Save(raw: Record<string, unknown>, where = 'Save v2'): GameState 
       typeof raw.tutorialStep === 'number' ? raw.tutorialStep : undefined,
     ),
     seasonTipShown: false,
+    placed: [],
+    nextPlacedId: 0,
     paused: false,
   };
 }
@@ -355,8 +373,33 @@ function readV3Save(raw: Record<string, unknown>, where = 'Save v3'): GameState 
 }
 
 /** A version-4 save: version 3's shape, its display keys already final. */
-function readV4Save(raw: Record<string, unknown>): GameState {
-  return readV3Save(raw, 'Save v4');
+function readV4Save(raw: Record<string, unknown>, where = 'Save v4'): GameState {
+  return readV3Save(raw, where);
+}
+
+function placeableKind(v: unknown, where: string): PlaceableKind {
+  if (v === 'pedestal' || v === 'floor_shelf') return v;
+  throw new Error(`${where}: unknown placed kind ${String(v)}`);
+}
+
+/** A version-5 save: version 4 plus the placed furniture. */
+function readV5Save(raw: Record<string, unknown>): GameState {
+  const where = 'Save v5';
+  const placed = Array.isArray(raw.placed) ? (raw.placed as unknown[]) : [];
+  return {
+    ...readV4Save(raw, where),
+    placed: placed.map((item, i): PlacedItem => {
+      const r = asRecord(item);
+      return {
+        id: int(r.id, 0),
+        kind: placeableKind(r.kind, `${where} placed ${String(i)}`),
+        room: str(r.room, ''),
+        x: int(r.x, 0),
+        y: int(r.y, 0),
+      };
+    }),
+    nextPlacedId: int(raw.nextPlacedId, 0),
+  };
 }
 
 /**

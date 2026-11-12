@@ -54,6 +54,7 @@ Entries should record:
 
 - **Shop catalogue is static.** Prices and inventory never change. Real-world: seasonal availability (pots scarce in spring, etc.), supplier reputation.
 - **Display revenue is flat per day.** Real-world: audience fatigue (same tree shown too long loses appeal), seasonal interest peaks (autumn maple shows fetch more in autumn).
+- **Placed furniture is weightless and everlasting.** A pedestal or floor shelf put down (`src/world/placement.ts`) has no weight or load limit, costs nothing to put down or pick up, never wears, and only the greenhouse takes it for now. Real-world: shelving sags, weathers and has a load rating.
 - **No collector reputation / commission system.** Real-world: a hobbyist economy runs on relationships, themed shows, judged competitions.
 
 ## Audio

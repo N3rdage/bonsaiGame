@@ -17,6 +17,8 @@ function makeState(money: number): GameState {
     nextTreeId: 0,
     tutorialStep: -1,
     seasonTipShown: false,
+    placed: [],
+    nextPlacedId: 0,
     paused: false,
   };
 }
