@@ -63,7 +63,8 @@ interface BonsaiTestHook {
   /**
    * World only: placement mode (P) while on, undefined otherwise: the kind being put down,
    * its ghost's footprint (top-left, logical px) on the tile the player faces, and the
-   * placement check there ('ok', 'not here', 'off the floor', 'in the way' or 'too close').
+   * placement check there ('ok', 'not here', 'off the floor', 'in the way', 'blocks the door'
+   * or 'too close').
    */
   readonly placing?:
     | {
@@ -75,6 +76,8 @@ interface BonsaiTestHook {
         readonly check: string;
       }
     | undefined;
+  /** World only: whether the placement ghost is drawn, false under a modal panel or the viewer; false while not placing. */
+  readonly placingVisible?: boolean;
   /** The world HUD badge text (it is drawn only while the viewer is closed). */
   readonly hud: string;
   /** Fixed 60 Hz world steps run so far; the world does not step while the viewer is open. */

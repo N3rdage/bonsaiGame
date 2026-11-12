@@ -1779,6 +1779,7 @@ export class WorldScene extends Phaser.Scene {
     this.notebookButton.setVisible(!viewerOpen && !modal);
     this.promptText.setVisible(showInteract);
     this.interactButton.setVisible(showInteract);
+    this.ghost?.gfx.setVisible(!modal && !viewerOpen);
     this.weatherGfx.setVisible(!viewerOpen);
     if (viewerOpen) {
       this.joystick = undefined;
@@ -2014,6 +2015,7 @@ export class WorldScene extends Phaser.Scene {
         this.placing && this.ghost
           ? { kind: this.placing.kind, ...this.ghost.rect, check: this.ghost.check }
           : undefined,
+      placingVisible: this.ghost !== undefined && !this.viewer.isOpen && this.panel?.modal !== true,
       hud: hudText(state),
       frames: this.frames,
     };
