@@ -71,6 +71,9 @@ export const SHEETS = {
   sack: sheet('spr_sack', 1, 32, 34),
   // The shed's back wall round the garden door, drawn by art/interiors.mjs.
   shedExterior: sheet('spr_shed_exterior', 1, 64, 112),
+  // The placed furniture: the prototype's pedestal, packed, and the floor shelf, drawn by art/interiors.mjs.
+  pedestal: sheet('spr_pedestal'),
+  floorShelf: sheet('spr_floor_shelf', 1, 64, 32),
 } as const satisfies Record<string, Sheet>;
 
 /** Every sheet, in load order. */

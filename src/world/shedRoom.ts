@@ -56,6 +56,8 @@ export interface Prop {
   readonly sheet?: Sheet;
   /** Garden source plants only (obj_source_plant's `species_key`): what a cutting is of. */
   readonly speciesKey?: SpeciesKey;
+  /** Placed furniture's display spots only (placement.ts `placedProps`): the id of the item the spot is on. */
+  readonly placedId?: number;
 }
 
 /**

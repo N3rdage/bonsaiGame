@@ -7,10 +7,11 @@
  */
 
 import { inventoryAdd, inventoryRemove } from '../sim/inventory';
-import { DISPLAYED_PREFIX } from '../sim/tree';
+import { DISPLAYED_PREFIX, treeOnPedestal } from '../sim/tree';
 import type { GameState, PlaceableKind, PlacedItem } from '../sim/types';
+import { SHEETS, type Sheet } from './assets';
 import { TILE } from './roomArt';
-import { insideWalls, type Rect, type Room } from './shedRoom';
+import { insideWalls, type Furniture, type Prop, type Rect, type Room } from './shedRoom';
 
 /** Each kind's label, footprint in logical px and display spots, side by side along its width. */
 export const PLACEABLES: Readonly<
@@ -22,6 +23,17 @@ export const PLACEABLES: Readonly<
   pedestal: { label: 'Pedestal', w: 16, h: 16, spots: 1 },
   floor_shelf: { label: 'Floor shelf', w: 32, h: 16, spots: 2 },
 };
+
+/** Each kind's sprite, its frame the footprint at half scale. */
+export const PLACEABLE_SHEETS: Readonly<Record<PlaceableKind, Sheet>> = {
+  pedestal: SHEETS.pedestal,
+  floor_shelf: SHEETS.floorShelf,
+};
+
+/** A placed spot's prompt: the pedestal flow (Place while carrying, the inspector with a tree on it)... */
+export const DISPLAY_PROMPT = 'Display';
+/** ...or, empty-handed at an empty spot, picking the item back up. */
+export const PICK_UP_PROMPT = 'Pick up';
 
 /** The rooms furniture can be put down in. */
 export const PLACEABLE_ROOMS: readonly string[] = ['greenhouse'];
@@ -62,6 +74,44 @@ export function placedSpots(item: PlacedItem): PlacedSpot[] {
   }));
 }
 
+function placedIn(state: GameState, room: Room): PlacedItem[] {
+  return state.placed.filter((p) => p.room === room.key);
+}
+
+/**
+ * The display spots of the furniture placed in `room` as props, centred on
+ * their tiles: `Display` (the pedestal flow), or `Pick up` at an empty spot
+ * while no tree is carried.
+ */
+export function placedProps(state: GameState, room: Room, carrying: boolean): Prop[] {
+  return placedIn(state, room).flatMap((item) =>
+    placedSpots(item).map((s): Prop => {
+      const empty = treeOnPedestal(state, s.key) === undefined;
+      return {
+        key: s.key,
+        label: PLACEABLES[item.kind].label,
+        prompt: empty && !carrying ? PICK_UP_PROMPT : DISPLAY_PROMPT,
+        x: s.x + s.w / 2,
+        y: s.y + s.h / 2,
+        w: s.w,
+        h: s.h,
+        pedestalKey: s.key,
+        placedId: item.id,
+      };
+    }),
+  );
+}
+
+/** The furniture placed in `room` as sorted, walk-through pieces over their footprints (roomArt's `furnitureSprites`). */
+export function placedFurniture(state: GameState, room: Room): Furniture[] {
+  return placedIn(state, room).map((item) => ({
+    ...footprint(item.kind, item.x, item.y),
+    sheet: PLACEABLE_SHEETS[item.kind],
+    solid: false,
+    sorted: true,
+  }));
+}
+
 function overlaps(a: Rect, b: Rect): boolean {
   return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 }
@@ -96,7 +146,7 @@ export function placementCheck(
     ...room.walls,
     ...room.props.map((p) => ({ x: p.x - p.w / 2, y: p.y - p.h / 2, w: p.w, h: p.h })),
     ...room.furniture.filter((f) => f.solid),
-    ...state.placed.filter((p) => p.room === room.key).map((p) => footprint(p.kind, p.x, p.y)),
+    ...placedIn(state, room).map((p) => footprint(p.kind, p.x, p.y)),
   ];
   if (blockers.some((b) => overlaps(rect, b))) return 'in the way';
   const covers =

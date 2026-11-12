@@ -94,6 +94,14 @@ import { BASE_TIME_SCALE, tickClock } from '../world/clock';
 import { SLEEP_WEEK_DAYS, sleep } from '../world/sleep';
 import { ROOMS } from '../world/gardenRoom';
 import {
+  PICK_UP_PROMPT,
+  PLACEABLES,
+  pickUpItem,
+  placedFurniture,
+  placedProps,
+  placedSpots,
+} from '../world/placement';
+import {
   PROTOTYPE_SCALE,
   SHED_ROOM,
   type DoorTarget,
@@ -1180,7 +1188,11 @@ export class WorldScene extends Phaser.Scene {
       this.openInspector(near.tree);
       return;
     }
-    const { pedestalKey, target, speciesKey } = near;
+    const { pedestalKey, target, speciesKey, placedId } = near;
+    if (placedId !== undefined && near.prompt === PICK_UP_PROMPT) {
+      this.pickUpPlaced(placedId, near.label);
+      return;
+    }
     const tree = pedestalKey === undefined ? undefined : treeOnPedestal(state, pedestalKey);
     if (tree) {
       this.openInspector(tree);
@@ -1334,7 +1346,7 @@ export class WorldScene extends Phaser.Scene {
             .setDepth(art.depth),
         ];
       }),
-      ...furnitureSprites(room).map((art) =>
+      ...furnitureSprites(this.liveRoom()).map((art) =>
         this.add
           .sprite(art.x, art.y, art.sheet.key, art.frame)
           .setScale(art.scale)
@@ -1407,11 +1419,12 @@ export class WorldScene extends Phaser.Scene {
     const fill = (s: Shadow): void => {
       g.fillStyle(0x000000, s.alpha).fillEllipse(s.x, s.y, s.w, s.h);
     };
-    for (const p of this.room.props) {
+    const room = this.liveRoom();
+    for (const p of room.props) {
       const s = propShadow(p);
       if (s) fill(s);
     }
-    for (const s of sortedFurnitureShadows(this.room)) fill(s);
+    for (const s of sortedFurnitureShadows(room)) fill(s);
     for (const t of trees) fill(t.shadow);
   }
 
@@ -1455,6 +1468,34 @@ export class WorldScene extends Phaser.Scene {
     else if (carried) this.showToast(`Already carrying ${treeLabel(carried)}`);
   }
 
+  /**
+   * The room shown with the furniture placed in it: its display spots as props
+   * (`Pick up` at an empty one while nothing is carried) and its pieces as
+   * sorted furniture. Read wherever the props and sorted pieces are drawn or
+   * targeted, so it follows the state on every redraw.
+   */
+  private liveRoom(): Room {
+    const { state } = this.ctx;
+    const carrying = carriedTree(state) !== undefined;
+    return {
+      ...this.room,
+      props: [...this.room.props, ...placedProps(state, this.room, carrying)],
+      furniture: [...this.room.furniture, ...placedFurniture(state, this.room)],
+    };
+  }
+
+  /** Interact on an empty placed spot, empty-handed: the item back into the inventory, or refused while a tree is on it. */
+  private pickUpPlaced(id: number, label: string): void {
+    const result = pickUpItem(this.ctx.state, id);
+    if (result === 'ok') {
+      this.drawRoom();
+      this.relocated();
+      this.showToast(`Picked up ${label}`);
+    } else if (result === 'a tree is on it') {
+      this.showToast('A tree is on it');
+    }
+  }
+
   /** After a location change: redraw the trees and the carry line, publish. */
   private relocated(): void {
     this.drawTrees();
@@ -1472,7 +1513,8 @@ export class WorldScene extends Phaser.Scene {
     for (const part of this.treeParts) part.destroy();
     const { state } = this.ctx;
     const season = seasonForDay(state.day);
-    const sprites = treeSprites(state, this.room);
+    const room = this.liveRoom();
+    const sprites = treeSprites(state, room);
     const floorArt: TreeArt[] = [];
     this.treeParts = sprites.flatMap((s) => {
       const art = treeArt(s.tree, season, s.x, s.y, s.size);
@@ -1492,7 +1534,7 @@ export class WorldScene extends Phaser.Scene {
           .setDepth(s.depth),
       ];
     });
-    for (const p of this.room.props) {
+    for (const p of room.props) {
       if (p.pedestalKey === undefined) continue;
       const tree = treeOnPedestal(state, p.pedestalKey);
       const label = tree
@@ -1508,7 +1550,7 @@ export class WorldScene extends Phaser.Scene {
     }
     for (const part of this.treeParts) this.inWorld(part);
     this.drawShadows(floorArt);
-    this.targets = [...this.room.props, ...treeTargets(sprites)];
+    this.targets = [...room.props, ...treeTargets(sprites)];
     const carried = carriedTree(this.ctx.state);
     this.carryText.setText(carried ? `Carrying: ${treeLabel(carried)}` : '');
   }
@@ -1810,6 +1852,17 @@ export class WorldScene extends Phaser.Scene {
       room: this.room.key,
       player: { x: this.player.x, y: this.player.y, facing: this.player.facing },
       sortedDecor: furnitureSprites(this.room).map((f) => ({ sheet: f.sheet.key, depth: f.depth })),
+      placed: state.placed
+        .filter((p) => p.room === this.room.key)
+        .map((p) => ({
+          id: p.id,
+          kind: p.kind,
+          x: p.x,
+          y: p.y,
+          w: PLACEABLES[p.kind].w,
+          h: PLACEABLES[p.kind].h,
+          spots: placedSpots(p).map((s) => s.key),
+        })),
       hud: hudText(state),
       frames: this.frames,
     };
