@@ -43,6 +43,8 @@ The title screen's corner shows which build you are playing, for example `v2026.
 
 On a phone the game runs fullscreen in landscape: the first tap on New Game, Continue or Load goes fullscreen where the browser allows it, and holding the phone upright shows a "Rotate your phone" prompt over the paused game.
 
+The game has sound effects and quiet ambient music, each with its own switch in Settings (from the Menu or the title). Each place has its own loop, cross-faded as you go through a door: the shed, the garden, the house (one loop for its three rooms) and the 3D viewer. The title plays no music, and the music pauses with the game under the rotate prompt.
+
 | Input | Action |
 |-------|--------|
 | Drag anywhere (joystick) or WASD / arrows | Move player |
