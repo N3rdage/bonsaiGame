@@ -3,9 +3,7 @@
  * room shares (the garden is in gardenRoom.ts, the lounge in loungeRoom.ts, the hallway in
  * hallwayRoom.ts, the study in studyRoom.ts).
  *
- * The prototype's rooms are 960x540; the web build's logical canvas is 480x270
- * (`GAME_WIDTH`/`GAME_HEIGHT` in resolution.ts), so every prototype coordinate and
- * distance halves. `fromPrototype` is the one place that rule lives.
+ * Every prototype coordinate and distance halves (`fromPrototype`, prototype.ts).
  *
  * Positions are ported from archive/gamemaker/rooms/rm_shed/rm_shed.yy (the
  * instance list). The shed is the prototype's inset room: the controller built
@@ -14,14 +12,10 @@
  */
 
 import type { SpeciesKey } from '../sim/types';
-import type { Sheet } from './assets';
+import { SHEETS, type Sheet } from './assets';
+import { fromPrototype } from './prototype';
 
-/** Prototype room px per logical px. */
-export const PROTOTYPE_SCALE = 2;
-
-export function fromPrototype(px: number): number {
-  return px / PROTOTYPE_SCALE;
-}
+export { PROTOTYPE_SCALE, fromPrototype } from './prototype';
 
 export interface Rect {
   readonly x: number;
@@ -65,9 +59,10 @@ export interface Prop {
 }
 
 /**
- * A window in the room's top wall (new content: the prototype's shed window
- * was decor, `TODO.md` #10): from `x` for `w` logical px along the wall band,
- * drawn over it and not collision; the wall under it still stops the player.
+ * A window in the room's top wall (the house rooms' are new content; the
+ * shed's is the prototype's): from `x` for `w` logical px along the wall
+ * band, drawn over it and not collision; the wall under it still stops the
+ * player.
  */
 export interface RoomWindow {
   readonly x: number;
@@ -75,7 +70,7 @@ export interface RoomWindow {
 }
 
 /**
- * A piece of house furniture (new content: the prototype had no interiors):
+ * A piece of furniture (the house rooms', new content, or the shed's decor):
  * its sheet drawn from the rect's top-left, one frame the rect's size or a
  * tile repeated over it, baked into the room with the walls (roomArt's
  * `furnitureRuns`). A solid piece's rect joins the room's walls.
@@ -83,6 +78,8 @@ export interface RoomWindow {
 export interface Furniture extends Rect {
   readonly sheet: Sheet;
   readonly solid: boolean;
+  /** The shed's decor: a faint ground shadow under the piece's foot (roomArt's `furnitureShadows`). */
+  readonly shadow?: boolean;
 }
 
 export interface Room {
@@ -208,19 +205,47 @@ export function prop(
   return { key, label, prompt, x: fromPrototype(px), y: fromPrototype(py), w, h };
 }
 
+/**
+ * obj_game_controller Draw_0's decor: `sheet`'s one frame at 1x, its
+ * bottom-centre origin (each sprite's `.yy`) at prototype (px, py), so the
+ * rect is the frame halved, standing on that point. Not solid: the
+ * prototype's decor was draw-only, with no collision, and a solid shelf
+ * against the top wall would block the walk up from the left half of the
+ * shed along y 66.
+ */
+function decor(sheet: Sheet, px: number, py: number): Furniture {
+  return {
+    sheet,
+    x: fromPrototype(px - sheet.frameWidth / 2),
+    y: fromPrototype(py - sheet.frameHeight),
+    w: fromPrototype(sheet.frameWidth),
+    h: fromPrototype(sheet.frameHeight),
+    solid: false,
+    shadow: true,
+  };
+}
+
 export const SHED_ROOM: Room = {
   key: 'shed',
   width: WIDTH,
   height: HEIGHT,
   bounds: SHED_BOUNDS,
-  windows: [],
+  // Draw_73's spr_window, 56 px wide, centred at prototype x 560 in the top
+  // wall band: drawn as the house rooms' window, two 16 px panes centred on 280.
+  windows: [{ x: 264, w: 32 }],
   // Step_0: clamp(x, 8, room_width - 8), against the room's bounds.
   edgeMargin: fromPrototype(8),
   playerStart: { x: fromPrototype(480), y: fromPrototype(270) },
   // Other_4: solid all round; the door is drawn on the bottom wall, not cut into it.
   walls: ringWalls(SHED_BOUNDS),
-  // The workshop's furniture is its props.
-  furniture: [],
+  // The workshop's working furniture is its props; this is Draw_0's clutter.
+  furniture: [
+    decor(SHEETS.shelf, 440, 174),
+    decor(SHEETS.tools, 212, 352),
+    decor(SHEETS.wateringCan, 706, 256),
+    decor(SHEETS.potStack, 706, 388),
+    decor(SHEETS.sack, 300, 384),
+  ],
   props: [
     prop('workbench', 'Workbench', 'Make Pot', 250, 180, 40, 20),
     prop('planting_table', 'Planting', 'Plant Cutting', 330, 180, 32, 20),

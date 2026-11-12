@@ -145,6 +145,7 @@ import {
   ROOM_STYLES,
   fenceCorners,
   floorTiles,
+  furnitureShadows,
   playerShadow,
   propShadow,
   propSprite,
@@ -1321,7 +1322,8 @@ export class WorldScene extends Phaser.Scene {
    * The room's static art baked once into a texture at prototype px, so each
    * 32 px tile keeps its pixels and a frame draws it as one quad: the room's
    * colour (the prototype's background layer), the floor tiles, the room
-   * style's dim and rug (the shed's), the wall or fence runs, then the garden's
+   * style's dim and rug (the shed's), the decor's ground shadows, the wall or
+   * fence runs with the windows and furniture, then the garden's
    * mitred corners.
    */
   private bakeRoom(key: string, room: Room): Phaser.Textures.DynamicTexture | undefined {
@@ -1355,6 +1357,8 @@ export class WorldScene extends Phaser.Scene {
         .lineStyle(line, r.border)
         .strokeRoundedRect(r.x + r.inset, r.y + r.inset, r.w - 2 * r.inset, r.h - 2 * r.inset, 1);
     }
+    for (const d of furnitureShadows(room))
+      rug.fillStyle(0x000000, d.alpha).fillEllipse(d.x, d.y, d.w, d.h);
     texture.draw(rug);
     const s = PROTOTYPE_SCALE;
     for (const w of wallRuns(room))

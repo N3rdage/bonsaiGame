@@ -329,6 +329,21 @@ export function propShadow(prop: Prop): Shadow | undefined {
   return undefined;
 }
 
+/**
+ * Draw_0's ground shadow under each piece of the shed's decor, black at 0.18
+ * alpha: `draw_ellipse(dx - w/3, dy - 4, dx + w/3, dy + 2)` round the
+ * sprite's bottom-centre origin, `w` its prototype width. The bake draws them
+ * on the floor, under the furniture as the prototype drew each before its sprite.
+ */
+export function furnitureShadows(room: Room): Shadow[] {
+  return room.furniture
+    .filter((f) => f.shadow)
+    .map(({ x, y, w, h }) => {
+      const third = w / SPRITE_SCALE / 3;
+      return ellipse(x + w / 2, y + h, [-third, -4, third, 2], 0.18);
+    });
+}
+
 /** obj_player_2d's drop shadow round its centre origin. */
 export function playerShadow(x: number, y: number): Shadow {
   return ellipse(x, y, [-16, 9, 16, 18], 0.25);
