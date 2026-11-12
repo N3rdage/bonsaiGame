@@ -49,7 +49,7 @@ function expectIntegerIds(state: GameState): void {
 
 describe('constants', () => {
   it('match the spec', () => {
-    expect(SAVE_VERSION).toBe(4);
+    expect(SAVE_VERSION).toBe(5);
     expect(SAVE_SLOT_COUNT).toBe(3);
   });
 });
@@ -61,15 +61,17 @@ describe('formatSaveTimestamp', () => {
   });
 });
 
-describe('v4 round trip', () => {
+describe('v5 round trip', () => {
   it('is deep-equal and does not alias the original', () => {
     const state = createNewGameState();
     must(state.trees[0]).trunk.movement.push({ y: 5, angleDeg: 90 });
     const text = serializeState(state, NOW);
     expect(JSON.parse(text)).toMatchObject({
-      version: 4,
+      version: 5,
       savedAt: '2026-01-02 03:04',
       seasonTipShown: false,
+      placed: [],
+      nextPlacedId: 0,
     });
     const loaded = deserializeSave(text);
     expect(loaded).toEqual(state);
@@ -111,16 +113,63 @@ describe('v4 round trip', () => {
     state.seasonTipShown = true;
     expect(deserializeSave(serializeState(state, NOW)).seasonTipShown).toBe(true);
   });
+
+  it('keeps the placed furniture and the next id', () => {
+    const state = createNewGameState();
+    state.placed = [
+      { id: 0, kind: 'pedestal', room: 'greenhouse', x: 64, y: 64 },
+      { id: 2, kind: 'floor_shelf', room: 'greenhouse', x: 96, y: 160 },
+    ];
+    state.nextPlacedId = 3;
+    must(state.trees[0]).location = 'displayed:placed_2_2';
+    const loaded = deserializeSave(serializeState(state, NOW));
+    expect(loaded).toEqual(state);
+    expect(loaded.placed[0]).not.toBe(state.placed[0]);
+  });
+
+  it('coerces placed items and refuses an unknown kind', () => {
+    const file = JSON.parse(serializeState(createNewGameState(), NOW)) as Record<string, unknown>;
+    const item = { id: 1.0, kind: 'pedestal', room: 'greenhouse', x: '80', y: 96.0 };
+    const loaded = deserializeSave(JSON.stringify({ ...file, placed: [item], nextPlacedId: 2.0 }));
+    expect(loaded.placed).toEqual([{ id: 1, kind: 'pedestal', room: 'greenhouse', x: 80, y: 96 }]);
+    expect(loaded.nextPlacedId).toBe(2);
+    const bad = JSON.stringify({ ...file, placed: [{ ...item, kind: 'throne' }] });
+    expect(() => deserializeSave(bad)).toThrow(/throne/);
+  });
 });
 
-/** A save of `version` whose trees stand at `locations`, otherwise a new game's. */
+/** A save of `version` whose trees stand at `locations`, otherwise a new game's; before 5, without the placed furniture. */
 function savedWith(version: number, ...locations: string[]): string {
   const state = createNewGameState();
   const starter = must(state.trees[0]);
   state.trees = locations.map((location, id) => ({ ...structuredClone(starter), id, location }));
   state.nextTreeId = locations.length;
-  return JSON.stringify({ ...JSON.parse(serializeState(state, NOW)), version });
+  const file = JSON.parse(serializeState(state, NOW)) as Record<string, unknown>;
+  if (version < 5) {
+    delete file.placed;
+    delete file.nextPlacedId;
+  }
+  return JSON.stringify({ ...file, version });
 }
+
+describe('v4 -> v5 migration', () => {
+  it('loads a version-4 save with no placed furniture', () => {
+    const text = savedWith(4, 'shed', 'displayed:lounge_mantel');
+    expect(JSON.parse(text)).not.toHaveProperty('placed');
+    const loaded = deserializeSave(text);
+    expect(loaded.placed).toEqual([]);
+    expect(loaded.nextPlacedId).toBe(0);
+    expect(locationsOf(loaded)).toEqual(['shed', 'displayed:lounge_mantel']);
+  });
+
+  it('loads every older version and the prototype saves with no placed furniture', () => {
+    for (const text of [savedWith(2), savedWith(3), DAY14, DAY730]) {
+      const loaded = deserializeSave(text);
+      expect([loaded.placed, loaded.nextPlacedId]).toEqual([[], 0]);
+      expect([loaded.inventory.pedestal, loaded.inventory.floor_shelf]).toEqual([0, 0]);
+    }
+  });
+});
 
 const locationsOf = (state: GameState): string[] => state.trees.map((t) => t.location);
 
@@ -174,7 +223,12 @@ describe('v3 -> v4 migration', () => {
     const text = savedWith(4, 'shed', ...final.map((k) => `displayed:${k}`));
     const loaded = deserializeSave(text);
     expect(locationsOf(loaded)).toEqual(['shed', ...final.map((k) => `displayed:${k}`)]);
-    expect(JSON.parse(serializeState(loaded, NOW))).toEqual(JSON.parse(text));
+    expect(JSON.parse(serializeState(loaded, NOW))).toEqual({
+      ...(JSON.parse(text) as Record<string, unknown>),
+      version: 5,
+      placed: [],
+      nextPlacedId: 0,
+    });
   });
 
   it('leaves the old keys alone in a version-4 save', () => {
@@ -189,8 +243,9 @@ describe('v2 -> v3 migration', () => {
     const state = createNewGameState();
     state.day = 40;
     state.tutorialStep = -1;
-    const v4 = JSON.parse(serializeState(state, NOW)) as Record<string, unknown>;
-    const { seasonTipShown, ...rest } = v4;
+    const v5 = JSON.parse(serializeState(state, NOW)) as Record<string, unknown>;
+    const { seasonTipShown, placed, nextPlacedId, ...rest } = v5;
+    expect([placed, nextPlacedId]).toEqual([[], 0]);
     expect(seasonTipShown).toBe(false);
     const v2 = JSON.stringify({ ...rest, version: 2 });
     expect(deserializeSave(v2)).toEqual(state);
@@ -208,7 +263,7 @@ describe('v2 -> v3 migration', () => {
 
 describe('deserializeSave version dispatch', () => {
   it('throws on an unknown version, naming it', () => {
-    expect(() => deserializeSave('{"version":5,"trees":[]}')).toThrow(/5/);
+    expect(() => deserializeSave('{"version":6,"trees":[]}')).toThrow(/6/);
     expect(() => deserializeSave('{"trees":[]}')).toThrow(/version/);
   });
 
@@ -293,13 +348,13 @@ describe('prototype import: day 730', () => {
     expect(locationsOf(state)).toEqual(['displayed:lounge_side_table', 'displayed:lounge_mantel']);
   });
 
-  it('survives a v4 round trip unchanged', () => {
+  it('survives a v5 round trip unchanged', () => {
     expect(deserializeSave(serializeState(state, NOW))).toEqual(state);
   });
 });
 
 describe('slot metadata', () => {
-  it('reads v1 and v4 headers', () => {
+  it('reads v1 and v5 headers', () => {
     const storage = new MemorySaveStorage();
     storage.write(1, DAY14 + '\0');
     saveGame(storage, createNewGameState(), 2, NOW);
@@ -315,7 +370,7 @@ describe('slot metadata', () => {
       day: 0,
       money: 100,
       savedAt: '2026-01-02 03:04',
-      version: 4,
+      version: 5,
     });
     expect(saveSlotMetadata(storage, 3)).toBeUndefined();
   });

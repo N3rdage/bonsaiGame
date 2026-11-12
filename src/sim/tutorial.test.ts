@@ -28,6 +28,8 @@ function makeState(step: number): GameState {
     nextTreeId: 0,
     tutorialStep: step,
     seasonTipShown: false,
+    placed: [],
+    nextPlacedId: 0,
     paused: false,
   };
 }

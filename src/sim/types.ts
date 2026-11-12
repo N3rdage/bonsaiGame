@@ -204,9 +204,24 @@ export type InventoryKey =
   | 'seed_maple'
   | 'seed_pine'
   | 'cutting_juniper'
-  | 'cutting_maple';
+  | 'cutting_maple'
+  | PlaceableKind;
 
 export type Inventory = Record<InventoryKey, number>;
+
+/** The furniture the player lays out (src/world/placement.ts); its inventory key counts the unplaced ones. */
+export type PlaceableKind = 'pedestal' | 'floor_shelf';
+
+/** A piece of furniture the player has put down. Saved from version 5. */
+export interface PlacedItem {
+  id: number;
+  kind: PlaceableKind;
+  /** The room's key, as a tree's floor location uses. */
+  room: string;
+  /** The footprint's top-left in logical px, on the 16 px grid. */
+  x: number;
+  y: number;
+}
 
 /**
  * Everything the prototype kept in globals. Simulation functions take this
@@ -224,6 +239,10 @@ export interface GameState {
   tutorialStep: number;
   /** Whether the first-dormancy tip (seasonTip.ts) has fired; it fires once a game. Saved from version 3. */
   seasonTipShown: boolean;
+  /** The furniture the player has put down, in placing order. Saved from version 5. */
+  placed: PlacedItem[];
+  /** The id the next placed item gets. */
+  nextPlacedId: number;
   /**
    * The prototype's `global.game_paused`: true while the 3D viewer is open, and
    * `advanceDayAllTrees` does nothing while it is. Transient, never persisted.

@@ -21,6 +21,8 @@ export function createInventory(): Inventory {
     seed_pine: 0,
     cutting_juniper: 0,
     cutting_maple: 0,
+    pedestal: 0,
+    floor_shelf: 0,
   };
 }
 

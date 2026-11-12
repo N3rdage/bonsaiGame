@@ -8,7 +8,7 @@ import {
 } from './inventory';
 
 describe('createInventory', () => {
-  it('has the prototype starting counts', () => {
+  it('has the prototype starting counts, and no furniture', () => {
     expect(createInventory()).toEqual({
       clay: 5,
       pot: 2,
@@ -21,6 +21,8 @@ describe('createInventory', () => {
       seed_pine: 0,
       cutting_juniper: 0,
       cutting_maple: 0,
+      pedestal: 0,
+      floor_shelf: 0,
     });
   });
 

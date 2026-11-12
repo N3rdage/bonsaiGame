@@ -37,6 +37,13 @@ function expected(inv: Readonly<Record<string, number>>) {
         ['cutting_maple', 'Japanese Maple'],
       ]),
     },
+    {
+      title: 'Furniture',
+      entries: listed([
+        ['pedestal', 'Pedestals'],
+        ['floor_shelf', 'Floor shelves'],
+      ]),
+    },
   ];
 }
 
