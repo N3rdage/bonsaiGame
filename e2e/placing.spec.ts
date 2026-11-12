@@ -75,6 +75,8 @@ test.describe('placement mode', () => {
   test('puts a pedestal down in the greenhouse, displays a tree on it that earns, and survives a reload', async ({
     page,
   }) => {
+    // Three rooms' walks, the menu taps and a save and reload take about a minute on the S22's tap route.
+    test.setTimeout(120_000);
     const errors = collectErrors(page);
     await seedAndContinue(page);
     expect(await menuRows(page)).not.toContain('menu-place');
