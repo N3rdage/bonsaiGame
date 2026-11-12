@@ -15,6 +15,7 @@ import { DOORWAY } from './gardenRoom';
 import {
   fromPrototype,
   insideWalls,
+  type Furniture,
   type Gap,
   type Prop,
   type Rect,
@@ -174,9 +175,11 @@ export function wallRuns(room: Room): WallRun[] {
   ];
 }
 
-/** Each piece of the room's furniture as a run of its sheet over its rect, in the room's order. */
+/** Each baked piece of the room's furniture as a run of its sheet over its rect, in the room's order; the sorted pieces are sprites (furnitureSprites). */
 export function furnitureRuns(room: Room): WallRun[] {
-  return room.furniture.map(({ sheet, x, y, w, h }) => ({ sheet, x, y, w, h }));
+  return room.furniture
+    .filter((f) => !f.sorted)
+    .map(({ sheet, x, y, w, h }) => ({ sheet, x, y, w, h }));
 }
 
 /** Each of the room's windows as a run of `spr_window` along its top wall band, one 16 px pane a tile. */
@@ -316,6 +319,20 @@ export function propSprite(prop: Prop): PropSprite | undefined {
   return sheet && { ...at, sheet };
 }
 
+/** Each sorted piece of furniture's sprite, frame 0 centred on its rect, sorting against the player at its bottom edge as a prop does. */
+export function furnitureSprites(room: Room): PropSprite[] {
+  return room.furniture
+    .filter((f) => f.sorted)
+    .map(({ sheet, x, y, w, h }) => ({
+      sheet,
+      frame: 0,
+      x: x + w / 2,
+      y: y + h / 2,
+      scale: SPRITE_SCALE,
+      depth: y + h,
+    }));
+}
+
 /** obj_pedestal Draw_0: the label's top, below the pedestal's centre; `(empty)` in grey, else the tree's label in white. */
 export const PEDESTAL_LABEL_DY = fromPrototype(30);
 export const PEDESTAL_EMPTY_LABEL = '(empty)';
@@ -357,11 +374,21 @@ export function propShadow(prop: Prop): Shadow | undefined {
 /**
  * Draw_0's ground shadow under each piece of the shed's decor, black at 0.18
  * alpha: `draw_ellipse(dx - w/3, dy - 4, dx + w/3, dy + 2)` round the
- * sprite's bottom-centre origin, `w` its prototype width. The bake draws them
- * on the floor, under the furniture as the prototype drew each before its sprite.
+ * sprite's bottom-centre origin, `w` its prototype width. The bake draws the
+ * baked pieces' on the floor, under the furniture as the prototype drew each
+ * before its sprite; the sorted pieces' are drawn live (sortedFurnitureShadows).
  */
 export function furnitureShadows(room: Room): Shadow[] {
-  return room.furniture
+  return decorShadows(room.furniture.filter((f) => !f.sorted));
+}
+
+/** The sorted pieces' Draw_0 shadows, drawn with the props' on the live shadow layer. */
+export function sortedFurnitureShadows(room: Room): Shadow[] {
+  return decorShadows(room.furniture.filter((f) => f.sorted));
+}
+
+function decorShadows(furniture: readonly Furniture[]): Shadow[] {
+  return furniture
     .filter((f) => f.shadow)
     .map(({ x, y, w, h }) => {
       const third = w / SPRITE_SCALE / 3;

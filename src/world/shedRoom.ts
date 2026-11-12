@@ -73,13 +73,19 @@ export interface RoomWindow {
  * A piece of furniture (the house rooms', new content, or the shed's decor):
  * its sheet drawn from the rect's top-left, one frame the rect's size or a
  * tile repeated over it, baked into the room with the walls (roomArt's
- * `furnitureRuns`). A solid piece's rect joins the room's walls.
+ * `furnitureRuns`) unless it is `sorted`. A solid piece's rect joins the room's walls.
  */
 export interface Furniture extends Rect {
   readonly sheet: Sheet;
   readonly solid: boolean;
   /** The shed's decor: a faint ground shadow under the piece's foot (roomArt's `furnitureShadows`). */
   readonly shadow?: boolean;
+  /**
+   * Left out of the bake and drawn as its own sprite at its bottom edge's
+   * depth (roomArt's `furnitureSprites`), so the player walks behind and in
+   * front of it: the shed's floor clutter.
+   */
+  readonly sorted?: boolean;
 }
 
 export interface Room {
@@ -211,9 +217,10 @@ export function prop(
  * rect is the frame halved, standing on that point. Not solid: the
  * prototype's decor was draw-only, with no collision, and a solid shelf
  * against the top wall would block the walk up from the left half of the
- * shed along y 66.
+ * shed along y 66. A piece standing on the floor is `sorted` against the
+ * player; the wall-mounted shelf stays in the bake.
  */
-function decor(sheet: Sheet, px: number, py: number): Furniture {
+function decor(sheet: Sheet, px: number, py: number, sorted: boolean): Furniture {
   return {
     sheet,
     x: fromPrototype(px - sheet.frameWidth / 2),
@@ -222,6 +229,7 @@ function decor(sheet: Sheet, px: number, py: number): Furniture {
     h: fromPrototype(sheet.frameHeight),
     solid: false,
     shadow: true,
+    sorted,
   };
 }
 
@@ -240,11 +248,11 @@ export const SHED_ROOM: Room = {
   walls: ringWalls(SHED_BOUNDS),
   // The workshop's working furniture is its props; this is Draw_0's clutter.
   furniture: [
-    decor(SHEETS.shelf, 440, 174),
-    decor(SHEETS.tools, 212, 352),
-    decor(SHEETS.wateringCan, 706, 256),
-    decor(SHEETS.potStack, 706, 388),
-    decor(SHEETS.sack, 300, 384),
+    decor(SHEETS.shelf, 440, 174, false),
+    decor(SHEETS.tools, 212, 352, true),
+    decor(SHEETS.wateringCan, 706, 256, true),
+    decor(SHEETS.potStack, 706, 388, true),
+    decor(SHEETS.sack, 300, 384, true),
   ],
   props: [
     prop('workbench', 'Workbench', 'Make Pot', 250, 180, 40, 20),
