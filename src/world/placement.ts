@@ -10,6 +10,7 @@ import { inventoryAdd, inventoryRemove } from '../sim/inventory';
 import { DISPLAYED_PREFIX, treeOnPedestal } from '../sim/tree';
 import type { GameState, PlaceableKind, PlacedItem } from '../sim/types';
 import { SHEETS, type Sheet } from './assets';
+import { ROOMS } from './gardenRoom';
 import type { Facing } from './player';
 import { TILE } from './roomArt';
 import { insideWalls, type Furniture, type Prop, type Rect, type Room } from './shedRoom';
@@ -153,11 +154,27 @@ function inside(inner: Rect, outer: Rect): boolean {
 }
 
 /**
+ * The 16x16 tiles a player arrives on in `room`: where its own start and every
+ * door into it from the `rooms` registry set the player down. Kept clear of
+ * furniture, so a player never arrives inside a piece.
+ */
+export function landingTiles(room: Room, rooms: Readonly<Record<string, Room>> = ROOMS): Rect[] {
+  const doorsIn = Object.values(rooms).flatMap((r) =>
+    r.props.flatMap((p) => (p.target?.room === room.key ? [p.target] : [])),
+  );
+  return [room.playerStart, ...doorsIn].map((at) => ({
+    ...snapToGrid(at.x, at.y),
+    w: TILE,
+    h: TILE,
+  }));
+}
+
+/**
  * Whether `kind` can go down with its top-left at (x, y) in `room`, or the
  * first refusal: a room that takes no furniture, a footprint off the floor
  * inside the wall band, one over a wall, prop, solid furniture or another
- * placed item, one within a tile of a door (its clearance ring), or one over
- * the player's own position.
+ * placed item, one within a tile of a door (its clearance ring) or over a
+ * tile a door lands the player on, or one over the player's own position.
  */
 export function placementCheck(
   room: Room,
@@ -182,7 +199,9 @@ export function placementCheck(
     .filter((p) => p.target !== undefined)
     .map(propRect)
     .map((d) => ({ x: d.x - TILE, y: d.y - TILE, w: d.w + 2 * TILE, h: d.h + 2 * TILE }));
-  if (doorRings.some((r) => overlaps(rect, r))) return 'blocks the door';
+  if ([...doorRings, ...landingTiles(room)].some((r) => overlaps(rect, r))) {
+    return 'blocks the door';
+  }
   const covers =
     player.x >= rect.x &&
     player.x < rect.x + rect.w &&
