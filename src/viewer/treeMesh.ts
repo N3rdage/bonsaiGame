@@ -9,11 +9,12 @@
  * from `trunkFrames`, `branchPoint` and the `*FrameAt` lookups only, so what
  * you see is what you score. A wired branch's copper coil and trunk anchor are
  * appended to the bark list right after that branch's bark, as the prototype
- * appended them to its bark buffer. Foliage is built separately in
+ * appended them to its bark buffer. Bark takes the species' `look` colours
+ * (the prototype's one bark colour pair is the juniper's). Foliage is built separately in
  * `foliageMesh.ts`.
  */
 
-import type { BonsaiTree, Branch, Frame, Vec3 } from '../sim/types';
+import type { BonsaiTree, Branch, Frame, SpeciesKey, Vec3 } from '../sim/types';
 import {
   DISPLAY_SCALE,
   branchFrameAt,
@@ -21,13 +22,14 @@ import {
   trunkFrameAt,
   trunkFrames,
 } from '../sim/geometry';
+import { getSpecies } from '../sim/species';
 import { clamp, dcos, dsin } from '../sim/vec3';
+import { hexToRgb } from './foliageMesh';
 import { TriangleList, type MeshArrays } from './meshArrays';
 import type { Rgb } from './potPalette';
 
 export const TRUNK_RING_SEGMENTS = 10;
 export const TRUNK_MIN_RADIUS = 0.001;
-export const TRUNK_BARK_RGB: Rgb = { r: 90, g: 60, b: 40 };
 
 /** Rings along a branch, base to tip, minus one. */
 export const BRANCH_SEGMENTS = 6;
@@ -35,7 +37,6 @@ export const BRANCH_RING_SEGMENTS = 6;
 /** Branch radius at the tip as a fraction of its base radius. */
 export const BRANCH_TIP_FRACTION = 0.2;
 export const BRANCH_MIN_RADIUS = 0.005;
-export const BRANCH_BARK_RGB: Rgb = { r: 110, g: 75, b: 50 };
 
 /** Copper training wire. */
 export const WIRE_RGB: Rgb = { r: 180, g: 110, b: 50 };
@@ -53,6 +54,17 @@ export const WIRE_RING_SEGMENTS = 6;
 /** Turns the anchor wraps around the trunk before feeding into the branch. */
 export const ANCHOR_TURNS = 1.5;
 export const ANCHOR_MIN_SEGS = 16;
+
+export interface Bark {
+  readonly trunk: Rgb;
+  readonly branch: Rgb;
+}
+
+/** The species' trunk and branch bark colours. */
+export function speciesBark(key: SpeciesKey): Bark {
+  const { look } = getSpecies(key);
+  return { trunk: hexToRgb(look.trunkBark), branch: hexToRgb(look.branchBark) };
+}
 
 function lerp(a: number, b: number, f: number): number {
   return a + (b - a) * f;
@@ -135,7 +147,7 @@ export function stitchRings(list: TriangleList, ringA: Vec3[], ringB: Vec3[], c:
   }
 }
 
-function buildTrunk(list: TriangleList, tree: BonsaiTree): void {
+function buildTrunk(list: TriangleList, tree: BonsaiTree, bark: Rgb): void {
   const base = trunkBaseRadius(tree);
   const frames = trunkFrames(tree);
   const n = frames.length;
@@ -144,19 +156,19 @@ function buildTrunk(list: TriangleList, tree: BonsaiTree): void {
     const t = n > 1 ? i / (n - 1) : 0;
     const r = Math.max(lerp(base, base * (1 - tree.trunk.taper), t), TRUNK_MIN_RADIUS);
     const ring = buildRingWithBasis(f.pos, r, TRUNK_RING_SEGMENTS, f.normal, f.binormal);
-    if (prev) stitchRings(list, prev, ring, TRUNK_BARK_RGB);
+    if (prev) stitchRings(list, prev, ring, bark);
     prev = ring;
   });
 }
 
-function buildBranchBark(list: TriangleList, tree: BonsaiTree, branch: Branch): void {
+function buildBranchBark(list: TriangleList, tree: BonsaiTree, branch: Branch, bark: Rgb): void {
   const r0 = (branch.girth / 1000) * DISPLAY_SCALE;
   let prev: Vec3[] | undefined;
   for (let i = 0; i <= BRANCH_SEGMENTS; i++) {
     const t = i / BRANCH_SEGMENTS;
     const r = Math.max(lerp(r0, r0 * BRANCH_TIP_FRACTION, t), BRANCH_MIN_RADIUS);
     const ring = buildRing(branchPoint(tree, branch, t), r, BRANCH_RING_SEGMENTS);
-    if (prev) stitchRings(list, prev, ring, BRANCH_BARK_RGB);
+    if (prev) stitchRings(list, prev, ring, bark);
     prev = ring;
   }
 }
@@ -289,12 +301,16 @@ export function addWireCoil(list: TriangleList, tree: BonsaiTree, branch: Branch
   addWireAnchor(list, tree, branch, wireR, WIRE_RGB);
 }
 
-/** The trunk, then each branch in order (bark, then its wire if wired), as one triangle list. */
+/**
+ * The trunk, then each branch in order (bark, then its wire if wired), as one
+ * triangle list, in the species' bark colours.
+ */
 export function buildTreeMesh(tree: BonsaiTree): MeshArrays {
   const list = new TriangleList();
-  buildTrunk(list, tree);
+  const bark = speciesBark(tree.speciesKey);
+  buildTrunk(list, tree, bark.trunk);
   for (const branch of tree.branches) {
-    buildBranchBark(list, tree, branch);
+    buildBranchBark(list, tree, branch, bark.branch);
     if (branch.wired) addWireCoil(list, tree, branch);
   }
   return list.build();

@@ -11,6 +11,8 @@ import {
   FANCY_REPOT_DAY,
   MAPLE_BRANCHES,
   MAPLE_HEIGHT_CM,
+  PINE_BRANCHES,
+  PINE_HEIGHT_CM,
   VIEWER_FIXTURES,
   WIRED_BEND_DEG,
   WIRED_BRANCH_ID,
@@ -26,6 +28,7 @@ describe('viewer fixtures', () => {
     expect(isViewerFixtureKey('bent')).toBe(true);
     expect(isViewerFixtureKey('cascade')).toBe(true);
     expect(isViewerFixtureKey('maple')).toBe(true);
+    expect(isViewerFixtureKey('pine')).toBe(true);
     expect(isViewerFixtureKey('wired')).toBe(true);
     expect(isViewerFixtureKey('fancy')).toBe(true);
     expect(isViewerFixtureKey('starter')).toBe(false);
@@ -95,6 +98,21 @@ describe('viewer fixtures', () => {
     expect(vertices('maple')).toBe(1608);
   });
 
+  it('pine is a young seed-grown pine with three branches above the foliage gate', () => {
+    const tree = VIEWER_FIXTURES.pine();
+    expect(tree.speciesKey).toBe('pine');
+    expect(tree.origin).toBe('seed');
+    expect(tree.trunk.heightCm).toBe(PINE_HEIGHT_CM);
+    expect(tree.trunk.girthMm).toBe(10);
+    expect(tree.foliageDensity).toBe(0.5);
+    expect(tree.branches.map((b) => [b.originY, b.angle])).toEqual(
+      PINE_BRANCHES.map(([y, angle]) => [y, angle]),
+    );
+    expect(tree.branches.every((b) => branchCarriesFoliage(tree, b))).toBe(true);
+    // 18 cm -> arc 0.72 -> 14 segments: 14 x 10 x 2 + 3 x 72 = 496 triangles.
+    expect(vertices('pine')).toBe(1488);
+  });
+
   it('wired is the starter with its 210-degree branch wired to a 40-degree bend', () => {
     // The fixture throws if applyWire refuses, so getting a tree means it returned true.
     const tree = VIEWER_FIXTURES.wired();
@@ -137,9 +155,14 @@ describe('viewer fixture foliage', () => {
     for (const season of SEASONS) expect(foliage(tree, season)).toBe(336);
   });
 
-  it('maple is bare in winter and carries 3 clusters of 7 leaves in autumn', () => {
+  it('maple is bare in winter and carries 3 clusters of floor(7 x 0.8) = 5 broad leaves in autumn', () => {
     expect(foliage(VIEWER_FIXTURES.maple(), 'winter')).toBe(0);
-    expect(foliage(VIEWER_FIXTURES.maple(), 'autumn')).toBe(252);
+    expect(foliage(VIEWER_FIXTURES.maple(), 'autumn')).toBe(3 * 5 * 12);
+    expect(foliage(VIEWER_FIXTURES.maple(), 'autumn')).toBe(180);
+  });
+
+  it('pine keeps 3 clusters of floor(7 x 1.6) = 11 needle tufts in every season', () => {
+    for (const season of SEASONS) expect(foliage(VIEWER_FIXTURES.pine(), season)).toBe(396);
   });
 
   it('cutting, bent and cascade foliage counts', () => {

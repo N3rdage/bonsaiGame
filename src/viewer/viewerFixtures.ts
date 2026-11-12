@@ -11,7 +11,8 @@ import { applyWire, wireTrunk } from '../sim/training';
 import { addBranch, createTree, markDirty } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 
-export type ViewerFixtureKey = 'cutting' | 'bent' | 'cascade' | 'maple' | 'wired' | 'fancy';
+export type ViewerFixtureKey =
+  'cutting' | 'bent' | 'cascade' | 'maple' | 'pine' | 'wired' | 'fancy';
 
 /** Screen-right at the default yaw of 45 (world (-1,-1,0)), as the prototype's trunk wiring UI used. */
 export const SCREEN_RIGHT_ANGLE = -135;
@@ -39,6 +40,16 @@ export const MAPLE_BRANCHES: readonly (readonly [number, number, number])[] = [
   [9, 45, 9],
   [13, 200, 8],
   [17, 120, 6],
+];
+/** A young pine, set up the same way as the maple. */
+export const PINE_HEIGHT_CM = 18;
+export const PINE_GIRTH_MM = 10;
+export const PINE_FOLIAGE_DENSITY = 0.5;
+/** [originY cm, angle deg, length cm] per branch. */
+export const PINE_BRANCHES: readonly (readonly [number, number, number])[] = [
+  [8, 300, 8],
+  [12, 150, 7],
+  [15, 30, 5],
 ];
 
 /**
@@ -87,6 +98,16 @@ export const VIEWER_FIXTURES: Record<ViewerFixtureKey, () => BonsaiTree> = {
     tree.foliageDensity = MAPLE_FOLIAGE_DENSITY;
     markDirty(tree);
     for (const [y, angle, length] of MAPLE_BRANCHES) addBranch(tree, -1, y, angle, length);
+    return tree;
+  },
+
+  pine: () => {
+    const tree = createTree('pine', 'seed', 1);
+    tree.trunk.heightCm = PINE_HEIGHT_CM;
+    tree.trunk.girthMm = PINE_GIRTH_MM;
+    tree.foliageDensity = PINE_FOLIAGE_DENSITY;
+    markDirty(tree);
+    for (const [y, angle, length] of PINE_BRANCHES) addBranch(tree, -1, y, angle, length);
     return tree;
   },
 

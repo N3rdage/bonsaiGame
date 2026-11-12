@@ -1,7 +1,8 @@
 /**
  * obj_tree_sprite's Draw event as pure data: the bonsai silhouette the room
  * draws for a tree (shadow, pot in its tier's `pot_palette` colours, trunk,
- * three leaf circles with a darker outline pass), in logical px. The
+ * three leaf circles with a darker outline pass), in logical px, the trunk in
+ * the species' `look.spriteTrunk`. The
  * prototype drew it 48 px tall round a centre origin for every tree; here it
  * is scaled with `spriteSize(heightCm)` (src/world/treeSprites.ts), so the 25
  * cm starter is the prototype's sprite halved, and anchored on the pot's base.
@@ -19,8 +20,6 @@ const PROTOTYPE_SPRITE_PX = 48;
 /** Draw_0's offsets from the centre origin, prototype px: the pot's base and the canopy's top. */
 const POT_BASE = 18;
 const CANOPY_TOP = 14 + 8;
-/** Draw_0: the trunk colour rgb(75, 50, 30). */
-const TRUNK_COLOUR = 0x4b321e;
 /** Draw_0: the outline pass is the leaf colour less 50 a channel. */
 const OUTLINE_DARKEN = 50;
 
@@ -115,7 +114,8 @@ export function treeArt(
       colour: mix(pot.body, pot.bodyLine, (i + 0.5) / rows),
     };
   });
-  const leaf = speciesSeasonalColor(getSpecies(tree.speciesKey), season);
+  const species = getSpecies(tree.speciesKey);
+  const leaf = speciesSeasonalColor(species, season);
   const fill = leaf === undefined ? undefined : Number.parseInt(leaf.slice(1), 16);
   return {
     scale: k,
@@ -129,7 +129,11 @@ export function treeArt(
       colour: hex(pot.bodyLine),
     },
     rim: { rect: rect(-11, 7, 11, 10), fill: hex(pot.rim), line: hex(pot.rimLine) },
-    trunk: { rect: rect(-2, -8, 2, 8), colour: TRUNK_COLOUR },
+    // Draw_0's trunk rgb(75, 50, 30) is the juniper's; each species has its own.
+    trunk: {
+      rect: rect(-2, -8, 2, 8),
+      colour: Number.parseInt(species.look.spriteTrunk.slice(1), 16),
+    },
     canopy:
       fill === undefined
         ? undefined
