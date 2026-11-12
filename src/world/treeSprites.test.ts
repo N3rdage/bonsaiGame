@@ -4,9 +4,9 @@ import { createTree } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { nearestInteractable } from './interactables';
 import { HALLWAY_ROOM } from './hallwayRoom';
-import { LOUNGE_ROOM } from './loungeRoom';
-import { SHED_ROOM, insideWalls } from './shedRoom';
-import { STUDY_ROOM } from './studyRoom';
+import { FIREPLACE, LOUNGE_ROOM, SIDE_TABLE } from './loungeRoom';
+import { SHED_ROOM, insideWalls, type Room } from './shedRoom';
+import { BOOKSHELF, DESK, STUDY_ROOM } from './studyRoom';
 import {
   FLOOR_GRID,
   FLOOR_LAP_DEPTH,
@@ -77,17 +77,37 @@ describe('tree sprites', () => {
     expect(sprites.every((s) => s.pedestalKey === undefined && s.depth === s.y)).toBe(true);
   });
 
-  it('stands a displayed tree on its pedestal top, in front of the pedestal', () => {
+  it('stands a displayed tree on the top of the furniture its spot is on, in front of it', () => {
     const state = stateWith(
       'displayed:lounge_side_table',
       'displayed:lounge_mantel',
       'displayed:study_desk',
+      'displayed:study_bookshelf',
     );
-    const sprites = treeSprites(state, LOUNGE_ROOM);
-    expect(sprites.map((s) => [s.tree.id, s.pedestalKey, s.x, s.y, s.depth])).toEqual([
-      [1, 'lounge_mantel', 68, 120, 136.5],
-      [0, 'lounge_side_table', 412, 120, 136.5],
+    const at = (room: Room) =>
+      treeSprites(state, room).map((s) => [s.tree.id, s.pedestalKey, s.x, s.y, s.depth]);
+    // The mantel's shelf, the table top, the desk top and the bookcase's top board, each spot's
+    // rect top; each piece's front edge plus 0.5 for the depth.
+    expect(at(LOUNGE_ROOM)).toEqual([
+      [1, 'lounge_mantel', 240, 114, 136.5],
+      [0, 'lounge_side_table', 408, 116, 128.5],
     ]);
+    expect(at(STUDY_ROOM)).toEqual([
+      [2, 'study_desk', 160, 118, 128.5],
+      [3, 'study_bookshelf', 328, 113, 128.5],
+    ]);
+    for (const [room, piece, top] of [
+      [LOUNGE_ROOM, FIREPLACE, 114],
+      [LOUNGE_ROOM, SIDE_TABLE, 116],
+      [STUDY_ROOM, DESK, 118],
+      [STUDY_ROOM, BOOKSHELF, 113],
+    ] as const) {
+      const s = treeSprites(state, room).find((t) => t.y === top);
+      // On the piece: inside its rect, in its upper half.
+      expect(s && s.x >= piece.x && s.x <= piece.x + piece.w).toBe(true);
+      expect(top).toBeGreaterThan(piece.y);
+      expect(top).toBeLessThan(piece.y + piece.h / 2);
+    }
   });
 
   it("keeps only the grid's second row in the hallway, whose corridor floor is too low for the first", () => {
@@ -110,7 +130,7 @@ describe('tree sprites', () => {
     expect(sprites[5]?.depth).toBeLessThan(sprites[0]?.depth ?? 0);
   });
 
-  it('draws no displayed tree in the shed, which has no pedestals', () => {
+  it('draws no displayed tree in the shed, which has no display spots', () => {
     expect(treeSprites(stateWith('displayed:lounge_mantel'), SHED_ROOM)).toEqual([]);
   });
 

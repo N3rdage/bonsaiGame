@@ -59,6 +59,7 @@ export const GARDEN_ROOM: Room = {
   // The garden is only entered through a door, which sets the spot.
   playerStart: { x: fromPrototype(100), y: fromPrototype(450) },
   walls: ringWalls(BOUNDS, DOORWAY),
+  furniture: [],
   props: [
     sourcePlant('juniper', 280, 180),
     sourcePlant('maple', 520, 160),

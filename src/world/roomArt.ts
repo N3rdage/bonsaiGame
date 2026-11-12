@@ -1,13 +1,14 @@
 /**
  * How a room is drawn, as pure data in logical px: the floor tiles
  * (obj_game_controller Draw_0), the wall and fence runs (Other_4's ring,
- * obj_wall Draw_0), the garden's mitred fence corners (Draw_73), the shed's
+ * obj_wall Draw_0), the windows and furniture of the house rooms, the
+ * garden's mitred fence corners (Draw_73), the shed's
  * floor dim and rug, each prop's sprite and the drop shadows (the props' Draw
  * events), with each room's sheets and extras in one table, ROOM_STYLES. The
  * prototype's numbers are in prototype px and halved here.
  */
 
-import { SHEETS, PEDESTAL_SCALE, SPRITE_SCALE, floorFrame, sourcePlantFrame } from './assets';
+import { SHEETS, SPRITE_SCALE, floorFrame, sourcePlantFrame } from './assets';
 import type { Sheet } from './assets';
 import { DOORWAY } from './gardenRoom';
 import {
@@ -143,8 +144,8 @@ export interface WallRun extends Rect {
  * tiles are all `spr_wall` and each house room's all its own wall sheet; the
  * garden's rows are `spr_fence`, its columns `spr_fence_v`, and its four
  * corner tiles are left out (obj_wall Draw_0) for the mitred corners. The
- * room's windows come last (windowRuns), so the bake draws them over the top
- * row.
+ * room's windows follow (windowRuns), so the bake draws them over the top
+ * row, and its furniture comes last (furnitureRuns), over the floor and walls.
  */
 export function wallRuns(room: Room): WallRun[] {
   const { wallRow: row, wallColumn: column, fenced, leftGap } = ROOM_STYLES[room.key];
@@ -168,7 +169,13 @@ export function wallRuns(room: Room): WallRun[] {
     ...left.map((r) => ({ ...r, sheet: column })),
     { sheet: column, x: right, y: top, w: TILE, h: columnEnd - top },
     ...windowRuns(room),
+    ...furnitureRuns(room),
   ];
+}
+
+/** Each piece of the room's furniture as a run of its sheet over its rect, in the room's order. */
+export function furnitureRuns(room: Room): WallRun[] {
+  return room.furniture.map(({ sheet, x, y, w, h }) => ({ sheet, x, y, w, h }));
 }
 
 /** Each of the room's windows as a run of `spr_window` along its top wall band, one 16 px pane a tile. */
@@ -264,9 +271,10 @@ const PROP_SHEETS: Record<string, Sheet> = {
 
 /**
  * The prop's sprite, centred on the prop: the workbench, planting table and
- * kiosk at 1x, a pedestal at 1.5x (obj_pedestal), a door at 1x on the centre
- * of its rect (spr_door's origin is its top-left; each door's rect is that
- * 32 px square, halved), a source plant's species frame at 1x. A prop sorts
+ * kiosk at 1x, a door at 1x on the centre of its rect (spr_door's origin is
+ * its top-left; each door's rect is that 32 px square, halved), a source
+ * plant's species frame at 1x, and none for a display spot, which is drawn
+ * by the furniture it is on (obj_pedestal's 1.5x pedestal is gone). A prop sorts
  * against the player at its bottom edge; a door sits in its wall or fence, so
  * it sorts at its top edge, behind the player as the walls are (obj_player_2d
  * Step_0 draws the player in front of walls and doors).
@@ -276,8 +284,7 @@ export function propSprite(prop: Prop): PropSprite | undefined {
   if (prop.speciesKey) {
     return { ...at, sheet: SHEETS.sourcePlant, frame: sourcePlantFrame(prop.speciesKey) };
   }
-  if (prop.pedestalKey !== undefined)
-    return { ...at, sheet: SHEETS.pedestal, scale: PEDESTAL_SCALE };
+  if (prop.pedestalKey !== undefined) return undefined;
   if (prop.target) return { ...at, sheet: SHEETS.door, depth: prop.y - prop.h / 2 };
   const sheet = PROP_SHEETS[prop.key];
   return sheet && { ...at, sheet };
@@ -315,10 +322,9 @@ function ellipse(
   };
 }
 
-/** obj_source_plant and obj_pedestal's drop shadows; other props have none. */
+/** obj_source_plant's drop shadow; other props have none (a display spot is on furniture, not obj_pedestal). */
 export function propShadow(prop: Prop): Shadow | undefined {
   if (prop.speciesKey) return ellipse(prop.x, prop.y, [-18, 18, 18, 22], 0.25);
-  if (prop.pedestalKey !== undefined) return ellipse(prop.x, prop.y, [-18, 20, 18, 25], 0.3);
   return undefined;
 }
 

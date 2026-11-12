@@ -4,15 +4,17 @@ import { holdUntilAtMost, holdUntilNear, hook, interact } from './drive';
 // Walks between the shed and the house rooms (src/world/*Room.ts, pinned in
 // world.test.ts). Shed lounge door (240, 56), in the top wall, to the lounge at
 // (240, 190); lounge door (240, 216) back to the shed at (240, 82). The
-// lounge's floor is x 64..416, y 112..208; its pedestals, pedestal_1
-// lounge_mantel (68, 128) and pedestal_2 lounge_side_table (412, 128), stand in
-// its top corners. Every door past the shed sits on the row y 190 in a side
+// lounge's floor is x 64..416, y 112..208; its display spots are on its
+// furniture, pedestal_1 lounge_mantel (240, 125) on the fireplace (x 224..256,
+// y 112..136) straight above the landing, and pedestal_2 lounge_side_table
+// (408, 122) on the side table (x 400..416, y 112..128) in the top-right
+// corner; both pieces stop the player. Every door past the shed sits on the row y 190 in a side
 // wall: the lounge's door_hallway (424, 190) to the hallway at (114, 190); the
 // hallway's door_lounge (88, 190) back to the lounge at (398, 190) and
 // door_study (392, 190) to the study at (162, 190); the study's door_hallway
 // (136, 190) back to the hallway at (366, 190). Every walk ends against a
-// wall, which stops the player in reach however late the key is released
-// (backlog #81).
+// wall or a solid piece of furniture, which stops the player in reach however
+// late the key is released (backlog #81).
 
 /** Uses the door in reach and waits for `room`. */
 export async function throughDoor(page: Page, room: string): Promise<void> {
@@ -45,12 +47,12 @@ export async function hallwayToStudy(page: Page): Promise<void> {
   await throughDoor(page, 'study');
 }
 
-/** From the lounge's landing: up into the top wall (the floor's top is y 112), then along it into the pedestal's corner. */
+/**
+ * From the lounge's shed-door landing (240, 190): to the mantel straight up
+ * into the fireplace; to the side table right into the right wall (by its
+ * door), then up into the table.
+ */
 export async function toLoungePedestal(page: Page, pedestal: 1 | 2): Promise<void> {
-  await holdUntilAtMost(page, 'ArrowUp', 'y', 114);
-  await holdUntilNear(
-    page,
-    pedestal === 1 ? 'ArrowLeft' : 'ArrowRight',
-    `pedestal_${String(pedestal)}`,
-  );
+  if (pedestal === 2) await holdUntilNear(page, 'ArrowRight', 'door_hallway');
+  await holdUntilNear(page, 'ArrowUp', `pedestal_${String(pedestal)}`);
 }

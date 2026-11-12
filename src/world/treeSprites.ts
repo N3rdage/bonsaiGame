@@ -1,7 +1,7 @@
 /**
  * Where the room draws its trees, as pure data: obj_tree_sprite on the floor
  * grid of the controller's Room Start (obj_game_controller/Other_4.gml lines
- * 48-63) and the tree on each display pedestal (obj_pedestal). Moving a tree
+ * 48-63) and the tree on each display spot (obj_pedestal, now on furniture). Moving a tree
  * is changing its `location` (src/sim/tree.ts); this only reads it.
  */
 
@@ -106,7 +106,7 @@ export function treeSprites(state: GameState, room: Room): TreeSprite[] {
   const displayed = room.props.flatMap((p): TreeSprite[] => {
     const tree = p.pedestalKey === undefined ? undefined : treeOnPedestal(state, p.pedestalKey);
     if (!tree) return [];
-    // Stands on the pedestal's top edge, drawn just in front of the pedestal.
+    // Stands on the spot's top edge, the top of the furniture it is on (displaySpot), drawn in front of the spot.
     return [
       {
         tree,

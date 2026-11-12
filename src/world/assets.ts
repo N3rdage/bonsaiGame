@@ -4,8 +4,8 @@
  * prototype sprite, packed by `npm run art:sheets` (art/sheets.mjs) from
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
  * horizontal strip in the order of the sprite's `.yy` frames. The house
- * rooms' tiles (lounge, hallway, study) and their window have no prototype
- * sprite; `npm run art:interiors` (art/interiors.mjs) draws them.
+ * rooms' tiles (lounge, hallway, study), their window and their furniture have
+ * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws them.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -20,10 +20,10 @@ export interface Sheet {
   readonly frames: number;
 }
 
-const sheet = (key: string, frames = 1, size = 32): Sheet => ({
+const sheet = (key: string, frames = 1, size = 32, height = size): Sheet => ({
   key,
   frameWidth: size,
-  frameHeight: size,
+  frameHeight: height,
   frames,
 });
 
@@ -39,7 +39,6 @@ export const SHEETS = {
   workbench: sheet('spr_workbench'),
   plantingTable: sheet('spr_planting_table'),
   shopKiosk: sheet('spr_shop_kiosk'),
-  pedestal: sheet('spr_pedestal'),
   // The house rooms' placeholder tiles, drawn by art/interiors.mjs (the prototype had no interiors).
   floorLounge: sheet('spr_floor_lounge', 3),
   wallLounge: sheet('spr_wall_lounge'),
@@ -48,6 +47,13 @@ export const SHEETS = {
   floorStudy: sheet('spr_floor_study', 3),
   wallStudy: sheet('spr_wall_study'),
   window: sheet('spr_window'),
+  // The house furniture, one frame at its exact size in prototype px (the bookshelf one bay of its run).
+  fireplace: sheet('spr_fireplace', 1, 64, 48),
+  sideTable: sheet('spr_side_table'),
+  desk: sheet('spr_desk', 1, 64, 32),
+  bookshelf: sheet('spr_bookshelf'),
+  runner: sheet('spr_runner', 1, 416, 48),
+  hallTable: sheet('spr_hall_table', 1, 32, 24),
 } as const satisfies Record<string, Sheet>;
 
 /** Every sheet, in load order. */
@@ -60,9 +66,8 @@ export function sheetUrl(base: string, s: Sheet): string {
 
 /** Logical px per prototype px: a sprite drawn at 1x in the prototype is drawn at this scale. */
 export const SPRITE_SCALE = 1 / PROTOTYPE_SCALE;
-/** obj_player_2d and obj_pedestal draw their sprites at 1.5x. */
+/** obj_player_2d draws its sprite at 1.5x. */
 export const PLAYER_SCALE = 1.5 * SPRITE_SCALE;
-export const PEDESTAL_SCALE = 1.5 * SPRITE_SCALE;
 
 /** obj_player_2d Draw_0: the sheet's rows of four, down, up, left, right. */
 const FACING_ROW: Record<Facing, number> = { down: 0, up: 1, left: 2, right: 3 };
