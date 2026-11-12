@@ -119,6 +119,28 @@ export const saveGame = (page: Page): Promise<void> => menuRow(page, 'F5', 'menu
 export const loadGame = (page: Page): Promise<void> => menuRow(page, 'F9', 'menu-load');
 export const backToTitle = (page: Page): Promise<void> => menuRow(page, 'Escape', 'menu-title');
 
+/** Sleeps one night: Z, or the menu's Sleep row on the tap route. */
+export const sleepOneNight = (page: Page): Promise<void> => menuRow(page, 'z', 'menu-sleep');
+
+/** Starts placement mode in the greenhouse: P, or the menu's Place item row on the tap route. */
+export async function startPlacing(page: Page): Promise<void> {
+  await menuRow(page, 'p', 'menu-place');
+  await page.waitForFunction(() => window.__bonsai?.placing !== undefined);
+}
+
+/** Switches placement mode to the next kind in stock: P, or the menu's Next row on the tap route. */
+export async function nextPlacingKind(page: Page): Promise<void> {
+  const before = (await hook(page)).placing?.kind;
+  await menuRow(page, 'p', 'menu-place-next');
+  await page.waitForFunction((k) => window.__bonsai?.placing?.kind !== k, before);
+}
+
+/** Leaves placement mode: Escape, or the menu's Stop placing row on the tap route. */
+export async function stopPlacing(page: Page): Promise<void> {
+  await menuRow(page, 'Escape', 'menu-place');
+  await page.waitForFunction(() => window.__bonsai?.placing === undefined);
+}
+
 /** Opens the HUD menu and taps its Settings row (it has no key), on every project. */
 export async function openSettingsFromMenu(page: Page): Promise<void> {
   await openMenu(page);
