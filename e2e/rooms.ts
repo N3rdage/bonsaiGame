@@ -19,7 +19,14 @@ import { holdUntilAtLeast, holdUntilAtMost, holdUntilNear, hook, interact, walkT
 // furniture, which stops the player in reach however late the key is released
 // (backlog #81): from the study's hallway landing, right into the right wall
 // (x 335.75) and down into the bottom wall (y 207.5), 17.9 px from the glass
-// doors; from the garden's landing, right into the fence (x 463.5).
+// doors; from the garden's landing, right into the fence (x 463.5). The
+// garden's door_greenhouse (448, 8), on its top fence, leads to the greenhouse
+// at (240, 206); the greenhouse's door_garden (240, 232), in the centre of its
+// bottom wall, back to the garden at (448, 34). The greenhouse's floor is
+// x 64..416, y 64..224. From the study-door row a walk straight up ends
+// against the top fence (y 16.25), the greenhouse door in reach anywhere from
+// the study door's reach to the right fence; from the greenhouse's landing a
+// walk straight down ends against its bottom wall (y 223.5), 8.5 px from its door.
 
 /** Uses the door in reach and waits for `room`. */
 export async function throughDoor(page: Page, room: string): Promise<void> {
@@ -73,6 +80,28 @@ export async function gardenToStudy(page: Page): Promise<void> {
 export async function gardenToShed(page: Page): Promise<void> {
   await walkTo(page, 228, 'left', 'door');
   await throughDoor(page, 'shed');
+}
+
+/** From the shed's start: down to the row y 200, in reach of the garden door in the bottom wall, and through it. */
+export async function shedToGarden(page: Page): Promise<void> {
+  await walkTo(page, 200, 'left', 'door');
+  await throughDoor(page, 'garden');
+}
+
+/**
+ * From anywhere in the garden left of the study door: to the row y 190 and right along it until
+ * the study door is in reach, then up into the top fence, the greenhouse door in reach, and in.
+ */
+export async function gardenToGreenhouse(page: Page): Promise<void> {
+  await walkTo(page, 190, 'right', 'door_study');
+  await holdUntilNear(page, 'ArrowUp', 'door_greenhouse');
+  await throughDoor(page, 'greenhouse');
+}
+
+/** From the greenhouse's landing (240, 206): down into the bottom wall, its door in reach, and out to the garden. */
+export async function greenhouseToGarden(page: Page): Promise<void> {
+  await holdUntilNear(page, 'ArrowDown', 'door_garden');
+  await throughDoor(page, 'garden');
 }
 
 /**

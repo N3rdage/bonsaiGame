@@ -48,7 +48,8 @@ describe('audio', () => {
     expect(new Set([...SOUND_KEYS, ...MUSIC_KEYS]).size).toBe(11);
   });
 
-  it('plays the shed, garden and viewer their own loops and the house rooms one shared loop', () => {
+  it('plays the shed, garden and viewer their own loops, the house rooms one shared loop and the greenhouse the garden', () => {
+    expect(trackFor('greenhouse')).toBe('garden');
     expect(trackFor('shed')).toBe('shed');
     expect(trackFor('garden')).toBe('garden');
     expect(trackFor('lounge')).toBe('house');

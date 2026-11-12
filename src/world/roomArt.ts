@@ -109,6 +109,15 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     fenced: false,
     floorDim: 0,
   },
+  // The greenhouse is drawn as a house room: its glass on all four sides round a paved floor.
+  greenhouse: {
+    floor: SHEETS.floorGreenhouse,
+    wallRow: SHEETS.wallGlass,
+    wallColumn: SHEETS.wallGlass,
+    inset: true,
+    fenced: false,
+    floorDim: 0,
+  },
 };
 
 /**

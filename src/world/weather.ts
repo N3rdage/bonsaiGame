@@ -141,7 +141,7 @@ export const SHED_WEATHER_AREA: WeatherArea = {
 /** Spawn and wrap band just outside the area: the prototype's 24 px, halved. */
 export const WEATHER_MARGIN = fromPrototype(24);
 
-/** Whether a room has the indoor motes (every room but the garden, which has the season's weather). */
+/** Whether a room has the indoor motes (every room but the garden, which has the season's weather; the glass greenhouse is indoors). */
 export function isIndoor(room: Room): boolean {
   return room.key !== 'garden';
 }

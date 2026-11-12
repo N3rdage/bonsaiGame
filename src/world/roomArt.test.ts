@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
 import { PLAYER_SCALE, SHEETS } from './assets';
 import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
+import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import {
@@ -62,6 +63,7 @@ describe('floor', () => {
       [LOUNGE_ROOM, SHEETS.floorLounge, { x: 64, y: 112, w: 352, h: 96 }, 6, 22],
       [HALLWAY_ROOM, SHEETS.floorHallway, { x: 96, y: 176, w: 288, h: 32 }, 2, 18],
       [STUDY_ROOM, SHEETS.floorStudy, { x: 144, y: 112, w: 192, h: 96 }, 6, 12],
+      [GREENHOUSE_ROOM, SHEETS.floorGreenhouse, { x: 64, y: 64, w: 352, h: 160 }, 10, 22],
     ] as const) {
       const tiles = floorTiles(room);
       expect(tiles.sheet).toBe(sheet);
@@ -77,7 +79,7 @@ describe('floor', () => {
   it('dims and rugs the shed floor only', () => {
     expect(ROOM_STYLES.shed).toMatchObject({ floorDim: SHED_FLOOR_DIM, rug: SHED_RUG });
     expect(SHED_FLOOR_DIM).toBe(0.12);
-    for (const key of ['garden', 'lounge', 'hallway', 'study'] as const) {
+    for (const key of ['garden', 'lounge', 'hallway', 'study', 'greenhouse'] as const) {
       expect(ROOM_STYLES[key].floorDim).toBe(0);
       expect(ROOM_STYLES[key].rug).toBeUndefined();
     }
@@ -150,6 +152,16 @@ describe('walls', () => {
           [336, 112, 16, 96],
         ],
       ],
+      [
+        GREENHOUSE_ROOM,
+        SHEETS.wallGlass,
+        [
+          [48, 48, 384, 16],
+          [48, 224, 384, 16],
+          [48, 64, 16, 160],
+          [416, 64, 16, 160],
+        ],
+      ],
     ] as const) {
       // The ring's four runs come first, then the windows and the furniture.
       const walls = wallRuns(room).slice(0, 4);
@@ -172,7 +184,7 @@ describe('walls', () => {
     }
   });
 
-  it('has two windows in the lounge, one in the study and the shed, none in the hallway or the garden', () => {
+  it('has two windows in the lounge, one in the study and the shed, none in the hallway, the garden or the glass greenhouse', () => {
     expect(SHEETS.window).toMatchObject({ key: 'spr_window', frames: 1 });
     expect(LOUNGE_ROOM.windows).toEqual([
       { x: 144, w: 32 },
@@ -182,7 +194,7 @@ describe('walls', () => {
     expect(windowRuns(SHED_ROOM).map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual([
       ['spr_window', 264, 48, 32, 16],
     ]);
-    for (const room of [HALLWAY_ROOM, GARDEN_ROOM]) {
+    for (const room of [HALLWAY_ROOM, GARDEN_ROOM, GREENHOUSE_ROOM]) {
       expect(room.windows).toEqual([]);
       expect(windowRuns(room)).toEqual([]);
     }
@@ -381,11 +393,36 @@ describe('props', () => {
       0.5,
       182,
     ]);
+    // The greenhouse's door and the garden's to it are glazed leaves too.
+    expect(at(GARDEN_ROOM.props, 'door_greenhouse')).toEqual([
+      'spr_door_glass_single',
+      448,
+      8,
+      0.5,
+      0,
+    ]);
+    expect(at(GREENHOUSE_ROOM.props, 'door_garden')).toEqual([
+      'spr_door_glass_single',
+      240,
+      232,
+      0.5,
+      224,
+    ]);
     // Every other door keeps the prototype's spr_door.
-    const doors = Object.values(ROOMS).flatMap((r) => r.props.filter((p) => p.target));
-    expect(doors.filter((p) => propSprite(p)?.sheet !== SHEETS.door).map((p) => p.key)).toEqual([
-      'door_study',
-      'door_garden',
+    const doors = Object.values(ROOMS).flatMap((r) =>
+      r.props.filter((p) => p.target).map((p) => `${r.key}.${p.key}`),
+    );
+    const glazed = Object.values(ROOMS).flatMap((r) =>
+      r.props
+        .filter((p) => p.target && propSprite(p)?.sheet !== SHEETS.door)
+        .map((p) => `${r.key}.${p.key}`),
+    );
+    expect(doors).toHaveLength(12);
+    expect(glazed).toEqual([
+      'garden.door_study',
+      'garden.door_greenhouse',
+      'study.door_garden',
+      'greenhouse.door_garden',
     ]);
   });
 

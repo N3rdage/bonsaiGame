@@ -4,7 +4,7 @@
  * prototype sprite, packed by `npm run art:sheets` (art/sheets.mjs) from
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
  * horizontal strip in the order of the sprite's `.yy` frames. The house
- * rooms' tiles (lounge, hallway, study), their window and their furniture have
+ * rooms' tiles (lounge, hallway, study, greenhouse), their window and their furniture have
  * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws them,
  * and the shed's back wall round the garden door.
  * The shed's window is the house rooms' window, not the prototype's
@@ -49,6 +49,9 @@ export const SHEETS = {
   wallHallway: sheet('spr_wall_hallway'),
   floorStudy: sheet('spr_floor_study', 3),
   wallStudy: sheet('spr_wall_study'),
+  // The greenhouse's paving and its glass walls, drawn by art/interiors.mjs.
+  floorGreenhouse: sheet('spr_floor_greenhouse', 3),
+  wallGlass: sheet('spr_wall_glass'),
   window: sheet('spr_window'),
   // The study's glazed double door (two leaves) and the garden's single glazed leaf back to it.
   doorGlass: sheet('spr_door_glass', 1, 64, 32),
