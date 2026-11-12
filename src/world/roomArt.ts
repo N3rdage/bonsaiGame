@@ -1,7 +1,7 @@
 /**
  * How a room is drawn, as pure data in logical px: the floor tiles
  * (obj_game_controller Draw_0), the wall and fence runs (Other_4's ring,
- * obj_wall Draw_0), the windows and furniture of the house rooms, the
+ * obj_wall Draw_0), the rooms' windows and furniture (the shed's decor), the
  * garden's mitred fence corners (Draw_73), the shed's
  * floor dim and rug, each prop's sprite and the drop shadows (the props' Draw
  * events), with each room's sheets and extras in one table, ROOM_STYLES. The
@@ -327,6 +327,21 @@ function ellipse(
 export function propShadow(prop: Prop): Shadow | undefined {
   if (prop.speciesKey) return ellipse(prop.x, prop.y, [-18, 18, 18, 22], 0.25);
   return undefined;
+}
+
+/**
+ * Draw_0's ground shadow under each piece of the shed's decor, black at 0.18
+ * alpha: `draw_ellipse(dx - w/3, dy - 4, dx + w/3, dy + 2)` round the
+ * sprite's bottom-centre origin, `w` its prototype width. The bake draws them
+ * on the floor, under the furniture as the prototype drew each before its sprite.
+ */
+export function furnitureShadows(room: Room): Shadow[] {
+  return room.furniture
+    .filter((f) => f.shadow)
+    .map(({ x, y, w, h }) => {
+      const third = w / SPRITE_SCALE / 3;
+      return ellipse(x + w / 2, y + h, [-third, -4, third, 2], 0.18);
+    });
 }
 
 /** obj_player_2d's drop shadow round its centre origin. */

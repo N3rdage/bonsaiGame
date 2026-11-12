@@ -23,6 +23,8 @@ import { INTERACT_RANGE, nearestInteractable } from './interactables';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import { STUDY_ROOM } from './studyRoom';
+import { propSprite } from './roomArt';
+import { FLOOR_GRID, floorRows, floorSpot } from './treeSprites';
 import {
   SHED_RING,
   SHED_ROOM,
@@ -110,6 +112,59 @@ describe('shed room', () => {
     expect(hitsWall(SHED_ROOM, x, y)).toBe(false);
     // 26 px above the door's centre: just out of its 20 px reach.
     expect(door(SHED_ROOM).y - y).toBeGreaterThan(INTERACT_RANGE);
+  });
+
+  it("stands Draw_0's five decor sprites on their bottom-centre origins, halved, none of them solid", () => {
+    expect(SHED_ROOM.furniture.map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual([
+      // spr_shelf 56x44 at (440, 174), spr_tools 36x52 at (212, 352), spr_watering_can
+      // 32x30 at (706, 256), spr_pot_stack 40x40 at (706, 388), spr_sack 32x34 at (300, 384).
+      ['spr_shelf', 206, 65, 28, 22],
+      ['spr_tools', 97, 150, 18, 26],
+      ['spr_watering_can', 345, 113, 16, 15],
+      ['spr_pot_stack', 343, 174, 20, 20],
+      ['spr_sack', 142, 175, 16, 17],
+    ]);
+    expect(SHED_ROOM.furniture.every((f) => !f.solid && f.shadow === true)).toBe(true);
+    // Draw-only, so the walls are still just the ring.
+    expect(furnitureWalls(SHED_ROOM.furniture)).toEqual([]);
+    expect(SHED_ROOM.walls).toEqual(ringWalls(SHED_ROOM.bounds));
+  });
+
+  it("sets Draw_73's window, 56 px centred on prototype x 560, as two house panes centred on 280", () => {
+    expect(SHED_ROOM.windows).toEqual([{ x: 264, w: 32 }]);
+    const [w] = SHED_ROOM.windows;
+    expect(w && w.x + w.w / 2).toBe(fromPrototype(560));
+  });
+
+  it('keeps the decor clear of the props, the floor-tree spots and the player start', () => {
+    const overlaps = (a: Rect, b: Rect): boolean =>
+      a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+    const around = (x: number, y: number, r: number): Rect => ({
+      x: x - r,
+      y: y - r,
+      w: 2 * r,
+      h: 2 * r,
+    });
+    const spots = floorRows(SHED_ROOM).length * FLOOR_GRID.perRow;
+    expect(spots).toBe(10);
+    for (const f of SHED_ROOM.furniture) {
+      for (const p of SHED_ROOM.props) {
+        const art = propSprite(p);
+        const drawn = art && {
+          x: art.x - (art.sheet.frameWidth * art.scale) / 2,
+          y: art.y - (art.sheet.frameHeight * art.scale) / 2,
+          w: art.sheet.frameWidth * art.scale,
+          h: art.sheet.frameHeight * art.scale,
+        };
+        expect(drawn && overlaps(f, drawn), `${f.sheet.key} ${p.key}`).toBe(false);
+      }
+      for (let i = 0; i < spots; i += 1) {
+        const { x, y } = floorSpot(i, SHED_ROOM);
+        expect(overlaps(f, around(x, y, 8)), `${f.sheet.key} spot ${String(i)}`).toBe(false);
+      }
+      const { x, y } = SHED_ROOM.playerStart;
+      expect(overlaps(f, around(x, y, 12)), f.sheet.key).toBe(false);
+    }
   });
 });
 

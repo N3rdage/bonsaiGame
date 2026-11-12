@@ -12,6 +12,7 @@ import {
   fenceCorners,
   floorTiles,
   furnitureRuns,
+  furnitureShadows,
   playerShadow,
   propShadow,
   propSprite,
@@ -86,7 +87,9 @@ describe('floor', () => {
 
 describe('walls', () => {
   it('rings the inset shed with spr_wall, corners included, over its collision bands', () => {
-    const runs = wallRuns(SHED_ROOM).map((r) => [r.sheet.key, r.x, r.y, r.w, r.h]);
+    const runs = wallRuns(SHED_ROOM)
+      .slice(0, 4)
+      .map((r) => [r.sheet.key, r.x, r.y, r.w, r.h]);
     expect(runs).toEqual([
       ['spr_wall', 80, 48, 320, 16],
       ['spr_wall', 80, 208, 320, 16],
@@ -163,21 +166,24 @@ describe('walls', () => {
     }
   });
 
-  it('has two windows in the lounge, one in the study, none in the hallway, the shed or the garden', () => {
+  it('has two windows in the lounge, one in the study and the shed, none in the hallway or the garden', () => {
     expect(SHEETS.window).toMatchObject({ key: 'spr_window', frames: 1 });
     expect(LOUNGE_ROOM.windows).toEqual([
       { x: 144, w: 32 },
       { x: 304, w: 32 },
     ]);
     expect(STUDY_ROOM.windows).toEqual([{ x: 224, w: 32 }]);
-    for (const room of [HALLWAY_ROOM, SHED_ROOM, GARDEN_ROOM]) {
+    expect(windowRuns(SHED_ROOM).map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual([
+      ['spr_window', 264, 48, 32, 16],
+    ]);
+    for (const room of [HALLWAY_ROOM, GARDEN_ROOM]) {
       expect(room.windows).toEqual([]);
       expect(windowRuns(room)).toEqual([]);
     }
   });
 
   it('draws each window as spr_window over the top wall band, after the walls, inside the corners', () => {
-    for (const room of [LOUNGE_ROOM, STUDY_ROOM]) {
+    for (const room of [LOUNGE_ROOM, STUDY_ROOM, SHED_ROOM]) {
       const runs = windowRuns(room);
       expect(runs.map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual(
         room.windows.map(({ x, w }) => ['spr_window', x, room.bounds.y, w, TILE]),
@@ -186,7 +192,8 @@ describe('walls', () => {
       expect(wallRuns(room).slice(4, 4 + runs.length)).toEqual(runs);
       const top = wallRuns(room)[0];
       for (const r of runs) {
-        expect(r.x % TILE).toBe(0);
+        // Whole panes; the house windows on the tile grid, the shed's centred where the prototype drew it.
+        if (room !== SHED_ROOM) expect(r.x % TILE).toBe(0);
         expect(r.w % TILE).toBe(0);
         // Clear of the corner tiles, and over the top wall, which still collides under it.
         expect(r.x).toBeGreaterThanOrEqual(room.bounds.x + TILE);
@@ -228,7 +235,13 @@ describe('walls', () => {
         );
       }
     }
-    expect(furnitureRuns(SHED_ROOM)).toEqual([]);
+    expect(furniture(SHED_ROOM)).toEqual([
+      ['spr_shelf', 206, 65, 28, 22],
+      ['spr_tools', 97, 150, 18, 26],
+      ['spr_watering_can', 345, 113, 16, 15],
+      ['spr_pot_stack', 343, 174, 20, 20],
+      ['spr_sack', 142, 175, 16, 17],
+    ]);
     expect(furnitureRuns(GARDEN_ROOM)).toEqual([]);
   });
 
@@ -385,5 +398,23 @@ describe('shadows', () => {
     expect(propShadow(propByKey(SHED_ROOM.props, 'workbench'))).toBeUndefined();
     expect(playerShadow(240, 135)).toEqual({ x: 240, y: 141.75, w: 16, h: 4.5, alpha: 0.25 });
     expect(treeShadow(100, 100, 1)).toEqual({ x: 100, y: 118.5, w: 32, h: 5, alpha: 0.25 });
+  });
+
+  it("puts Draw_0's faint ellipse, (dx - w/3, dy - 4)..(dx + w/3, dy + 2), under each piece of the shed's decor", () => {
+    // Centre, width x 3 (the shadow is 2w/3 prototype px wide, halved, so x 3 gives w), height, alpha:
+    // spr_shelf's foot at prototype (440, 174) gives x 440 +- 56/3, y 170..176, halved.
+    expect(
+      furnitureShadows(SHED_ROOM).map((s) => [s.x, s.y, Math.round(s.w * 3), s.h, s.alpha]),
+    ).toEqual([
+      [220, 86.5, 56, 3, 0.18],
+      [106, 175.5, 36, 3, 0.18],
+      [353, 127.5, 32, 3, 0.18],
+      [353, 193.5, 40, 3, 0.18],
+      [150, 191.5, 32, 3, 0.18],
+    ]);
+    // The house furniture has none.
+    for (const room of [LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM, GARDEN_ROOM]) {
+      expect(furnitureShadows(room)).toEqual([]);
+    }
   });
 });

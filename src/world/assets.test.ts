@@ -46,7 +46,24 @@ describe('sprite sheets', () => {
       ['spr_bookshelf', 32, 32, 1],
       ['spr_runner', 416, 48, 1],
       ['spr_hall_table', 32, 24, 1],
+      ['spr_shelf', 56, 44, 1],
+      ['spr_tools', 36, 52, 1],
+      ['spr_watering_can', 32, 30, 1],
+      ['spr_pot_stack', 40, 40, 1],
+      ['spr_sack', 32, 34, 1],
     ]);
+  });
+
+  it("loads the shed's decor, packed from the prototype at its sprites' sizes", () => {
+    for (const s of [
+      SHEETS.shelf,
+      SHEETS.tools,
+      SHEETS.wateringCan,
+      SHEETS.potStack,
+      SHEETS.sack,
+    ]) {
+      expect(ALL_SHEETS).toContain(s);
+    }
   });
 
   it("loads the house rooms' generated tiles and furniture with the rest", () => {
