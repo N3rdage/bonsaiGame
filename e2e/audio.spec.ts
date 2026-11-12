@@ -156,3 +156,45 @@ test.describe('ambient music', () => {
     expect(errors).toEqual([]);
   });
 });
+
+/** Fires the page's visibilitychange with `document.hidden` as `hidden`, as switching apps does. */
+async function setHidden(page: Page, hidden: boolean): Promise<void> {
+  await page.evaluate((h) => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => h });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, hidden);
+}
+
+test.describe('ambient music under the rotate prompt', () => {
+  test.skip(({ hasTouch }) => !hasTouch, 'touch screens only, as the prompt is');
+
+  test('stays paused through a hide and show, and resumes when the phone is turned', async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    // The tap on New Game would go fullscreen, and a fullscreen window cannot be resized.
+    await page.addInitScript(() => {
+      Element.prototype.requestFullscreen = () => Promise.resolve();
+    });
+    await page.setViewportSize({ width: 824, height: 384 });
+    await bootWorld(page);
+    expect((await hook(page)).musicPaused).toBe(false);
+
+    await page.setViewportSize({ width: 384, height: 824 });
+    await page.waitForFunction(() => window.__bonsai?.rotatePrompt === true);
+    expect((await hook(page)).musicPaused).toBe(true);
+
+    await setHidden(page, true);
+    await setHidden(page, false);
+    const shown = await hook(page);
+    expect(shown.rotatePrompt).toBe(true);
+    expect(shown.musicPaused).toBe(true);
+
+    await page.setViewportSize({ width: 824, height: 384 });
+    await page.waitForFunction(
+      () => window.__bonsai?.rotatePrompt === false && window.__bonsai.musicPaused === false,
+    );
+    expect((await hook(page)).track).toBe('shed');
+    expect(errors).toEqual([]);
+  });
+});

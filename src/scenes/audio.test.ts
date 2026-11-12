@@ -203,10 +203,23 @@ describe('MusicPlayer', () => {
     music.update(MUSIC_FADE_MS);
     music.play('garden');
     music.pause();
+    expect(music.paused).toBe(true);
     expect(manager.loops.map((l) => l.state)).toEqual(['paused', 'paused']);
     music.resume();
+    expect(music.paused).toBe(false);
     expect(manager.loops.map((l) => l.state)).toEqual(['playing', 'playing']);
     expect(sounding(manager.loops)).toEqual(['shed@0.40', 'garden@0.00']);
+  });
+
+  it('pause sets paused and resume clears it, harmless with no loops', () => {
+    const manager = musicStub();
+    const music = new MusicPlayer(manager, () => ({ ...DEFAULT_SETTINGS, music: false }));
+    expect(music.paused).toBe(false);
+    music.pause();
+    expect(music.paused).toBe(true);
+    music.resume();
+    expect(music.paused).toBe(false);
+    expect(manager.loops).toEqual([]);
   });
 
   it('stop silences everything and forgets the place', () => {
