@@ -38,6 +38,8 @@ describe('sprite sheets', () => {
       ['spr_floor_study', 32, 32, 3],
       ['spr_wall_study', 32, 32, 1],
       ['spr_window', 32, 32, 1],
+      ['spr_door_glass', 64, 32, 1],
+      ['spr_door_glass_single', 32, 32, 1],
       ['spr_fireplace', 64, 48, 1],
       ['spr_side_table', 32, 32, 1],
       ['spr_desk', 64, 32, 1],

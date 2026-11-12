@@ -368,6 +368,21 @@ export async function holdUntilAtMost(
   await page.keyboard.up(arrow);
 }
 
+/** Holds `arrow` (down or right) until the player's coordinate on `axis` is at least `min`; a late release ends at the wall. */
+export async function holdUntilAtLeast(
+  page: Page,
+  arrow: Arrow,
+  axis: 'x' | 'y',
+  min: number,
+): Promise<void> {
+  await page.keyboard.down(arrow);
+  await page.waitForFunction(([a, limit]) => (window.__bonsai?.player[a] ?? -Infinity) >= limit, [
+    axis,
+    min,
+  ] as const);
+  await page.keyboard.up(arrow);
+}
+
 /** Interacts with the tree in range (on the floor or a pedestal) and waits for its inspector. */
 export async function openInspector(page: Page): Promise<void> {
   await interact(page);

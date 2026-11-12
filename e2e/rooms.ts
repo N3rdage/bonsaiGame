@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { holdUntilAtMost, holdUntilNear, hook, interact } from './drive';
+import { holdUntilAtLeast, holdUntilAtMost, holdUntilNear, hook, interact, walkTo } from './drive';
 
 // Walks between the shed and the house rooms (src/world/*Room.ts, pinned in
 // world.test.ts). Shed lounge door (240, 56), in the top wall, to the lounge at
@@ -12,9 +12,14 @@ import { holdUntilAtMost, holdUntilNear, hook, interact } from './drive';
 // wall: the lounge's door_hallway (424, 190) to the hallway at (114, 190); the
 // hallway's door_lounge (88, 190) back to the lounge at (398, 190) and
 // door_study (392, 190) to the study at (162, 190); the study's door_hallway
-// (136, 190) back to the hallway at (366, 190). Every walk ends against a
-// wall or a solid piece of furniture, which stops the player in reach however
-// late the key is released (backlog #81).
+// (136, 190) back to the hallway at (366, 190). The study's glass doors,
+// door_garden (320, 216), 32x16 in its bottom wall, lead to the garden at
+// (446, 190); the garden's door_study (472, 190), on its right fence, back to
+// the study at (320, 190). Every walk ends against a wall or a solid piece of
+// furniture, which stops the player in reach however late the key is released
+// (backlog #81): from the study's hallway landing, right into the right wall
+// (x 335.75) and down into the bottom wall (y 207.5), 17.9 px from the glass
+// doors; from the garden's landing, right into the fence (x 463.5).
 
 /** Uses the door in reach and waits for `room`. */
 export async function throughDoor(page: Page, room: string): Promise<void> {
@@ -45,6 +50,29 @@ export async function loungeToHallway(page: Page): Promise<void> {
 export async function hallwayToStudy(page: Page): Promise<void> {
   await holdUntilNear(page, 'ArrowRight', 'door_study');
   await throughDoor(page, 'study');
+}
+
+/**
+ * From a study landing on the row y 190: right into the right wall unless
+ * already above the glass doors (from the hallway's landing), then down into
+ * the bottom wall, the doors in reach, and out into the garden.
+ */
+export async function studyToGarden(page: Page): Promise<void> {
+  if ((await hook(page)).player.x < 300) await holdUntilAtLeast(page, 'ArrowRight', 'x', 330);
+  await holdUntilNear(page, 'ArrowDown', 'door_garden');
+  await throughDoor(page, 'garden');
+}
+
+/** From the garden's study-door landing (446, 190): right along the row into the fence, and into the study. */
+export async function gardenToStudy(page: Page): Promise<void> {
+  await holdUntilNear(page, 'ArrowRight', 'door_study');
+  await throughDoor(page, 'study');
+}
+
+/** From anywhere in the garden: down or up to the doorway's row y 228, left to the shed door, and through it. */
+export async function gardenToShed(page: Page): Promise<void> {
+  await walkTo(page, 228, 'left', 'door');
+  await throughDoor(page, 'shed');
 }
 
 /**
