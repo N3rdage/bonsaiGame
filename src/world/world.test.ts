@@ -18,7 +18,8 @@ import {
   type MoveInput,
   type PlayerState,
 } from './player';
-import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
+import { SHEETS } from './assets';
+import { DOORWAY, GARDEN_ROOM, ROOMS, SHED_EXTERIOR } from './gardenRoom';
 import { INTERACT_RANGE, nearestInteractable } from './interactables';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
@@ -224,6 +225,42 @@ describe('garden room', () => {
     expect([d.x - d.w / 2, d.x + d.w / 2]).toEqual([464, 480]);
     expect(d.target).toEqual({ room: 'study', x: 320, y: 190 });
     expect(ROOMS[d.target?.room ?? 'garden']).toBe(STUDY_ROOM);
+  });
+
+  it("sets the shed door in the shed's back wall, drawn round the doorway and not solid", () => {
+    expect(GARDEN_ROOM.furniture).toEqual([SHED_EXTERIOR]);
+    expect(SHED_EXTERIOR).toEqual({
+      sheet: SHEETS.shedExterior,
+      x: 0,
+      y: 196,
+      w: 32,
+      h: 56,
+      solid: false,
+    });
+    expect(furnitureWalls(GARDEN_ROOM.furniture)).toEqual([]);
+    // The walls are the fence ring with its doorway, as before the surround.
+    expect(DOORWAY).toEqual({ top: 208, bottom: 240 });
+    expect(GARDEN_ROOM.walls).toEqual(ringWalls(GARDEN_ROOM.bounds, DOORWAY));
+    // The door, its target and the landing from the shed are unchanged; the door sits in the opening.
+    const d = door(GARDEN_ROOM);
+    expect([d.prompt, d.x, d.y, d.w, d.h, d.sheet]).toEqual([
+      'Back to Shed',
+      16,
+      228,
+      16,
+      16,
+      undefined,
+    ]);
+    expect(d.target).toEqual({ room: 'shed', x: 240, y: 190 });
+    expect(door(SHED_ROOM).target).toEqual({ room: 'garden', x: 50, y: 225 });
+    expect(d.x - d.w / 2).toBeGreaterThan(SHED_EXTERIOR.x);
+    expect(d.x + d.w / 2).toBeLessThan(SHED_EXTERIOR.x + SHED_EXTERIOR.w);
+    expect(d.y - d.h / 2).toBeGreaterThan(SHED_EXTERIOR.y);
+    expect(d.y + d.h / 2).toBeLessThan(SHED_EXTERIOR.y + SHED_EXTERIOR.h);
+    // The doorway's gap lies within the wall's height, and the landing is clear of it.
+    expect(SHED_EXTERIOR.y).toBeLessThan(DOORWAY.top);
+    expect(SHED_EXTERIOR.y + SHED_EXTERIOR.h).toBeGreaterThan(DOORWAY.bottom);
+    expect(SHED_EXTERIOR.x + SHED_EXTERIOR.w).toBeLessThan(50);
   });
 
   it('lets the player walk out through the doorway to the clamp', () => {
