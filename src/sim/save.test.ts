@@ -136,6 +136,23 @@ describe('v5 round trip', () => {
     const bad = JSON.stringify({ ...file, placed: [{ ...item, kind: 'throne' }] });
     expect(() => deserializeSave(bad)).toThrow(/throne/);
   });
+
+  it('refuses a duplicate placed id and keeps nextPlacedId above every id', () => {
+    const file = JSON.parse(serializeState(createNewGameState(), NOW)) as Record<string, unknown>;
+    const at = (id: number) => ({
+      id,
+      kind: 'pedestal',
+      room: 'greenhouse',
+      x: 64 + id * 16,
+      y: 64,
+    });
+    const dup = JSON.stringify({ ...file, placed: [at(1), at(1)], nextPlacedId: 2 });
+    expect(() => deserializeSave(dup)).toThrow('Save v5: duplicate placed id 1');
+    const load = (nextPlacedId: number) =>
+      deserializeSave(JSON.stringify({ ...file, placed: [at(0), at(4)], nextPlacedId }));
+    expect(load(2).nextPlacedId).toBe(5);
+    expect(load(9).nextPlacedId).toBe(9);
+  });
 });
 
 /** A save of `version` whose trees stand at `locations`, otherwise a new game's; before 5, without the placed furniture. */
