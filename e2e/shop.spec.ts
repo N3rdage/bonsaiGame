@@ -10,6 +10,8 @@ import {
   test,
 } from './drive';
 
+const SEEDS = ['panel-buy-seed_juniper', 'panel-buy-seed_maple', 'panel-buy-seed_pine'];
+
 const buys = (h: BonsaiTestHook): string[] =>
   h.controls.map((c) => c.id).filter((id) => id.startsWith('panel-buy-'));
 
@@ -39,6 +41,7 @@ test.describe('shop kiosk', () => {
       'panel-buy-fertilizer',
       'panel-buy-fancy_pot',
       'panel-buy-soil_premium',
+      ...SEEDS,
     ]);
     expect(h.controls.map((c) => c.id)).toContain('panel-close');
 
@@ -55,6 +58,7 @@ test.describe('shop kiosk', () => {
       'panel-buy-pot',
       'panel-buy-wire',
       'panel-buy-fertilizer',
+      ...SEEDS,
     ]);
 
     h = await buy(page, 'pot');
@@ -65,6 +69,20 @@ test.describe('shop kiosk', () => {
 
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
+    expect(errors).toEqual([]);
+  });
+
+  // e2e/tap.spec.ts checks the nine Buy targets are apart and on the canvas.
+  test('sells the three seed packets at $9', async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await openShop(page);
+    let h = await hook(page);
+    const pine = h.inventory.seed_pine ?? 0;
+    h = await buy(page, 'seed_pine');
+    expect([h.money, h.inventory.seed_pine]).toEqual([91, pine + 1]);
+    h = await buy(page, 'seed_maple');
+    expect([h.money, h.inventory.seed_maple]).toEqual([82, 2]);
     expect(errors).toEqual([]);
   });
 });

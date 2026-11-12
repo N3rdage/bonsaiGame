@@ -82,6 +82,8 @@ interface BonsaiTestHook {
   readonly musicPaused?: boolean;
   /** World only: key of the prop within interact range of the player, 'tree:<id>' for a tree on the floor, or '' (always on the title). */
   readonly near: string;
+  /** World only: the prompt shown over the player for `near` ('E: Take Seeds' at a source plant in autumn), or ''. */
+  readonly prompt?: string;
   /** World only: label (name, or species display name) of the tree carried (location 'inventory'), or '' (always on the title). */
   readonly carrying: string;
   /** World only: every tree in the state, in order, with its label and `location` ('shed', 'garden', 'inventory', 'sold', 'displayed:<pedestalKey>'); empty on the title. */

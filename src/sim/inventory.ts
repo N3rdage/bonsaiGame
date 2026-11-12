@@ -18,6 +18,7 @@ export function createInventory(): Inventory {
     fertilizer: 50,
     seed_juniper: 1,
     seed_maple: 1,
+    seed_pine: 0,
     cutting_juniper: 0,
     cutting_maple: 0,
   };

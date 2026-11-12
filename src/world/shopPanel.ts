@@ -1,7 +1,7 @@
 /**
  * The shop kiosk's panel (obj_shop_kiosk, obj_ui_shop) as a PanelModel:
- * `Item`, `Price` and `Owned` headers, one line per SHOP_CATALOGUE entry with
- * its `Buy` button, and the `Money: $N` footer. Pure; WorldScene draws it and
+ * `Item`, `Price` and `Owned` headers over each block, one line per
+ * SHOP_CATALOGUE entry with its `Buy` button, and the `Money: $N` footer. Pure; WorldScene draws it and
  * buys through `shopBuy`, then reopens it with the new state.
  */
 
@@ -14,16 +14,28 @@ import { DESKTOP_UI, type UiMetrics } from './uiScale';
 /** The prop whose interaction opens the shop. */
 export const SHOP_KIOSK_KEY = 'shop_kiosk';
 
-/** The shop's box, centred on the canvas: headers, six items and the footer above Close. */
-export const SHOP_PANEL = { x: 90, y: 25, w: 300, h: 220, rowSpacing: 20 } as const;
+/**
+ * The shop's box, centred on the canvas: two blocks side by side, each with
+ * headers and up to `SHOP_ROWS_PER_BLOCK` items, and the footer above Close.
+ */
+export const SHOP_PANEL = { x: 10, y: 25, w: 460, h: 220, rowSpacing: 20 } as const;
 
-/** Left edges of the columns (obj_ui_shop's 0, 220, 300 and 380 px, scaled to the box). */
-export const SHOP_COLUMNS = {
-  item: SHOP_PANEL.x + PANEL_INSET,
-  price: SHOP_PANEL.x + 130,
-  owned: SHOP_PANEL.x + 180,
-  buy: SHOP_PANEL.x + 240,
-} as const;
+/**
+ * Items per block: six lines of Buy buttons is what the box holds at a
+ * phone's tap pitch, so the catalogue's seed packets start a second block.
+ */
+export const SHOP_ROWS_PER_BLOCK = 6;
+
+/** Left edges of block `block`'s columns (obj_ui_shop's item, price, owned and buy columns, scaled to half the box). */
+export function shopColumns(block: number): {
+  item: number;
+  price: number;
+  owned: number;
+  buy: number;
+} {
+  const left = SHOP_PANEL.x + (block * SHOP_PANEL.w) / 2;
+  return { item: left + PANEL_INSET, price: left + 100, owned: left + 140, buy: left + 185 };
+}
 
 /** obj_ui_shop's header colour, rgb(140, 180, 120), and its footer's, rgb(150, 150, 150). */
 export const SHOP_HEADER_COLOR = '#8cb478';
@@ -56,26 +68,32 @@ export function shopPanel(
     y: rowY(SHOP_PANEL, line),
     color,
   });
-  const header = [
-    cell(0, SHOP_COLUMNS.item, 'Item', SHOP_HEADER_COLOR),
-    cell(0, SHOP_COLUMNS.price, 'Price', SHOP_HEADER_COLOR),
-    cell(0, SHOP_COLUMNS.owned, 'Owned', SHOP_HEADER_COLOR),
-  ];
-  const items = SHOP_CATALOGUE.flatMap((item, i) => [
-    cell(i + 1, SHOP_COLUMNS.item, item.label),
-    cell(i + 1, SHOP_COLUMNS.price, `$${String(item.price)}`),
-    cell(i + 1, SHOP_COLUMNS.owned, String(inventoryCount(state.inventory, item.key))),
-    {
-      text: 'Buy',
-      id: buyId(item),
-      x: SHOP_COLUMNS.buy,
-      y: rowY(SHOP_PANEL, i + 1),
-      enabled: state.money >= item.price,
-    },
+  const blocks = Math.ceil(SHOP_CATALOGUE.length / SHOP_ROWS_PER_BLOCK);
+  const header = Array.from({ length: blocks }, (_, b) => shopColumns(b)).flatMap((cols) => [
+    cell(0, cols.item, 'Item', SHOP_HEADER_COLOR),
+    cell(0, cols.price, 'Price', SHOP_HEADER_COLOR),
+    cell(0, cols.owned, 'Owned', SHOP_HEADER_COLOR),
   ]);
+  const items = SHOP_CATALOGUE.flatMap((item, i) => {
+    const cols = shopColumns(Math.floor(i / SHOP_ROWS_PER_BLOCK));
+    const line = (i % SHOP_ROWS_PER_BLOCK) + 1;
+    return [
+      cell(line, cols.item, item.label),
+      cell(line, cols.price, `$${String(item.price)}`),
+      cell(line, cols.owned, String(inventoryCount(state.inventory, item.key))),
+      {
+        text: 'Buy',
+        id: buyId(item),
+        x: cols.buy,
+        y: rowY(SHOP_PANEL, line),
+        enabled: state.money >= item.price,
+      },
+    ];
+  });
   const money = `Money: $${String(state.money)}`;
+  const left = shopColumns(0).item;
   const footer = needsFit(SHOP_PANEL, ui)
-    ? { ...cell(0, SHOP_COLUMNS.item, money, SHOP_FOOTER_COLOR), y: panelClose(SHOP_PANEL).y }
-    : cell(SHOP_CATALOGUE.length + 1, SHOP_COLUMNS.item, money, SHOP_FOOTER_COLOR);
+    ? { ...cell(0, left, money, SHOP_FOOTER_COLOR), y: panelClose(SHOP_PANEL).y }
+    : cell(SHOP_ROWS_PER_BLOCK + 1, left, money, SHOP_FOOTER_COLOR);
   return { key: 'shop', title: 'Shop', box: SHOP_PANEL, rows: [...header, ...items, footer] };
 }

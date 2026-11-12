@@ -12,10 +12,10 @@ import { PANEL_INSET, type PanelModel, type PanelRow } from './panels';
 /** The hook's `panel` while the inventory is open. */
 export const INVENTORY_KEY = 'inventory';
 
-/** The inventory's box, centred on the canvas: three headers, ten items and two gaps above Close. */
-export const INVENTORY_PANEL = { x: 120, y: 10, w: 240, h: 250, rowSpacing: 14 } as const;
-/** obj_ui_inventory's 16 px gap between sections at its 24 px line, scaled to the box's 14 px line (16 x 14 / 24, rounded). */
-const SECTION_GAP = 9;
+/** The inventory's box, centred on the canvas: three headers, eleven items (three seeds since the pine seed) and two gaps above Close. */
+export const INVENTORY_PANEL = { x: 120, y: 10, w: 240, h: 250, rowSpacing: 12 } as const;
+/** obj_ui_inventory's 16 px gap between sections at its 24 px line, scaled to the box's 12 px line (16 x 12 / 24). */
+const SECTION_GAP = 8;
 /** Items are indented 16 px under their header (obj_ui_inventory). */
 const ITEM_INDENT = 16;
 /** Right edge of the counts, which are right-aligned there (obj_ui_inventory's fa_right at its inset). */

@@ -8,6 +8,8 @@ import {
   expect,
   hook,
   interact,
+  openMenu,
+  tapControl,
   test,
   toTitle,
   walkTo,
@@ -69,7 +71,50 @@ test.describe('the garden', () => {
     expect(h.inventory).toEqual({ ...before, cutting_juniper: 1 });
     expect(errors).toEqual([]);
   });
+
+  test('in autumn the maple reads Take Seeds and gives one seed to the Inventory', async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    const state = createNewGameState();
+    state.day = 60;
+    state.tutorialStep = -1;
+    await page.goto('/');
+    await page.evaluate(
+      (text) => {
+        localStorage.setItem('bonsai.save.1', text);
+      },
+      serializeState(state, new Date(2026, 10, 11, 0, 0)),
+    );
+    await toTitle(page);
+    await continueGame(page);
+    await page.waitForFunction(
+      () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
+    );
+    expect((await hook(page)).season).toBe('autumn');
+    await toGarden(page);
+    await walkTo(page, 80, 'right', 'source_maple');
+    expect((await hook(page)).prompt).toBe('E: Take Seeds');
+    expect(await mapleSeeds(page)).toBe(1);
+
+    await interact(page);
+    await page.waitForFunction(() => window.__bonsai?.inventory.seed_maple === 2);
+    expect((await hook(page)).toast).toBe('Took a Japanese Maple seed  (2 in inventory)');
+    expect(await mapleSeeds(page)).toBe(2);
+    expect(errors).toEqual([]);
+  });
 });
+
+/** The Inventory panel's Japanese Maple seed count, opened from the menu and closed again. */
+async function mapleSeeds(page: Page): Promise<number | undefined> {
+  await openMenu(page);
+  await tapControl(page, 'menu-inventory');
+  await page.waitForFunction(() => window.__bonsai?.panel === 'inventory');
+  const seeds = (await hook(page)).inventorySections?.find((s) => s.title === 'Seeds');
+  await tapControl(page, 'panel-close');
+  await page.waitForFunction(() => window.__bonsai?.panel === '');
+  return seeds?.entries.find((e) => e.label === 'Japanese Maple')?.count;
+}
 
 test.describe('the day clock', () => {
   test('a displayed tree earns display revenue as the days pass', async ({ page }) => {
