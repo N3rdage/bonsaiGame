@@ -3,7 +3,9 @@
  * rest up here. Each species carries a per-season foliage colour table; a
  * season mapped to `undefined` means "drop foliage entirely" (deciduous
  * winter-bare). `leafColor` is the fallback for callers that don't know about
- * seasons.
+ * seasons. `look` carries the bark colours and leaf shape the renderers draw;
+ * the prototype drew every species like the juniper, so the juniper's look is
+ * the prototype's and the maple's and pine's are new.
  *
  * Ported from archive/gamemaker/scripts/scr_species_data/scr_species_data.gml.
  */
@@ -20,7 +22,15 @@ export const SPECIES: Record<SpeciesKey, Species> = {
     growthRate: 1.0,
     waterNeed: 0.8,
     leafColor: '#4a6741',
-    leafShape: 'needle',
+    // The prototype's one look for every tree, kept exactly so juniper renders are unchanged.
+    look: {
+      trunkBark: '#5a3c28', // rgb(90, 60, 40)
+      branchBark: '#6e4b32', // rgb(110, 75, 50)
+      spriteTrunk: '#4b321e', // rgb(75, 50, 30)
+      leafAspect: 1,
+      leafSizeScale: 1,
+      leafCountScale: 1,
+    },
     maxTrunkCm: 45,
     suitableStyles: ['informal_upright', 'cascade', 'windswept'],
     propagation: ['cutting', 'seed'],
@@ -38,7 +48,15 @@ export const SPECIES: Record<SpeciesKey, Species> = {
     growthRate: 1.2,
     waterNeed: 1.2,
     leafColor: '#b33a2a',
-    leafShape: 'palmate',
+    // Smooth grey bark; fewer, larger, broad palmate leaves.
+    look: {
+      trunkBark: '#6e6a62',
+      branchBark: '#7c7870',
+      spriteTrunk: '#5a5650',
+      leafAspect: 1.6,
+      leafSizeScale: 1.3,
+      leafCountScale: 0.8,
+    },
     maxTrunkCm: 60,
     suitableStyles: ['informal_upright', 'broom'],
     propagation: ['seed'],
@@ -56,7 +74,15 @@ export const SPECIES: Record<SpeciesKey, Species> = {
     growthRate: 0.7,
     waterNeed: 0.6,
     leafColor: '#3a5a3a',
-    leafShape: 'needle',
+    // Dark plated bark; many tall, narrow needle tufts.
+    look: {
+      trunkBark: '#3e2a1e',
+      branchBark: '#4c3626',
+      spriteTrunk: '#32221a',
+      leafAspect: 0.35,
+      leafSizeScale: 1.1,
+      leafCountScale: 1.6,
+    },
     maxTrunkCm: 50,
     suitableStyles: ['formal_upright', 'informal_upright', 'windswept'],
     propagation: ['seed'],

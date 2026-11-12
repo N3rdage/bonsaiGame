@@ -10,12 +10,10 @@ import {
   ANCHOR_MIN_SEGS,
   ANCHOR_SEGMENTS,
   ANCHOR_TURNS,
-  BRANCH_BARK_RGB,
   BRANCH_MIN_RADIUS,
   BRANCH_RING_SEGMENTS,
   BRANCH_SEGMENTS,
   BRANCH_TIP_FRACTION,
-  TRUNK_BARK_RGB,
   TRUNK_MIN_RADIUS,
   TRUNK_RING_SEGMENTS,
   WIRE_FULL_BEND_DEG,
@@ -32,6 +30,7 @@ import {
   buildRing,
   buildRingWithBasis,
   buildTreeMesh,
+  speciesBark,
   stitchRings,
   trunkBaseRadius,
   wireCoilSegments,
@@ -94,12 +93,25 @@ describe('tree mesh constants (scr_bonsai_mesh build_trunk / build_branch)', () 
   it('match the prototype', () => {
     expect(TRUNK_RING_SEGMENTS).toBe(10);
     expect(TRUNK_MIN_RADIUS).toBe(0.001);
-    expect(TRUNK_BARK_RGB).toEqual({ r: 90, g: 60, b: 40 });
     expect(BRANCH_SEGMENTS).toBe(6);
     expect(BRANCH_RING_SEGMENTS).toBe(6);
     expect(BRANCH_TIP_FRACTION).toBe(0.2);
     expect(BRANCH_MIN_RADIUS).toBe(0.005);
-    expect(BRANCH_BARK_RGB).toEqual({ r: 110, g: 75, b: 50 });
+  });
+
+  it("the juniper's bark is the prototype's one bark; the maple and pine have their own", () => {
+    expect(speciesBark('juniper')).toEqual({
+      trunk: { r: 90, g: 60, b: 40 },
+      branch: { r: 110, g: 75, b: 50 },
+    });
+    expect(speciesBark('maple')).toEqual({
+      trunk: { r: 110, g: 106, b: 98 },
+      branch: { r: 124, g: 120, b: 112 },
+    });
+    expect(speciesBark('pine')).toEqual({
+      trunk: { r: 62, g: 42, b: 30 },
+      branch: { r: 76, g: 54, b: 38 },
+    });
   });
 
   it('match the prototype wire (add_wire_coil / add_wire_anchor)', () => {
@@ -270,6 +282,21 @@ describe('buildTreeMesh', () => {
     for (const p of tip) expect(dist(p, tipCentre)).toBeCloseTo(0.005, 5);
   });
 
+  it("builds a maple's and a pine's trunk and branches in their own bark", () => {
+    for (const key of ['maple', 'pine'] as const) {
+      const tree = VIEWER_FIXTURES[key]();
+      const mesh = buildTreeMesh(tree);
+      const bark = speciesBark(key);
+      const total = mesh.positions.length / 3;
+      // Unwired: the trunk's bands, then 72 triangles of bark per branch.
+      const trunkVertices = total - tree.branches.length * 72 * 3;
+      expectColor(colorAt(mesh, 0), bark.trunk);
+      expectColor(colorAt(mesh, trunkVertices - 1), bark.trunk);
+      expectColor(colorAt(mesh, trunkVertices), bark.branch);
+      expectColor(colorAt(mesh, total - 1), bark.branch);
+    }
+  });
+
   it('is deterministic', () => {
     const a = buildTreeMesh(starterTree());
     const b = buildTreeMesh(starterTree());
@@ -332,10 +359,11 @@ describe('wire (scr_bonsai_mesh add_wire_coil / add_wire_anchor)', () => {
     const mesh = buildTreeMesh(wired().tree);
     expect(mesh.positions.length / 3).toBe(2064 + 6408 + 576);
     expect(mesh.positions.length / 3).toBe(9048);
-    expectColor(colorAt(mesh, COIL_START - 1), BRANCH_BARK_RGB);
+    const branchBark = speciesBark('juniper').branch;
+    expectColor(colorAt(mesh, COIL_START - 1), branchBark);
     expectColor(colorAt(mesh, COIL_START), WIRE_RGB);
     expectColor(colorAt(mesh, ANCHOR_START + 575), WIRE_RGB);
-    expectColor(colorAt(mesh, ANCHOR_START + 576), BRANCH_BARK_RGB);
+    expectColor(colorAt(mesh, ANCHOR_START + 576), branchBark);
   });
 
   it('adds nothing for an unwired branch, however bent', () => {

@@ -42,6 +42,7 @@ Entries should record:
 - **Pruning (removing a branch) is winter-only; clipping is year-round ([TODO](TODO.md) 2e-b).** The gate is the calendar season, not dormancy: a juniper is not dormant in the game's winter, yet the 3D viewer's Prune mode still refuses in spring, summer and autumn and says `Prune: requires winter`. There is no hard-versus-light prune distinction. Real-world: structural pruning is best done in late winter or early spring, light maintenance pruning through the growing season, and the timing varies by species.
 - **No back-budding.** Hard cuts don't trigger latent buds to break. Real-world: a controlled hard prune is *how* you densify a tree.
 - **No nebari (root flare) modelling.** Trunk base is uniform. Real-world: surface roots are one of the most-judged style criteria.
+- **Species differ only in bark colour and leaf proportions.** Every species draws its leaves with the one foliage sprite, stretched broad for a maple and narrow for a pine, and its bark as one flat colour; the room sprite differs only in trunk colour. Real-world: a palmate maple leaf, a pine's paired needles and a juniper's scale foliage are different shapes, and bark has texture (a pine's plates, a maple's smooth skin) that changes with age.
 
 ## Seasons / climate
 

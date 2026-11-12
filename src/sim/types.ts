@@ -155,13 +155,34 @@ export interface Species {
   waterNeed: number;
   /** CSS hex, e.g. '#4a6741'. Fallback when a season has no entry. */
   leafColor: string;
-  leafShape: 'needle' | 'palmate';
+  /** How the species is drawn: bark colours and leaf shape. */
+  look: SpeciesLook;
   maxTrunkCm: number;
   suitableStyles: StyleKey[];
   propagation: Origin[];
   seasonsActive: Season[];
   /** CSS hex per season; `undefined` means drop foliage entirely (deciduous winter-bare). */
   seasonal: Record<Season, string | undefined>;
+}
+
+/**
+ * A species' look as data, read by the 3D viewer and the room's tree sprite.
+ * Colours are CSS hex like `leafColor`; the leaf numbers scale the
+ * prototype's leaf quads, so 1 everywhere is the prototype's juniper.
+ */
+export interface SpeciesLook {
+  /** 3D trunk bark. */
+  trunkBark: string;
+  /** 3D branch bark. */
+  branchBark: string;
+  /** The room sprite's trunk. */
+  spriteTrunk: string;
+  /** Each leaf quad's width over its height: above 1 broad leaves, below 1 needle tufts. */
+  leafAspect: number;
+  /** Multiplies the leaf half-size. */
+  leafSizeScale: number;
+  /** Multiplies the leaves per cluster before flooring. */
+  leafCountScale: number;
 }
 
 export interface Style {
