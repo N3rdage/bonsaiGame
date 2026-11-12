@@ -1,15 +1,18 @@
 import type { Page } from '@playwright/test';
 import { serializeState } from '../src/sim/save';
-import { DAYS_PER_SEASON, SEASONS } from '../src/sim/seasons';
+import { DAYS_PER_SEASON, SEASONS, seasonForDay, seasonWaterMultiplier } from '../src/sim/seasons';
+import { getSpecies } from '../src/sim/species';
 import { createNewGameState } from '../src/sim/state';
 import { TUTORIAL_DONE } from '../src/sim/tutorial';
 import {
   bootWorld,
+  closePanel,
   collectErrors,
   continueGame,
   expect,
   hook,
   interact,
+  openInspector,
   openMenu,
   openSettingsFromMenu,
   skipTutorial,
@@ -221,6 +224,73 @@ test.describe('the day clock', () => {
     expect(after.money - before.money).toBe(paid);
     expect(after.hud).toContain(`Day ${String(after.day)}  |  $${String(after.money)}`);
     expect(after.hud).not.toBe(before.hud);
+    expect(errors).toEqual([]);
+  });
+
+  test('Sleep a week pays a displayed tree seven days of display revenue', async ({ page }) => {
+    const errors = collectErrors(page);
+    // A new game with Granny's juniper on the lounge's mantel, at the real clock's pace.
+    const state = createNewGameState();
+    const [starter] = state.trees;
+    if (!starter) throw new Error('no starter');
+    starter.location = 'displayed:lounge_mantel';
+    await page.goto('/');
+    await page.evaluate(
+      (text) => {
+        localStorage.setItem('bonsai.save.1', text);
+      },
+      serializeState(state, new Date(2026, 10, 11, 0, 0)),
+    );
+    await toTitle(page);
+    await continueGame(page);
+    await page.waitForFunction(
+      () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
+    );
+    const before = await hook(page);
+
+    await openMenu(page);
+    await tapControl(page, 'menu-sleep-week');
+    await page.waitForFunction((d) => window.__bonsai?.day === d + 7, before.day);
+    const after = await hook(page);
+    const day = String(before.day + 7);
+    const paid = Number(
+      new RegExp(`^Day ${day}  \\|  Display revenue: \\+\\$(\\d+)$`).exec(after.toast)?.[1],
+    );
+    // Seven days' pay: at least 7 (a day pays at least $1 here).
+    expect(paid).toBeGreaterThanOrEqual(7);
+    expect(after.money - before.money).toBe(paid);
+    expect(after.hud).toContain(`Day ${day}  |  $${String(after.money)}`);
+    expect(after.lastSound).toBe('coin');
+    expect(errors).toEqual([]);
+  });
+
+  test("Sleep a week drinks the starter tree's water", async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await walkTo(page, 160, 'left', 'tree:0');
+    await openInspector(page);
+    const before = await hook(page);
+    const water = before.inspected?.waterLevel ?? -1;
+    expect(water).toBeGreaterThan(0);
+    await closePanel(page);
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
+
+    await openMenu(page);
+    await tapControl(page, 'menu-sleep-week');
+    await page.waitForFunction((d) => window.__bonsai?.day === d + 7, before.day);
+    await openInspector(page);
+    const [starter] = createNewGameState().trees;
+    if (!starter) throw new Error('no starter');
+    const species = getSpecies(starter.speciesKey);
+    let expected = water;
+    for (let d = before.day + 1; d <= before.day + 7; d++) {
+      expected = Math.max(
+        0,
+        expected - species.waterNeed * 5 * seasonWaterMultiplier(seasonForDay(d)),
+      );
+    }
+    expect((await hook(page)).inspected?.waterLevel).toBeCloseTo(expected);
+    expect(expected).toBeLessThan(water);
     expect(errors).toEqual([]);
   });
 });

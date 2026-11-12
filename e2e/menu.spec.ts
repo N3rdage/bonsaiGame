@@ -20,6 +20,20 @@ const ids = (h: BonsaiTestHook): string[] => h.controls.map((c) => c.id);
 /** The room's controls on a new game: the HUD buttons and the tutorial's Skip. */
 const HUD = ['view', 'notebook', 'menu', 'tutorial-skip'];
 
+/** Waits two animation frames, so a key just pressed has reached the scene. */
+async function nextFrames(page: Page): Promise<void> {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            resolve();
+          });
+        });
+      }),
+  );
+}
+
 async function saveByMenu(page: Page): Promise<void> {
   await openMenu(page);
   await tapControl(page, 'menu-save');
@@ -35,6 +49,8 @@ test.describe('world menu', () => {
     expect(ids(await hook(page))).toEqual([
       ...HUD,
       'menu-inventory',
+      'menu-sleep',
+      'menu-sleep-week',
       'menu-save',
       'menu-load',
       'menu-settings',
@@ -173,6 +189,52 @@ test.describe('world menu', () => {
     const h = await hook(page);
     expect(ids(h)).toEqual(['new', 'continue', 'load', 'settings']);
     expect(h.panel).toBe('');
+    expect(errors).toEqual([]);
+  });
+
+  test('Sleep by tap and by Z moves the day and its badge', async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    const day = (await hook(page)).day;
+    await openMenu(page);
+    await tapControl(page, 'menu-sleep');
+    await page.waitForFunction((d) => window.__bonsai?.day === d + 1, day);
+    let h = await hook(page);
+    expect(h.panel).toBe('');
+    expect(h.hud).toContain(`Day ${String(day + 1)}  |`);
+    expect(h.toast).toBe(`Day ${String(day + 1)}`);
+
+    await page.keyboard.press('z');
+    await page.waitForFunction((d) => window.__bonsai?.day === d + 2, day);
+    h = await hook(page);
+    expect(h.hud).toContain(`Day ${String(day + 2)}  |`);
+    expect(h.toast).toBe(`Day ${String(day + 2)}`);
+    expect(errors).toEqual([]);
+  });
+
+  test('Sleep is not offered and Z does nothing under a modal or the viewer', async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    const day = (await hook(page)).day;
+    await openMenu(page);
+    await tapControl(page, 'menu-inventory');
+    await page.waitForFunction(() => window.__bonsai?.panel === 'inventory');
+    await page.keyboard.press('z');
+    await nextFrames(page);
+    let h = await hook(page);
+    expect(ids(h)).not.toContain('menu-sleep');
+    expect(ids(h)).not.toContain('menu-sleep-week');
+    expect(h.day).toBe(day);
+    await tapControl(page, 'panel-close');
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
+
+    await openViewer(page);
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === true);
+    await page.keyboard.press('z');
+    await nextFrames(page);
+    h = await hook(page);
+    expect(ids(h)).not.toContain('menu-sleep');
+    expect(h.day).toBe(day);
     expect(errors).toEqual([]);
   });
 

@@ -148,7 +148,7 @@ interface BonsaiTestHook {
    * 'tip-dismiss' (its Got it) in Skip's place; the notebook's 'panel-prev' and 'panel-next'
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant's
    * 'panel-select-<species>' (unselected cuttings), 'panel-select-seed-<species>' (unselected seeds), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
-   * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), and the Settings panel's 'panel-fullscreen' (only where the browser offers
+   * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), 'menu-sleep' and 'menu-sleep-week' (its Sleep (Z) and Sleep a week rows), and the Settings panel's 'panel-fullscreen' (only where the browser offers
    * fullscreen), 'panel-weather', 'panel-sound', 'panel-music' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    * `hit` is the control's tap target (the rect the scene gave Phaser's setInteractive) in logical px, top-left and
    * size: its text box grown to the UI metrics' `hit` (src/world/uiScale.ts) and kept inside the canvas.

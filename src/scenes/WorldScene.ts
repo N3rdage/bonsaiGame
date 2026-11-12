@@ -91,6 +91,7 @@ import {
 } from '../sim/sourcePlant';
 import type { SpeciesKey } from '../sim/types';
 import { BASE_TIME_SCALE, tickClock } from '../world/clock';
+import { SLEEP_WEEK_DAYS, sleep } from '../world/sleep';
 import { ROOMS } from '../world/gardenRoom';
 import {
   PROTOTYPE_SCALE,
@@ -275,7 +276,8 @@ const BAR_H = 6;
  * all through the location helpers in src/sim/tree.ts.
  *
  * The day clock (src/world/clock.ts) runs from the frame loop while the viewer
- * is closed; `?timeScale=` speeds it up.
+ * is closed; `?timeScale=` speeds it up. Sleep (Z) and Sleep a week, from the
+ * menu, advance it a day or seven at once (src/world/sleep.ts).
  *
  * While the tutorial runs, its corner panel (src/world/tutorialPanel.ts) sits
  * in the HUD under the badge, redrawn on any publish after the step or the
@@ -515,6 +517,9 @@ export class WorldScene extends Phaser.Scene {
     onKeyDown(keyboard, 'I', () => {
       this.toggleInventory();
     });
+    onKeyDown(keyboard, 'Z', () => {
+      this.goToSleep(1);
+    });
     (['ONE', 'TWO', 'THREE'] as const).forEach((name, i) => {
       onKeyDown(keyboard, name, () => {
         if (this.panel?.buttons.some((b) => b.id === `panel-slot-${String(i + 1)}`)) {
@@ -702,6 +707,12 @@ export class WorldScene extends Phaser.Scene {
     const actions = {
       inventory: () => {
         this.toggleInventory();
+      },
+      sleep: () => {
+        this.goToSleep(1);
+      },
+      'sleep-week': () => {
+        this.goToSleep(SLEEP_WEEK_DAYS);
       },
       save: () => {
         this.save();
@@ -1611,16 +1622,34 @@ export class WorldScene extends Phaser.Scene {
 
   /**
    * The day clock (obj_game_controller Step_0), run while the viewer is closed,
-   * modal panels or not. A passing day regrows the sprites, refreshes an open
-   * inspector and the HUD, and toasts the display revenue it paid.
+   * modal panels or not; a passing day toasts the display revenue it paid.
    */
   private runClock(deltaMs: number): void {
     const { state, overrides } = this.ctx;
     const timeScale = overrides.timeScale ?? BASE_TIME_SCALE;
     const tick = tickClock(state, this.clockS, deltaMs / 1000, timeScale);
     this.clockS = tick.accumulatorS;
-    if (tick.days === 0) return;
-    const tip = seasonTipFor(state, state.day - tick.days);
+    this.daysPassed(tick.days, tick.revenue, false);
+  }
+
+  /** Sleep and Sleep a week (src/world/sleep.ts), from the room only: the world advances `days` and toasts the new day. */
+  private goToSleep(days: number): void {
+    if (!this.roomKeysLive()) return;
+    this.closePanel();
+    const slept = sleep(this.ctx.state, days);
+    this.daysPassed(slept.days, slept.revenue, true);
+  }
+
+  /**
+   * After the clock or a sleep moved the world `days` days: the season tip,
+   * the sprites regrown, the weather and wash on a new season, an open
+   * inspector and the HUD refreshed, and a toast of the revenue paid (led by
+   * the new day after a sleep).
+   */
+  private daysPassed(days: number, revenue: number, slept: boolean): void {
+    const { state } = this.ctx;
+    if (days === 0) return;
+    const tip = seasonTipFor(state, state.day - days);
     if (tip !== undefined) {
       state.seasonTipShown = true;
       this.seasonTip = tip;
@@ -1633,12 +1662,11 @@ export class WorldScene extends Phaser.Scene {
     if (this.roomWash !== seasonWash(this.room, seasonForDay(state.day))) this.drawRoom();
     if (this.panel?.tree) this.openInspector(this.panel.tree);
     this.hud.setText(hudText(state));
-    if (tick.revenue > 0) {
-      this.sfx.play('coin');
-      this.showToast(`Display revenue: +$${String(tick.revenue)}`);
-    } else {
-      this.publishHook();
-    }
+    const paid = revenue > 0 ? `Display revenue: +$${String(revenue)}` : '';
+    if (revenue > 0) this.sfx.play('coin');
+    const toast = slept ? [`Day ${String(state.day)}`, paid].filter(Boolean).join('  |  ') : paid;
+    if (toast) this.showToast(toast);
+    else this.publishHook();
   }
 
   private keyboardMove(): MoveInput {
