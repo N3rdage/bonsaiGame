@@ -8,7 +8,8 @@
  * `seasonTipShown`, read as false from older saves; version 4 (`SaveFileV4`)
  * is version 3 with the display spots' final keys (`PRE_V4_DISPLAY_KEYS`);
  * version 5 (`SaveFileV5`) adds the placed furniture (`placed`, `nextPlacedId`),
- * read as none from older saves.
+ * read as none from older saves; a duplicate placed id is refused and
+ * `nextPlacedId` is raised above every placed id.
  * Storage is injected (MemorySaveStorage here, localStorage in src/platform)
  * so this module stays free of DOM APIs.
  */
@@ -385,20 +386,27 @@ function placeableKind(v: unknown, where: string): PlaceableKind {
 /** A version-5 save: version 4 plus the placed furniture. */
 function readV5Save(raw: Record<string, unknown>): GameState {
   const where = 'Save v5';
-  const placed = Array.isArray(raw.placed) ? (raw.placed as unknown[]) : [];
+  const rawPlaced = Array.isArray(raw.placed) ? (raw.placed as unknown[]) : [];
+  const placed = rawPlaced.map((item, i): PlacedItem => {
+    const r = asRecord(item);
+    return {
+      id: int(r.id, 0),
+      kind: placeableKind(r.kind, `${where} placed ${String(i)}`),
+      room: str(r.room, ''),
+      x: int(r.x, 0),
+      y: int(r.y, 0),
+    };
+  });
+  const ids = new Set<number>();
+  for (const { id } of placed) {
+    if (ids.has(id)) throw new Error(`${where}: duplicate placed id ${String(id)}`);
+    ids.add(id);
+  }
+  const maxId = Math.max(-1, ...ids);
   return {
     ...readV4Save(raw, where),
-    placed: placed.map((item, i): PlacedItem => {
-      const r = asRecord(item);
-      return {
-        id: int(r.id, 0),
-        kind: placeableKind(r.kind, `${where} placed ${String(i)}`),
-        room: str(r.room, ''),
-        x: int(r.x, 0),
-        y: int(r.y, 0),
-      };
-    }),
-    nextPlacedId: int(raw.nextPlacedId, 0),
+    placed,
+    nextPlacedId: Math.max(int(raw.nextPlacedId, 0), maxId + 1),
   };
 }
 
