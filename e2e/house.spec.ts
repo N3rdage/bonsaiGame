@@ -14,7 +14,15 @@ import {
   toTitle,
   walkTo,
 } from './drive';
-import { hallwayToStudy, loungeToHallway, shedToLounge, throughDoor } from './rooms';
+import {
+  gardenToShed,
+  gardenToStudy,
+  hallwayToStudy,
+  loungeToHallway,
+  shedToLounge,
+  studyToGarden,
+  throughDoor,
+} from './rooms';
 
 // The doors and landings are in rooms.ts. The hallway is a corridor, x 80..400
 // and y 160..224: its floor is y 176..208, so a walk up or down it stops at
@@ -67,6 +75,26 @@ test.describe('the house', () => {
     await holdUntilNear(page, 'ArrowLeft', 'door_lounge');
     await throughDoor(page, 'lounge');
     await expectAt(page, 'lounge', 398, 190);
+    expect(errors).toEqual([]);
+  });
+
+  test("the study's glass doors lead out to the garden and back, and the garden home to the shed", async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await shedToLounge(page);
+    await loungeToStudy(page);
+
+    await studyToGarden(page);
+    await expectAt(page, 'garden', 446, 190);
+    await gardenToStudy(page);
+    await expectAt(page, 'study', 320, 190);
+    await studyToGarden(page);
+    await expectAt(page, 'garden', 446, 190);
+
+    await gardenToShed(page);
+    await expectAt(page, 'shed', 240, 190);
     expect(errors).toEqual([]);
   });
 
