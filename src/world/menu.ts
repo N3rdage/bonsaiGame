@@ -70,6 +70,14 @@ function menuButtonHitBottom(ui: UiMetrics): number {
   return r.y + r.h;
 }
 
+/** The top of the `View tree (V)` button's tap target, which the panel's rows stay above. */
+function viewButtonHitTop(ui: UiMetrics): number {
+  return hitRect(
+    estimatedBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, ui),
+    ui.hit,
+  ).y;
+}
+
 /**
  * The panel's top, height and columns and where its rows start: MENU_PANEL,
  * its top lowered to just above the Menu button's tap target and its height
@@ -85,7 +93,7 @@ function layout(
   const pitch = menuRowPitch(ui);
   const minTop = Math.max(MENU_PANEL.y + MENU_PAD, menuButtonHitBottom(ui));
   const y = Math.max(MENU_PANEL.y, minTop - MENU_PAD);
-  const fit = Math.max(1, Math.floor((270 - ui.hit - y - 2 * MENU_PAD) / pitch));
+  const fit = Math.max(1, Math.floor((viewButtonHitTop(ui) - y - 2 * MENU_PAD) / pitch));
   const columns = Math.ceil(count / fit);
   const perColumn = Math.ceil(count / columns);
   const rowsH = perColumn * pitch;
