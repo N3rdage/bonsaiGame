@@ -254,6 +254,14 @@ describe('plant panel', () => {
       'panel-fancy',
       'panel-soil',
     ]);
+    // A third species (the pine seed) and both toggles: the counts sit beside the toggles.
+    state.inventory.seed_pine = 4;
+    expect(lines(state, NO_SELECTION, PHONE_UI).slice(3)).toEqual([
+      ['Pine  x4', 'Select'],
+      ['[ ] Use fancy pot (+25% display)', 'Pots: 2  |  Fancy pots: 1'],
+      ['[ ] Use premium soil (slower vigor loss)', 'Akadama mix: 3'],
+      ['Plant Cutting', 'Select a cutting or seed first.'],
+    ]);
     // Only seeds: one column, at the left.
     expect(lines(createNewGameState(), seed('maple'), PHONE_UI).slice(0, 3)).toEqual([
       ['Seeds:'],
@@ -269,6 +277,7 @@ describe('plant panel', () => {
       'cutting_maple',
       'seed_juniper',
       'seed_maple',
+      'seed_pine',
       'pot',
       'fancy_pot',
       'soil_premium',

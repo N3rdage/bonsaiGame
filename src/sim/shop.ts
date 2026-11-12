@@ -31,6 +31,11 @@ export const SHOP_CATALOGUE: readonly ShopItem[] = [
   // Premium soil is a per-repot horticultural upgrade (slower vigor drift +
   // softer water-stress penalties); basic soil is free/implicit.
   { key: 'soil_premium', label: 'Akadama Mix', price: 18 },
+  // Seed packets (backlog #93): dearer than clay, far below a fancy pot; a
+  // garden seed in autumn is free.
+  { key: 'seed_juniper', label: 'Juniper Seed', price: 9 },
+  { key: 'seed_maple', label: 'Maple Seed', price: 9 },
+  { key: 'seed_pine', label: 'Pine Seed', price: 9 },
 ];
 
 /**

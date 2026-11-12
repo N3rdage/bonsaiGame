@@ -22,7 +22,7 @@ Priority-ordered toward "playable." Security items always at top.
 |---|---|---|---|---|---|
 | 2e | Mechanics | Expanded season gating | Follow-up to 2d. Gate take-cutting to spring/summer (matches real propagation timing) and introduce a hard-vs-light prune distinction so hard pruning can be winter-only. Deferred from 2d to keep that slice small. | S | Done (#144) |
 | 2f | UX | Season UX polish | Notebook page explaining the four seasons + their effects; tutorial step that pops on the first dormancy transition pointing at the season HUD badge. Deferred from 2a so the clock could ship without onboarding churn. | S | Done (#151) |
-| 3 | Mechanics | Seeds | Seed collection + planting (maple / pine only propagate from seed). Tree starts as a 2cm sprout. | L | In backlog (#90) |
+| 3 | Mechanics | Seeds | Seed collection + planting (maple / pine only propagate from seed). Tree starts as a 2cm sprout. | L | Done (#161) |
 | 4 | Content | More species playable | Beyond juniper-from-cuttings: maple and pine via seeds (post-#3), plus per-species care quirks (e.g. pine candling) and mesh tweaks (leaf shape, bark colour). | L | In backlog (#91) |
 | 5 | Content | House interiors | Indoor rooms (lounge, study, hallway) for displaying finished trees. The shed's pedestals have moved to the lounge; the display spots become furniture next (5-d). | L | In backlog (#92) |
 | 6 | Content | Greenhouse room + building system | Grid-based wall/shelf placement so the player can lay out their greenhouse interior. Split candidates: empty greenhouse room, item placement system, item catalogue. | L | In backlog (#95) |

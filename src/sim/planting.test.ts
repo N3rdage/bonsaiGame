@@ -137,6 +137,22 @@ describe('plantSeed', () => {
     expect(state.nextTreeId).toBe(2);
   });
 
+  it('plants a pine seed as a 2 cm pine sprout', () => {
+    const state = withSeeds();
+    state.inventory.seed_pine = 1;
+    const before = { ...state.inventory };
+    const tree = plantSeed(state, 'pine', false, false);
+    expect(state.inventory).toEqual({ ...before, pot: before.pot - 1, seed_pine: 0 });
+    expect(tree).toMatchObject({
+      speciesKey: 'pine',
+      origin: 'seed',
+      name: 'New Pine',
+      location: 'shed',
+      trunk: { heightCm: 2, girthMm: 1.5 },
+      branches: [],
+    });
+  });
+
   it('uses a fancy pot and premium soil when asked', () => {
     const state = withSeeds();
     const before = { ...state.inventory };

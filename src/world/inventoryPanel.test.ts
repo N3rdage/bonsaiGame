@@ -51,7 +51,7 @@ describe('inventory panel', () => {
     const labels = inventorySections(full()).map((s) => [s.title, s.entries.map((e) => e.label)]);
     expect(labels).toEqual([
       ['Resources', ['Clay', 'Pots', 'Fancy Pots', 'Akadama Mix', 'Wire', 'Fertilizer']],
-      ['Seeds', ['Juniper', 'Japanese Maple']],
+      ['Seeds', ['Juniper', 'Japanese Maple', 'Pine']],
       ['Cuttings', ['Juniper', 'Japanese Maple']],
     ]);
   });

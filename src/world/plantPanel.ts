@@ -86,8 +86,9 @@ type Row = Omit<PanelRow, 'y'>;
  * 0 stock first). With both cuttings and seeds in stock the seeds run down
  * the box's right half beside the cuttings. Where the rows need a taller
  * pitch (`needsFit`), the hint shares the Plant line, right of it, and
- * `Akadama mix: N` shares the pots' line in the right half, so the box still
- * fits the canvas.
+ * `Akadama mix: N` shares the pots' line in the right half (or, with three
+ * species listed and both toggles shown, the counts sit beside the toggles),
+ * so the box still fits the canvas.
  */
 export function plantPanel(
   state: Pick<GameState, 'inventory'>,
@@ -131,20 +132,30 @@ export function plantPanel(
   }
   const pots = plain(`Pots: ${String(count('pot'))}  |  Fancy pots: ${String(count('fancy_pot'))}`);
   const akadama = plain(`Akadama mix: ${String(count('soil_premium'))}`);
-  lines.push(fit ? [...pots, ...akadama.map((row) => ({ ...row, x: SEED_COLUMN_X }))] : pots);
-  if (count('fancy_pot') > 0) {
-    lines.push([
-      { text: toggle(sel.useFancyPot, 'Use fancy pot (+25% display)'), id: 'panel-fancy' },
-    ]);
-  }
-  if (!fit) lines.push(akadama);
-  if (count('soil_premium') > 0) {
-    lines.push([
-      {
-        text: toggle(sel.usePremiumSoil, 'Use premium soil (slower vigor loss)'),
-        id: 'panel-soil',
-      },
-    ]);
+  const fancy: Row[] =
+    count('fancy_pot') > 0
+      ? [{ text: toggle(sel.useFancyPot, 'Use fancy pot (+25% display)'), id: 'panel-fancy' }]
+      : [];
+  const soil: Row[] =
+    count('soil_premium') > 0
+      ? [
+          {
+            text: toggle(sel.usePremiumSoil, 'Use premium soil (slower vigor loss)'),
+            id: 'panel-soil',
+          },
+        ]
+      : [];
+  // Three species in stock (the pine seed) leave no room on the phone for a line of counts
+  // between them and both toggles: the counts move beside the toggles instead.
+  const beside = fit && lines.length > 3 && fancy.length > 0 && soil.length > 0;
+  if (beside) {
+    lines.push([...fancy, ...pots.map((row) => ({ ...row, x: SEED_COLUMN_X + 10 }))]);
+    lines.push([...soil, ...akadama.map((row) => ({ ...row, x: SEED_COLUMN_X + 60 }))]);
+  } else if (fit) {
+    lines.push([...pots, ...akadama.map((row) => ({ ...row, x: SEED_COLUMN_X }))]);
+    lines.push(...[fancy, soil].filter((line) => line.length > 0));
+  } else {
+    lines.push(...[pots, fancy, akadama, soil].filter((line) => line.length > 0));
   }
   const potHave = count(sel.useFancyPot ? 'fancy_pot' : 'pot');
   const canPlant = sel.species !== undefined && potHave > 0;

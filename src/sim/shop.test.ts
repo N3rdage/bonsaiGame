@@ -30,6 +30,9 @@ describe('SHOP_CATALOGUE', () => {
       ['fertilizer', 'Fertilizer', 10],
       ['fancy_pot', 'Fancy Pot', 80],
       ['soil_premium', 'Akadama Mix', 18],
+      ['seed_juniper', 'Juniper Seed', 9],
+      ['seed_maple', 'Maple Seed', 9],
+      ['seed_pine', 'Pine Seed', 9],
     ]);
   });
 });
@@ -92,6 +95,18 @@ describe('shopBuy', () => {
     expect(shopBuy(state, 'fancy_pot', 1, 80)).toBe(true);
     expect(state.money).toBe(0);
     expect(state.inventory.fancy_pot).toBe(1);
+  });
+
+  it('sells seed packets at $9, crediting the seed and nothing else', () => {
+    for (const key of ['seed_juniper', 'seed_maple', 'seed_pine'] as const) {
+      const state = makeState(100);
+      const before = { ...state.inventory };
+      const item = SHOP_CATALOGUE.find((i) => i.key === key);
+      expect(item?.price).toBe(9);
+      expect(shopBuy(state, key, 1, item?.price ?? 0)).toBe(true);
+      expect(state.money).toBe(91);
+      expect(state.inventory).toEqual({ ...before, [key]: before[key] + 1 });
+    }
   });
 
   it('refuses when too poor and changes nothing', () => {

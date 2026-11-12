@@ -5,11 +5,11 @@
  */
 
 import { inventoryAdd, inventoryCount, inventoryHas, inventoryRemove } from './inventory';
-import { CUTTING_KEYS } from './sourcePlant';
+import { CUTTING_KEYS, SEED_KEYS } from './sourcePlant';
 import { getSpecies } from './species';
 import { spawnTree } from './tree';
 import { TUTORIAL_PLANT, tutorialAdvanceIf } from './tutorial';
-import type { BonsaiTree, GameState, InventoryKey, SpeciesKey } from './types';
+import type { BonsaiTree, GameState, SpeciesKey } from './types';
 
 /** Where a planted cutting stands: the planting table's room. */
 export const PLANTED_LOCATION = 'shed';
@@ -55,11 +55,8 @@ export function plantCutting(
   return tree;
 }
 
-/** The inventory key of each species' seed; a species without one cannot be sown. */
-export const SEED_KEYS: Partial<Record<SpeciesKey, InventoryKey>> = {
-  juniper: 'seed_juniper',
-  maple: 'seed_maple',
-};
+/** Each species' seed key, beside the cutting keys in src/sim/sourcePlant.ts where seeds are taken. */
+export { SEED_KEYS };
 
 /**
  * `plantCutting` for a seed (the prototype never planted one): refuses
@@ -78,7 +75,7 @@ export function plantSeed(
   const potKey = useFancyPot ? 'fancy_pot' : 'pot';
   const seedKey = SEED_KEYS[speciesKey];
   if (!inventoryHas(state.inventory, potKey, 1)) return undefined;
-  if (seedKey === undefined || !inventoryHas(state.inventory, seedKey, 1)) return undefined;
+  if (!inventoryHas(state.inventory, seedKey, 1)) return undefined;
   const useSoil = usePremiumSoil && inventoryHas(state.inventory, 'soil_premium', 1);
 
   inventoryRemove(state.inventory, potKey, 1);

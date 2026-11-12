@@ -229,6 +229,7 @@ describe('prototype import: day 14', () => {
     expect(state.tutorialStep).toBe(-1);
     expect(state.inventory.soil_premium).toBe(0);
     expect(state.inventory.wire).toBe(3);
+    expect(state.inventory.seed_pine).toBe(0);
     expect(state.trees).toHaveLength(2);
     expect(state.paused).toBe(false);
     expectIntegerIds(state);
@@ -274,6 +275,7 @@ describe('prototype import: day 730', () => {
     expect(state.trees.map((t) => t.wiresApplied.length)).toEqual([18, 17]);
     expect(state.trees.map((t) => t.soilTier)).toEqual([1, 1]);
     expect(state.inventory.soil_premium).toBe(3);
+    expect(state.inventory.seed_pine).toBe(0);
     expect(state.paused).toBe(false);
     expectIntegerIds(state);
   });

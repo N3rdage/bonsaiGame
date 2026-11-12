@@ -70,5 +70,5 @@ Posts in `blog/` follow the shared syndication contract; the single source of tr
 
 ## Known rough edges (don't treat as bugs to fix incidentally)
 
-- Only junipers can be grown from cuttings. The starting juniper and maple seeds can be sown at the planting table; seed collection (and a pine seed) wait on backlog #93.
+- Only junipers can be grown from cuttings. Every species grows from seed: seeds are taken from the garden's source plants in autumn (sharing the cuttings' limit and recovery) or bought as $9 packets in the shop, and sown at the planting table.
 - Fancy pots give 1.25x display revenue; their only look is the 2D tree sprite's celadon pot with feet and sheen (and the 3D viewer's pot colours).
