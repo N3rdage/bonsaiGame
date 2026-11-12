@@ -23,9 +23,11 @@ const LINE_H = 12;
 const panelRight = MENU_PANEL.x + MENU_PANEL.w;
 
 describe('world HUD menu layout', () => {
-  it('has Inventory, Save, Load, Settings and Title, in that order', () => {
+  it('has Inventory, Sleep, Sleep a week, Save, Load, Settings and Title, in that order', () => {
     expect(menuItems(false, DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
       ['inventory', 'Inventory (I)'],
+      ['sleep', 'Sleep (Z)'],
+      ['sleep-week', 'Sleep a week'],
       ['save', 'Save (F5)'],
       ['load', 'Load (F9)'],
       ['settings', 'Settings'],
@@ -37,6 +39,8 @@ describe('world HUD menu layout', () => {
     expect(menuItems(true, DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
       ['putdown', 'Put down'],
       ['inventory', 'Inventory (I)'],
+      ['sleep', 'Sleep (Z)'],
+      ['sleep-week', 'Sleep a week'],
       ['save', 'Save (F5)'],
       ['load', 'Load (F9)'],
       ['settings', 'Settings'],
@@ -69,17 +73,28 @@ describe('world HUD menu layout', () => {
       expect(panel.y).toBe(28);
       expect(panel.y).toBeGreaterThanOrEqual(MENU_PANEL.y);
       const first = (items[0]?.y ?? 0) - pitch / 2;
-      const last = (items.at(-1)?.y ?? 0) + pitch / 2;
+      // The first column's last row (the second column may be a row short).
+      const last = (items[3]?.y ?? 0) + pitch / 2;
       expect(first - panel.y).toBe(panel.y + panel.h - last);
       expect(first - panel.y).toBe(3);
       expect(panel.y + panel.h).toBeLessThanOrEqual(270 - PHONE_UI.hit);
     }
   });
 
+  it('splits its rows into two columns of four on the phone, column by column', () => {
+    for (const carrying of [false, true]) {
+      const items = menuItems(carrying, PHONE_UI);
+      const x = MENU_PANEL.x + 6;
+      expect(items.map((i) => i.x)).toEqual(items.map((_, i) => (i < 4 ? x : x + MENU_PANEL.w)));
+      expect(items[4]?.y).toBe(items[0]?.y);
+      expect(menuPanel(carrying, PHONE_UI).w).toBe(2 * MENU_PANEL.w);
+    }
+  });
+
   it('is MENU_PANEL with rows MENU_ROW_SPACING apart at the desktop scale', () => {
     expect(menuPanel(true, DESKTOP_UI)).toEqual(MENU_PANEL);
     expect(menuPanel(false, DESKTOP_UI)).toEqual(MENU_PANEL);
-    expect(menuItems(false, DESKTOP_UI).map((i) => i.y)).toEqual([35, 51, 67, 83, 99]);
+    expect(menuItems(false, DESKTOP_UI).map((i) => i.y)).toEqual([35, 51, 67, 83, 99, 115, 131]);
     expect(menuRowPitch(PHONE_UI)).toBe(PHONE_UI.hit);
   });
 
