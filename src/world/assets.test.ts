@@ -54,7 +54,22 @@ describe('sprite sheets', () => {
       ['spr_pot_stack', 40, 40, 1],
       ['spr_sack', 32, 34, 1],
       ['spr_shed_exterior', 64, 112, 1],
+      ['spr_pedestal', 32, 32, 1],
+      ['spr_floor_shelf', 64, 32, 1],
     ]);
+  });
+
+  it("loads the placed furniture's sprites, each its footprint at half scale", () => {
+    expect(ALL_SHEETS).toContain(SHEETS.pedestal);
+    expect(ALL_SHEETS).toContain(SHEETS.floorShelf);
+    expect([
+      SHEETS.pedestal.frameWidth * SPRITE_SCALE,
+      SHEETS.pedestal.frameHeight * SPRITE_SCALE,
+    ]).toEqual([16, 16]);
+    expect([
+      SHEETS.floorShelf.frameWidth * SPRITE_SCALE,
+      SHEETS.floorShelf.frameHeight * SPRITE_SCALE,
+    ]).toEqual([32, 16]);
   });
 
   it("loads the shed's decor, packed from the prototype at its sprites' sizes", () => {

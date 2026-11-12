@@ -33,6 +33,9 @@
 // spr_shed_exterior.png (64x112): the shed's back wall round the garden door,
 // a shingled eave over spr_wall's planks, a lintel and jambs round a dark
 // opening the door sprite fills, a stone sill and stone footing.
+// spr_floor_shelf.png (64x32): the greenhouse's placeable floor shelf, a low
+// wooden shelf of two slots (a displayed tree stands on each half of its top
+// board), a divider between them, seeded grain on the boards and three legs.
 // Hard pixel edges, a small palette in the family of art/pixel.py's wood
 // tones, and a seeded generator per frame, so a rerun reproduces the
 // committed bytes.
@@ -551,6 +554,33 @@ function shedExterior(png) {
   }
 }
 
+/**
+ * The floor shelf, 64x32: a top board on rows 0..5 (a tree stands on each
+ * 32 px half), its front edge, a lower board on rows 20..23 against a dark
+ * back, a divider between the two slots, three legs, and seeded grain.
+ */
+function floorShelf(png) {
+  fill(png, 1, 0, 62, 0, WOOD_LIGHT);
+  fill(png, 0, 1, 63, 5, WOOD_MID);
+  fill(png, 0, 6, 63, 7, WOOD_DARK);
+  fill(png, 3, 8, 60, 19, PANEL_DARK);
+  fill(png, 1, 20, 62, 20, WOOD_LIGHT);
+  fill(png, 1, 21, 62, 22, WOOD_MID);
+  fill(png, 1, 23, 62, 23, WOOD_DARK);
+  for (const x of [0, 31, 60]) {
+    fill(png, x, 8, x + 3, 30, WOOD_MID);
+    fill(png, x, 8, x, 30, WOOD_LIGHT);
+    fill(png, x + 3, 8, x + 3, 30, WOOD_DARK);
+    fill(png, x, 31, x + 3, 31, WOOD_DARK);
+  }
+  const rng = seeded(1500);
+  for (let i = 0; i < 12; i += 1) {
+    const x = 1 + Math.floor(rng() * 62);
+    if (rng() < 0.6) setPixel(png, x, 1 + Math.floor(rng() * 5), rng() < 0.5 ? WOOD_LIGHT : WOOD_DARK);
+    else setPixel(png, x, 21 + Math.floor(rng() * 2), WOOD_LIGHT);
+  }
+}
+
 function write(name, png) {
   writeFileSync(join(OUT, `${name}.png`), PNG.sync.write(png));
   console.log(`${name}.png  ${String(png.width)}x${String(png.height)}`);
@@ -610,6 +640,7 @@ for (const [name, draw, width, height] of [
   ['spr_runner', runner, 416, 48],
   ['spr_hall_table', hallTable, 32, 24],
   ['spr_shed_exterior', shedExterior, 64, 112],
+  ['spr_floor_shelf', floorShelf, 64, 32],
 ]) {
   const png = new PNG({ width, height });
   draw(png);
