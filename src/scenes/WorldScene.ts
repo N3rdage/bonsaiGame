@@ -1567,10 +1567,11 @@ export class WorldScene extends Phaser.Scene {
 
   /** P, and the menu's Place item and Next: start placing the first stocked kind, or switch to the next. */
   private togglePlacing(): void {
+    if (!this.roomKeysLive()) return;
     if (this.placing) {
       const next = this.nextStockedKind(this.placing.kind);
       if (next) this.placing = { kind: next };
-    } else if (this.placeable() && this.roomKeysLive()) {
+    } else if (this.placeable()) {
       const [first] = this.stockedKinds();
       if (first) this.placing = { kind: first };
     }
