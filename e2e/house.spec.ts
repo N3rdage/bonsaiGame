@@ -19,8 +19,9 @@ import { hallwayToStudy, loungeToHallway, shedToLounge, throughDoor } from './ro
 // The doors and landings are in rooms.ts. The hallway is a corridor, x 80..400
 // and y 160..224: its floor is y 176..208, so a walk up or down it stops at
 // y 176.25 or 207.5 on the 1.25 px step grid. The study's floor is x 144..336,
-// y 112..208; its pedestals, study_desk (148, 128) and study_bookshelf
-// (332, 128), stand in its top corners.
+// y 112..208; its display spots are on the furniture in its top corners,
+// study_desk (160, 123) on the desk (x 144..176, y 112..128) and
+// study_bookshelf (328, 120.5) on the bookcase (x 288..336, y 112..128).
 
 async function expectAt(page: Page, room: string, x: number, y: number): Promise<void> {
   const h = await hook(page);
@@ -87,8 +88,8 @@ test.describe('the house', () => {
     await pickUpTree(page);
     await shedToLounge(page);
     await loungeToStudy(page);
-    // Into the top-left corner (past the study's door, in reach on the way): the left wall then
-    // the top wall stop the walk with the pedestal in reach.
+    // Into the left wall (past the study's door, in reach on the way), then up: the desk stops
+    // the walk at y 128.75 with its spot in reach.
     await holdUntilAtMost(page, 'ArrowLeft', 'x', 150);
     await holdUntilNear(page, 'ArrowUp', 'pedestal_1');
     await placeTree(page);

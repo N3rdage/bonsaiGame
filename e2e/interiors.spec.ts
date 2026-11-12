@@ -13,7 +13,9 @@ import { hallwayToStudy, loungeToHallway, shedToLounge } from './rooms';
 // One baseline per house room on the S22 in landscape, taken at the spot the
 // walk from the shed lands on: each room's own shape and windows (the lounge
 // two, the study one, the hallway's corridor with dark space above and below)
-// as the phone's zoomed world camera shows them. Weather is off first, as in
+// and furniture (the lounge's fireplace and side table, the hallway's runner
+// and console table, the study's desk and bookcase) as the phone's zoomed
+// world camera shows them. Weather is off first, as in
 // camera.spec.ts, so the dust motes cannot move between runs, and the
 // tutorial is skipped so its corner box does not cover the room.
 

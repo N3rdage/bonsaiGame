@@ -4,12 +4,23 @@
  * conventions (the same canvas, an inset ring of solid walls framed by the
  * dark background) in a shape of its own, wider and lower than the shed, with
  * two windows in its top wall, a door drawn on the bottom wall back to the
- * shed, one in the right wall on to the hallway, and the two display pedestals
- * that were the shed's (saves from before version 4 move the shed's displayed
- * trees onto them).
+ * shed, one in the right wall on to the hallway, and a fireplace and a side
+ * table carrying the two display spots that were the shed's pedestals (saves
+ * from before version 4 move the shed's displayed trees onto them).
  */
 
-import { SHED_ROOM, fromPrototype, prop, ringWalls, type Rect, type Room } from './shedRoom';
+import { SHEETS } from './assets';
+import {
+  SHED_ROOM,
+  displaySpot,
+  fromPrototype,
+  furnitureWalls,
+  prop,
+  ringWalls,
+  type Furniture,
+  type Rect,
+  type Room,
+} from './shedRoom';
 
 /**
  * 384x128, x 48..432 and y 96..224: its bottom wall is the shed's row, so the
@@ -17,6 +28,28 @@ import { SHED_ROOM, fromPrototype, prop, ringWalls, type Rect, type Room } from 
  * zoomed view (135), which shows its whole height.
  */
 export const LOUNGE_BOUNDS: Rect = { x: 48, y: 96, w: 384, h: 128 };
+
+/** spr_fireplace's 64x48 prototype px, halved: against the top wall, centred between the windows on x 240. */
+export const FIREPLACE: Furniture = {
+  sheet: SHEETS.fireplace,
+  x: 224,
+  y: 112,
+  w: 32,
+  h: 24,
+  solid: true,
+};
+
+/** spr_side_table's 32x32 prototype px, halved: in the top-right corner, against both walls. */
+export const SIDE_TABLE: Furniture = {
+  sheet: SHEETS.sideTable,
+  x: 400,
+  y: 112,
+  w: 16,
+  h: 16,
+  solid: true,
+};
+
+const FURNITURE = [FIREPLACE, SIDE_TABLE];
 
 export const LOUNGE_ROOM: Room = {
   key: 'lounge',
@@ -30,20 +63,18 @@ export const LOUNGE_ROOM: Room = {
   edgeMargin: SHED_ROOM.edgeMargin,
   // Where the shed's lounge door lands, 26 px above this room's door.
   playerStart: { x: 240, y: 190 },
-  walls: ringWalls(LOUNGE_BOUNDS),
+  walls: [...ringWalls(LOUNGE_BOUNDS), ...furnitureWalls(FURNITURE)],
+  furniture: FURNITURE,
   props: [
-    // In the top corners, within reach of a player stopped by both walls
-    // ((65, 112.5) or (415, 112.5) from the door's landing on the 1.25 px step
-    // grid, (64.25, 112.5) or (415.5, 112.5) from the hallway's), so a walk
-    // into the corner always ends with the pedestal in range.
-    {
-      ...prop('pedestal_1', 'Pedestal', 'Use Pedestal', 136, 256, 16, 16),
-      pedestalKey: 'lounge_mantel',
-    },
-    {
-      ...prop('pedestal_2', 'Pedestal', 'Use Pedestal', 824, 256, 16, 16),
-      pedestalKey: 'lounge_side_table',
-    },
+    // On the mantel, whose shelf's top face is the sprite's prototype rows
+    // 0..3: a walk straight up from the door's landing stops against the
+    // fireplace at y 136.25 on the 1.25 px step grid, 11.25 px below the
+    // spot's centre (240, 125).
+    displaySpot('pedestal_1', 'lounge_mantel', FIREPLACE, 114),
+    // On the table top, prototype rows 2..11: a walk into the right wall and
+    // then up stops against the table at (415, 128.75) or (415.5, 128.75),
+    // within 10 px of the spot's centre (408, 122).
+    displaySpot('pedestal_2', 'lounge_side_table', SIDE_TABLE, 116),
     // The shed garden door's square in the bottom wall, back to 26 px below the shed's lounge door.
     {
       ...prop('door', 'Door', 'Back to Shed', 464 + 16, 416 + 16, 16, 16),
