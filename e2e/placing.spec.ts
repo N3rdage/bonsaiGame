@@ -3,6 +3,7 @@ import { serializeState } from '../src/sim/save';
 import { createNewGameState } from '../src/sim/state';
 import { CARRIED } from '../src/sim/tree';
 import {
+  bootWorld,
   closePanel,
   collectErrors,
   continueGame,
@@ -14,6 +15,7 @@ import {
   loadGame,
   nextPlacingKind,
   openMenu,
+  openShop,
   placeTree,
   saveGame,
   sleepOneNight,
@@ -25,7 +27,7 @@ import {
   walkTo,
   walkToRow,
 } from './drive';
-import { gardenToGreenhouse, shedToGarden } from './rooms';
+import { gardenToGreenhouse, shedToGarden, throughDoor } from './rooms';
 
 // A version-5 save with a pedestal and a floor shelf in the inventory, nothing
 // placed (so the first placed item is placed_0), Granny's juniper carried. The
@@ -204,6 +206,63 @@ test.describe('placement mode', () => {
     ]);
     expect(h.treeLocations).toEqual([{ id: 0, name: "Granny's", location: 'displayed:placed_0' }]);
     expect(h.placing).toBeUndefined();
+    expect(errors).toEqual([]);
+  });
+
+  test('a floor shelf bought at the shop goes down in the greenhouse', async ({ page }) => {
+    // Three rooms' walks and the menu taps take about a minute on the S22's tap route.
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    let h = await hook(page);
+    // A new game's one free pedestal, and no shelf yet.
+    expect([h.money, h.inventory.pedestal, h.inventory.floor_shelf]).toEqual([100, 1, 0]);
+
+    await openShop(page);
+    await tapControl(page, 'panel-buy-floor_shelf');
+    await page.waitForFunction(() => window.__bonsai?.money === 50);
+    h = await hook(page);
+    expect([h.money, h.inventory.floor_shelf]).toEqual([50, 1]);
+    await closePanel(page);
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
+
+    // From the kiosk, left of the shed's garden door: down to its row and right to it.
+    await walkTo(page, 200, 'right', 'door');
+    await throughDoor(page, 'garden');
+    await gardenToGreenhouse(page);
+
+    // The pedestal comes first in the stock; Next switches to the shelf.
+    await startPlacing(page);
+    expect((await hook(page)).placing?.kind).toBe('pedestal');
+    await nextPlacingKind(page);
+    expect((await hook(page)).placing?.kind).toBe('floor_shelf');
+
+    // Up from the landing onto open floor, clear of the door: the shelf's ghost is green.
+    await holdUntilAtMost(page, 'ArrowUp', 'y', 170);
+    await settle(page);
+    h = await hook(page);
+    const ghost = h.placing;
+    if (!ghost) throw new Error('not placing');
+    expect([ghost.kind, ghost.w, ghost.h, ghost.check]).toEqual(['floor_shelf', 32, 16, 'ok']);
+    expect(h.prompt).toBe('E: Place Floor shelf');
+    await interact(page);
+    await page.waitForFunction(() => window.__bonsai?.toast === 'Placed Floor shelf');
+    h = await hook(page);
+    expect(h.placed).toEqual([
+      {
+        id: 0,
+        kind: 'floor_shelf',
+        x: ghost.x,
+        y: ghost.y,
+        w: 32,
+        h: 16,
+        spots: ['placed_0', 'placed_0_2'],
+      },
+    ]);
+    expect([h.inventory.floor_shelf, h.inventory.pedestal]).toEqual([0, 1]);
+
+    await stopPlacing(page);
+    expect((await hook(page)).placing).toBeUndefined();
     expect(errors).toEqual([]);
   });
 });

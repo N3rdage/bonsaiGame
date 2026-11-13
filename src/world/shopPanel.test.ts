@@ -34,13 +34,23 @@ describe('shop panel', () => {
     state.inventory.clay = 3;
     state.inventory.fancy_pot = 1;
     state.inventory.seed_pine = 2;
+    state.inventory.floor_shelf = 4;
     expect(lines(state)).toEqual([
       ['Item', 'Price', 'Owned', 'Item', 'Price', 'Owned'],
       ['Clay', '$4', '3', 'Buy', 'Juniper Seed', '$9', '1', 'Buy'],
       ['Pot', '$12', String(state.inventory.pot), 'Buy', 'Maple Seed', '$9', '1', 'Buy'],
       ['Wire', '$8', String(state.inventory.wire), 'Buy', 'Pine Seed', '$9', '2', 'Buy'],
-      ['Fertilizer', '$10', String(state.inventory.fertilizer), 'Buy'],
-      ['Fancy Pot', '$80', '1', 'Buy'],
+      [
+        'Fertilizer',
+        '$10',
+        String(state.inventory.fertilizer),
+        'Buy',
+        'Pedestal',
+        '$30',
+        '1',
+        'Buy',
+      ],
+      ['Fancy Pot', '$80', '1', 'Buy', 'Floor shelf', '$50', '4', 'Buy'],
       ['Akadama Mix', '$18', String(state.inventory.soil_premium), 'Buy'],
       ['Money: $100'],
     ]);
@@ -56,6 +66,21 @@ describe('shop panel', () => {
     expect(enabled()).toEqual(SHOP_CATALOGUE.map((i) => `panel-buy-${i.key}`));
     state.money = 79;
     expect(enabled()).not.toContain('panel-buy-fancy_pot');
+    expect(enabled()).toContain('panel-buy-floor_shelf');
+    state.money = 49;
+    expect(enabled()).not.toContain('panel-buy-floor_shelf');
+    expect(enabled()).toContain('panel-buy-pedestal');
+    state.money = 29;
+    expect(enabled()).toEqual([
+      'panel-buy-clay',
+      'panel-buy-pot',
+      'panel-buy-wire',
+      'panel-buy-fertilizer',
+      'panel-buy-soil_premium',
+      'panel-buy-seed_juniper',
+      'panel-buy-seed_maple',
+      'panel-buy-seed_pine',
+    ]);
     state.money = 10;
     expect(enabled()).toEqual([
       'panel-buy-clay',
@@ -74,7 +99,9 @@ describe('shop panel', () => {
   it('maps a Buy id back to its item, and a buy shows in the next model', () => {
     const state = createNewGameState();
     const clay = shopItemFor('panel-buy-clay');
-    expect(clay).toEqual({ key: 'clay', label: 'Clay', price: 4 });
+    expect(clay).toEqual({ key: 'clay', label: 'Clay', price: 4, section: 'supplies' });
+    expect(shopItemFor('panel-buy-pedestal')?.price).toBe(30);
+    expect(shopItemFor('panel-buy-floor_shelf')?.price).toBe(50);
     expect(shopItemFor('panel-close')).toBeUndefined();
     const owned = state.inventory.clay;
     if (clay) expect(shopBuy(state, clay.key, 1, clay.price)).toBe(true);
@@ -98,6 +125,7 @@ describe('shop panel', () => {
     state.money = 9_999_999;
     state.inventory.clay = 999;
     state.inventory.seed_pine = 999;
+    state.inventory.floor_shelf = 999;
     const rows = shopPanel(state).rows;
     const edges = [0, 1].flatMap((block) => {
       const cols = shopColumns(block);

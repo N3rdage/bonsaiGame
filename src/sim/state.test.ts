@@ -9,6 +9,7 @@ describe('createNewGameState', () => {
     expect(s.day).toBe(0);
     expect(s.money).toBe(100);
     expect(s.inventory).toEqual(createInventory());
+    expect([s.inventory.pedestal, s.inventory.floor_shelf]).toEqual([1, 0]);
     expect(s.tutorialStep).toBe(TUTORIAL_WATER);
     expect(s.nextTreeId).toBe(1);
   });
