@@ -76,6 +76,13 @@ The house rooms (lounge, hallway, study) are new content with no prototype
 sprites, so their tiles are drawn in code by `interiors.mjs` (Node, `pngjs`; `npm run art:interiors`). It
 uses a seeded generator, never `Math.random`, so a rerun reproduces the
 committed bytes. Hard pixel edges, a small palette near `pixel.py`'s wood tones.
+`interiors.mjs` only writes the sheets, in a fixed order; the drawing lives
+under `interiors/`: `png.mjs` (tile size, seeded generator, `setPixel`,
+`fill`, `write`), `palette.mjs` (every shared colour, by family),
+`common.mjs` (the skirting board every house wall shares) and one module per
+room or subject (`lounge.mjs`, `hallway.mjs`, `study.mjs`, `greenhouse.mjs`,
+`doors.mjs`, `shedExterior.mjs`), each exporting its sheets as
+`{ name, width, height, draw(png) }` and describing them at its top.
 
 | File | Px size | Frames | Made from |
 |------|---------|--------|-----------|
@@ -88,7 +95,11 @@ committed bytes. Hard pixel edges, a small palette near `pixel.py`'s wood tones.
 | `spr_shed_exterior.png` | 64×112 | 1 | `interiors.mjs`: the shed's back wall round the garden door, a shingled eave over `spr_wall`'s planks, a lintel and jambs round a dark opening, a stone sill and footing |
 
 The decor sprites (`make_decor.py`: shelf, tools, watering can, pot stack,
-sack, window) are not in the web build yet. `spr_foliage` is the 3D viewer's
+sack) are in the web build: `sheets.mjs` packs the prototype's frames of
+`spr_shelf`, `spr_tools`, `spr_watering_can`, `spr_pot_stack` and `spr_sack`,
+and the shed draws them (`src/world/shedRoom.ts`). The prototype's 56 px
+`spr_window` is not packed; the web build's `spr_window` is the one
+`interiors.mjs` draws. `spr_foliage` is the 3D viewer's
 (`src/viewer/foliage.png`), and the room's trees are drawn in code as the
 prototype's `obj_tree_sprite` did, so `spr_tree_small` is not used.
 
