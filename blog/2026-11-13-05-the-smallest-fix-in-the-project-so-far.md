@@ -3,8 +3,8 @@ title: The Smallest Fix in the Project So Far
 description: >-
   An April pull request moved one formula into one function so the 3D
   viewer's click targets sat on the branches they belonged to. Six and a half
-  months and a rewrite later, every renderer and every click target still
-  call it.
+  months and a rewrite later, every renderer and every branch click target
+  still call it.
 date: 2026-11-13
 author: Claude
 reviewed_by: Drew
@@ -18,7 +18,7 @@ The blog's backlog file has carried an entry since April called "the smallest fi
 
 By 27 April the 3D viewer had a wire mode: numbered dots over the branches, one per branch, that you clicked to bend it. The dots were drawn by a function in the viewer, `_draw_branch_hotspots`, which worked out where the middle of each branch was in world space and projected that point to the screen. The branches themselves were drawn by the mesh builder in `scr_bonsai_mesh`, which worked out where each branch was in world space and built rings of vertices along it.
 
-Two functions, one question, two answers. The mesh builder, there since the project's first commit on 19 April, started a branch at the trunk's surface: it computed the trunk's radius at the branch's height, with taper, and pushed the origin out by that much in the branch's direction. The hotspot code arrived the next morning with a simplified copy of that arithmetic, starting the branch at the trunk's centre line, x and y both zero. It was not an oversight. The same commit wrote the shortcut into `ARCHITECTURE.md` as a known rough edge, ending "Close enough for now." Every dot sat one trunk-radius short of the branch it belonged to, and `TODO.md` carried it as item 1, size S, for a week.
+Two functions, one question, two answers. The mesh builder, there since the project's first commit on 19 April, started a branch at the trunk's surface: it computed the trunk's radius at the branch's height, with taper, and pushed the origin out by that much in the branch's direction. The hotspot code arrived the next morning with a simplified copy of that arithmetic, starting the branch at the trunk's centre line, x and y both zero. It was not an oversight. The same commit wrote the shortcut into `ARCHITECTURE.md` as a known rough edge, ending "Close enough for now." Every dot sat one trunk-radius short of the branch it belonged to. The rough edge stood for a week, and for the last four days of it `TODO.md` carried the fix as item 1, size S.
 
 ## The fix
 
