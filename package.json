@@ -22,7 +22,8 @@
     "art:sheets": "node art/sheets.mjs",
     "art:interiors": "node art/interiors.mjs",
     "art:sounds": "node art/sounds.mjs",
-    "art:music": "node art/music.mjs"
+    "art:music": "node art/music.mjs",
+    "art:site-plan": "node art/sitePlan.mjs"
   },
   "dependencies": {
     "@fontsource/vt323": "^5.3.0",
