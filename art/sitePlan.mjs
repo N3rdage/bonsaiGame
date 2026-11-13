@@ -10,6 +10,13 @@
 // door carries the index of its row in that layout's door table in
 // docs/site-plan/README.md, drawn inside the room the row belongs to.
 //
+// Plan B2 is plan B as the owner changed it: negative coordinates (an
+// `origin` shifts the drawing), extra `areas` of other fills (front lawn,
+// paving, the road with its dashed centre line and kerb), a closed garage
+// with a roller door, a side gate (a door flagged `gate`: lawn-tinted gap with
+// a leaf bar) and `shadows` that darken a band south and east of each
+// building so the buildings read as solids standing in the gardens.
+//
 // Today: the six rooms as separate boxes, each door on the wall it is in
 // today, and a curve per door pair that leaves one door the way the player
 // walks out and enters the other the way the player walks in. Pairs whose
@@ -51,7 +58,14 @@ const FILLS = {
   shed: [200, 156, 108],
   greenhouse: [206, 232, 216],
   garden: [156, 200, 124],
+  garage: [196, 196, 188],
+  paving: [214, 206, 190],
+  road: [120, 118, 112],
 };
+const ROLLER = [150, 150, 144];
+const ROLLER_SLAT = [110, 110, 104];
+const ROAD_MARK = [230, 226, 210];
+const SHADOW = 0.85;
 
 /** The outward unit normal of each wall, in metres with x east and y south. */
 const OUTWARD = { N: [0, -1], S: [0, 1], E: [1, 0], W: [-1, 0] };
@@ -136,9 +150,9 @@ function canvas(width, height) {
   return c;
 }
 
-/** Maps metres to pixels for a drawing whose origin sits at (ox, oy) on the canvas. */
-function projection(ox, oy, scale) {
-  return { x: (m) => ox + Math.round(m * scale), y: (m) => oy + Math.round(m * scale), scale };
+/** Maps metres to pixels: the point (mx, my) in metres sits at (ox, oy) on the canvas. */
+function projection(ox, oy, scale, [mx, my] = [0, 0]) {
+  return { x: (m) => ox + Math.round((m - mx) * scale), y: (m) => oy + Math.round((m - my) * scale), scale };
 }
 
 // ---------------------------------------------------------------- shared pieces
@@ -170,20 +184,67 @@ function drawFence(c, p, [x0, y0], [x1, y1]) {
 }
 
 /** The gap of a door centred at `at` in a wall of the given side, ink cleared and tinted. */
-function drawDoorGap(c, p, { at: [mx, my], wall, glazed }) {
+function drawDoorGap(c, p, { at: [mx, my], wall, glazed, gate }) {
   const horizontal = wall === 'N' || wall === 'S';
   const half = ((glazed ? GLAZED_DOOR : DOOR) * p.scale) / 2;
   const depth = (WALL * p.scale) / 2 + 1;
   const cx = p.x(mx);
   const cy = p.y(my);
-  const tint = glazed ? GLASS_DOOR : THRESHOLD;
+  const tint = gate ? FILLS.garden : glazed ? GLASS_DOOR : THRESHOLD;
   if (horizontal) {
     c.rect(cx - half, cy - depth, cx + half, cy + depth, tint);
     if (glazed) c.rect(cx - 1, cy - depth, cx + 1, cy + depth, WALL_INK);
+    if (gate) c.rect(cx - half + 4, cy - 1, cx + half - 4, cy + 1, INK);
   } else {
     c.rect(cx - depth, cy - half, cx + depth, cy + half, tint);
     if (glazed) c.rect(cx - depth, cy - 1, cx + depth, cy + 1, WALL_INK);
+    if (gate) c.rect(cx - 1, cy - half + 4, cx + 1, cy + half - 4, INK);
   }
+}
+
+/** A closed roller door `width` metres wide centred at `at` in a north or south wall: grey with three slats. */
+function drawRollerDoor(c, p, { at: [mx, my], width }) {
+  const half = (width * p.scale) / 2;
+  const depth = (WALL * p.scale) / 2 + 1;
+  const cx = p.x(mx);
+  const cy = p.y(my);
+  c.rect(cx - half, cy - depth, cx + half, cy + depth, ROLLER);
+  for (const k of [-1, 0, 1]) {
+    const y = cy + Math.round((k * depth) / 2);
+    c.rect(cx - half, y, cx + half, y + 1, ROLLER_SLAT);
+  }
+}
+
+/** Darkens a 4 px band just outside a building's south and east walls, where it falls on garden or paper. */
+function drawShadow(c, p, [x0, y0, x1, y1]) {
+  const t = Math.round((WALL * p.scale) / 2);
+  const [l, r, top, bottom] = [p.x(x0), p.x(x1), p.y(y0), p.y(y1)];
+  const open = (x, y) => {
+    const i = (y * c.png.width + x) * 4;
+    const px = c.png.data.subarray(i, i + 3);
+    return [FILLS.garden, PAPER].some((f) => f.every((v, k) => v === px[k]));
+  };
+  const shade = (x, y) => {
+    if (open(x, y)) c.darken(x, y, SHADOW);
+  };
+  for (let y = bottom + t; y < bottom + t + 4; y += 1) for (let x = l - t; x < r + t + 4; x += 1) shade(x, y);
+  for (let x = r + t; x < r + t + 4; x += 1) for (let y = top - t; y < bottom + t; y += 1) shade(x, y);
+}
+
+/** The road's dashed centre line (1 m dashes, 1 m gaps) along y `centre` and its kerb along y `kerb`, in metres. */
+function drawRoadMarks(c, p, { rect: [x0, , x1], centre, kerb }) {
+  for (let m = x0; m < x1; m += 2) {
+    c.rect(p.x(m), p.y(centre) - 1, p.x(Math.min(m + 1, x1)), p.y(centre) + 1, ROAD_MARK);
+  }
+  c.rect(p.x(x0), p.y(kerb) - 1, p.x(x1), p.y(kerb) + 1, INK);
+}
+
+/** 'ROAD' centred on (x, y) metres, on a road-coloured patch that hides the centre line. */
+function drawRoadLabel(c, p, [x, y]) {
+  const w = textWidth('ROAD', 3);
+  const [cx, cy] = [p.x(x), p.y(y)];
+  c.rect(cx - w / 2 - 6, cy - 14, cx + w / 2 + 6, cy + 14, FILLS.road);
+  c.centred('ROAD', cx, cy, 3, ROAD_MARK);
 }
 
 /** Fits `lines` inside a width of `room` pixels: 3x if every line fits, else 2x. */
@@ -191,8 +252,8 @@ function labelScale(lines, room) {
   return lines.every((l) => textWidth(l, 3) <= room - 8) ? 3 : 2;
 }
 
-function drawRoomLabel(c, cx, cy, lines, roomWidth) {
-  const scale = labelScale(lines, roomWidth);
+function drawRoomLabel(c, cx, cy, lines, roomWidth, fixedScale) {
+  const scale = fixedScale ?? labelScale(lines, roomWidth);
   const step = GLYPH_HEIGHT * scale + 6;
   lines.forEach((line, i) => {
     c.centred(line, cx, cy + (i - (lines.length - 1) / 2) * step, scale, INK);
@@ -361,6 +422,87 @@ const PLANS = [
       { at: [9, 12.5], wall: 'S', rows: [11, 12] },
     ],
   },
+  {
+    file: 'plan-b2-lean-to-front.png',
+    title: 'PLAN B2  LEAN-TO WITH A FRONT',
+    origin: [-3.5, -7],
+    extent: [18, 23],
+    areas: [
+      { kind: 'road', rect: [-3.5, -7, 14.5, -4] },
+      { kind: 'garden', rect: [-3.5, -4, 14.5, 0], label: [3.5, -2], lines: ['FRONT GARDEN', '18.0 X 4.0'] },
+      { kind: 'paving', rect: [-3.5, -4, 0, 0] },
+      { kind: 'paving', rect: [6.85, -4, 7.65, 0] },
+    ],
+    road: { rect: [-3.5, -7, 14.5, -4], centre: -5.5, kerb: -4, label: [11, -5.5] },
+    rooms: [
+      ...HOUSE.map((room) => (room.lines[0] === 'HALLWAY' ? { ...room, label: [7.25, 1.4] } : room)),
+      { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 4.5, 5, 8], label: [2.5, 6.25] },
+      { lines: ['GARAGE', '3.5 X 8.0'], kind: 'garage', rect: [-3.5, 0, 0, 8], scale: 2 },
+      { lines: ['GREENHOUSE', '5.0 X 3.5'], kind: 'greenhouse', rect: [8, 9.5, 13, 13] },
+    ],
+    shadows: [
+      [0, 0, 13, 4.5],
+      [0, 4.5, 5, 8],
+      [-3.5, 0, 0, 8],
+      [8, 9.5, 13, 13],
+    ],
+    garden: {
+      rects: [
+        [13, 0, 14.5, 4.5],
+        [5, 4.5, 14.5, 8],
+        [0, 8, 14.5, 16],
+      ],
+      label: [4.5, 11.5],
+      lines: ['BACK GARDEN', '14.5 X 8.0', '+ NOTCH', '+ PASSAGE'],
+    },
+    fences: [
+      [
+        [0, -4],
+        [6.85, -4],
+      ],
+      [
+        [7.65, -4],
+        [14.5, -4],
+      ],
+      [
+        [14.5, -4],
+        [14.5, 16],
+      ],
+      [
+        [-3.5, -4],
+        [-3.5, 0],
+      ],
+      [
+        [0, 8],
+        [0, 16],
+      ],
+      [
+        [0, 16],
+        [14.5, 16],
+      ],
+      [
+        [13, 0],
+        [14.5, 0],
+      ],
+    ],
+    plantsLabel: [3.5, 14.6],
+    plants: [
+      [2.5, 15.35],
+      [3.5, 15.35],
+      [4.5, 15.35],
+    ],
+    rollers: [{ at: [-1.75, 0], width: 2.4 }],
+    doors: [
+      { at: [2.5, 4.5], wall: 'S', rows: [3, 1] },
+      { at: [2.5, 8], wall: 'S', rows: [2, 13] },
+      { at: [6, 2.25], wall: 'E', rows: [4, 5] },
+      { at: [7.25, 0], wall: 'S', rows: [10, 6] },
+      { at: [8.5, 2.25], wall: 'E', rows: [7, 8] },
+      { at: [10.75, 4.5], wall: 'S', rows: [9, 14], glazed: true },
+      { at: [13.75, 0], wall: 'S', rows: [11, 12], gate: true },
+      { at: [10.5, 13], wall: 'S', rows: [16, 15] },
+    ],
+  },
 ];
 
 /**
@@ -394,21 +536,27 @@ function drawPlan(plan) {
   const width = ew * PX_PER_METRE + 2 * MARGIN;
   const height = eh * PX_PER_METRE + MARGIN + HEADER + FOOTER;
   const c = canvas(width, height);
-  const p = projection(MARGIN, MARGIN + HEADER, PX_PER_METRE);
+  const [mx, my] = plan.origin ?? [0, 0];
+  const p = projection(MARGIN, MARGIN + HEADER, PX_PER_METRE, [mx, my]);
+  const areas = plan.areas ?? [];
 
   for (const r of plan.garden.rects) drawRoomFill(c, p, r, FILLS.garden);
+  for (const area of areas) drawRoomFill(c, p, area.rect, FILLS[area.kind]);
   for (const room of plan.rooms) drawRoomFill(c, p, room.rect, FILLS[room.kind]);
+  if (plan.road) drawRoadMarks(c, p, plan.road);
+  for (const r of plan.shadows ?? []) drawShadow(c, p, r);
 
-  for (let m = 0; m <= ew; m += 1) {
-    for (let y = p.y(0); y <= p.y(eh); y += 1) c.darken(p.x(m), y, 0.9);
+  for (let m = mx; m <= mx + ew; m += 1) {
+    for (let y = p.y(my); y <= p.y(my + eh); y += 1) c.darken(p.x(m), y, 0.9);
   }
-  for (let m = 0; m <= eh; m += 1) {
-    for (let x = p.x(0); x <= p.x(ew); x += 1) c.darken(x, p.y(m), 0.9);
+  for (let m = my; m <= my + eh; m += 1) {
+    for (let x = p.x(mx); x <= p.x(mx + ew); x += 1) c.darken(x, p.y(m), 0.9);
   }
 
   for (const room of plan.rooms) drawWalls(c, p, room.rect);
   for (const [a, b] of plan.fences) drawFence(c, p, a, b);
   for (const door of plan.doors) drawDoorGap(c, p, door);
+  for (const roller of plan.rollers ?? []) drawRollerDoor(c, p, roller);
 
   for (const [px, py] of plan.plants) {
     c.disc(p.x(px), p.y(py), 9, INK);
@@ -418,10 +566,14 @@ function drawPlan(plan) {
   for (const room of plan.rooms) {
     const [x0, y0, x1, y1] = room.rect;
     const [lx, ly] = room.label ?? [(x0 + x1) / 2, (y0 + y1) / 2];
-    drawRoomLabel(c, p.x(lx), p.y(ly), room.lines, (x1 - x0) * PX_PER_METRE);
+    drawRoomLabel(c, p.x(lx), p.y(ly), room.lines, (x1 - x0) * PX_PER_METRE, room.scale);
   }
   const [gx, gy] = plan.garden.label;
   drawRoomLabel(c, p.x(gx), p.y(gy), plan.garden.lines, 1000);
+  for (const area of areas.filter((a) => a.label)) {
+    drawRoomLabel(c, p.x(area.label[0]), p.y(area.label[1]), area.lines, 1000);
+  }
+  if (plan.road) drawRoadLabel(c, p, plan.road.label);
   const [plx, ply] = plan.plantsLabel;
   c.centred('SOURCE PLANTS', p.x(plx), p.y(ply), 2, INK);
 
@@ -429,7 +581,7 @@ function drawPlan(plan) {
 
   c.text(plan.title, MARGIN, 24, 3, INK);
   drawCompass(c, width - MARGIN - 20, 54);
-  drawScaleBar(c, MARGIN, p.y(eh) + 24, PX_PER_METRE);
+  drawScaleBar(c, MARGIN, p.y(my + eh) + 24, PX_PER_METRE);
   c.save(plan.file);
 }
 
