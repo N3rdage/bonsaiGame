@@ -102,6 +102,16 @@ Drew chose Inked and asked for it "a little grungier": rougher, more uneven ink 
 
 What moved, in Drew's terms: the ink is rougher and uneven (more wobble, pressure along each line, long lines breaking dry, a little spatter); the washes pool into a darker rim and bleed softly past their outlines; paper grain shows through everything; the shadow under the tables and in the corners is cross-hatched; and the beams, door, tables, pots, rug and sack carry knots, splits, chips, rings, fraying and a stain. I checked the phone render and kept the door, the workbench and the avatar as clear as before: the avatar's lines are too short to break dry, the kiosk sign and the rug's inner borders do not wear, and the shadow cross-hatching stays under the furniture rather than on it.
 
+#### Fonts next to the ink
+
+A mock of the HUD badge and one panel over the chosen shed, at S22 landscape size, in three faces (`npm run art:fonts`, `art/proposal/fonts.mjs`; the game's font is unchanged): VT323, the game's pixel face; Caveat, hand-lettered; Nunito, humanist. A comparison for a later decision, not a change.
+
+![HUD in VT323](./fonts/hud-vt323-s22-landscape.png)
+
+![HUD in Caveat](./fonts/hud-caveat-s22-landscape.png)
+
+![HUD in Nunito](./fonts/hud-nunito-s22-landscape.png)
+
 ## Cost in children
 
 - **Potting Shed:** 7 children: the player; the shed; the garden and the shed's exterior; the house rooms; the greenhouse and the placeables; the viewer's textures; the tree sprites and the pot and weather colours.
