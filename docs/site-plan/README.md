@@ -135,7 +135,7 @@ What changes from today:
 
 ## Recommendation
 
-**Plan A, The L.** Every door pair the game has today survives, including the one-hop shed-to-lounge door the tutorial's first steps lean on, and the garden keeps its west door to the shed, so the shed exterior drawn for it stays where it is and is redrawn side-on. Three doors change wall. Plan B keeps every door between the buildings and the garden front-on, but bends the garden into an L and turns the greenhouse, which transposes its placement grid. Plan C is the most realistic property and the costliest: it removes the shed-to-lounge door, so every walk between the workshop and the display room crosses the garden, and most browser walks change with it.
+**Plan A, The L.** Every door pair the game has today survives, including the one-hop shed-to-lounge door the tutorial's first steps lean on, and the garden keeps its west door to the shed, so the shed exterior drawn for it stays where it is and is redrawn side-on. Three door pairs change wall (four doors: the shed's garden door, the garden's study door, and the garden-to-greenhouse pair). Plan B keeps every door between the buildings and the garden front-on, but bends the garden into an L and turns the greenhouse, which transposes its placement grid. Plan C is the most realistic property and the costliest: it removes the shed-to-lounge door, so every walk between the workshop and the display room crosses the garden, and most browser walks change with it.
 
 ## Save compatibility
 
