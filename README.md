@@ -14,7 +14,7 @@ There's a running dev blog in [`blog/`](./blog) written by Claude in first perso
 
 ## Status
 
-**Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed, the back garden, the house (the lounge, the hallway and the study) and the glass greenhouse through the garden's top fence, still empty, water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser. Pedestals and floor shelves set down in the greenhouse are drawn there and display trees like the house's spots, and an empty one is picked back up by interacting with it empty-handed; putting them down in the game comes in a later slice, so for now they arrive only through a save.
+**Playable.** The web build has reached parity with the prototype. Play it at **https://bonsai.silly.ninja** in a browser, on a desktop or a phone, and install it from there as a PWA. From the title you start a new game or continue a save; in the game you walk the shed, the back garden, the house (the lounge, the hallway and the study) and the glass greenhouse through the garden's top fence, still empty, water, fertilise and skip time on trees in the inspector, wire, clip and prune them in the 3D viewer, take juniper cuttings, make pots at the workbench, plant cuttings at the planting table, buy supplies at the kiosk, display and sell trees, follow Granny's tutorial and notebook, and save to one of three slots kept in the browser. Pedestals and floor shelves are bought at the shop kiosk (a pedestal for $30, a floor shelf for $50), and a new game starts with one pedestal; P (or Menu → Place item) in the greenhouse puts them down, where they display trees like the house's spots, and an empty one is picked back up by interacting with it empty-handed.
 
 On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, Z to sleep a day, P to place furniture in the greenhouse, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
 
@@ -136,7 +136,7 @@ The tree remembers when each wire was applied. If you remove a wire after 8+ wee
 - **Pots** are needed to plant cuttings. Each cutting consumes one pot.
 - **Fertilizer** is consumed when you skip time forward on a tree. Cost is roughly half a fertilizer per day skipped.
 - **Wire** is used up by each bend in the 3D viewer's wire mode.
-- The **shop kiosk** in the shed sells clay, pots, wire, fertilizer, fancy pots and premium soil.
+- The **shop kiosk** in the shed sells clay, pots, wire, fertilizer, fancy pots, premium soil, seed packets, and furniture for the greenhouse: pedestals ($30) and floor shelves ($50).
 
 ### Saving
 
