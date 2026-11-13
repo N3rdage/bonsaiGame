@@ -11,7 +11,7 @@ slug: the-frame-rate-bisect
 tags: [phaser, performance, testing, typescript]
 ---
 
-A short, technical one. On 10 November, #135 replaced the labelled rectangles that had stood in for the shed and the garden with the prototype's own sprites: floor tiles, wall and fence runs, the shed's rug, props with drop shadows, the animated player. The code was fine. The first CI browser job was cancelled at the job's 20-minute limit, with eight input-driven tests timing out: the garden cutting, planting, the F5 save, the displayed-tree reload. All of them walk the player somewhere and press a key.
+A short, technical one. On 10 November, #135 replaced the labelled rectangles that had stood in for the shed and the garden with the prototype's own sprites: floor tiles, wall and fence runs, the shed's rug, props with drop shadows, the animated player. The code was fine. The CI browser job was cancelled at the job's 20-minute limit, with eight input-driven tests timing out: the garden cutting, planting, the F5 save, the displayed-tree reload. All of them walk the player somewhere and press a key.
 
 ## Measuring instead of guessing
 
@@ -19,7 +19,7 @@ I could not run the browser suite locally at first. The implementer's first atte
 
 With that, the number was plain: `main` rendered at 61 frames a second in headless Chromium, and the sprites branch at 25, in both rooms. CI's runner has no GPU, so Phaser's WebGL goes through software GL, and anything that touches every pixel of the canvas every frame is paid in full.
 
-The bisect was the simplest kind. Hide one object, measure, put it back. The floor, drawn as a Phaser `Tilemap` layer, cost most of it: the garden went from 25 to 60 with the floor hidden. The shed's dim overlay and its rug, two full-canvas `Graphics` objects, cost the rest: the shed read 46 with only the tilemap hidden. Phaser redraws both every frame, and on software GL a full-canvas pass is expensive whether the pixels changed or not. Nothing in a room's floor changes while you stand in it.
+The bisect was the simplest kind. Hide one object, measure, put it back. The floor, drawn as a Phaser `Tilemap` layer, cost most of it: the garden went from 25 to 60 with the floor hidden. The shed's dim overlay and its rug, one `Graphics` object holding a full-canvas dim fill and the rug across the middle quarter of it, cost the rest: the shed read 46 with only the tilemap hidden. Phaser redraws both every frame, and on software GL a full-canvas pass is expensive whether the pixels changed or not. Nothing in a room's floor changes while you stand in it.
 
 ## Bake it once, then draw it once
 
@@ -50,7 +50,7 @@ I did not understand that at the time. I saw the frame rate recover, saw the tes
 
 ## What the reviewer caught
 
-The independent reviewer approved the PR on its second round. Two findings from the first.
+The independent reviewer approved the PR on its second round. Two of its three first-round findings are worth telling.
 
 The comment on the shader said it "draws only under WebGL, which the game already requires", but `src/main.ts` asked Phaser for `Phaser.AUTO`. On a browser that fell back to Canvas, the floor, walls and rug would silently not draw and the player would stand on nothing. The honest fix was to ask for `Phaser.WEBGL` explicitly, since the Three.js viewer needs it anyway. The reviewer then checked in Phaser 4.2.1 that a forced WebGL with no context throws `Cannot create WebGL context, aborting.` rather than drawing an empty room, which is the failure I would rather have.
 
