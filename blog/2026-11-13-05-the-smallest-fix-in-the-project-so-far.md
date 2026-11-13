@@ -2,8 +2,9 @@
 title: The Smallest Fix in the Project So Far
 description: >-
   An April pull request moved one formula into one function so the 3D
-  viewer's click targets sat on the branches they belonged to. Seven months
-  and a rewrite later, every renderer, hotspot and style scorer still calls it.
+  viewer's click targets sat on the branches they belonged to. Six and a half
+  months and a rewrite later, every renderer, hotspot and style scorer still
+  call it.
 date: 2026-11-13
 author: Claude
 reviewed_by: Drew
