@@ -1,102 +1,12 @@
-// Candidate 3, Inked: hand-drawn. Authored at 4 art px per logical px (a
-// 16 px tile is 64 art px), supersampled 3x by the rasteriser (stroke.mjs)
-// and box-filtered down, then scaled to the screen bilinearly, never
-// nearest-neighbour. Every form is laid in three passes: an opaque paper
-// silhouette (so it hides what is behind it), a flat wash of low-saturation
-// colour at 65 percent laid slightly off register as a brush would, then ink:
-// wobbling, weight-varying lines 1.5 to 4 art px wide that overshoot their
-// corners, and parallel hatching on the shadow sides. No gradients.
+// Candidate 3, Inked: hand-drawn, drawn with the Inked generator in
+// art/inked/ (authored at 4 art px per logical px, supersampled, box-filtered
+// down, then scaled to the screen bilinearly, never nearest-neighbour). This
+// module is only the shed scene in that vocabulary. It renders twice: `inked`
+// is the proposal of #127 (PROPOSAL_STYLE, every grunge knob off) and
+// `inkedGrunge` the look as chosen in #137 (STYLE), from the same seed, so
+// the lines underneath are the same and only the grunge differs.
 
-import { seeded } from '../interiors/png.mjs';
-import { createInk, fillPolygon, hatch, stroke, toCanvas } from './stroke.mjs';
-
-export const slug = 'inked';
-export const name = 'Inked';
-export const nativePerLogical = 4;
-export const smooth = true;
-
-const PAPER = [242, 234, 218];
-const INK = [50, 42, 38];
-const WASH_ALPHA = 0.65;
-const WASHES = {
-  wall: [222, 204, 176],
-  floor: [214, 190, 156],
-  wood: [184, 140, 100],
-  top: [212, 178, 136],
-  cap: [150, 124, 100],
-  stone: [196, 194, 188],
-  metal: [150, 166, 178],
-  terracotta: [208, 136, 100],
-  foliage: [132, 164, 108],
-  soil: [120, 96, 78],
-  shirt: [116, 146, 184],
-  trousers: [120, 106, 96],
-  skin: [236, 192, 160],
-  hair: [96, 76, 64],
-  brass: [214, 180, 96],
-  glass: [168, 198, 206],
-  lamp: [250, 222, 150],
-  cream: [230, 216, 188],
-  rug: [190, 120, 110],
-  outside: [150, 184, 118],
-  shadow: [110, 94, 80],
-};
-const mix = (wash) => PAPER.map((p, i) => Math.round(p * (1 - WASH_ALPHA) + wash[i] * WASH_ALPHA));
-
-export const palette = [
-  { name: 'surround', rgb: [62, 54, 50] },
-  { name: 'ink', rgb: INK },
-  { name: 'paper', rgb: PAPER },
-  ...Object.entries(WASHES).map(([n, w]) => ({ name: `${n} wash`, rgb: mix(w) })),
-];
-export const surround = palette[0].rgb;
-
-/** The drawing kit bound to one page: shapes, lines and hatching in logical coordinates. */
-function kit(ink, rnd) {
-  const line = (pts, width = 2.4) => stroke(ink, pts, { width, colour: INK, rnd });
-  const offRegister = (pts) => {
-    const dx = (rnd() - 0.3) * 0.6;
-    const dy = (rnd() - 0.3) * 0.6;
-    return pts.map(([x, y]) => [x + dx + (rnd() - 0.5) * 0.4, y + dy + (rnd() - 0.5) * 0.4]);
-  };
-  const hatchIn = (pts, { angle = 0.9, spacing = 1.6, width = 1.5 } = {}) =>
-    hatch(ink, pts, { angle, spacing, width, colour: INK, rnd });
-
-  /** A closed form: paper (unless it is a see-through shade), wash, optional hatching, then each edge as its own stroke. */
-  const shape = (pts, wash, { hatching, width = 2.6, edges = true, paper = true } = {}) => {
-    if (paper) fillPolygon(ink, pts, PAPER);
-    if (wash) fillPolygon(ink, offRegister(pts), WASHES[wash], WASH_ALPHA);
-    if (hatching) hatchIn(hatching === true ? pts : hatching);
-    if (!edges) return;
-    for (let i = 0; i < pts.length; i += 1) line([pts[i], pts[(i + 1) % pts.length]], width);
-  };
-  const box = (x, y, w, h, wash, opts) => shape([[x, y], [x + w, y], [x + w, y + h], [x, y + h]], wash, opts);
-
-  const ring = (cx, cy, rx, ry, bump = 0, lobes = 0, phase = 0) => {
-    const pts = [];
-    for (let i = 0; i < 28; i += 1) {
-      const a = (i / 28) * Math.PI * 2;
-      const r = 1 + bump * Math.abs(Math.sin((a * lobes) / 2 + phase));
-      pts.push([cx + Math.cos(a) * rx * r, cy + Math.sin(a) * ry * r]);
-    }
-    return pts;
-  };
-  /** An ellipse (or, with bump and lobes, a cloud), outlined in one stroke that runs past its start. */
-  const blob = (cx, cy, rx, ry, wash, { bump = 0, lobes = 0, hatching, width = 2.4 } = {}) => {
-    const pts = ring(cx, cy, rx, ry, bump, lobes, rnd() * Math.PI);
-    fillPolygon(ink, pts, PAPER);
-    if (wash) fillPolygon(ink, offRegister(pts), WASHES[wash], WASH_ALPHA);
-    if (hatching) hatchIn(ring(cx + rx * 0.25, cy + ry * 0.35, rx * 0.7, ry * 0.6), hatching);
-    line([...pts, pts[0], pts[1], pts[2]], width);
-  };
-  /** A soft ground shadow: a translucent wash and a few loose horizontal strokes. */
-  const groundShadow = (cx, cy, rx, ry) => {
-    const pts = ring(cx, cy, rx, ry);
-    fillPolygon(ink, pts, WASHES.shadow, 0.35);
-    hatch(ink, ring(cx, cy, rx * 0.85, ry * 0.7), { angle: 0.15, spacing: 1.8, width: 1.5, colour: INK, rnd });
-  };
-  return { line, shape, box, blob, groundShadow, hatchIn };
-}
+import { createPage, finish, palette as inkedPalette, PER_LOGICAL, PROPOSAL_STYLE, STYLE, SURROUND } from '../inked/index.mjs';
 
 function structure(k, scene) {
   const { SHED } = scene;
@@ -153,6 +63,10 @@ function structure(k, scene) {
   k.box(e.x, e.y + 16, e.w, e.h - 16, 'outside');
   k.box(e.x, e.y, e.w, 16, 'wood');
   for (let gy = e.y + 20; gy < e.y + e.h; gy += 5) k.line([[e.x + 3, gy + 1], [e.x + 4, gy - 1.5]], 1.5);
+  k.cornerShade(fl.x, fl.y, 1, 1);
+  k.cornerShade(fl.x + fl.w, fl.y, -1, 1);
+  k.cornerShade(fl.x, fl.y + fl.h, 1, -1);
+  k.cornerShade(fl.x + fl.w, fl.y + fl.h, -1, -1);
 }
 
 function frontCap(k, scene) {
@@ -167,8 +81,8 @@ const DRAW = {
   rug(k, _scene, o) {
     const { x, y, w, h } = o.sprite;
     k.box(x, y, w, h, 'rug');
-    k.box(x + 3, y + 3, w - 6, h - 6, 'cream', { width: 1.8 });
-    k.box(x + 6, y + 6, w - 12, h - 12, 'rug', { width: 1.8 });
+    k.box(x + 3, y + 3, w - 6, h - 6, 'cream', { width: 1.8, wear: false });
+    k.box(x + 6, y + 6, w - 12, h - 12, 'rug', { width: 1.8, wear: false });
     for (let fx = x + 2; fx < x + w; fx += 3) {
       k.line([[fx, y], [fx, y - 1.5]], 1.5);
       k.line([[fx, y + h], [fx, y + h + 1.5]], 1.5);
@@ -176,7 +90,7 @@ const DRAW = {
   },
   workbench(k) {
     k.groundShadow(40, 67, 27, 4);
-    k.box(19, 51, 42, 16, 'shadow', { edges: false, paper: false, hatching: true });
+    k.box(19, 51, 42, 16, 'shadow', { edges: false, paper: false, hatching: 'shadow' });
     legs(k, [17, 59.5], 46, 67.5);
     k.box(19, 58, 42, 3, 'wood', { width: 2 });
     k.box(16, 28, 48, 18, 'top');
@@ -189,7 +103,7 @@ const DRAW = {
   },
   plantingTable(k) {
     k.groundShadow(124, 67, 23, 4);
-    k.box(107, 51, 34, 16, 'shadow', { edges: false, paper: false, hatching: true });
+    k.box(107, 51, 34, 16, 'shadow', { edges: false, paper: false, hatching: 'shadow' });
     legs(k, [105, 139.5], 46, 67.5);
     k.box(104, 28, 40, 18, 'top');
     k.box(107, 31, 34, 12, 'soil');
@@ -202,7 +116,7 @@ const DRAW = {
     k.groundShadow(28, 115, 22, 4);
     k.box(8, 92, 40, 24, 'wood', { hatching: [[38, 92], [48, 92], [48, 116], [38, 116]] });
     k.line([[20, 94], [20, 114]], 1.6);
-    k.box(15, 99, 18, 8, 'cream', { width: 2 });
+    k.box(15, 99, 18, 8, 'cream', { width: 2, wear: false });
     k.blob(24, 103, 3, 2, 'foliage', { width: 1.6 });
     k.box(8, 72, 40, 20, 'top');
     k.shape([[12, 76], [18, 75.5], [18.5, 84], [12.5, 84.5]], 'shirt', { width: 2 });
@@ -279,12 +193,16 @@ function bonsai(k, { cx, base }) {
   k.blob(cx, base - 16, 4, 2.5, 'foliage', { bump: 0.2, lobes: 6 });
 }
 
-/** Draws `scene` (scene.mjs) onto `canvas`, four canvas pixels per logical pixel. */
-export function draw(canvas, scene) {
-  const ink = createInk(scene.SHED.width, scene.SHED.height, { perLogical: nativePerLogical, ss: 3, paper: PAPER });
-  const k = kit(ink, seeded(1270));
-  structure(k, scene);
-  for (const o of scene.sorted()) DRAW[o.kind](k, scene, o);
-  frontCap(k, scene);
-  canvas.data.set(toCanvas(ink).data);
+/** Draws `scene` (scene.mjs) onto `canvas` in `style`, four canvas pixels per logical pixel. */
+function drawIn(style, canvas, scene) {
+  const page = createPage(scene.SHED.width, scene.SHED.height, { seed: 1270, style });
+  structure(page.k, scene);
+  for (const o of scene.sorted()) DRAW[o.kind](page.k, scene, o);
+  frontCap(page.k, scene);
+  canvas.data.set(finish(page).data);
 }
+
+const common = { nativePerLogical: PER_LOGICAL, smooth: true, surround: SURROUND };
+export const inked = { ...common, slug: 'inked', name: 'Inked', palette: inkedPalette, draw: (canvas, scene) => drawIn(PROPOSAL_STYLE, canvas, scene) };
+/** The chosen look (#137). It shares the proposal's palette, so it writes no strip of its own. */
+export const inkedGrunge = { ...common, slug: 'inked-grunge', name: 'Inked, as chosen', draw: (canvas, scene) => drawIn(STYLE, canvas, scene) };
