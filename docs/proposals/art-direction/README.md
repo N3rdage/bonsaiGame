@@ -23,6 +23,8 @@ Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor.
 | Side and front wall caps | 0.25 m thick | - | 8 px bands |
 | Starter bonsai, 25 cm in a 12 cm pot | at hero scale x3 | - | about 14 x 18 overall: a 10 x 5 pot under 11 to 13 px of trunk and foliage |
 
+**Rounding.** The rule gives 36 px for a 1.7 m avatar and 43 px for a 2 m door; the table rounds both down to the tile grid (2 tiles and 2.5 tiles), as every 16 px game does, because a two-tile figure walks a 16 px grid cleanly and the door-to-avatar ratio it leaves (1.25) is the real one (1.24). Furniture keeps its top face's depth inside its drawn height (the workbench: 20 px of top plus 19 px of front), which is why a 0.9 m bench draws 40 px tall beside a 1.7 m avatar at 32.
+
 **The hero-scale exception.** Trees on pedestals are drawn at three times true size. At true scale a 25 cm tree is 5 px tall and unreadable on a phone; the 3D viewer is where a tree is seen at its true size.
 
 ![The scale rule: avatar, door, workbench, pedestal with the starter tree and a bookcase, each with a bracket of its height in tiles](./scale-rule.png)
@@ -73,7 +75,11 @@ Authored at 4 art px per logical px (a 16 px tile is 64 art px) and shown with s
 
 ## Recommendation
 
-Written by the controlling agent after the renders were reviewed.
+**Potting Shed**, with Inked as the pick if its phone render is the one that charms.
+
+- **Potting Shed** fits the brief's "remain simple" most directly and fits the build as it stands: the canvas is already pixelated, the HUD font is already a pixel font, the screenshot tests already compare 1:1 art, and the sprites are produced exactly as today's are. Seven children, none touching the renderer. Its one weak spot in the render is the side-on door leaf, whose slanted outline comes out stepped; a straighter leaf fixes it.
+- **Inked** is the most finished of the three renders and the most distinctive. Choosing it costs two more children (a smooth-scaling art layer with new screenshot baselines, and a toon-and-outline pass in the viewer) and raises one question the render does not answer: the VT323 pixel font next to ink art. A hand-lettered or humanist font would want its own decision. The wobble is generated, so across six rooms and the garden it must be kept varied or it reads as a pattern.
+- **Soft Linen** is not recommended: without outlines its high-key tones sit too close together for a phone in daylight (the sack and the pedestal nearly vanish into the floor), and raising its contrast turns it into Potting Shed without the outlines.
 
 ## How to regenerate
 
