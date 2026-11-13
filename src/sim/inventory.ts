@@ -7,7 +7,10 @@
 
 import type { Inventory, InventoryKey } from './types';
 
-/** Starting stock for a new game (GML init_inventory). */
+/**
+ * Starting stock for a new game (GML init_inventory), plus one free pedestal
+ * (decision #123). Loaded saves read absent keys as 0, so they get no pedestal.
+ */
 export function createInventory(): Inventory {
   return {
     clay: 5,
@@ -21,7 +24,7 @@ export function createInventory(): Inventory {
     seed_pine: 0,
     cutting_juniper: 0,
     cutting_maple: 0,
-    pedestal: 0,
+    pedestal: 1,
     floor_shelf: 0,
   };
 }
