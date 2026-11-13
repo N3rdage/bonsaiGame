@@ -11,6 +11,7 @@ import {
 } from './drive';
 
 const SEEDS = ['panel-buy-seed_juniper', 'panel-buy-seed_maple', 'panel-buy-seed_pine'];
+const FURNITURE = ['panel-buy-pedestal', 'panel-buy-floor_shelf'];
 
 const buys = (h: BonsaiTestHook): string[] =>
   h.controls.map((c) => c.id).filter((id) => id.startsWith('panel-buy-'));
@@ -42,6 +43,7 @@ test.describe('shop kiosk', () => {
       'panel-buy-fancy_pot',
       'panel-buy-soil_premium',
       ...SEEDS,
+      ...FURNITURE,
     ]);
     expect(h.controls.map((c) => c.id)).toContain('panel-close');
 
@@ -50,7 +52,7 @@ test.describe('shop kiosk', () => {
     expect([h.money, h.inventory.clay]).toEqual([96, clay + 1]);
     expect(h.hud).toContain('$96');
 
-    // $96 - $80 leaves $16: the Fancy Pot and the Akadama Mix are out of reach.
+    // $96 - $80 leaves $16: the Fancy Pot, the Akadama Mix and the furniture are out of reach.
     h = await buy(page, 'fancy_pot');
     expect([h.money, h.inventory.fancy_pot]).toEqual([16, 1]);
     expect(buys(h)).toEqual([
@@ -72,7 +74,7 @@ test.describe('shop kiosk', () => {
     expect(errors).toEqual([]);
   });
 
-  // e2e/tap.spec.ts checks the nine Buy targets are apart and on the canvas.
+  // e2e/tap.spec.ts checks the eleven Buy targets are apart and on the canvas.
   test('sells the three seed packets at $9', async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);

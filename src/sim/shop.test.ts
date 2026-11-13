@@ -24,17 +24,19 @@ function makeState(money: number): GameState {
 }
 
 describe('SHOP_CATALOGUE', () => {
-  it('has the prototype items, prices and order', () => {
-    expect(SHOP_CATALOGUE.map((i) => [i.key, i.label, i.price])).toEqual([
-      ['clay', 'Clay', 4],
-      ['pot', 'Pot', 12],
-      ['wire', 'Wire', 8],
-      ['fertilizer', 'Fertilizer', 10],
-      ['fancy_pot', 'Fancy Pot', 80],
-      ['soil_premium', 'Akadama Mix', 18],
-      ['seed_juniper', 'Juniper Seed', 9],
-      ['seed_maple', 'Maple Seed', 9],
-      ['seed_pine', 'Pine Seed', 9],
+  it('has the prototype items, prices and order, then the furniture', () => {
+    expect(SHOP_CATALOGUE.map((i) => [i.key, i.label, i.price, i.section])).toEqual([
+      ['clay', 'Clay', 4, 'supplies'],
+      ['pot', 'Pot', 12, 'supplies'],
+      ['wire', 'Wire', 8, 'supplies'],
+      ['fertilizer', 'Fertilizer', 10, 'supplies'],
+      ['fancy_pot', 'Fancy Pot', 80, 'supplies'],
+      ['soil_premium', 'Akadama Mix', 18, 'supplies'],
+      ['seed_juniper', 'Juniper Seed', 9, 'seeds'],
+      ['seed_maple', 'Maple Seed', 9, 'seeds'],
+      ['seed_pine', 'Pine Seed', 9, 'seeds'],
+      ['pedestal', 'Pedestal', 30, 'furniture'],
+      ['floor_shelf', 'Floor shelf', 50, 'furniture'],
     ]);
   });
 });
@@ -107,6 +109,20 @@ describe('shopBuy', () => {
       expect(item?.price).toBe(9);
       expect(shopBuy(state, key, 1, item?.price ?? 0)).toBe(true);
       expect(state.money).toBe(91);
+      expect(state.inventory).toEqual({ ...before, [key]: before[key] + 1 });
+    }
+  });
+
+  it('sells a pedestal at $30 and a floor shelf at $50, crediting that piece only', () => {
+    for (const [key, price] of [
+      ['pedestal', 30],
+      ['floor_shelf', 50],
+    ] as const) {
+      const state = makeState(100);
+      const before = { ...state.inventory };
+      expect(SHOP_CATALOGUE.find((i) => i.key === key)?.price).toBe(price);
+      expect(shopBuy(state, key, 1, price)).toBe(true);
+      expect(state.money).toBe(100 - price);
       expect(state.inventory).toEqual({ ...before, [key]: before[key] + 1 });
     }
   });
