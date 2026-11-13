@@ -115,7 +115,7 @@ python3 preview.py        # rebuilds _preview.png
 
 ## Proposal renders
 
-`proposal/render.mjs` (`node art/proposal/render.mjs`) draws the art-direction
+`proposal/render.mjs` (`npm run art:proposal`) draws the art-direction
 proposal for backlog #127 into `docs/proposals/art-direction/`: the same shed
 scene in three candidate styles (Potting Shed, Soft Linen, Inked), each at the
 S22 Ultra's landscape size and at 2x, with a palette strip, plus the scale-rule

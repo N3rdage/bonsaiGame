@@ -90,7 +90,7 @@ Authored at 4 art px per logical px (a 16 px tile is 64 art px) and shown with s
 ## How to regenerate
 
 ```bash
-node art/proposal/render.mjs
+npm run art:proposal
 ```
 
 Deterministic: every random choice comes from a seeded generator, so a rerun reproduces the committed PNGs byte for byte.
