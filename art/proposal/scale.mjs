@@ -2,7 +2,7 @@
 // draw foreshortened to two thirds (the rooms are a three-quarter top-down
 // view). Furniture's drawn height is its front face (real height x about
 // 21.33 px/m) plus its footprint's depth, rounded to 4 px; the avatar and the
-// front-on door round to the tile grid instead. The table below is the one in
+// front-on door round to the half-tile grid instead. The table below is the one in
 // docs/proposals/art-direction/README.md; the scene and the scale diagram
 // read their sizes from it.
 

@@ -6,7 +6,7 @@ The art pass gives the whole game one new look (decision B on agentic-gaming#127
 
 ## The scale rule
 
-Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor. The rooms are a three-quarter top-down view, so drawn heights are foreshortened: 1 m of height draws as two thirds of a metre, so 1 m tall is about 21 px. A piece of furniture draws as its front face (real height x 21.33 px/m) plus its footprint's depth for the top face, and furniture rounds to 4 px; the avatar and the front-on door round to the tile grid instead (see Rounding below). On phones the world zoom drops from 2 to 1.25 (see The phone zoom below). Everything in the game today is one tile tall (the avatar is 16 x 16, a door 16 x 16, a wall band 16 px), which is why rooms feel like sheds and the avatar like a toy; this rule fixes the proportion.
+Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor. The rooms are a three-quarter top-down view, so drawn heights are foreshortened: 1 m of height draws as two thirds of a metre, so 1 m tall is about 21 px. A piece of furniture draws as its front face (real height x 21.33 px/m) plus its footprint's depth for the top face, and furniture rounds to 4 px; the avatar and the front-on door round to the half-tile grid instead (see Rounding below). On phones the world zoom drops from 2 to 1.25 (see The phone zoom below). Everything in the game today is one tile tall (the avatar is 16 x 16, a door 16 x 16, a wall band 16 px), which is why rooms feel like sheds and the avatar like a toy; this rule fixes the proportion.
 
 | Thing | Real size (w x d x h, m) | Footprint (logical px, w x d) | Drawn sprite (w x h) |
 |---|---|---|---|
@@ -23,7 +23,7 @@ Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor.
 | Side and front wall caps | 0.25 m thick | - | 8 px bands |
 | Starter bonsai, 25 cm in a 12 cm pot | at hero scale x3 | - | about 14 x 18 overall: a 10 x 5 pot under 11 to 13 px of trunk and foliage |
 
-**Rounding.** The rule gives 36 px for a 1.7 m avatar and 43 px for a 2 m door; the table rounds both down to the tile grid (2 tiles and 2.5 tiles), as every 16 px game does, because a two-tile figure walks a 16 px grid cleanly and the door-to-avatar ratio it leaves (1.25) is the real one (1.24). Furniture keeps its top face's depth inside its drawn height (the workbench: 20 px of top plus 19 px of front), which is why a 0.9 m bench draws 40 px tall beside a 1.7 m avatar at 32.
+**Rounding.** The rule gives 36 px for a 1.7 m avatar and 43 px for a 2 m door; the table rounds both down to the half-tile grid (2 tiles and 2.5 tiles), as every 16 px game does, because a two-tile figure walks a 16 px grid cleanly and the door-to-avatar ratio it leaves (1.25) is the real one (1.24). Furniture keeps its top face's depth inside its drawn height (the workbench: 20 px of top plus 19 px of front), which is why a 0.9 m bench draws 40 px tall beside a 1.7 m avatar at 32.
 
 **The hero-scale exception.** Trees on pedestals are drawn at three times true size. At true scale a 25 cm tree is 5 px tall and unreadable on a phone; the 3D viewer is where a tree is seen at its true size.
 
@@ -47,7 +47,7 @@ Every candidate draws the same scene: the shed at 5.0 x 3.5 m (10 x 7 tiles insi
 
 ![Potting Shed on the S22 Ultra at today's phone zoom of 2](./potting-shed-shed-s22-landscape-zoom2.png)
 
-For comparison, the same scene at today's phone zoom of 2 (8 device px per logical px): the 240 x 135 logical view centred on the avatar and clamped to the room, as the world camera does. The avatar is about a quarter of the screen height and the room is cropped top and bottom.
+For comparison, the same scene at today's phone zoom of 2 (8 device px per logical px): the 240 x 135 logical view centred on the avatar and clamped to the room, as the world camera does. The avatar is about a quarter of the screen height and the view, clamped to the room's bottom edge, cuts off the top of the room: the back wall, the window and the shelf.
 
 ![Potting Shed, the shed at 2x](./potting-shed-shed-2x.png)
 
