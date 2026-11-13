@@ -60,8 +60,9 @@ test.describe('inventory panel', () => {
     const h = await hook(page);
     expect(ids(h)).toEqual(['panel-close']);
     expect(h.inventorySections).toEqual(expected(h.inventory));
-    // A new game: no cuttings yet, so that section reads (none).
+    // A new game: no cuttings yet, so that section reads (none); one free pedestal.
     expect(h.inventorySections?.[2]?.entries).toEqual([]);
+    expect(h.inventorySections?.[3]?.entries).toEqual([{ label: 'Pedestals', count: 1 }]);
     expect(h.inventorySections?.[0]?.entries.length).toBeGreaterThan(0);
 
     await tapControl(page, 'panel-close');

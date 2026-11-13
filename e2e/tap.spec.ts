@@ -109,7 +109,7 @@ test.describe('tap targets', () => {
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.panel === 'shop');
     expect((await hook(page)).controls.filter((c) => c.id.startsWith('panel-buy-'))).toHaveLength(
-      9,
+      11,
     );
     await expectTapTargets(page, 'shop');
     expect(errors).toEqual([]);
