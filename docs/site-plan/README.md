@@ -95,6 +95,64 @@ What changes from today:
 - The garden becomes an L-shaped lawn.
 - The greenhouse turns 90 degrees, so its placement grid becomes 10 x 16 and placed items need a migration that transposes them.
 
+## Plan B2: Lean-to with a front
+
+![Plan B2: Lean-to with a front](./plan-b2-lean-to-front.png)
+
+B2 is plan B with the four changes Drew asked for on agentic-gaming#132: a front garden and road frontage, a garage beside the shed, a smaller freestanding greenhouse in the lawn, and a side gate from the front garden to the back garden. The buildings are drawn as solids with shadows because they are objects seen from the gardens.
+
+| Room | x | y | Interior |
+| --- | --- | --- | --- |
+| Lounge | 0 .. 6 | 0 .. 4.5 | 6.0 x 4.5 |
+| Hallway | 6 .. 8.5 | 0 .. 4.5 | 2.5 x 4.5 |
+| Study | 8.5 .. 13 | 0 .. 4.5 | 4.5 x 4.5 |
+| Shed | 0 .. 5 | 4.5 .. 8 | 5.0 x 3.5 |
+| Garage (closed, no room yet) | −3.5 .. 0 | 0 .. 8 | 3.5 x 8.0 |
+| Front garden | −3.5 .. 14.5 | −4 .. 0 | 18.0 x 4.0: drive (x −3.5 .. 0), 0.8 m path at x 7.25, lawn |
+| Back garden | 13 .. 14.5, 5 .. 14.5 and 0 .. 14.5 | 0 .. 4.5, 4.5 .. 8 and 8 .. 16 | 1.5 x 4.5 passage, 9.5 x 3.5 notch and 14.5 x 8.0 lawn |
+| Greenhouse | 8 .. 13 | 9.5 .. 13 | 5.0 x 3.5 (freestanding in the lawn) |
+| Road (drawn, not walked) | −3.5 .. 14.5 | −7 .. −4 | 18.0 x 3.0 |
+
+| # | Room | Wall | Position | Leads to | Arrival |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Shed | N | 2.5 | Lounge, S wall at 2.5 | just inside the lounge's south door, facing north |
+| 2 | Shed | S | 2.5 | Back garden, N edge of the lawn at x 2.5 (y 8) | just inside the lawn's north edge, facing south |
+| 3 | Lounge | S | 2.5 | Shed, N wall at 2.5 | just inside the shed's north door, facing south |
+| 4 | Lounge | E | 2.25 | Hallway, W wall at 2.25 | just inside the hallway's west door, facing east |
+| 5 | Hallway | W | 2.25 | Lounge, E wall at 2.25 | just inside the lounge's east door, facing west |
+| 6 | Hallway | N (front door) | 1.25 (x 7.25) | Front garden, S edge at x 7.25 (y 0), the top of the path | just inside the front garden's south edge, facing north |
+| 7 | Hallway | E | 2.25 | Study, W wall at 2.25 | just inside the study's west door, facing east |
+| 8 | Study | W | 2.25 | Hallway, E wall at 2.25 | just inside the hallway's east door, facing west |
+| 9 | Study | S (glazed double) | 2.25 (x 10.75) | Back garden, N edge of the notch at x 10.75 (y 4.5) | just inside the notch's north edge, facing south |
+| 10 | Front garden | S edge | x 7.25 (y 0) | Hallway, N wall at 1.25 | just inside the hallway's front door, facing south |
+| 11 | Front garden | S edge (side gate) | x 13.75 (y 0) | Back garden, N edge of the passage at x 13.75 | just inside the gate, in the passage, facing south |
+| 12 | Back garden | N edge of the passage (side gate) | x 13.75 (y 0) | Front garden, S edge at x 13.75 | just inside the gate, facing north |
+| 13 | Back garden | N edge of the lawn | x 2.5 (y 8) | Shed, S wall at 2.5 | just inside the shed's south door, facing north |
+| 14 | Back garden | N edge of the notch | x 10.75 (y 4.5) | Study, S glazed doors at 2.25 | just inside the study's glazed doors, facing north |
+| 15 | Back garden | the greenhouse's S face, in the lawn | x 10.5 (y 13) | Greenhouse, S wall at 2.5 | just inside the greenhouse's south door, facing north |
+| 16 | Greenhouse | S | 2.5 (x 10.5) | Back garden, the lawn just south of the greenhouse at x 10.5 | just outside the greenhouse's door, facing south |
+
+The garage's roller door (N wall, 2.4 m, centred at x −1.75, onto the drive) is drawn closed from the front garden and the road and leads to no room yet. A new game still starts in the shed.
+
+What changes from plan B:
+
+- The front garden is a new, seventh walkable room: path, drive, lawn and beds, with the road and kerb drawn beyond it and never walked. The front door is in the hallway's north wall.
+- A side gate pair runs through a 1.5 m passage beside the study that belongs to the back garden, closing the loop front door, house, back garden, gate, front garden.
+- The garage (3.5 x 8, closed) stands west of the lounge and shed, flush with the shed's south wall, so the shed and garage read as one outbuilding block.
+- The greenhouse shrinks from 8 x 5 to 5 x 3.5 and moves off the east boundary into the lawn, freestanding at 8 .. 13 x 9.5 .. 13. Its door stays in its south wall, approached from the lawn below, so nothing between the buildings and the gardens is side-on.
+- The back garden becomes passage, notch and lawn (three rectangles), with its east fence at x 14.5.
+- The greenhouse's placement grid becomes 10 x 7 instead of B's 10 x 16, so placed items in columns 10 and beyond or rows 7 and beyond need the version 6 migration (it no longer transposes).
+
+What changes from today:
+
+- Every door pair survives.
+- The shed's garden door stays in its south wall, and the garden's door to it moves from the west fence to the lawn's north edge.
+- The garden's study door moves from the east fence to the notch's north edge.
+- The greenhouse's door stays in its south wall, and the garden's door to it moves from the north fence to the greenhouse's south face, standing in the lawn.
+- The house's two internal door pairs (lounge to hallway, hallway to study) are seen side-on.
+- New: the front door, the front garden, the side gate, the garage exterior and the road.
+- The greenhouse grid goes from 22 x 10 to 10 x 7 (version 6 migration).
+
 ## Plan C: Across the lawn
 
 ![Plan C: Across the lawn](./plan-c-across-the-lawn.png)
@@ -140,6 +198,10 @@ What changes from today:
 ## Save compatibility
 
 Tree locations are keyed by display-spot names and room keys, not coordinates, so trees need no migration under any layout. Placed greenhouse furniture sits on the greenhouse's placement grid, and the grid changes shape under every layout, so placed furniture needs a migration whichever plan is chosen.
+
+## Decision
+
+Drew chose plan B with changes on agentic-gaming#132 (2026-11-14 Melbourne); B2 above is that plan as drawn and is the layout the implementation follows. A and C stay here as the record of what was considered.
 
 ## How to regenerate
 
