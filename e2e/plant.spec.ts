@@ -19,7 +19,7 @@ import {
 } from './drive';
 
 // Shed: workbench (125, 90), planting table (165, 90), door (232, 208) to the
-// garden at (50, 225); garden: juniper (140, 90), door (16, 228) back to (240, 190).
+// garden at (42, 228); garden: juniper (140, 90), door (16, 228) back to (240, 190).
 
 const ids = (h: BonsaiTestHook): string[] => h.controls.map((c) => c.id);
 

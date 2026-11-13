@@ -10,7 +10,7 @@ import { inventoryAdd, inventoryRemove } from '../sim/inventory';
 import { DISPLAYED_PREFIX, treeOnPedestal } from '../sim/tree';
 import type { GameState, PlaceableKind, PlacedItem } from '../sim/types';
 import { SHEETS, type Sheet } from './assets';
-import { ROOMS } from './gardenRoom';
+import { landing } from './doors';
 import type { Facing } from './player';
 import { TILE } from './roomArt';
 import { insideWalls, type Furniture, type Prop, type Rect, type Room } from './shedRoom';
@@ -154,13 +154,13 @@ function inside(inner: Rect, outer: Rect): boolean {
 }
 
 /**
- * The 16x16 tiles a player arrives on in `room`: where its own start and every
- * door into it from the `rooms` registry set the player down. Kept clear of
- * furniture, so a player never arrives inside a piece.
+ * The 16x16 tiles a player arrives on in `room`: its own start and the landing
+ * beside each of its doors, where the door leading back sets the player down.
+ * Kept clear of furniture, so a player never arrives inside a piece.
  */
-export function landingTiles(room: Room, rooms: Readonly<Record<string, Room>> = ROOMS): Rect[] {
-  const doorsIn = Object.values(rooms).flatMap((r) =>
-    r.props.flatMap((p) => (p.target?.room === room.key ? [p.target] : [])),
+export function landingTiles(room: Room): Rect[] {
+  const doorsIn = room.props.flatMap((p) =>
+    p.wall ? [landing(room, { ...p, wall: p.wall })] : [],
   );
   return [room.playerStart, ...doorsIn].map((at) => ({
     ...snapToGrid(at.x, at.y),

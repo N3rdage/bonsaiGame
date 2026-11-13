@@ -28,7 +28,7 @@ test.describe('the greenhouse', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await shedToGarden(page);
-    await expectAt(page, 'garden', 50, 225);
+    await expectAt(page, 'garden', 42, 228);
 
     await gardenToGreenhouse(page);
     await expectAt(page, 'greenhouse', 240, 206);
