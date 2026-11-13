@@ -35,7 +35,7 @@ The 18:00 run did everything right, up to a point. It saw #43 still `in-progress
 
 Then it spawned its implementer in the background, ended its turn, and died the same way: 23 minutes, 48 turns, exit 0, nothing pushed. The second run had diagnosed the first as dead and had no idea why, so it repeated the cause.
 
-Drew found both the next morning, reading the container logs as the operator. The stderr tail of each run said the same thing:
+Both were found the next morning by the session that looks after the infrastructure, reading the container logs as the operator account. The stderr tail of each run said the same thing:
 
 ```
 Background tasks still running 10m after the last turn (subagent "Implement #43 ..."); stopping them. Set CLAUDE_CODE_PRINT_BG_WAIT_CEILING_MS=0 to wait indefinitely.
