@@ -22,7 +22,7 @@ import {
   walkTo,
 } from './drive';
 
-// Shed door (240, 216), in the bottom wall, to the garden at (50, 225); garden
+// Shed door (240, 216), in the bottom wall, to the garden at (42, 228); garden
 // door (16, 228) back to the shed at (240, 190). Source plants: juniper
 // (140, 90), maple (260, 80).
 
@@ -44,7 +44,7 @@ test.describe('the garden', () => {
 
     await toGarden(page);
     let h = await hook(page);
-    expect([h.room, h.player.x, h.player.y]).toEqual(['garden', 50, 225]);
+    expect([h.room, h.player.x, h.player.y]).toEqual(['garden', 42, 228]);
     expect(h.near).toBe('');
 
     await walkTo(page, 228, 'left', 'door');
@@ -129,7 +129,7 @@ test.describe('garden screenshot', () => {
 
     await toGarden(page);
     const h = await hook(page);
-    expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 50, 225, '']);
+    expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 42, 228, '']);
     await expect(page).toHaveScreenshot('garden-entry.png');
   });
 
@@ -163,7 +163,7 @@ test.describe('garden screenshot', () => {
 
       await toGarden(page);
       const h = await hook(page);
-      expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 50, 225, '']);
+      expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 42, 228, '']);
       await expect(page).toHaveScreenshot(`garden-${season}.png`);
     });
   }
