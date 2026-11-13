@@ -1,0 +1,84 @@
+# Art direction: a scale rule and three candidate looks
+
+## Purpose
+
+The art pass gives the whole game one new look (decision B on agentic-gaming#127). Before any room is redrawn, this proposal fixes the scale every sprite is drawn to and shows, rather than describes, three candidate art directions: the same shed, avatar, workbench, pedestal with its tree and doors, rendered at the Samsung S22 Ultra's landscape size so each can be judged on the phone.
+
+## The scale rule
+
+Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor. The rooms are a three-quarter top-down view, so drawn heights are foreshortened: 1 m of height draws as two thirds of a metre, so 1 m tall is about 21 px. Sizes round to 4 px. Everything in the game today is one tile tall (the avatar is 16 x 16, a door 16 x 16, a wall band 16 px), which is why rooms feel like sheds and the avatar like a toy; this rule fixes the proportion.
+
+| Thing | Real size (w x d x h, m) | Footprint (logical px, w x d) | Drawn sprite (w x h) |
+|---|---|---|---|
+| Avatar | 0.5 x 0.3 x 1.7 | 16 x 8 | 16 x 32 |
+| Door in a north wall (seen from the front) | 0.8 x - x 2.0 | 24 x 4 | 24 x 40 |
+| Door in an east or west wall (seen side-on) | - | 8 x 24 | 8 x 40 frame on the wall cap, leaf drawn ajar into the room |
+| Workbench | 1.5 x 0.6 x 0.9 | 48 x 20 | 48 x 40 |
+| Planting table | 1.2 x 0.6 x 0.9 | 40 x 20 | 40 x 40 |
+| Shop kiosk (counter) | 1.2 x 0.6 x 1.0 | 40 x 20 | 40 x 44 |
+| Pedestal | 0.4 x 0.4 x 1.0 | 16 x 12 | 16 x 32 |
+| Bookcase | 1.2 x 0.4 x 2.0 | 40 x 12 | 40 x 56 |
+| Window in the back wall | 1.0 x - x 0.8 | - | 32 x 24, its bottom 16 px above the floor line |
+| Back (north) wall face | 2.4 m high | - | a 48 px tall band across the room's top |
+| Side and front wall caps | 0.25 m thick | - | 8 px bands |
+| Starter bonsai, 25 cm in a 12 cm pot | at hero scale x3 | - | about 14 x 18 overall: a 10 x 5 pot under 11 to 13 px of trunk and foliage |
+
+**The hero-scale exception.** Trees on pedestals are drawn at three times true size. At true scale a 25 cm tree is 5 px tall and unreadable on a phone; the 3D viewer is where a tree is seen at its true size.
+
+![The scale rule: avatar, door, workbench, pedestal with the starter tree and a bookcase, each with a bracket of its height in tiles](./scale-rule.png)
+
+The brackets tick once per tile (16 px) and are labelled in tiles; the terracotta bracket is the bonsai at hero scale.
+
+**What changes in the game.** The player sheet becomes 16 x 32 frames. Doors become 24 x 40, or 8 x 40 side-on. Every furniture sprite is resized per the table. Walls become a 48 px back face plus 8 px caps, so every room's `bounds`, `walls`, door rects, landings and walk-tests in `src/world/*Room.ts` change in the plan's implementation children, and the "door row y 190" rule retires. The world camera's zoom is unchanged: at 5 device px per logical px the 32 px avatar is about a seventh of the phone's screen height, which is where Stardew sits.
+
+## The candidates
+
+Every candidate draws the same scene: the shed at 5.0 x 3.5 m (10 x 7 tiles inside), a north door to the lounge, a side-on east door ajar to the garden, a window, a wall shelf of pots, the workbench, the planting table, the shop kiosk, the pedestal with the starter bonsai, the avatar facing it, a watering can, a sack, a stack of pots and a rug, each with a soft ground shadow, depth-sorted by footprint. The phone renders are 2318 x 1080 (the S22 Ultra's landscape device pixels): the 1920 x 1080 game canvas centred between the letterbox bars, the world at 5 device px per logical px, no HUD.
+
+### 1. Potting Shed (pixel, outlined, warm)
+
+1:1 logical pixels, scaled nearest-neighbour. Every form has a 1 px outline in the darkest tone of its own material (never pure black) and three tones inside it (shadow, mid, highlight); no dithering, no anti-aliasing. The palette is ART_SPEC.md's 17 colours at their values, grown with outline tones, a cool slate for stone and metal, a cream for plaster and burlap and a warm lamp light: 32 colours. Produced in the repo as all the art is today: a Node script drawing pixels with `pngjs`, packed into sheets. Looks like Stardew Valley, Graveyard Keeper, Moonlighter. In the 3D viewer: a bark texture and a foliage sprite drawn in the palette.
+
+![Potting Shed on the S22 Ultra, landscape](./potting-shed-shed-s22-landscape.png)
+
+![Potting Shed, the shed at 2x](./potting-shed-shed-2x.png)
+
+![Potting Shed palette](./potting-shed-palette.png)
+
+### 2. Soft Linen (pixel, no outlines, pastel)
+
+1:1 logical pixels, scaled nearest-neighbour. No outlines at all: forms read by value steps, the lightest tone on the top and left of each form and the darkest on the bottom and right, corners rounded off. A 2x2 checker dither only inside large flat areas (the light falling from the window, the foot of the wall, the plaster's ceiling shade, the lamp's glow). A cooler, higher-key palette of sage, oatmeal, dusty rose, slate blue and warm grey: 24 colours. Produced the same way as Potting Shed (the two share their drawing code in `art/proposal/pixelScene.mjs`; only the style and the materials differ). Looks like Unpacking, Sprout Valley, Littlewood. In the 3D viewer: a bark texture and a foliage sprite drawn in the palette.
+
+![Soft Linen on the S22 Ultra, landscape](./soft-linen-shed-s22-landscape.png)
+
+![Soft Linen, the shed at 2x](./soft-linen-shed-2x.png)
+
+![Soft Linen palette](./soft-linen-palette.png)
+
+### 3. Inked (hand-drawn)
+
+Authored at 4 art px per logical px (a 16 px tile is 64 art px) and shown with smooth (bilinear) scaling, never nearest-neighbour, so no pixel grid is visible anywhere. Ink linework 1.5 to 4 art px wide that swells and thins along its length, wobbles a little and overshoots its corners as a pen does; flat fills of paper off-white under light, low-saturation washes laid at 65 percent and slightly off register; parallel hatching on shadow sides and under furniture; no gradients. Produced in the repo by a small rasteriser of our own (`art/proposal/stroke.mjs`: seeded jittered polylines, scanline polygon fill, 3x supersampling and a box-filter downsample), with no new dependency. Looks like Don't Starve (ink lines over flat fills), Hidden Folks (ink on paper), Dordogne and Behind the Frame (hand-painted, anime-adjacent). In the 3D viewer: a toon ramp plus an outline pass, and an ink-drawn foliage sprite. On the canvas: the art layer needs smooth scaling (`image-rendering: auto` for the world camera) while the HUD font stays crisp; the prototype sprites are all replaced, so nothing 1:1 remains to clash with the ink.
+
+![Inked on the S22 Ultra, landscape](./inked-shed-s22-landscape.png)
+
+![Inked, the shed at 2x](./inked-shed-2x.png)
+
+![Inked palette (surround, ink, paper, then each wash as it lands on paper)](./inked-palette.png)
+
+## Cost in children
+
+- **Potting Shed:** 7 children: the player; the shed; the garden and the shed's exterior; the house rooms; the greenhouse and the placeables; the viewer's textures; the tree sprites and the pot and weather colours.
+- **Soft Linen:** the same 7.
+- **Inked:** the same 7, plus 2: the smooth-scaling art layer with its screenshot baselines, and the viewer's toon and outline shaders.
+
+## Recommendation
+
+Written by the controlling agent after the renders were reviewed.
+
+## How to regenerate
+
+```bash
+node art/proposal/render.mjs
+```
+
+Deterministic: every random choice comes from a seeded generator, so a rerun reproduces the committed PNGs byte for byte.
