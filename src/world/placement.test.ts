@@ -143,14 +143,14 @@ describe('placement', () => {
     expect(check(state, 'floor_shelf', 224, 176)).toBe('ok');
   });
 
-  it('keeps no ring in a room without doors, only the landings from the other rooms', () => {
+  it('keeps no ring and no door landing in a room without doors, only its start', () => {
     const room: Room = { ...GREENHOUSE_ROOM, props: [] };
     const state = stocked();
     expect(placementCheck(room, state, 'pedestal', 240, 208, PLAYER)).toBe('ok');
     expect(placementCheck(room, state, 'floor_shelf', 224, 208, PLAYER)).toBe('ok');
     expect(placementCheck(room, state, 'pedestal', 240, 192, PLAYER)).toBe('blocks the door');
     const lone: Room = { ...room, key: 'greenhouse', playerStart: { x: 100, y: 100 } };
-    expect(landingTiles(lone, {})).toEqual([{ x: 96, y: 96, w: 16, h: 16 }]);
+    expect(landingTiles(lone)).toEqual([{ x: 96, y: 96, w: 16, h: 16 }]);
   });
 
   it('puts the ghost on the tile the player faces, reaching away from the player', () => {

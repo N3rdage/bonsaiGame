@@ -55,15 +55,17 @@ export const HALLWAY_ROOM: Room = {
   walls: ringWalls(HALLWAY_BOUNDS),
   furniture: [RUNNER, HALL_TABLE],
   props: [
-    // The left wall's band, prototype top-left (160, 364), back to 26 px left of the lounge's hallway door.
+    // The left wall's band, prototype top-left (160, 364), back to beside the lounge's hallway door.
     {
       ...prop('door_lounge', 'Door', 'To Lounge', 160 + 16, 364 + 16, 16, 16),
-      target: { room: 'lounge', x: 398, y: 190 },
+      wall: 'W',
+      target: { room: 'lounge', door: 'door_hallway' },
     },
-    // The right wall's band, prototype top-left (768, 364), to 26 px right of the study's door.
+    // The right wall's band, prototype top-left (768, 364), to beside the study's door.
     {
       ...prop('door_study', 'Door', 'To Study', 768 + 16, 364 + 16, 16, 16),
-      target: { room: 'study', x: 162, y: 190 },
+      wall: 'E',
+      target: { room: 'study', door: 'door_hallway' },
     },
   ],
   // A dark warm umber behind the ring, between the shed's 0x241e18 and the lounge's 0x2a1c1a.

@@ -82,26 +82,29 @@ export const GARDEN_ROOM: Room = {
     sourcePlant('juniper', 280, 180),
     sourcePlant('maple', 520, 160),
     sourcePlant('pine', 760, 200),
-    // inst_64469EE5: a 32x32 door with its origin top-left at (16, 440), back
-    // to the shed at (480, 380), just above the shed's door.
+    // inst_64469EE5: a 32x32 door with its origin top-left at (16, 440), in the
+    // left fence's doorway, back to just above the shed's door.
     {
       ...prop('door', 'Door', 'Back to Shed', 16 + 16, 440 + 16, 16, 16),
-      target: { room: 'shed', x: fromPrototype(480), y: fromPrototype(380) },
+      wall: 'W',
+      target: { room: 'shed', door: 'door' },
     },
-    // New content: a glazed door drawn on the right fence's band on the row y 190, back to 26 px
-    // above the study's glass doors. A walk right along the row stops against the fence at x 463.5,
+    // New content: a glazed door drawn on the right fence's band on the row y 190, back to above
+    // the study's glass doors. A walk right along the row stops against the fence at x 463.5,
     // 8.5 px short of its centre.
     {
       ...prop('door_study', 'Door', 'To Study', 944, 380, 16, 16),
-      target: { room: 'study', x: 320, y: 190 },
+      wall: 'E',
+      target: { room: 'study', door: 'door_garden' },
       sheet: SHEETS.doorGlassSingle,
     },
     // New content: a glazed door drawn on the top fence's band right of the source plants, centred
-    // 2 px right of the study door's landing, back to 26 px above the greenhouse's door. A walk
+    // 2 px right of the study door's landing, back to above the greenhouse's door. A walk
     // straight up from that landing (446, 190) stops against the fence at y 16.25, 8.5 px from it.
     {
       ...prop('door_greenhouse', 'Door', 'To Greenhouse', 896, 16, 16, 16),
-      target: { room: 'greenhouse', x: 240, y: 206 },
+      wall: 'N',
+      target: { room: 'greenhouse', door: 'door_garden' },
       sheet: SHEETS.doorGlassSingle,
     },
   ],

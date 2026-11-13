@@ -111,7 +111,7 @@ test.describe('world camera on a phone', () => {
     await walkTo(page, 200, 'left', 'door');
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.room === 'garden');
-    // The landing spot (50, 225) is in the bottom-left corner.
+    // The landing spot (42, 228) is in the bottom-left corner.
     expect(await camera(page)).toEqual({ zoom: 2, scrollX: GARDEN.x0, scrollY: GARDEN.y1 });
     await record(page);
 

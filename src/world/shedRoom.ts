@@ -27,11 +27,16 @@ export interface Rect {
 /** The rooms the world can show; also the `location` of a tree on that room's floor. */
 export type RoomKey = 'shed' | 'garden' | 'lounge' | 'hallway' | 'study' | 'greenhouse';
 
-/** Where a door leads (obj_door's `target_room`, `target_x`, `target_y`), logical px. */
+/** The wall of a room's ring a door sits in; N is the top wall. */
+export type Wall = 'N' | 'S' | 'E' | 'W';
+
+/**
+ * Where a door leads: the destination room and the key of the door there that
+ * leads back, beside which the player lands (doors.ts `landing`).
+ */
 export interface DoorTarget {
   readonly room: RoomKey;
-  readonly x: number;
-  readonly y: number;
+  readonly door: string;
 }
 
 export interface Prop {
@@ -50,8 +55,10 @@ export interface Prop {
    * (`displaySpot`) and draws nothing of its own.
    */
   readonly pedestalKey?: string;
-  /** Doors only: the room and spot E takes the player to. */
+  /** Doors only: the room and door E takes the player to. */
   readonly target?: DoorTarget;
+  /** Doors only: the wall the door sits in. */
+  readonly wall?: Wall;
   /** Doors only: the door's sprite when it is not the prototype's `spr_door` (the study's glazed doors and the garden's to them). */
   readonly sheet?: Sheet;
   /** Garden source plants only (obj_source_plant's `species_key`): what a cutting is of. */
@@ -263,16 +270,18 @@ export const SHED_ROOM: Room = {
     // rm_shed's two pedestals (shed_main, shed_window) moved to the lounge;
     // saves before version 4 migrate their trees there (save.ts).
     // inst_52E224DC: a 32x32 door with its origin top-left at (464, 416), on the
-    // bottom wall; its creation code: target_room = rm_garden_back, (100, 450).
+    // bottom wall; its creation code: target_room = rm_garden_back (the landing is derived, doors.ts).
     {
       ...prop('door', 'Door', 'To Garden', 464 + 16, 416 + 16, 16, 16),
-      target: { room: 'garden', x: fromPrototype(100), y: fromPrototype(450) },
+      wall: 'S',
+      target: { room: 'garden', door: 'door' },
     },
     // New content (the prototype had no interiors): the lounge door, the same
-    // 32 px square in the top wall, landing 26 px below it in the lounge.
+    // 32 px square in the top wall, to the lounge's door back to the shed.
     {
       ...prop('door_lounge', 'Door', 'To Lounge', 464 + 16, 96 + 16, 16, 16),
-      target: { room: 'lounge', x: 240, y: 190 },
+      wall: 'N',
+      target: { room: 'lounge', door: 'door' },
     },
   ],
   // rm_shed's background colour 4279770660 is ABGR 0xff181e24.

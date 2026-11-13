@@ -75,15 +75,17 @@ export const LOUNGE_ROOM: Room = {
     // then up stops against the table at (415, 128.75) or (415.5, 128.75),
     // within 10 px of the spot's centre (408, 122).
     displaySpot('pedestal_2', 'lounge_side_table', SIDE_TABLE, 116),
-    // The shed garden door's square in the bottom wall, back to 26 px below the shed's lounge door.
+    // The shed garden door's square in the bottom wall, back to below the shed's lounge door.
     {
       ...prop('door', 'Door', 'Back to Shed', 464 + 16, 416 + 16, 16, 16),
-      target: { room: 'shed', x: 240, y: 82 },
+      wall: 'S',
+      target: { room: 'shed', door: 'door_lounge' },
     },
-    // In the right wall (prototype top-left (832, 364)) on the row y 190, to 26 px right of the hallway's lounge door.
+    // In the right wall (prototype top-left (832, 364)) on the row y 190, to beside the hallway's lounge door.
     {
       ...prop('door_hallway', 'Door', 'To Hallway', 832 + 16, 364 + 16, 16, 16),
-      target: { room: 'hallway', x: 114, y: 190 },
+      wall: 'E',
+      target: { room: 'hallway', door: 'door_lounge' },
     },
   ],
   // A warm dark plum-brown behind the ring, a shade redder than the shed's 0x241e18 to suit the carpet.

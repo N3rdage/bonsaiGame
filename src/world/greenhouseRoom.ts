@@ -24,12 +24,13 @@ export const GREENHOUSE_ROOM: Room = {
   walls: ringWalls(GREENHOUSE_BOUNDS),
   furniture: [],
   props: [
-    // The bottom wall's band at its centre, prototype top-left (464, 448), back to 26 px below
+    // The bottom wall's band at its centre, prototype top-left (464, 448), back to below
     // the garden's greenhouse door. A walk straight down from the landing stops against the wall
     // at y 223.5 on the 1.25 px step grid, 8.5 px from the door's centre.
     {
       ...prop('door_garden', 'Door', 'To Garden', 464 + 16, 448 + 16, 16, 16),
-      target: { room: 'garden', x: 448, y: 34 },
+      wall: 'S',
+      target: { room: 'garden', door: 'door_greenhouse' },
       sheet: SHEETS.doorGlassSingle,
     },
   ],

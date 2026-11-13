@@ -27,7 +27,7 @@ import { shedToLounge, throughDoor, toLoungePedestal } from './rooms';
 // per-step projects; they cover the same actions one step at a time.
 // Shed: floor spot 0 (170, 160), workbench (125, 90), planting table
 // (165, 90), kiosk (125, 145), door (240, 216) in the bottom wall to the garden
-// at (50, 225); garden: juniper (140, 90), door (16, 228) back to (240, 190);
+// at (42, 228); garden: juniper (140, 90), door (16, 228) back to (240, 190);
 // the lounge's mantel through the shed's top door (rooms.ts).
 
 test.describe('parity', () => {

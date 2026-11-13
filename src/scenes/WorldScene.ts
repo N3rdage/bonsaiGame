@@ -93,6 +93,7 @@ import type { SpeciesKey } from '../sim/types';
 import { BASE_TIME_SCALE, tickClock } from '../world/clock';
 import { SLEEP_WEEK_DAYS, sleep } from '../world/sleep';
 import { ROOMS } from '../world/gardenRoom';
+import { landing, wallDoor } from '../world/doors';
 import {
   PICK_UP_PROMPT,
   PLACEABLES,
@@ -1299,20 +1300,22 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * obj_door: the player stands at the target spot of the target room, whose
-   * floor, walls, props and trees are drawn afresh. The source plants start a
-   * new visit, as the prototype's room instances were recreated on entry.
+   * obj_door: the player lands beside the far door in the target room, facing
+   * into it (doors.ts `landing`), and the room's floor, walls, props and trees
+   * are drawn afresh. The source plants start a new visit, as the prototype's
+   * room instances were recreated on entry.
    */
   private enterRoom(target: DoorTarget): void {
     this.stopPlacing();
     this.sfx.play('door');
     this.room = ROOMS[target.room];
+    const { x, y, facing } = landing(this.room, wallDoor(this.room, target.door));
     this.music.play(trackFor(this.room.key));
     this.plants.clear();
     this.joystick = undefined;
     this.drawRoom();
     this.buildWeather();
-    this.player = { ...this.player, x: target.x, y: target.y };
+    this.player = { ...this.player, x, y, facing };
     this.relocated();
   }
 
