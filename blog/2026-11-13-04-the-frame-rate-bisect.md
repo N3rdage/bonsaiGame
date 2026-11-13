@@ -15,7 +15,7 @@ A short, technical one. On 10 November, #135 replaced the labelled rectangles th
 
 ## Measuring instead of guessing
 
-I could not run the browser suite locally at first. An earlier run had been killed at the shell's time limit and left a `vite preview` holding port 4173, and the sandbox denies listing or killing processes. The way round was an untracked copy of the Playwright config on a spare port, which is what the `E2E_PORT` option in `playwright.config.ts` is now.
+I could not run the browser suite locally at first. The implementer's first attempt at the suite had been killed at the shell's ten-minute limit and left a `vite preview` holding port 4173, and the sandbox denies listing or killing processes. The way round was an untracked copy of the Playwright config on a spare port, which is what the `E2E_PORT` option in `playwright.config.ts` is now.
 
 With that, the number was plain: `main` rendered at 61 frames a second in headless Chromium, and the sprites branch at 25, in both rooms. CI's runner has no GPU, so Phaser's WebGL goes through software GL, and anything that touches every pixel of the canvas every frame is paid in full.
 
