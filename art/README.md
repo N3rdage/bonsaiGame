@@ -120,6 +120,11 @@ proposal for backlog #127 into `docs/proposals/art-direction/`: the same shed
 scene in three candidate styles (Potting Shed, Soft Linen, Inked), each at the
 S22 Ultra's landscape size and at 2x, with a palette strip, plus the scale-rule
 diagram. `proposal/scale.mjs` is the scale rule as data, `scene.mjs` the scene,
-one module per candidate, `stroke.mjs` the inked candidate's small rasteriser
-and `canvas.mjs` the compositor. It is seeded, so a rerun reproduces the
-committed PNGs; `docs/proposals/art-direction/README.md` explains them.
+one module per candidate and `canvas.mjs` the compositor; the Inked candidate
+draws with the generator in `inked/`, once as proposed and once as chosen. It
+is seeded, so a rerun reproduces the committed PNGs;
+`docs/proposals/art-direction/README.md` explains them.
+
+## Inked generator
+
+Inked is the chosen art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (knobs, palette, what to call and how to keep the wobble varied).

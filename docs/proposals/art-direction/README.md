@@ -65,13 +65,42 @@ For comparison, the same scene at today's phone zoom of 2 (8 device px per logic
 
 ### 3. Inked (hand-drawn)
 
-Authored at 4 art px per logical px (a 16 px tile is 64 art px) and shown with smooth (bilinear) scaling, never nearest-neighbour, so no pixel grid is visible anywhere. Ink linework 1.5 to 4 art px wide that swells and thins along its length, wobbles a little and overshoots its corners as a pen does; flat fills of paper off-white under light, low-saturation washes laid at 65 percent and slightly off register; parallel hatching on shadow sides and under furniture; no gradients. Produced in the repo by a small rasteriser of our own (`art/proposal/stroke.mjs`: seeded jittered polylines, scanline polygon fill, 3x supersampling and a box-filter downsample), with no new dependency. Looks like Don't Starve (ink lines over flat fills), Hidden Folks (ink on paper), Dordogne and Behind the Frame (hand-painted, anime-adjacent). In the 3D viewer: a toon ramp plus an outline pass, and an ink-drawn foliage sprite. On the canvas: the art layer needs smooth scaling (`image-rendering: auto` for the world camera) while the HUD font stays crisp; the prototype sprites are all replaced, so nothing 1:1 remains to clash with the ink.
+Authored at 4 art px per logical px (a 16 px tile is 64 art px) and shown with smooth (bilinear) scaling, never nearest-neighbour, so no pixel grid is visible anywhere. Ink linework 1.5 to 4 art px wide that swells and thins along its length, wobbles a little and overshoots its corners as a pen does; flat fills of paper off-white under light, low-saturation washes laid at 65 percent and slightly off register; parallel hatching on shadow sides and under furniture; no gradients. Produced in the repo by a small rasteriser of our own (`art/proposal/stroke.mjs` then, `art/inked/stroke.mjs` now: seeded jittered polylines, scanline polygon fill, 3x supersampling and a box-filter downsample), with no new dependency. Looks like Don't Starve (ink lines over flat fills), Hidden Folks (ink on paper), Dordogne and Behind the Frame (hand-painted, anime-adjacent). In the 3D viewer: a toon ramp plus an outline pass, and an ink-drawn foliage sprite. On the canvas: the art layer needs smooth scaling (`image-rendering: auto` for the world camera) while the HUD font stays crisp; the prototype sprites are all replaced, so nothing 1:1 remains to clash with the ink.
 
 ![Inked on the S22 Ultra, landscape](./inked-shed-s22-landscape.png)
 
 ![Inked, the shed at 2x](./inked-shed-2x.png)
 
 ![Inked palette (surround, ink, paper, then each wash as it lands on paper)](./inked-palette.png)
+
+### Inked, as chosen
+
+Drew chose Inked and asked for it "a little grungier": rougher, more uneven ink with dry-brush breaks and some spatter, washes that pool and bleed at their edges, visible paper grain, heavier shadow in corners and under furniture, and wood, cloth and pots that look worn and lived-in, at the same simplicity, readability and scale rule. The renderer is now the generator under `art/inked/` (see its README), and the look is its default `STYLE`. Both renders below come from the same seed: the lines underneath are identical, so everything that differs is the grunge.
+
+| As proposed (#127)                         | As chosen (#137)                                        |
+| ------------------------------------------ | ------------------------------------------------------- |
+| ![Inked as proposed](./inked-shed-2x.png) | ![Inked as chosen, grungier](./inked-grunge-shed-2x.png) |
+
+![Inked as chosen on the S22 Ultra, landscape](./inked-grunge-shed-s22-landscape.png)
+
+| Knob              | Proposed | Chosen                                          | What it does                                                                         |
+| ----------------- | -------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `jitter`          | 0.5      | 0.8                                             | sideways wobble of a line, art px                                                    |
+| `overshoot`       | 1.5      | 1.8                                             | how far a line runs past its corner, art px                                          |
+| `weightVariation` | 0        | 0.35                                            | pen pressure rising and falling along a line, as a fraction of its width             |
+| `dryBrush`        | off      | strength 0.85, minLength 12, every 24           | lines longer than 12 logical px break dry about once per 24 px                       |
+| `spatter`         | off      | chance 0.12, minWidth 2.4, dots 3, radius 2.2   | a few dots flicked beside some heavy lines                                           |
+| `washPool`        | 0        | 0.25                                            | extra opacity where a wash dries at its edge: the darker rim                         |
+| `washPoolWidth`   | 0        | 0.9                                             | how far in the rim reaches, logical px                                               |
+| `washBleed`       | 0        | 0.8                                             | how far, at most, a wash creeps past its outline, logical px                         |
+| `washGranulation` | 0        | 0.12                                            | how unevenly pigment settles inside a wash                                           |
+| `grain`           | 0        | 0.09                                            | how deep the shared paper grain darkens the page                                     |
+| `shadowAlpha`     | 0.35     | 0.45                                            | opacity of the ground-shadow wash                                                    |
+| `crossHatch`      | off      | angle -0.75, spacing 1.7                        | a second, crossing pass of hatching in ground shadows, under furniture and in corners |
+| `cornerShade`     | 0        | 7                                               | size of the shaded triangle in each floor corner, logical px                         |
+| `wear`            | 0        | 1                                               | knots and splits on wood, chips and rings on pots, frayed edges and stains on cloth  |
+
+What moved, in Drew's terms: the ink is rougher and uneven (more wobble, pressure along each line, long lines breaking dry, a little spatter); the washes pool into a darker rim and bleed softly past their outlines; paper grain shows through everything; the shadow under the tables and in the corners is cross-hatched; and the beams, door, tables, pots, rug and sack carry knots, splits, chips, rings, fraying and a stain. I checked the phone render and kept the door, the workbench and the avatar as clear as before: the avatar's lines are too short to break dry, the kiosk sign and the rug's inner borders do not wear, and the shadow cross-hatching stays under the furniture rather than on it.
 
 ## Cost in children
 
