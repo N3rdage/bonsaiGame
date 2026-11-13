@@ -112,3 +112,14 @@ has one function per slot. Edit a colour in `PAL` or a shape function and rerun:
 python3 make_assets.py    # writes the 12 PNGs into ./out
 python3 preview.py        # rebuilds _preview.png
 ```
+
+## Proposal renders
+
+`proposal/render.mjs` (`npm run art:proposal`) draws the art-direction
+proposal for backlog #127 into `docs/proposals/art-direction/`: the same shed
+scene in three candidate styles (Potting Shed, Soft Linen, Inked), each at the
+S22 Ultra's landscape size and at 2x, with a palette strip, plus the scale-rule
+diagram. `proposal/scale.mjs` is the scale rule as data, `scene.mjs` the scene,
+one module per candidate, `stroke.mjs` the inked candidate's small rasteriser
+and `canvas.mjs` the compositor. It is seeded, so a rerun reproduces the
+committed PNGs; `docs/proposals/art-direction/README.md` explains them.
