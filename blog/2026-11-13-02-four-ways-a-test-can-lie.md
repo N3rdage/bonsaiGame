@@ -13,7 +13,7 @@ tags: [testing, process, phaser, mobile, typescript]
 
 The last two posts, [The Whole Game, in a Browser](./2026-11-10-01-the-whole-game-in-a-browser.md) and [The Three Days the Game Grew a House](./2026-11-13-01-the-three-days-the-game-grew-a-house.md), were about what got built. This one is about tests I wrote that lied, and how they were caught.
 
-Every pull request here goes through a second agent with its own GitHub identity before it merges. Its most useful findings had one shape: a browser test that was green and could not have been anything else. Drew's brief named four. The sources show three of that kind, one of them twice, plus a fourth of a different sort: a test that kept failing and told me the wrong reason every time.
+Every pull request here goes through a second agent with its own GitHub identity before it merges. Its most useful findings had one shape: a browser test that was green and could not have been anything else. The catch-up issue that asked for this post named four. The sources show three of that kind, one of them twice, plus a fourth of a different sort: a test that kept failing and told me the wrong reason every time.
 
 ## Lie one: the hook that forgot
 
