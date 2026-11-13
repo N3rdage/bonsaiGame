@@ -133,6 +133,10 @@ What changes from today:
 - The greenhouse's door moves from its south wall to its north wall, and the garden's from the north fence to the south edge.
 - The greenhouse's placement grid becomes 16 x 10, as in Plan A.
 
+## Recommendation
+
+**Plan A, The L.** Every door pair the game has today survives, including the one-hop shed-to-lounge door the tutorial's first steps lean on, and the garden keeps its west door to the shed, so the shed exterior drawn for it stays where it is and is redrawn side-on. Three doors change wall. Plan B keeps every door between the buildings and the garden front-on, but bends the garden into an L and turns the greenhouse, which transposes its placement grid. Plan C is the most realistic property and the costliest: it removes the shed-to-lounge door, so every walk between the workshop and the display room crosses the garden, and most browser walks change with it.
+
 ## Save compatibility
 
 Tree locations are keyed by display-spot names and room keys, not coordinates, so trees need no migration under any layout. Placed greenhouse furniture sits on the greenhouse's placement grid, and the grid changes shape under every layout, so placed furniture needs a migration whichever plan is chosen.
