@@ -1,6 +1,7 @@
 // Renders the art-direction proposal (backlog #127): the same shed scene in
 // three candidate styles, each at the S22 Ultra's landscape size and at 2x,
-// with its palette strip, plus the scale-rule diagram.
+// with its palette strip, plus the scale-rule diagram. Potting Shed also gets
+// a phone render at today's world zoom, the camera following the avatar.
 //
 // scale.mjs is the scale rule as data and scene.mjs the scene; pottingShed,
 // softLinen and inked are the candidates (each exports a palette and
@@ -15,7 +16,7 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createCanvas, paletteStrip, s22Frame, S22, toDevice, writePng } from './canvas.mjs';
+import { createCanvas, paletteStrip, phoneView, s22Frame, S22, toDevice, writePng } from './canvas.mjs';
 import * as inked from './inked.mjs';
 import * as pottingShed from './pottingShed.mjs';
 import * as scaleRule from './scaleRule.mjs';
@@ -36,6 +37,12 @@ for (const candidate of [pottingShed, softLinen, inked]) {
   candidate.draw(shed, scene);
   const device = toDevice(shed, n, S22.zoom, candidate.smooth);
   save(`${candidate.slug}-shed-s22-landscape.png`, s22Frame(device, candidate.surround));
+  if (candidate === pottingShed) {
+    const { sprite } = scene.OBJECTS.find((o) => o.kind === 'avatar');
+    const focus = { x: sprite.x + sprite.w / 2, y: sprite.y + sprite.h / 2 };
+    const today = phoneView(shed, candidate.surround, focus, S22.todayZoom);
+    save(`${candidate.slug}-shed-s22-landscape-zoom2.png`, s22Frame(today, candidate.surround));
+  }
   save(`${candidate.slug}-shed-2x.png`, toDevice(shed, n, 2, candidate.smooth));
   save(`${candidate.slug}-palette.png`, paletteStrip(candidate.palette));
 }

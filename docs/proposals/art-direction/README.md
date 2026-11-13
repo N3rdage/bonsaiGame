@@ -6,7 +6,7 @@ The art pass gives the whole game one new look (decision B on agentic-gaming#127
 
 ## The scale rule
 
-Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor. The rooms are a three-quarter top-down view, so drawn heights are foreshortened: 1 m of height draws as two thirds of a metre, so 1 m tall is about 21 px. Sizes round to 4 px. Everything in the game today is one tile tall (the avatar is 16 x 16, a door 16 x 16, a wall band 16 px), which is why rooms feel like sheds and the avatar like a toy; this rule fixes the proportion.
+Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor. The rooms are a three-quarter top-down view, so drawn heights are foreshortened: 1 m of height draws as two thirds of a metre, so 1 m tall is about 21 px. A piece of furniture draws as its front face (real height x 21.33 px/m) plus its footprint's depth for the top face, and furniture rounds to 4 px; the avatar and the front-on door round to the tile grid instead (see Rounding below). On phones the world zoom drops from 2 to 1.25 (see The phone zoom below). Everything in the game today is one tile tall (the avatar is 16 x 16, a door 16 x 16, a wall band 16 px), which is why rooms feel like sheds and the avatar like a toy; this rule fixes the proportion.
 
 | Thing | Real size (w x d x h, m) | Footprint (logical px, w x d) | Drawn sprite (w x h) |
 |---|---|---|---|
@@ -15,7 +15,7 @@ Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor.
 | Door in an east or west wall (seen side-on) | - | 8 x 24 | 8 x 40 frame on the wall cap, leaf drawn ajar into the room |
 | Workbench | 1.5 x 0.6 x 0.9 | 48 x 20 | 48 x 40 |
 | Planting table | 1.2 x 0.6 x 0.9 | 40 x 20 | 40 x 40 |
-| Shop kiosk (counter) | 1.2 x 0.6 x 1.0 | 40 x 20 | 40 x 44 |
+| Shop kiosk (counter) | 1.2 x 0.6 x 1.1 | 40 x 20 | 40 x 44 |
 | Pedestal | 0.4 x 0.4 x 1.0 | 16 x 12 | 16 x 32 |
 | Bookcase | 1.2 x 0.4 x 2.0 | 40 x 12 | 40 x 56 |
 | Window in the back wall | 1.0 x - x 0.8 | - | 32 x 24, its bottom 16 px above the floor line |
@@ -27,21 +27,27 @@ Logical canvas 480 x 270 px; one tile is 16 logical px, which is 50 cm of floor.
 
 **The hero-scale exception.** Trees on pedestals are drawn at three times true size. At true scale a 25 cm tree is 5 px tall and unreadable on a phone; the 3D viewer is where a tree is seen at its true size.
 
-![The scale rule: avatar, door, workbench, pedestal with the starter tree and a bookcase, each with a bracket of its height in tiles](./scale-rule.png)
+![The scale rule: avatar, door, workbench, pedestal with the starter tree and a bookcase, each with a bracket of its real height in metres](./scale-rule.png)
 
-The brackets tick once per tile (16 px) and are labelled in tiles; the terracotta bracket is the bonsai at hero scale.
+Each bracket measures the real height, from the floor to the top of the front face, ticks once per tile (16 px) and is labelled in metres. Above the furniture a thinner bracket marks the top face's depth, which the three-quarter view adds to the drawn sprite: that is why the 0.9 m bench's sprite stands taller than the 1.7 m avatar while its front face reaches his hip. The terracotta bracket is the bonsai at hero scale.
 
-**What changes in the game.** The player sheet becomes 16 x 32 frames. Doors become 24 x 40, or 8 x 40 side-on. Every furniture sprite is resized per the table. Walls become a 48 px back face plus 8 px caps, so every room's `bounds`, `walls`, door rects, landings and walk-tests in `src/world/*Room.ts` change in the plan's implementation children, and the "door row y 190" rule retires. The world camera's zoom is unchanged: at 5 device px per logical px the 32 px avatar is about a seventh of the phone's screen height, which is where Stardew sits.
+**The phone zoom.** The phone's game canvas is 4 device px per logical px (1080 / 270), and today the world camera doubles that on phones (`PHONE_WORLD_ZOOM = 2`), so the world draws at 8 device px per logical px through a 240 x 135 logical view that follows the player. That zoom exists because today's avatar is 16 px. With a 32 px avatar this proposal drops the phone zoom to 1.25, 5 device px per logical px: the avatar is 160 device px tall, still larger than today's 128 and about a seventh of the 1080 px screen, and the 384 x 216 logical view (12 x 6.75 m) shows a whole 6 x 4.5 m lounge at once instead of scrolling it. The desktop zoom (1) is untouched. The phone renders below are at 1.25.
+
+**What changes in the game.** The player sheet becomes 16 x 32 frames. Doors become 24 x 40, or 8 x 40 side-on. Every furniture sprite is resized per the table. Walls become a 48 px back face plus 8 px caps, so every room's `bounds`, `walls`, door rects, landings and walk-tests in `src/world/*Room.ts` change in the plan's implementation children, and the "door row y 190" rule retires. `PHONE_WORLD_ZOOM` in `src/world/worldCamera.ts` goes from 2 to 1.25, a one-line change in the player child, with its phone screenshot baselines.
 
 ## The candidates
 
-Every candidate draws the same scene: the shed at 5.0 x 3.5 m (10 x 7 tiles inside), a north door to the lounge, a side-on east door ajar to the garden, a window, a wall shelf of pots, the workbench, the planting table, the shop kiosk, the pedestal with the starter bonsai, the avatar facing it, a watering can, a sack, a stack of pots and a rug, each with a soft ground shadow, depth-sorted by footprint. The phone renders are 2318 x 1080 (the S22 Ultra's landscape device pixels): the 1920 x 1080 game canvas centred between the letterbox bars, the world at 5 device px per logical px, no HUD.
+Every candidate draws the same scene: the shed at 5.0 x 3.5 m (10 x 7 tiles inside), a north door to the lounge, a side-on east door ajar to the garden, a window, a wall shelf of pots, the workbench, the planting table, the shop kiosk, the pedestal with the starter bonsai, the avatar facing it, a watering can, a sack, a stack of pots and a rug, each with a soft ground shadow, depth-sorted by footprint. The phone renders are 2318 x 1080 (the S22 Ultra's landscape device pixels): the 1920 x 1080 game canvas centred between the letterbox bars, the world at 5 device px per logical px (the proposed phone zoom of 1.25), no HUD.
 
 ### 1. Potting Shed (pixel, outlined, warm)
 
 1:1 logical pixels, scaled nearest-neighbour. Every form has a 1 px outline in the darkest tone of its own material (never pure black) and three tones inside it (shadow, mid, highlight); no dithering, no anti-aliasing. The palette is ART_SPEC.md's 17 colours at their values, grown with outline tones, a cool slate for stone and metal, a cream for plaster and burlap and a warm lamp light: 32 colours. Produced in the repo as all the art is today: a Node script drawing pixels with `pngjs`, packed into sheets. Looks like Stardew Valley, Graveyard Keeper, Moonlighter. In the 3D viewer: a bark texture and a foliage sprite drawn in the palette.
 
 ![Potting Shed on the S22 Ultra, landscape](./potting-shed-shed-s22-landscape.png)
+
+![Potting Shed on the S22 Ultra at today's phone zoom of 2](./potting-shed-shed-s22-landscape-zoom2.png)
+
+For comparison, the same scene at today's phone zoom of 2 (8 device px per logical px): the 240 x 135 logical view centred on the avatar and clamped to the room, as the world camera does. The avatar is about a quarter of the screen height and the room is cropped top and bottom.
 
 ![Potting Shed, the shed at 2x](./potting-shed-shed-2x.png)
 

@@ -7,8 +7,15 @@ import pngjs from 'pngjs';
 
 const { PNG } = pngjs;
 
-/** The S22 Ultra's landscape device pixels and the game's 16:9 canvas inside them. */
-export const S22 = { width: 2318, height: 1080, gameWidth: 1920, zoom: 5 };
+/**
+ * The S22 Ultra's landscape device pixels and the game's 16:9 canvas inside
+ * them. The canvas is 4 device px per logical px (1080 / 270); the world
+ * camera multiplies that by the phone world zoom: 2 today (8 device px per
+ * logical px), 1.25 as proposed (5).
+ */
+export const S22 = { width: 2318, height: 1080, gameWidth: 1920, zoom: 5, todayZoom: 8 };
+/** The game's logical canvas. */
+export const GAME = { width: 480, height: 270 };
 /** The letterbox colour either side of the game canvas, sampled from docs/screenshots/s22-ultra/r4d-4a-shed-landscape.png. */
 export const LETTERBOX = [29, 42, 28];
 
@@ -117,6 +124,45 @@ export function s22Frame(shed, surround) {
   fillRect(frame, gameX, 0, S22.gameWidth, S22.height, surround);
   blit(frame, shed, gameX + (S22.gameWidth - shed.width) / 2, (S22.height - shed.height) / 2);
   return frame;
+}
+
+/** The rect [x, y, w, h] of `src` as a canvas of its own. */
+export function crop(src, [x, y, w, h]) {
+  const out = createCanvas(w, h);
+  for (let yy = 0; yy < h; yy += 1) {
+    const from = ((y + yy) * src.width + x) * 4;
+    out.data.set(src.data.subarray(from, from + w * 4), yy * w * 4);
+  }
+  return out;
+}
+
+/**
+ * One axis of the world camera's view start, as src/world/worldCamera.ts has
+ * it: centred on the focus and clamped inside the room's extent; where the
+ * extent is shorter than the view, centred on the extent and kept on the canvas.
+ */
+function viewStart(focus, size, start, length, canvas) {
+  if (length >= size) return Math.min(Math.max(focus - size / 2, start), start + length - size);
+  const centred = start + (length - size) / 2;
+  return Math.min(Math.max(centred, 0), canvas - size);
+}
+
+/**
+ * The game canvas at `perLogical` device px per logical px with the world
+ * camera following `focus` (in room coordinates): the 1:1 room centred on the
+ * logical canvas, the camera's view of it cropped and scaled nearest-neighbour.
+ */
+export function phoneView(room, surround, focus, perLogical) {
+  const game = createCanvas(GAME.width, GAME.height, surround);
+  const ox = (GAME.width - room.width) / 2;
+  const oy = (GAME.height - room.height) / 2;
+  blit(game, room, ox, oy);
+  const k = perLogical / (S22.height / GAME.height);
+  const w = GAME.width / k;
+  const h = GAME.height / k;
+  const x = Math.round(viewStart(ox + focus.x, w, ox, room.width, GAME.width));
+  const y = Math.round(viewStart(oy + focus.y, h, oy, room.height, GAME.height));
+  return scaleNearest(crop(game, [x, y, w, h]), perLogical);
 }
 
 /** One 32 px swatch per palette colour, in order, in a single row. */
