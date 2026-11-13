@@ -44,7 +44,7 @@ describe('inventory panel', () => {
         ],
       },
       { title: 'Cuttings', entries: [] },
-      { title: 'Furniture', entries: [] },
+      { title: 'Furniture', entries: [{ label: 'Pedestals', count: 1 }] },
     ]);
   });
 
@@ -98,7 +98,8 @@ describe('inventory panel', () => {
       'Cuttings',
       '(none)',
       'Furniture',
-      '(none)',
+      'Pedestals',
+      '1',
     ]);
   });
 

@@ -22,7 +22,8 @@ export const SHOP_PANEL = { x: 10, y: 25, w: 460, h: 220, rowSpacing: 20 } as co
 
 /**
  * Items per block: six lines of Buy buttons is what the box holds at a
- * phone's tap pitch, so the catalogue's seed packets start a second block.
+ * phone's tap pitch, so the catalogue's seed packets start a second block
+ * and the furniture follows them there.
  */
 export const SHOP_ROWS_PER_BLOCK = 6;
 

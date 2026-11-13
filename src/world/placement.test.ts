@@ -213,7 +213,7 @@ describe('placement', () => {
 
   it('refuses none left with none in the inventory, after the spot check', () => {
     const state = createNewGameState();
-    expect(state.inventory.pedestal).toBe(0);
+    state.inventory.pedestal = 0;
     expect(placeItem(state, GREENHOUSE_ROOM, 'pedestal', 64, 64, PLAYER)).toBe('none left');
     expect(placeItem(state, GREENHOUSE_ROOM, 'pedestal', 48, 64, PLAYER)).toBe('off the floor');
     expect(state.placed).toEqual([]);

@@ -155,7 +155,10 @@ describe('v5 round trip', () => {
   });
 });
 
-/** A save of `version` whose trees stand at `locations`, otherwise a new game's; before 5, without the placed furniture. */
+/**
+ * A save of `version` whose trees stand at `locations`, otherwise a new game's;
+ * before 5, without the placed furniture or the furniture inventory keys.
+ */
 function savedWith(version: number, ...locations: string[]): string {
   const state = createNewGameState();
   const starter = must(state.trees[0]);
@@ -165,17 +168,23 @@ function savedWith(version: number, ...locations: string[]): string {
   if (version < 5) {
     delete file.placed;
     delete file.nextPlacedId;
+    const inventory = file.inventory as Record<string, unknown>;
+    delete inventory.pedestal;
+    delete inventory.floor_shelf;
   }
   return JSON.stringify({ ...file, version });
 }
 
 describe('v4 -> v5 migration', () => {
-  it('loads a version-4 save with no placed furniture', () => {
+  it('loads a version-4 save with no placed furniture and no free pedestal', () => {
     const text = savedWith(4, 'shed', 'displayed:lounge_mantel');
     expect(JSON.parse(text)).not.toHaveProperty('placed');
+    expect(JSON.parse(text)).not.toHaveProperty('inventory.pedestal');
+    expect(createNewGameState().inventory.pedestal).toBe(1);
     const loaded = deserializeSave(text);
     expect(loaded.placed).toEqual([]);
     expect(loaded.nextPlacedId).toBe(0);
+    expect([loaded.inventory.pedestal, loaded.inventory.floor_shelf]).toEqual([0, 0]);
     expect(locationsOf(loaded)).toEqual(['shed', 'displayed:lounge_mantel']);
   });
 
@@ -240,8 +249,10 @@ describe('v3 -> v4 migration', () => {
     const text = savedWith(4, 'shed', ...final.map((k) => `displayed:${k}`));
     const loaded = deserializeSave(text);
     expect(locationsOf(loaded)).toEqual(['shed', ...final.map((k) => `displayed:${k}`)]);
+    const file = JSON.parse(text) as Record<string, unknown>;
     expect(JSON.parse(serializeState(loaded, NOW))).toEqual({
-      ...(JSON.parse(text) as Record<string, unknown>),
+      ...file,
+      inventory: { ...(file.inventory as object), pedestal: 0, floor_shelf: 0 },
       version: 5,
       placed: [],
       nextPlacedId: 0,
