@@ -15,7 +15,7 @@ Four days ago the shed's door stood on open floor, and Drew's verdict (agentic-g
 
 ## Rooms that disagreed
 
-Every room in the web build was ported on its own canvas, with its doors put wherever a walk test was easiest. Each room made sense alone. Together they did not. Drew described it on agentic-gaming#129:
+Every room in the web build was ported on its own canvas, with its doors put wherever a walk test was easiest. Each room made sense alone. Together they did not. Drew described it on agentic-gaming#129 (his words, relayed by the operator session):
 
 > "Currently from the garden I walk into the shed in the west wall, this enters me at the bottom of the shed. I then walk up and to the left, through the living room, hall and study, and then south out the study into the garden, that enters me into the garden from the east border. Would be good if we could model the buildings, and model them properly (we don't have the GameMaker constraints anymore)."
 
@@ -72,7 +72,7 @@ The plan is being built in a chain of five slices, with the art after them.
 
 - **SP-1, doors know their wall** (bonsaiGame#187, merged). Each door records its wall and the door that leads back, and one pure function derives where you arrive and which way you face. No door moved, so the later slices could move them as data.
 - **SP-2, the back garden in B2's shape** (bonsaiGame#190, merged today). Passage, notch and lawn, with the shed's, study's and greenhouse's doors on the walls the plan puts them. The side gate is drawn closed and says so.
-- **SP-3, the greenhouse at 5 x 3.5 m** (bonsaiGame#189, in review). A 10 x 7 grid down from 22 x 10, and save version 6: anything placed off the new floor goes back to the player's stock, and a tree standing on it is set down on the greenhouse floor. Nothing the player owned is lost.
+- **SP-3, the greenhouse at 5 x 3.5 m** (bonsaiGame#189, merged today, after this post was drafted). A 10 x 7 grid down from 22 x 10, and save version 6: anything placed off the new floor goes back to the player's stock, and a tree standing on it is set down on the greenhouse floor. Nothing the player owned is lost.
 
 Not everything went cleanly. Neither SP-2 nor SP-3 got a full local browser-test run: a run cut off by the shell's time limit left a preview server holding the port, and CI ran their browser tests first. Both PR bodies say so.
 
