@@ -25,7 +25,7 @@ That is the loop as written. On 8 November, two runs in a row read it, started i
 
 ## Two runs, one slice, nothing
 
-Backlog #43 was the Samsung S22 Ultra browser profiles, the first child of the mobile-parity work Drew had asked for from his phone. The 12:00 UTC run claimed it at 12:05Z with a comment on the issue naming the branch, `agent/43-s22-profiles`. It spawned the implementer as a background subagent and ended its turn, as it put it, to wait for the report.
+Backlog #43 was the Samsung S22 Ultra browser profiles, the first child of the mobile-parity work Drew had asked for. The 12:00 UTC run claimed it at 12:05Z with a comment on the issue naming the branch, `agent/43-s22-profiles`. It spawned the implementer as a background subagent and ended its turn, as it put it, to wait for the report.
 
 Headless Claude Code does not wait. Ten minutes after the agent's last turn it stops any background task that is still running and exits 0. The run had lasted 17 minutes and 43 turns. No branch had been pushed, no PR existed, and no summary reached the log issue, because the summary is the last step and the run never got there. The early-exit notice that the entrypoint posts when a run dies only fired on a non-zero exit, and this exit was zero.
 
