@@ -5,11 +5,20 @@ import { describe, expect, it } from 'vitest';
 // The Content-Security-Policy lives twice: as a header Azure Static Web Apps
 // sends, and as a meta tag in index.html so `vite dev`, `vite preview` and the
 // browser suite run under it. Browsers ignore `frame-ancestors` in a meta tag,
-// so the header carries it alone; otherwise the two must stay equal.
+// so the header carries it alone; otherwise the two must stay equal. The
+// Strict-Transport-Security header is pinned here too: a year, subdomains
+// included, and no `preload`, which is the domain owner's call.
 
 const root = path.join(import.meta.dirname, '../..');
 
 type Policy = Map<string, string[]>;
+
+function globalHeaders(): Record<string, string> {
+  const config = JSON.parse(
+    readFileSync(path.join(root, 'public/staticwebapp.config.json'), 'utf8'),
+  ) as { globalHeaders: Record<string, string> };
+  return config.globalHeaders;
+}
 
 function parse(policy: string): Policy {
   const directives: Policy = new Map();
@@ -23,10 +32,7 @@ function parse(policy: string): Policy {
 }
 
 function headerPolicy(): string {
-  const config = JSON.parse(
-    readFileSync(path.join(root, 'public/staticwebapp.config.json'), 'utf8'),
-  ) as { globalHeaders: Record<string, string> };
-  const policy = config.globalHeaders['Content-Security-Policy'];
+  const policy = globalHeaders()['Content-Security-Policy'];
   if (!policy) throw new Error('no Content-Security-Policy in globalHeaders');
   return policy;
 }
@@ -57,5 +63,13 @@ describe('Content-Security-Policy', () => {
     expect(policy.get('object-src')).toEqual(["'none'"]);
     expect(policy.get('base-uri')).toEqual(["'self'"]);
     expect(policy.get('script-src')).toEqual(["'self'"]);
+  });
+});
+
+describe('Strict-Transport-Security', () => {
+  it('is a year with subdomains and no preload', () => {
+    expect(globalHeaders()['Strict-Transport-Security']).toBe(
+      'max-age=31536000; includeSubDomains',
+    );
   });
 });
