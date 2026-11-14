@@ -19,7 +19,7 @@ import {
   test,
   walkTo,
 } from './drive';
-import { shedToLounge, throughDoor, toLoungePedestal } from './rooms';
+import { gardenToShed, shedToLounge, throughDoor, toLoungePedestal } from './rooms';
 
 // Epic #8's acceptance: the whole loop in one flow on the phone profile, walking
 // on the arrow keys and taking every action by tap. It runs in the
@@ -27,8 +27,9 @@ import { shedToLounge, throughDoor, toLoungePedestal } from './rooms';
 // per-step projects; they cover the same actions one step at a time.
 // Shed: floor spot 0 (170, 160), workbench (125, 90), planting table
 // (165, 90), kiosk (125, 145), door (240, 216) in the bottom wall to the garden
-// at (42, 228); garden: juniper (140, 90), door (16, 228) back to (240, 190);
-// the lounge's mantel through the shed's top door (rooms.ts).
+// at (80, 274); garden: juniper (80, 472) straight down from there, door
+// (80, 248) in the shed's south face back to (240, 190); the lounge's mantel
+// through the shed's top door (rooms.ts).
 
 test.describe('parity', () => {
   test('plays the loop from a new game through save, reload and Continue', async ({ page }) => {
@@ -73,11 +74,10 @@ test.describe('parity', () => {
     // Take a cutting from the garden's juniper.
     await walkTo(page, 200, 'right', 'door');
     await throughDoor(page, 'garden');
-    await walkTo(page, 90, 'right', 'source_juniper');
+    await walkTo(page, 469, 'right', 'source_juniper');
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.inventory.cutting_juniper === 1);
-    await walkTo(page, 228, 'left', 'door');
-    await throughDoor(page, 'shed');
+    await gardenToShed(page);
 
     // Make a pot at the workbench, then plant the cutting at the planting table.
     await walkTo(page, 90, 'left', 'workbench');

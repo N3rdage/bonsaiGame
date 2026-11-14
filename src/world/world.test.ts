@@ -20,7 +20,7 @@ import {
 } from './player';
 import { SHEETS } from './assets';
 import { landing, wallDoor, type Landing } from './doors';
-import { DOORWAY, GARDEN_ROOM, ROOMS, SHED_EXTERIOR } from './gardenRoom';
+import { EXTERIORS, GARDEN_ROOM, GREENHOUSE, HOUSE, ROOMS, SHED } from './gardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { INTERACT_RANGE, nearestInteractable } from './interactables';
 import { HALLWAY_ROOM } from './hallwayRoom';
@@ -111,7 +111,7 @@ describe('shed room', () => {
 
   it('takes the shed door to beside the garden door in the garden and the garden door to above the shed door', () => {
     expect(door(SHED_ROOM).target).toEqual({ room: 'garden', door: 'door' });
-    expect(arrival(door(SHED_ROOM))).toEqual({ x: 42, y: 228, facing: 'right' });
+    expect(arrival(door(SHED_ROOM))).toEqual({ x: 80, y: 274, facing: 'down' });
     expect(door(GARDEN_ROOM).target).toEqual({ room: 'shed', door: 'door' });
     const { x, y } = arrival(door(GARDEN_ROOM));
     expect([x, y]).toEqual([240, 190]);
@@ -184,19 +184,164 @@ describe('shed room', () => {
 });
 
 describe('garden room', () => {
-  it('halves rm_garden_back onto the 480x270 canvas with its green floor', () => {
-    expect([GARDEN_ROOM.key, GARDEN_ROOM.width, GARDEN_ROOM.height]).toEqual(['garden', 480, 270]);
+  /** True if (x, y) is on the garden's walkable ground: inside the fence ring and in no solid. */
+  const walkable = (x: number, y: number): boolean => {
+    const f = insideWalls(GARDEN_ROOM);
+    return x >= f.x && x < f.x + f.w && y >= f.y && y < f.y + f.h && !hitsWall(GARDEN_ROOM, x, y);
+  };
+  const walk = (from: { x: number; y: number }, input: MoveInput, steps: number): PlayerState => {
+    let p: PlayerState = { ...createPlayer(GARDEN_ROOM), ...from };
+    for (let i = 0; i < steps; i += 1) p = stepPlayer(p, input, GARDEN_ROOM);
+    return p;
+  };
+
+  it("is plan B2's back garden, 14.5 x 16 m at 32 px a metre, with its green floor", () => {
+    expect([GARDEN_ROOM.key, GARDEN_ROOM.width, GARDEN_ROOM.height]).toEqual(['garden', 464, 512]);
+    expect(GARDEN_ROOM.bounds).toEqual({ x: 0, y: 0, w: 464, h: 512 });
     expect(GARDEN_ROOM.floor).toBe(0x30502c);
+    expect(GARDEN_ROOM.windows).toEqual([]);
+    expect(GARDEN_ROOM.playerStart).toEqual({ x: 80, y: 274 });
+    expect(GARDEN_ROOM.playerStart).toEqual({
+      x: arrival(door(SHED_ROOM)).x,
+      y: arrival(door(SHED_ROOM)).y,
+    });
     expect(
       GARDEN_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.speciesKey]),
     ).toEqual([
-      ['source_juniper', 'Juniper', 'Take Cutting', 140, 90, 24, 24, 'juniper'],
-      ['source_maple', 'Japanese Maple', 'Take Cutting', 260, 80, 24, 24, 'maple'],
-      ['source_pine', 'Pine', 'Take Cutting', 380, 100, 24, 24, 'pine'],
-      ['door', 'Door', 'Back to Shed', 16, 228, 16, 16, undefined],
-      ['door_study', 'Door', 'To Study', 472, 190, 16, 16, undefined],
-      ['door_greenhouse', 'Door', 'To Greenhouse', 448, 8, 16, 16, undefined],
+      ['source_juniper', 'Juniper', 'Take Cutting', 80, 472, 24, 24, 'juniper'],
+      ['source_maple', 'Japanese Maple', 'Take Cutting', 112, 472, 24, 24, 'maple'],
+      ['source_pine', 'Pine', 'Take Cutting', 144, 472, 24, 24, 'pine'],
+      ['door', 'Door', 'Back to Shed', 80, 248, 16, 16, undefined],
+      ['door_study', 'Door', 'To Study', 344, 136, 16, 16, undefined],
+      ['door_greenhouse', 'Door', 'To Greenhouse', 336, 408, 16, 16, undefined],
+      ['gate', 'Gate', 'Gate', 440, 8, 16, 16, undefined],
     ]);
+  });
+
+  it('walls the fence ring and the house, shed and greenhouse footprints, leaving passage, notch and lawn', () => {
+    expect([HOUSE, SHED, GREENHOUSE]).toEqual([
+      { x: 0, y: 0, w: 416, h: 144 },
+      { x: 0, y: 144, w: 160, h: 112 },
+      { x: 256, y: 304, w: 160, h: 112 },
+    ]);
+    expect(GARDEN_ROOM.walls).toEqual([
+      { x: 0, y: 0, w: 464, h: 16 },
+      { x: 0, y: 496, w: 464, h: 16 },
+      { x: 0, y: 0, w: 16, h: 512 },
+      { x: 448, y: 0, w: 16, h: 512 },
+      HOUSE,
+      SHED,
+      GREENHOUSE,
+    ]);
+    expect(GARDEN_ROOM.walls).toEqual([
+      ...ringWalls(GARDEN_ROOM.bounds),
+      HOUSE,
+      SHED,
+      ...furnitureWalls(GARDEN_ROOM.furniture),
+    ]);
+    // The passage, x 416..464 (448 inside the east fence), from the north fence down to the notch.
+    expect([
+      walkable(416, 16),
+      walkable(447.9, 143.9),
+      walkable(415.9, 100),
+      walkable(448, 100),
+    ]).toEqual([true, true, false, false]);
+    expect([walkable(430, 15.9), walkable(400, 143.9)]).toEqual([false, false]);
+    // The notch, x 160..448, y 144..256, beside the shed and under the house's back face.
+    expect([walkable(160, 144), walkable(159.9, 200), walkable(300, 143.9)]).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    // The lawn, y 256..496 inside the west and east fences, round the greenhouse.
+    expect([
+      walkable(16, 256),
+      walkable(15.9, 300),
+      walkable(100, 255.9),
+      walkable(240, 495.9),
+      walkable(240, 496),
+    ]).toEqual([true, false, false, true, false]);
+    expect([
+      walkable(255.9, 350),
+      walkable(256, 304),
+      walkable(415.9, 415.9),
+      walkable(300, 416),
+      walkable(416, 350),
+    ]).toEqual([true, false, false, true, true]);
+  });
+
+  it('sets every door in the face of the solid holding it and lands each 26 px out of it, on the ground', () => {
+    for (const [key, face, target] of [
+      ['door', SHED, { room: 'shed', door: 'door' }],
+      ['door_study', HOUSE, { room: 'study', door: 'door_garden' }],
+      ['door_greenhouse', GREENHOUSE, { room: 'greenhouse', door: 'door_garden' }],
+    ] as const) {
+      const d = door(GARDEN_ROOM, key);
+      expect(d.wall, key).toBe('N');
+      expect(d.target, key).toEqual(target);
+      // The door's 16 px square fills the face's bottom band.
+      expect([d.y - d.h / 2, d.y + d.h / 2], key).toEqual([face.y + face.h - 16, face.y + face.h]);
+      expect(d.x - d.w / 2 >= face.x && d.x + d.w / 2 <= face.x + face.w, key).toBe(true);
+      // Its landing, from the room it leads to: straight below it, on the ground, out of every prop's reach.
+      const at = landing(GARDEN_ROOM, wallDoor(GARDEN_ROOM, key));
+      expect(at, key).toEqual({ x: d.x, y: d.y + 26, facing: 'down' });
+      expect(walkable(at.x, at.y), key).toBe(true);
+      expect(nearestInteractable(at, GARDEN_ROOM.props), key).toBeUndefined();
+    }
+    // The far doors lead back to these.
+    expect(door(SHED_ROOM).target).toEqual({ room: 'garden', door: 'door' });
+    expect(door(STUDY_ROOM, 'door_garden').target).toEqual({ room: 'garden', door: 'door_study' });
+    expect(door(GREENHOUSE_ROOM, 'door_garden').target).toEqual({
+      room: 'garden',
+      door: 'door_greenhouse',
+    });
+  });
+
+  it('keeps each door in reach of a walk straight up from its landing, stopped by its face however long the key is held', () => {
+    for (const [key, from] of [
+      ['door', { x: 80, y: 274 }],
+      ['door_study', { x: 344, y: 162 }],
+      ['door_greenhouse', { x: 336, y: 434 }],
+    ] as const) {
+      const p = walk(from, { x: 0, y: -1 }, 300);
+      const d = door(GARDEN_ROOM, key);
+      expect([p.x, p.y], key).toEqual([from.x, d.y + 8.5]);
+      expect(nearestInteractable(p, GARDEN_ROOM.props)?.key, key).toBe(key);
+    }
+  });
+
+  it('closes the passage with the side gate in its north fence: a door with no target, reached up the passage', () => {
+    const gate = door(GARDEN_ROOM, 'gate');
+    expect([gate.wall, gate.target, gate.sheet]).toEqual(['N', undefined, undefined]);
+    // In the north fence's band across the passage's top, x 432..448.
+    expect([
+      gate.x - gate.w / 2,
+      gate.x + gate.w / 2,
+      gate.y - gate.h / 2,
+      gate.y + gate.h / 2,
+    ]).toEqual([432, 448, 0, 16]);
+    // From the lawn, up the east side of the notch and the passage into the fence: 8.5 px below the gate.
+    const p = walk({ x: 440, y: 274 }, { x: 0, y: -1 }, 300);
+    expect([p.x, p.y]).toEqual([440, 16.5]);
+    expect(nearestInteractable(p, GARDEN_ROOM.props)?.key).toBe('gate');
+    // Left of the passage the house's east face stops the same walk at the notch's top.
+    expect(walk({ x: 400, y: 274 }, { x: 0, y: -1 }, 300).y).toBe(144);
+  });
+
+  it('stands the source plants in the bed along the south fence, each in reach from just above it', () => {
+    const plants = GARDEN_ROOM.props.filter((p) => p.speciesKey !== undefined);
+    expect(plants.map((p) => p.key)).toEqual(['source_juniper', 'source_maple', 'source_pine']);
+    for (const s of plants) {
+      // Below the shed, clear of the south fence's band, 32 px (1 m) apart.
+      expect(s.y + s.h / 2).toBeLessThanOrEqual(496);
+      expect(s.x + s.w / 2).toBeLessThanOrEqual(SHED.w);
+      expect(nearestInteractable({ x: s.x, y: s.y - 9 }, GARDEN_ROOM.props)?.key).toBe(s.key);
+      expect(nearestInteractable({ x: s.x, y: s.y + 9 }, GARDEN_ROOM.props)?.key).toBe(s.key);
+    }
+    // Straight down from the shed door's landing, the juniper comes in reach before the fence stops the walk.
+    const p = walk({ x: 80, y: 274 }, { x: 0, y: 1 }, 152);
+    expect(walkable(p.x, p.y)).toBe(true);
+    expect(nearestInteractable(p, GARDEN_ROOM.props)?.key).toBe('source_juniper');
   });
 
   it('links the shed door and the garden door both ways', () => {
@@ -209,82 +354,29 @@ describe('garden room', () => {
     expect(ROOMS.shed).toBe(SHED_ROOM);
   });
 
-  it('fences the whole room in 16 px bands but the doorway at logical y 208..240 on the left', () => {
-    expect(DOORWAY).toEqual({ top: 208, bottom: 240 });
-    expect(GARDEN_ROOM.bounds).toEqual({ x: 0, y: 0, w: 480, h: 270 });
-    expect(GARDEN_ROOM.walls).toEqual([
-      { x: 0, y: 0, w: 480, h: 16 },
-      { x: 0, y: 254, w: 480, h: 16 },
-      { x: 0, y: 0, w: 16, h: 208 },
-      { x: 0, y: 240, w: 16, h: 30 },
-      { x: 464, y: 0, w: 16, h: 270 },
+  it('draws the buildings over their footprints: roofs, one band of face where the garden sees them, a glass box', () => {
+    expect(GARDEN_ROOM.furniture).toBe(EXTERIORS);
+    expect(EXTERIORS.map(({ sheet, x, y, w, h, solid }) => [sheet, x, y, w, h, solid])).toEqual([
+      [SHEETS.roof, 0, 0, 400, 144, false],
+      [SHEETS.wallHallway, 160, 128, 240, 16, false],
+      [SHEETS.wallHallway, 400, 0, 16, 144, false],
+      [SHEETS.roof, 0, 144, 160, 96, false],
+      [SHEETS.wall, 0, 240, 160, 16, false],
+      [SHEETS.wallGlass, 256, 304, 160, 112, true],
     ]);
-    expect(hitsWall(GARDEN_ROOM, 15.9, 100)).toBe(true);
-    expect(hitsWall(GARDEN_ROOM, 16, 100)).toBe(false);
-    expect(hitsWall(GARDEN_ROOM, 1, 207)).toBe(true);
-    expect(hitsWall(GARDEN_ROOM, 1, 208)).toBe(false);
-    expect(hitsWall(GARDEN_ROOM, 1, 239)).toBe(false);
-    expect(hitsWall(GARDEN_ROOM, 1, 240)).toBe(true);
-    expect(hitsWall(GARDEN_ROOM, 464, 220)).toBe(true);
-    expect(hitsWall(GARDEN_ROOM, 463.9, 220)).toBe(false);
-    expect(hitsWall(GARDEN_ROOM, 240, 15.9)).toBe(true);
-    expect(hitsWall(GARDEN_ROOM, 240, 16)).toBe(false);
-    expect(hitsWall(GARDEN_ROOM, 240, 253.9)).toBe(false);
-    expect(hitsWall(GARDEN_ROOM, 240, 254)).toBe(true);
-  });
-
-  it("draws the study door on the right fence's band on the row y 190, back to above the study's glass doors", () => {
-    const d = door(GARDEN_ROOM, 'door_study');
-    const fence = GARDEN_ROOM.walls[4];
-    expect(fence).toEqual({ x: 464, y: 0, w: 16, h: 270 });
-    expect([d.x - d.w / 2, d.x + d.w / 2]).toEqual([464, 480]);
-    expect(d.wall).toBe('E');
-    expect(d.target).toEqual({ room: 'study', door: 'door_garden' });
-    expect(arrival(d)).toEqual({ x: 320, y: 190, facing: 'up' });
-    expect(ROOMS[d.target?.room ?? 'garden']).toBe(STUDY_ROOM);
-  });
-
-  it("sets the shed door in the shed's back wall, drawn round the doorway and not solid", () => {
-    expect(GARDEN_ROOM.furniture).toEqual([SHED_EXTERIOR]);
-    expect(SHED_EXTERIOR).toEqual({
-      sheet: SHEETS.shedExterior,
-      x: 0,
-      y: 196,
-      w: 32,
-      h: 56,
-      solid: false,
-    });
-    expect(furnitureWalls(GARDEN_ROOM.furniture)).toEqual([]);
-    // The walls are the fence ring with its doorway, as before the surround.
-    expect(DOORWAY).toEqual({ top: 208, bottom: 240 });
-    expect(GARDEN_ROOM.walls).toEqual(ringWalls(GARDEN_ROOM.bounds, DOORWAY));
-    // The door, its target and the landing from the shed are unchanged; the door sits in the opening.
-    const d = door(GARDEN_ROOM);
-    expect([d.prompt, d.x, d.y, d.w, d.h, d.sheet]).toEqual([
-      'Back to Shed',
-      16,
-      228,
-      16,
-      16,
-      undefined,
-    ]);
-    expect(d.target).toEqual({ room: 'shed', door: 'door' });
-    expect(door(SHED_ROOM).target).toEqual({ room: 'garden', door: 'door' });
-    expect(d.x - d.w / 2).toBeGreaterThan(SHED_EXTERIOR.x);
-    expect(d.x + d.w / 2).toBeLessThan(SHED_EXTERIOR.x + SHED_EXTERIOR.w);
-    expect(d.y - d.h / 2).toBeGreaterThan(SHED_EXTERIOR.y);
-    expect(d.y + d.h / 2).toBeLessThan(SHED_EXTERIOR.y + SHED_EXTERIOR.h);
-    // The doorway's gap lies within the wall's height, and the landing is clear of it.
-    expect(SHED_EXTERIOR.y).toBeLessThan(DOORWAY.top);
-    expect(SHED_EXTERIOR.y + SHED_EXTERIOR.h).toBeGreaterThan(DOORWAY.bottom);
-    expect(SHED_EXTERIOR.x + SHED_EXTERIOR.w).toBeLessThan(arrival(door(SHED_ROOM)).x);
-  });
-
-  it('lets the player walk out through the doorway to the clamp', () => {
-    let p: PlayerState = { ...createPlayer(GARDEN_ROOM), y: 225 };
-    for (let i = 0; i < 100; i += 1) p = stepPlayer(p, { x: -1, y: 0 }, GARDEN_ROOM);
-    expect(p.x).toBe(4);
-    expect(nearestInteractable(p, GARDEN_ROOM.props)?.key).toBe('door');
+    // Only the glass box is solid furniture; the house and the shed are wall rects.
+    expect(furnitureWalls(EXTERIORS)).toEqual([GREENHOUSE]);
+    // Every piece lies on the 16 px tile grid inside its building's footprint.
+    for (const f of EXTERIORS) {
+      expect([f.x, f.y, f.w, f.h].every((v) => v % 16 === 0)).toBe(true);
+      const within = (r: Rect): boolean =>
+        f.x >= r.x && f.y >= r.y && f.x + f.w <= r.x + r.w && f.y + f.h <= r.y + r.h;
+      expect([HOUSE, SHED, GREENHOUSE].some(within), f.sheet.key).toBe(true);
+    }
+    // Each door is drawn on its face's band, the glazed ones in their own sheet.
+    expect(propSprite(door(GARDEN_ROOM))?.sheet).toBe(SHEETS.door);
+    expect(propSprite(door(GARDEN_ROOM, 'door_study'))?.sheet).toBe(SHEETS.doorGlassSingle);
+    expect(propSprite(door(GARDEN_ROOM, 'door_greenhouse'))?.sheet).toBe(SHEETS.doorGlassSingle);
   });
 });
 
@@ -469,11 +561,11 @@ describe('study room', () => {
       304, 336, 208, 224,
     ]);
     expect(d.target).toEqual({ room: 'garden', door: 'door_study' });
-    expect(arrival(d)).toEqual({ x: 446, y: 190, facing: 'left' });
+    expect(arrival(d)).toEqual({ x: 344, y: 162, facing: 'down' });
     expect(ROOMS[d.target?.room ?? 'study']).toBe(GARDEN_ROOM);
-    // Each landing 26 px from the door leading back: left of the garden's door, above the glass doors.
+    // Each landing 26 px from the door leading back: below the garden's door, above the glass doors.
     const back = door(GARDEN_ROOM, 'door_study');
-    expect(arrival(d)).toMatchObject({ x: back.x - 26, y: back.y });
+    expect(arrival(d)).toMatchObject({ x: back.x, y: back.y + 26 });
     expect(arrival(back)).toMatchObject({ x: d.x, y: d.y - 26 });
   });
 
@@ -549,7 +641,7 @@ describe('greenhouse room', () => {
     ]);
   });
 
-  it("has one door, in the bottom wall's centre, to 26 px below the garden's greenhouse door on its top fence", () => {
+  it("has one door, in the bottom wall's centre, to 26 px below the garden's greenhouse door in the glass box's south face", () => {
     expect(
       GREENHOUSE_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.target]),
     ).toEqual([
@@ -569,15 +661,14 @@ describe('greenhouse room', () => {
       232, 248, 192, 208,
     ]);
     const back = door(GARDEN_ROOM, 'door_greenhouse');
-    // The top fence's band, right of the source plants and clear of the right fence's corner tile.
-    expect(GARDEN_ROOM.walls[0]).toEqual({ x: 0, y: 0, w: 480, h: 16 });
+    // The bottom band of the greenhouse standing in the garden's lawn, x 256..416, y 304..416.
     const edges = [
       back.x - back.w / 2,
       back.x + back.w / 2,
       back.y - back.h / 2,
       back.y + back.h / 2,
     ];
-    expect(edges).toEqual([440, 456, 0, 16]);
+    expect(edges).toEqual([328, 344, 400, 416]);
     expect(back.target).toEqual({ room: 'greenhouse', door: 'door_garden' });
     expect(d.target).toEqual({ room: 'garden', door: 'door_greenhouse' });
     expect(arrival(back)).toEqual({ x: d.x, y: d.y - 26, facing: 'up' });
@@ -600,10 +691,10 @@ describe('greenhouse room', () => {
     for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: 1 }, GREENHOUSE_ROOM);
     expect([p.x, p.y]).toEqual([240, 191.5]);
     expect(nearestInteractable(p, GREENHOUSE_ROOM.props)?.key).toBe('door_garden');
-    // Garden: straight up from the study door's landing (446, 190) into the top fence, 8.5 px from the door.
-    p = { ...createPlayer(GARDEN_ROOM), x: 446, y: 190 };
+    // Garden: straight up from its landing (336, 434) into the glass box's south face, 8.5 px from the door.
+    p = { ...createPlayer(GARDEN_ROOM), x: 336, y: 434 };
     for (let i = 0; i < 300; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, GARDEN_ROOM);
-    expect([p.x, p.y]).toEqual([446, 16.25]);
+    expect([p.x, p.y]).toEqual([336, 416.5]);
     const d = door(GARDEN_ROOM, 'door_greenhouse');
     expect(Math.hypot(d.x - p.x, d.y - p.y)).toBeCloseTo(8.5, 1);
     expect(nearestInteractable(p, GARDEN_ROOM.props)?.key).toBe('door_greenhouse');
@@ -707,7 +798,6 @@ describe('rooms', () => {
       [HALLWAY_ROOM, 'door_lounge', -1, 96.5],
       [HALLWAY_ROOM, 'door_study', 1, 383.5],
       [STUDY_ROOM, 'door_hallway', -1, 144.5],
-      [GARDEN_ROOM, 'door_study', 1, 463.5],
     ] as const) {
       const d = door(room, key);
       const start = { x: d.x - 26 * dx, y: 190 };

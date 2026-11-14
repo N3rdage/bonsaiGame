@@ -110,7 +110,8 @@ describe('weatherArea', () => {
   it('is the halved wall ring in the shed and the whole room in the garden', () => {
     expect(weatherArea(SHED_ROOM)).toEqual({ x0: 80, y0: 48, x1: 384, y1: 208 });
     expect(weatherArea(SHED_ROOM)).toEqual(SHED_WEATHER_AREA);
-    expect(weatherArea(GARDEN_ROOM)).toEqual({ x0: 0, y0: 0, x1: 480, y1: 270 });
+    // B2's back garden's bounding box, buildings included.
+    expect(weatherArea(GARDEN_ROOM)).toEqual({ x0: 0, y0: 0, x1: 464, y1: 512 });
     expect(WEATHER_MARGIN).toBe(12);
   });
 

@@ -81,7 +81,7 @@ under `interiors/`: `png.mjs` (tile size, seeded generator, `setPixel`,
 `fill`, `write`), `palette.mjs` (every shared colour, by family),
 `common.mjs` (the skirting board every house wall shares) and one module per
 room or subject (`lounge.mjs`, `hallway.mjs`, `study.mjs`, `greenhouse.mjs`,
-`doors.mjs`, `shedExterior.mjs`), each exporting its sheets as
+`doors.mjs`, `roof.mjs`), each exporting its sheets as
 `{ name, width, height, draw(png) }` and describing them at its top.
 
 | File | Px size | Frames | Made from |
@@ -92,7 +92,7 @@ room or subject (`lounge.mjs`, `hallway.mjs`, `study.mjs`, `greenhouse.mjs`,
 | `spr_wall_hallway.png` | 32×32 | 1 | `interiors.mjs`: plaster over a dado rail and a wooden skirting board |
 | `spr_floor_study.png` | 96×32 | 3 | `interiors.mjs`: deep-red herringbone parquet repeating every 16 px (seamless), grain per frame |
 | `spr_wall_study.png` | 32×32 | 1 | `interiors.mjs`: dark wooden panelling, two raised panels, over a skirting board |
-| `spr_shed_exterior.png` | 64×112 | 1 | `interiors.mjs`: the shed's back wall round the garden door, a shingled eave over `spr_wall`'s planks, a lintel and jambs round a dark opening, a stone sill and footing |
+| `spr_roof.png` | 32×32 | 1 | `interiors.mjs`: slate shingles in staggered 8×4 courses (seamless), a few mossy pixels; the garden tiles it over the house's and the shed's footprints |
 
 The decor sprites (`make_decor.py`: shelf, tools, watering can, pot stack,
 sack) are in the web build: `sheets.mjs` packs the prototype's frames of
