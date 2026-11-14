@@ -5,6 +5,12 @@ on:
   push:
     branches: [main]
 
+# Explicit token scope (security sweep BG-007): read the code, and write to pull requests so
+# the action can summarise findings there. Nothing else, whatever the repository default is.
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
   scan:
     name: Scan for leaked secrets
