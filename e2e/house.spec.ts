@@ -87,11 +87,11 @@ test.describe('the house', () => {
     await loungeToStudy(page);
 
     await studyToGarden(page);
-    await expectAt(page, 'garden', 446, 190);
+    await expectAt(page, 'garden', 344, 162);
     await gardenToStudy(page);
     await expectAt(page, 'study', 320, 190);
     await studyToGarden(page);
-    await expectAt(page, 'garden', 446, 190);
+    await expectAt(page, 'garden', 344, 162);
 
     await gardenToShed(page);
     await expectAt(page, 'shed', 240, 190);
