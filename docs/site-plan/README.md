@@ -201,7 +201,7 @@ Tree locations are keyed by display-spot names and room keys, not coordinates, s
 
 ## Decision
 
-Drew chose plan B with changes on agentic-gaming#132 (2026-11-14 local); B2 above is that plan as drawn and is the layout the implementation follows. A and C stay here as the record of what was considered.
+Drew chose plan B with changes on agentic-gaming#132 (2026-11-14); B2 above is that plan as drawn and is the layout the implementation follows. A and C stay here as the record of what was considered.
 
 ## How to regenerate
 
