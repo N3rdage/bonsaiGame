@@ -172,6 +172,7 @@ import {
   type Shadow,
   type Wash,
 } from '../world/roomArt';
+import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import { treeArt, type TreeArt } from '../world/treeArt';
 import { viewSize, worldView, worldZoom, type WorldView } from '../world/worldCamera';
 import type { UiMetrics } from '../world/uiScale';
@@ -810,7 +811,7 @@ export class WorldScene extends Phaser.Scene {
     const model = fitRows(unfitted, this.ui);
     const box = model.box ?? PANEL;
     const dim = this.add
-      .rectangle(0, 0, this.room.width, this.room.height, 0x000000, 0.5)
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5)
       .setOrigin(0)
       .setDepth(MODAL_DEPTH)
       .setInteractive();
@@ -1057,8 +1058,8 @@ export class WorldScene extends Phaser.Scene {
     const box = renameInput(fitRows(model, this.ui));
     const place = (): void => {
       const r = this.game.canvas.getBoundingClientRect();
-      const sx = r.width / this.room.width;
-      const sy = r.height / this.room.height;
+      const sx = r.width / GAME_WIDTH;
+      const sy = r.height / GAME_HEIGHT;
       input.style.left = `${String(r.left + box.x * sx)}px`;
       input.style.top = `${String(r.top + (box.y - box.h / 2) * sy)}px`;
       input.style.width = `${String(box.w * sx)}px`;
@@ -1108,7 +1109,7 @@ export class WorldScene extends Phaser.Scene {
     const big = { ...bodyStyle(this.ui), color: INSPECTOR_TEXT };
     const parts: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Depth)[] = [
       this.add
-        .rectangle(0, 0, this.room.width, this.room.height, 0x000000, 0.5)
+        .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5)
         .setOrigin(0)
         .setInteractive(),
       this.panelBox(box, MODAL_DEPTH),
@@ -1256,6 +1257,8 @@ export class WorldScene extends Phaser.Scene {
       });
     } else if (target) {
       this.enterRoom(target);
+    } else if (near.wall) {
+      this.showToast(`The ${near.label.toLowerCase()} is closed.`);
     } else if (speciesKey) {
       this.takeFromPlant(near.key, speciesKey);
     } else if (near.key === SHOP_KIOSK_KEY) {
