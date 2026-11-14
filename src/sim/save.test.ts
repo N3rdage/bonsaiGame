@@ -11,6 +11,7 @@ import {
   MemorySaveStorage,
   SAVE_SLOT_COUNT,
   SAVE_VERSION,
+  camelizeKeys,
   deserializeSave,
   formatSaveTimestamp,
   importPrototypeSave,
@@ -464,7 +465,7 @@ describe('untrusted save text', () => {
     return JSON.stringify(file);
   }
 
-  it('reads no field from a __proto__ key', () => {
+  it('rejects a tree whose only fields sit under a __proto__ key', () => {
     // JSON.parse, not an object literal: a literal `__proto__` sets the prototype instead.
     for (const text of [
       '{"version":6,"trees":[{"__proto__":{"speciesKey":"juniper"}}]}',
@@ -474,7 +475,7 @@ describe('untrusted save text', () => {
     }
   });
 
-  it('drops a __proto__ key from a prototype save and still loads it', () => {
+  it('loads a prototype save with an extra __proto__ key unchanged', () => {
     const raw = JSON.parse(DAY14) as { trees: Record<string, unknown>[] };
     const tree = must(raw.trees[0]);
     expect(tree).not.toHaveProperty('soil_tier');
@@ -485,6 +486,16 @@ describe('untrusted save text', () => {
     const loaded = deserializeSave(text);
     expect(loaded.trees.map((t) => t.soilTier)).toEqual([0, 0]);
     expect(loaded).toEqual(deserializeSave(DAY14));
+  });
+
+  it('camelizeKeys gives no prototype and never copies a __proto__ key', () => {
+    const out = camelizeKeys(
+      JSON.parse('{"__proto__": {"species_key": "juniper"}, "a_b": 1}'),
+    ) as Record<string, unknown>;
+    expect(Object.getPrototypeOf(out)).toBeNull();
+    expect(Object.hasOwn(out, '_Proto__')).toBe(false);
+    expect(Object.hasOwn(out, '__proto__')).toBe(false);
+    expect(out.aB).toBe(1);
   });
 
   it('pins the caps', () => {

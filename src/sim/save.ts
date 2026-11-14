@@ -272,13 +272,18 @@ function mergeInventory(v: unknown): Inventory {
 // ---------------------------------------------------------------------------
 // Tree coercion, shared by every save version
 
-/** snake_case -> camelCase, applied recursively to keys (values untouched). */
-function camelizeKeys(v: unknown): unknown {
+/**
+ * snake_case -> camelCase, applied recursively to keys (values untouched).
+ * Exported for the test only.
+ */
+export function camelizeKeys(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(camelizeKeys);
   if (!isRecord(v)) return v;
   const out = Object.create(null) as Record<string, unknown>;
   for (const [k, val] of Object.entries(v)) {
-    // Never a save field; copied onto a plain object it set the prototype, faking fields to `in`.
+    // Defence in depth: the renaming below already turns `__proto__` into `_Proto__`, so it
+    // never reaches `out` as `__proto__`. The null prototype and this skip make sure no future
+    // change to the renaming can hand a prototype to `coerceTree`'s `in` checks.
     if (k === '__proto__') continue;
     out[k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())] = camelizeKeys(val);
   }
