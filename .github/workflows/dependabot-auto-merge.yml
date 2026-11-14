@@ -1,8 +1,11 @@
-# Keeps dependencies current without a human in the loop for the routine cases.
-# Dependabot opens the PR, CI runs, and if the update is a minor or patch bump
-# this approves it and enables auto-merge; GitHub merges once every required
-# check is green. Major bumps are left for a person (or the orchestrator's
-# `decision` issue), because they are the ones that break things.
+# Keeps development tooling current without a human in the loop for the routine cases.
+# Dependabot opens the PR, CI runs, and if the update is a minor or patch bump of the
+# `dev-tooling` group (development dependencies, see .github/dependabot.yml) this approves it
+# and enables auto-merge; GitHub merges once every required check is green.
+# Everything else waits for Drew (security sweep BG-014, option B): the `runtime-minor` group,
+# because those packages ship to players and a merge to main deploys; GitHub Actions bumps,
+# because they change what CI runs; and any update outside a group. Major bumps are left for a
+# person (or the orchestrator's `decision` issue), because they are the ones that break things.
 # Requires "Allow auto-merge" in the repository settings.
 name: Dependabot auto-merge
 
@@ -26,8 +29,8 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Approve and enable auto-merge (minor and patch only)
-        if: steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch'
+      - name: Approve and enable auto-merge (dev-tooling group, minor and patch only)
+        if: steps.meta.outputs.dependency-group == 'dev-tooling' && (steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
@@ -37,6 +40,15 @@ jobs:
         run: |
           gh pr review --approve "$PR_URL" --body "Auto-approved: $UPDATE_TYPE update of $DEP_NAMES."
           gh pr merge --auto --squash "$PR_URL"
+
+      - name: Leave everything else that is minor or patch for Drew
+        if: steps.meta.outputs.dependency-group != 'dev-tooling' && (steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          DEP_NAMES: ${{ steps.meta.outputs.dependency-names }}
+        run: |
+          gh pr comment "$PR_URL" --body "Update of $DEP_NAMES is not auto-merged: only the dev-tooling group is. This one waits for Drew."
 
       - name: Leave majors for a person
         if: steps.meta.outputs.update-type == 'version-update:semver-major'

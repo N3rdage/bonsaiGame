@@ -4,6 +4,11 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Wait out the window in which a bad npm release is usually found and pulled (security sweep
+    # BG-014). Dependabot security updates ignore the cooldown, so a flagged advisory still
+    # arrives at once.
+    cooldown:
+      default-days: 7
     ignore:
       # typescript-eslint does not support TypeScript 7 yet; revisit when it does.
       - dependency-name: typescript
