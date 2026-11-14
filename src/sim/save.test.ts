@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_SAVE_BRANCHES,
+  MAX_SAVE_HISTORY,
+  MAX_SAVE_KEY_LENGTH,
+  MAX_SAVE_PLACED,
+  MAX_SAVE_STYLE_TAGS,
+  MAX_SAVE_TREES,
+  MAX_SAVE_TRUNK_MOVEMENTS,
   MemorySaveStorage,
   SAVE_SLOT_COUNT,
   SAVE_VERSION,
@@ -15,7 +22,8 @@ import {
 } from './save';
 import { scoreTree } from './scoring';
 import { createNewGameState } from './state';
-import type { GameState } from './types';
+import { MAX_TREE_NAME_LENGTH } from './tree';
+import type { BonsaiTree, GameState } from './types';
 
 function must<T>(v: T | undefined): T {
   if (v === undefined) throw new Error('expected a value');
@@ -445,6 +453,190 @@ describe('prototype import: day 730', () => {
 
   it('survives a v6 round trip unchanged', () => {
     expect(deserializeSave(serializeState(state, NOW))).toEqual(state);
+  });
+});
+
+describe('untrusted save text', () => {
+  /** A new game's v6 save, its file and first tree patched by `patch`. */
+  function v6With(patch: (file: Record<string, unknown>, tree: Record<string, unknown>) => void) {
+    const file = JSON.parse(serializeState(createNewGameState(), NOW)) as Record<string, unknown>;
+    patch(file, must((file.trees as Record<string, unknown>[])[0]));
+    return JSON.stringify(file);
+  }
+
+  it('reads no field from a __proto__ key', () => {
+    // JSON.parse, not an object literal: a literal `__proto__` sets the prototype instead.
+    for (const text of [
+      '{"version":6,"trees":[{"__proto__":{"speciesKey":"juniper"}}]}',
+      '{"version":1,"trees":[{"__proto__":{"species_key":"juniper"}}]}',
+    ]) {
+      expect(() => deserializeSave(text)).toThrow(/lacks speciesKey/);
+    }
+  });
+
+  it('drops a __proto__ key from a prototype save and still loads it', () => {
+    const raw = JSON.parse(DAY14) as { trees: Record<string, unknown>[] };
+    const tree = must(raw.trees[0]);
+    expect(tree).not.toHaveProperty('soil_tier');
+    // An own `__proto__` key, as JSON.parse makes one (assignment would set the prototype).
+    Object.defineProperty(tree, '__proto__', { value: { soil_tier: 1 }, enumerable: true });
+    const text = JSON.stringify(raw);
+    expect(text).toContain('"__proto__":{"soil_tier":1}');
+    const loaded = deserializeSave(text);
+    expect(loaded.trees.map((t) => t.soilTier)).toEqual([0, 0]);
+    expect(loaded).toEqual(deserializeSave(DAY14));
+  });
+
+  it('pins the caps', () => {
+    expect([
+      MAX_SAVE_TREES,
+      MAX_SAVE_BRANCHES,
+      MAX_SAVE_TRUNK_MOVEMENTS,
+      MAX_SAVE_HISTORY,
+      MAX_SAVE_PLACED,
+      MAX_SAVE_STYLE_TAGS,
+      MAX_SAVE_KEY_LENGTH,
+      MAX_TREE_NAME_LENGTH,
+    ]).toEqual([500, 400, 256, 2000, 500, 32, 64, 20]);
+  });
+
+  /** `n` copies of `item`, as a save's array. */
+  const many = (n: number, item: unknown): unknown[] => Array.from({ length: n }, () => item);
+
+  type Saved = Record<string, unknown>;
+  /** Each capped tree array: its name in the error, its cap, an entry, where it sits in the save and in the tree. */
+  const treeArrays: [
+    string,
+    number,
+    unknown,
+    (t: Saved, a: unknown[]) => void,
+    (t: BonsaiTree) => unknown[],
+  ][] = [
+    [
+      'branches',
+      MAX_SAVE_BRANCHES,
+      {},
+      (t, a) => {
+        t.branches = a;
+      },
+      (t) => t.branches,
+    ],
+    [
+      'trunk movement',
+      MAX_SAVE_TRUNK_MOVEMENTS,
+      { y: 1 },
+      (t, a) => {
+        (t.trunk as Saved).movement = a;
+      },
+      (t) => t.trunk.movement,
+    ],
+    [
+      'wiresApplied',
+      MAX_SAVE_HISTORY,
+      {},
+      (t, a) => {
+        t.wiresApplied = a;
+      },
+      (t) => t.wiresApplied,
+    ],
+    [
+      'clipsHistory',
+      MAX_SAVE_HISTORY,
+      {},
+      (t, a) => {
+        t.clipsHistory = a;
+      },
+      (t) => t.clipsHistory,
+    ],
+    [
+      'prunesHistory',
+      MAX_SAVE_HISTORY,
+      {},
+      (t, a) => {
+        t.prunesHistory = a;
+      },
+      (t) => t.prunesHistory,
+    ],
+    [
+      'repotsHistory',
+      MAX_SAVE_HISTORY,
+      {},
+      (t, a) => {
+        t.repotsHistory = a;
+      },
+      (t) => t.repotsHistory,
+    ],
+    [
+      'styleTags',
+      MAX_SAVE_STYLE_TAGS,
+      'x',
+      (t, a) => {
+        t.styleTags = a;
+      },
+      (t) => t.styleTags,
+    ],
+  ];
+
+  it.each(treeArrays)(
+    'loads %s at its cap of %i and refuses one more',
+    (name, max, item, set, read) => {
+      const filled = (n: number) =>
+        v6With((_, t) => {
+          set(t, many(n, item));
+        });
+      expect(read(must(deserializeSave(filled(max)).trees[0]))).toHaveLength(max);
+      expect(() => deserializeSave(filled(max + 1))).toThrow(
+        `Save v6 tree 0 ${name}: ${String(max + 1)} entries exceed the cap of ${String(max)}`,
+      );
+    },
+  );
+
+  it('loads the tree cap and refuses one more tree, in every version', () => {
+    const trees = (n: number) => (file: Record<string, unknown>, t: Record<string, unknown>) => {
+      file.trees = many(n, t);
+    };
+    expect(deserializeSave(v6With(trees(MAX_SAVE_TREES))).trees).toHaveLength(MAX_SAVE_TREES);
+    expect(() => deserializeSave(v6With(trees(MAX_SAVE_TREES + 1)))).toThrow(
+      'Save v6 trees: 501 entries exceed the cap of 500',
+    );
+    const v1 = { version: 1, trees: many(MAX_SAVE_TREES + 1, { species_key: 'pine' }) };
+    expect(() => importPrototypeSave(v1)).toThrow('Prototype save trees: 501 entries exceed');
+  });
+
+  it('loads the placed cap and refuses one more item', () => {
+    const placed = (n: number) => (file: Record<string, unknown>) => {
+      file.placed = Array.from({ length: n }, (_, id) => ({
+        id,
+        kind: 'pedestal',
+        room: 'lounge',
+      }));
+    };
+    expect(deserializeSave(v6With(placed(MAX_SAVE_PLACED))).placed).toHaveLength(MAX_SAVE_PLACED);
+    expect(() => deserializeSave(v6With(placed(MAX_SAVE_PLACED + 1)))).toThrow(
+      'Save v6 placed: 501 entries exceed the cap of 500',
+    );
+  });
+
+  it('truncates a long name to the rename cap', () => {
+    const name = 'A'.repeat(40);
+    const loaded = deserializeSave(v6With((_, t) => (t.name = name)));
+    expect(must(loaded.trees[0]).name).toBe('A'.repeat(MAX_TREE_NAME_LENGTH));
+  });
+
+  it('loads a key at its cap and refuses a longer one rather than truncate it', () => {
+    const at = (n: number) => 'g'.repeat(n);
+    const loaded = deserializeSave(v6With((_, t) => (t.location = at(MAX_SAVE_KEY_LENGTH))));
+    expect(must(loaded.trees[0]).location).toBe(at(MAX_SAVE_KEY_LENGTH));
+    expect(() => deserializeSave(v6With((_, t) => (t.location = at(65))))).toThrow(
+      'Save v6 tree 0 location: 65 characters exceed the cap of 64',
+    );
+    const room = (r: string) => (file: Record<string, unknown>) => {
+      file.placed = [{ id: 0, kind: 'pedestal', room: r }];
+    };
+    expect(deserializeSave(v6With(room(at(64)))).placed[0]?.room).toBe(at(64));
+    expect(() => deserializeSave(v6With(room(at(65))))).toThrow(
+      'Save v6 placed 0 room: 65 characters exceed the cap of 64',
+    );
   });
 });
 

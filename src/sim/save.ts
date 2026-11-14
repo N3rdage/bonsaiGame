@@ -20,7 +20,7 @@ import { onGreenhouseFloor } from './greenhouseFloor';
 import { createInventory, inventoryAdd } from './inventory';
 import { SPECIES_KEYS } from './species';
 import { STYLE_KEYS } from './styles';
-import { DISPLAYED_PREFIX, createTree } from './tree';
+import { DISPLAYED_PREFIX, MAX_TREE_NAME_LENGTH, createTree } from './tree';
 import { tutorialStepFromSave } from './tutorial';
 import type {
   BonsaiTree,
@@ -42,6 +42,25 @@ import type {
 
 export const SAVE_VERSION = 6;
 export const SAVE_SLOT_COUNT = 3;
+
+// Size caps on untrusted save text. A save over a count cap or the key cap is
+// refused as corrupt; each cap sits far above anything the game can write, so
+// only a hand-edited or damaged save meets one.
+
+/** Trees in a save. The game has no limit (seed packets are unlimited), so 500 is past any collection tended by hand. */
+export const MAX_SAVE_TREES = 500;
+/** Branches per tree. Growth stops adding them at MAX_NATURAL_BRANCHES (15), on top of a starter's 2 to 4. */
+export const MAX_SAVE_BRANCHES = 400;
+/** Trunk bend events per tree. The game has no limit (one wire each), so a generous 256. */
+export const MAX_SAVE_TRUNK_MOVEMENTS = 256;
+/** Records in each training history. Repots come at most once per 60-day cooldown; wires, clips and prunes are one per player action. */
+export const MAX_SAVE_HISTORY = 2000;
+/** Placed furniture. Items cannot overlap and each covers floor tiles, so the rooms' floors bound them far below this. */
+export const MAX_SAVE_PLACED = 500;
+/** Style tags per tree. Neither the prototype nor this port ever adds one; saves carry an empty list. */
+export const MAX_SAVE_STYLE_TAGS = 32;
+/** Location and room keys (`displayed:placed_12_3`, `greenhouse`). Longer is not a key, and truncating would corrupt one. */
+export const MAX_SAVE_KEY_LENGTH = 64;
 
 /**
  * The shape `serializeState` writes. Version 5 was the same shape with its
@@ -191,9 +210,34 @@ function tier(v: unknown, fallback: 0 | 1 = 0): 0 | 1 {
   return int(v, fallback) === 1 ? 1 : 0;
 }
 
-/** Map an array field if present; otherwise keep the existing value. */
-function mapArray<T>(v: unknown, existing: T[], fn: (r: Record<string, unknown>) => T): T[] {
-  return Array.isArray(v) ? (v as unknown[]).map((item) => fn(asRecord(item))) : existing;
+/** `v` unchanged; throws when it has more than `max` entries. */
+function capped(v: unknown[], max: number, where: string): unknown[] {
+  if (v.length > max) {
+    throw new Error(`${where}: ${String(v.length)} entries exceed the cap of ${String(max)}`);
+  }
+  return v;
+}
+
+/** A key string; throws when it is longer than MAX_SAVE_KEY_LENGTH. */
+function key(v: unknown, fallback: string, where: string): string {
+  const s = str(v, fallback);
+  if (s.length > MAX_SAVE_KEY_LENGTH) {
+    throw new Error(
+      `${where}: ${String(s.length)} characters exceed the cap of ${String(MAX_SAVE_KEY_LENGTH)}`,
+    );
+  }
+  return s;
+}
+
+/** Map an array field of at most `max` entries if present; otherwise keep the existing value. */
+function mapArray<T>(
+  v: unknown,
+  existing: T[],
+  max: number,
+  where: string,
+  fn: (r: Record<string, unknown>) => T,
+): T[] {
+  return Array.isArray(v) ? capped(v, max, where).map((item) => fn(asRecord(item))) : existing;
 }
 
 function speciesKey(v: unknown, where: string): SpeciesKey {
@@ -232,8 +276,10 @@ function mergeInventory(v: unknown): Inventory {
 function camelizeKeys(v: unknown): unknown {
   if (Array.isArray(v)) return v.map(camelizeKeys);
   if (!isRecord(v)) return v;
-  const out: Record<string, unknown> = {};
+  const out = Object.create(null) as Record<string, unknown>;
   for (const [k, val] of Object.entries(v)) {
+    // Never a save field; copied onto a plain object it set the prototype, faking fields to `in`.
+    if (k === '__proto__') continue;
     out[k.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase())] = camelizeKeys(val);
   }
   return out;
@@ -251,7 +297,7 @@ function coerceTree(data: unknown, where: string): BonsaiTree {
   if (!('speciesKey' in data)) throw new Error(`${where} lacks speciesKey (species_key)`);
   const t = createTree(speciesKey(data.speciesKey, where), origin(data.origin), int(data.id, 0));
 
-  t.name = str(data.name, t.name);
+  t.name = str(data.name, t.name).slice(0, MAX_TREE_NAME_LENGTH);
   t.ageDays = int(data.ageDays, t.ageDays);
   t.vitality = num(data.vitality, t.vitality);
   t.vigor = num(data.vigor, t.vigor);
@@ -262,12 +308,12 @@ function coerceTree(data: unknown, where: string): BonsaiTree {
   t.potTier = tier(data.potTier, t.potTier);
   t.soilTier = tier(data.soilTier, t.soilTier);
   t.lastRepotDay = int(data.lastRepotDay, t.lastRepotDay);
-  t.location = str(data.location, t.location);
+  t.location = key(data.location, t.location, `${where} location`);
   t.timeAccel = num(data.timeAccel, t.timeAccel);
   t.foliageDensity = num(data.foliageDensity, t.foliageDensity);
   if ('targetStyle' in data) t.targetStyle = styleKey(data.targetStyle);
   if (Array.isArray(data.styleTags)) {
-    t.styleTags = (data.styleTags as unknown[]).map((v) => String(v));
+    t.styleTags = capped(data.styleTags, MAX_SAVE_STYLE_TAGS, `${where} styleTags`).map(String);
   }
 
   if (isRecord(data.trunk)) {
@@ -275,44 +321,80 @@ function coerceTree(data: unknown, where: string): BonsaiTree {
     t.trunk.heightCm = num(tr.heightCm, t.trunk.heightCm);
     t.trunk.girthMm = num(tr.girthMm, t.trunk.girthMm);
     t.trunk.taper = num(tr.taper, t.trunk.taper);
-    t.trunk.movement = mapArray(tr.movement, t.trunk.movement, (r): TrunkMovement => ({
-      y: num(r.y, 0),
-      angleDeg: num(r.angleDeg, 0),
-    }));
+    t.trunk.movement = mapArray(
+      tr.movement,
+      t.trunk.movement,
+      MAX_SAVE_TRUNK_MOVEMENTS,
+      `${where} trunk movement`,
+      (r): TrunkMovement => ({
+        y: num(r.y, 0),
+        angleDeg: num(r.angleDeg, 0),
+      }),
+    );
   }
 
-  t.branches = mapArray(data.branches, t.branches, (r): Branch => ({
-    id: int(r.id, 0),
-    parentId: int(r.parentId, -1),
-    originY: num(r.originY, 0),
-    angle: num(r.angle, 0),
-    length: num(r.length, 0),
-    girth: num(r.girth, 0),
-    wired: bool(r.wired),
-    bend: num(r.bend, 0),
-    bendV: num(r.bendV, 0), // pre-bend_v prototype saves migrate to 0
-  }));
-  t.wiresApplied = mapArray(data.wiresApplied, t.wiresApplied, (r): WireRecord => ({
-    branchId: int(r.branchId, 0),
-    appliedDay: int(r.appliedDay, 0),
-    removedDay: int(r.removedDay, -1),
-    bendTarget: num(r.bendTarget, 0),
-    bendTargetV: num(r.bendTargetV, 0),
-  }));
-  t.clipsHistory = mapArray(data.clipsHistory, t.clipsHistory, (r): ClipRecord => ({
-    branchId: int(r.branchId, 0),
-    day: int(r.day, 0),
-    amount: num(r.amount, 0),
-  }));
-  t.prunesHistory = mapArray(data.prunesHistory, t.prunesHistory, (r): PruneRecord => ({
-    branchId: int(r.branchId, 0),
-    day: int(r.day, 0),
-  }));
-  t.repotsHistory = mapArray(data.repotsHistory, t.repotsHistory, (r): RepotRecord => ({
-    day: int(r.day, 0),
-    toTier: tier(r.toTier),
-    soilTier: tier(r.soilTier),
-  }));
+  t.branches = mapArray(
+    data.branches,
+    t.branches,
+    MAX_SAVE_BRANCHES,
+    `${where} branches`,
+    (r): Branch => ({
+      id: int(r.id, 0),
+      parentId: int(r.parentId, -1),
+      originY: num(r.originY, 0),
+      angle: num(r.angle, 0),
+      length: num(r.length, 0),
+      girth: num(r.girth, 0),
+      wired: bool(r.wired),
+      bend: num(r.bend, 0),
+      bendV: num(r.bendV, 0), // pre-bend_v prototype saves migrate to 0
+    }),
+  );
+  t.wiresApplied = mapArray(
+    data.wiresApplied,
+    t.wiresApplied,
+    MAX_SAVE_HISTORY,
+    `${where} wiresApplied`,
+    (r): WireRecord => ({
+      branchId: int(r.branchId, 0),
+      appliedDay: int(r.appliedDay, 0),
+      removedDay: int(r.removedDay, -1),
+      bendTarget: num(r.bendTarget, 0),
+      bendTargetV: num(r.bendTargetV, 0),
+    }),
+  );
+  t.clipsHistory = mapArray(
+    data.clipsHistory,
+    t.clipsHistory,
+    MAX_SAVE_HISTORY,
+    `${where} clipsHistory`,
+    (r): ClipRecord => ({
+      branchId: int(r.branchId, 0),
+      day: int(r.day, 0),
+      amount: num(r.amount, 0),
+    }),
+  );
+  t.prunesHistory = mapArray(
+    data.prunesHistory,
+    t.prunesHistory,
+    MAX_SAVE_HISTORY,
+    `${where} prunesHistory`,
+    (r): PruneRecord => ({
+      branchId: int(r.branchId, 0),
+      day: int(r.day, 0),
+    }),
+  );
+  t.repotsHistory = mapArray(
+    data.repotsHistory,
+    t.repotsHistory,
+    MAX_SAVE_HISTORY,
+    `${where} repotsHistory`,
+    (r): RepotRecord => ({
+      day: int(r.day, 0),
+      toTier: tier(r.toTier),
+      soilTier: tier(r.soilTier),
+    }),
+  );
 
   // Render-cache counter; carried through so a round trip is exact, 0 for prototype saves.
   t.revision = int(data.revision, 0);
@@ -321,7 +403,9 @@ function coerceTree(data: unknown, where: string): BonsaiTree {
 
 function coerceTrees(trees: unknown, where: string): BonsaiTree[] {
   if (!Array.isArray(trees)) throw new Error(`${where}: trees is not an array`);
-  return (trees as unknown[]).map((d, i) => coerceTree(d, `${where} tree ${String(i)}`));
+  return capped(trees, MAX_SAVE_TREES, `${where} trees`).map((d, i) =>
+    coerceTree(d, `${where} tree ${String(i)}`),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -390,13 +474,15 @@ function placeableKind(v: unknown, where: string): PlaceableKind {
 
 /** A version-5 or version-6 save, one shape: version 4 plus the placed furniture. */
 function readPlacedSave(raw: Record<string, unknown>, where: string): GameState {
-  const rawPlaced = Array.isArray(raw.placed) ? (raw.placed as unknown[]) : [];
+  const rawPlaced = Array.isArray(raw.placed)
+    ? capped(raw.placed, MAX_SAVE_PLACED, `${where} placed`)
+    : [];
   const placed = rawPlaced.map((item, i): PlacedItem => {
     const r = asRecord(item);
     return {
       id: int(r.id, 0),
       kind: placeableKind(r.kind, `${where} placed ${String(i)}`),
-      room: str(r.room, ''),
+      room: key(r.room, '', `${where} placed ${String(i)} room`),
       x: int(r.x, 0),
       y: int(r.y, 0),
     };
