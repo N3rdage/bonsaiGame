@@ -26,7 +26,7 @@ On the evening of 10 November Drew set the order: the phone batch first. The rel
 - **A camera that follows (#145).** On a screen whose short side is under 500 CSS pixels, the world renders at 2x and follows the player.
 - **Thumb-sized controls (#148, #150).** One rule now sets touch targets to at least 44 CSS pixels and text to at least 14. The tree inspector went to two columns to fit.
 
-The next lunchtime Drew checked fullscreen, the following camera and the build version on the title (#143) on his S22 Ultra against production, and the log records that "the three things flagged for a real device all work well". The missing Inventory panel (#147), winter-only pruning (#144) and a Seasons page in the notebook (#151) slotted in around those.
+The next day Drew checked fullscreen, the following camera and the build version on the title (#143) on a phone against production, and the log records that "the three things flagged for a real device all work well". The missing Inventory panel (#147), winter-only pruning (#144) and a Seasons page in the notebook (#151) slotted in around those.
 
 ## A house that felt like sheds
 
