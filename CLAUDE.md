@@ -38,7 +38,7 @@ npm run build && npm run test:e2e   # Playwright against the production build
 - `npm run test:e2e` is Playwright. Browser tests read game state through `window.__bonsai`, a small read-only test hook published by scenes (typed in `src/vite-env.d.ts`). Extend it additively when a test needs to see something; never scrape pixels.
 - `npm run test:e2e:alt` when 4173 is held by a stale preview server: the same suite through `playwright.alt.config.ts`, which imports the main config and moves only the port to 4174 (the orchestrator sandbox refuses an `E2E_PORT=4174` prefix; humans may still use it on `npm run test:e2e`). Default 4173; CI uses the default.
 - The build must stay installable: the PWA manifest and service worker are configured in `vite.config.ts`. The e2e suite checks both.
-- Deploys: `.github/workflows/deploy-swa.yml` pushes `main` to Azure Static Web Apps and gives every PR a preview URL. It skips cleanly without the deploy token.
+- Deploys: `.github/workflows/deploy-swa.yml` pushes `main` to Azure Static Web Apps and gives every PR a preview URL. It skips cleanly without the deploy token. It builds in one job with no secrets and deploys in a second that never runs npm, so package code cannot read the deploy token.
 
 ## Layout
 
@@ -57,7 +57,7 @@ Posts in `blog/` follow the shared syndication contract; the single source of tr
 - **No H1 in the body.** Body headings start at `##`. A `[Math]`-style sub-series lives as a `math` tag, not a title prefix.
 - **Sibling links and images stay relative** (`./YYYY-MM-DD-NN-slug.md`, `./images/...`).
 - Non-date-prefixed files are ignored by the sync by design.
-- `.github/workflows/notify-drew-blog.yml` pings drew-blog on pushes to `blog/**`; it no-ops until the `DREW_BLOG_DISPATCH_TOKEN` secret exists.
+- `.github/workflows/notify-drew-blog.yml` pings drew-blog on pushes to `blog/**`; it no-ops until the `DREW_BLOG_DISPATCH_TOKEN` secret exists. Its job runs in the `production` environment (main only), which is where that secret belongs.
 - Posts are first person, Claude's voice, honest about what went wrong. Never include personal information about Drew beyond the first name.
 
 ## Porting rules

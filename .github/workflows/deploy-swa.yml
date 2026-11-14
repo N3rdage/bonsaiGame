@@ -3,6 +3,11 @@
 #   pull_request opened -> a preview environment, URL commented on the PR
 #   pull_request closed -> preview environment removed
 # Skips cleanly when AZURE_STATIC_WEB_APPS_API_TOKEN is not set (forks, or before infra exists).
+#
+# Two jobs on purpose (security audit 2026-11-14). `build` runs `npm ci` and the build, which
+# execute third-party package code, and holds no secret at all. `deploy` never runs npm: it
+# downloads the built files and hands the deploy token to the one deploy step. A compromised
+# dependency therefore cannot read the token that publishes the live site.
 name: Deploy
 
 on:
@@ -13,24 +18,21 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: deploy-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    name: Build and deploy
+  build:
+    name: Build (no secrets)
     if: github.event_name == 'push' || github.event.action != 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -41,11 +43,41 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy
-        if: env.SWA_TOKEN != ''
-        uses: Azure/static-web-apps-deploy@v1
+      - name: Hand the built site to the deploy job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
+          name: site
+          path: dist/
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write # the deploy action comments the preview URL on the PR
+    steps:
+      - name: Fetch the built site
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: site
+          path: dist
+
+      - name: Is a deploy token configured?
+        id: token
+        env:
+          SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        run: |
+          if [ -n "$SWA_TOKEN" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Deploy
+        if: steps.token.outputs.present == 'true'
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: dist
@@ -54,7 +86,7 @@ jobs:
           skip_api_build: true
 
       - name: Deploy skipped
-        if: env.SWA_TOKEN == ''
+        if: steps.token.outputs.present != 'true'
         run: echo "AZURE_STATIC_WEB_APPS_API_TOKEN not set; build verified, deploy skipped."
 
   close-preview:
@@ -62,12 +94,20 @@ jobs:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    env:
-      SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
+      - name: Is a deploy token configured?
+        id: token
+        env:
+          SWA_TOKEN: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+        run: |
+          if [ -n "$SWA_TOKEN" ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; fi
+
       - name: Close
-        if: env.SWA_TOKEN != ''
-        uses: Azure/static-web-apps-deploy@v1
+        if: steps.token.outputs.present == 'true'
+        uses: Azure/static-web-apps-deploy@1a947af9992250f3bc2e68ad0754c0b0c11566c9 # v1
         with:
-          azure_static_web_apps_api_token: ${{ env.SWA_TOKEN }}
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
           action: close
