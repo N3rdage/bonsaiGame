@@ -17,16 +17,13 @@ import {
   toTitle,
   walkTo,
 } from './drive';
+import { gardenToShed, throughDoor } from './rooms';
 
-// Shed: workbench (125, 90), planting table (165, 90), door (232, 208) to the
-// garden at (42, 228); garden: juniper (140, 90), door (16, 228) back to (240, 190).
+// Shed: workbench (125, 90), planting table (165, 90), door (240, 216) to the
+// garden at (80, 274); garden: juniper (80, 472) straight down from there, door
+// (80, 248) in the shed's south face back to (240, 190) (rooms.ts).
 
 const ids = (h: BonsaiTestHook): string[] => h.controls.map((c) => c.id);
-
-async function throughDoor(page: Page, room: string): Promise<void> {
-  await interact(page);
-  await page.waitForFunction((r) => window.__bonsai?.room === r, room);
-}
 
 /** A new game, changed by `edit`, saved in slot 1 and continued into the shed. */
 async function continueWith(page: Page, edit: (state: GameState) => void): Promise<void> {
@@ -66,11 +63,10 @@ test.describe('workbench and planting table', () => {
 
     await walkTo(page, 200, 'right', 'door');
     await throughDoor(page, 'garden');
-    await walkTo(page, 90, 'right', 'source_juniper');
+    await walkTo(page, 469, 'right', 'source_juniper');
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.inventory.cutting_juniper === 1);
-    await walkTo(page, 228, 'left', 'door');
-    await throughDoor(page, 'shed');
+    await gardenToShed(page);
     h = await hook(page);
     expect(h.tutorialStep).toBe(TUTORIAL_TAKE_CUTTING + 1);
     const before = h.inventory;

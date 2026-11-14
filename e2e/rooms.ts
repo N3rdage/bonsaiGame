@@ -1,5 +1,13 @@
 import type { Page } from '@playwright/test';
-import { holdUntilAtLeast, holdUntilAtMost, holdUntilNear, hook, interact, walkTo } from './drive';
+import {
+  holdUntilAtLeast,
+  holdUntilAtMost,
+  holdUntilNear,
+  hook,
+  interact,
+  walkTo,
+  walkToRow,
+} from './drive';
 
 // Walks between the shed and the house rooms (src/world/*Room.ts, pinned in
 // world.test.ts). Shed lounge door (240, 56), in the top wall, to the lounge at
@@ -14,19 +22,26 @@ import { holdUntilAtLeast, holdUntilAtMost, holdUntilNear, hook, interact, walkT
 // door_study (392, 190) to the study at (162, 190); the study's door_hallway
 // (136, 190) back to the hallway at (366, 190). The study's glass doors,
 // door_garden (320, 216), 32x16 in its bottom wall, lead to the garden at
-// (446, 190); the garden's door_study (472, 190), on its right fence, back to
-// the study at (320, 190). Every walk ends against a wall or a solid piece of
-// furniture, which stops the player in reach however late the key is released
-// (backlog #81): from the study's hallway landing, right into the right wall
-// (x 335.75) and down into the bottom wall (y 207.5), 17.9 px from the glass
-// doors; from the garden's landing, right into the fence (x 463.5). The
-// garden's door_greenhouse (448, 8), on its top fence, leads to the greenhouse
-// at (240, 206); the greenhouse's door_garden (240, 232), in the centre of its
-// bottom wall, back to the garden at (448, 34). The greenhouse's floor is
-// x 64..416, y 64..224. From the study-door row a walk straight up ends
-// against the top fence (y 16.25), the greenhouse door in reach anywhere from
-// the study door's reach to the right fence; from the greenhouse's landing a
-// walk straight down ends against its bottom wall (y 223.5), 8.5 px from its door.
+// (344, 162); the greenhouse's door_garden (240, 232), in the centre of its
+// bottom wall, leads to the greenhouse at (240, 206). The greenhouse's floor
+// is x 64..416, y 64..224.
+//
+// The garden is plan B2's back garden (gardenRoom.ts), 464x512: the house
+// (x 0..416, y 0..144) and the shed (x 0..160, y 144..256) are solid, the
+// greenhouse stands in the lawn (x 256..416, y 304..416), and every garden
+// door is in a building's face above the player (wall N), its landing 26 px
+// below it. The shed door (80, 248) lands at (80, 274); the study door
+// (344, 136) at (344, 162), the greenhouse door (336, 408) at (336, 434). The
+// source plants stand along the south fence at y 472, x 80, 112 and 144.
+//
+// Every walk ends against a wall or a solid piece of furniture, which stops
+// the player in reach however late the key is released (backlog #81), or is
+// a walkTo leg, which releases in the frame it arrives: from the study's
+// hallway landing, right into the right wall (x 335.75) and down into the
+// bottom wall (y 207.5), 17.9 px from the glass doors; from each garden
+// landing, straight up into the face, 8.5 px below its door; from the
+// greenhouse's landing straight down into its bottom wall (y 223.5), 8.5 px
+// from its door.
 
 /** Uses the door in reach and waits for `room`. */
 export async function throughDoor(page: Page, room: string): Promise<void> {
@@ -70,15 +85,29 @@ export async function studyToGarden(page: Page): Promise<void> {
   await throughDoor(page, 'garden');
 }
 
-/** From the garden's study-door landing (446, 190): right along the row into the fence, and into the study. */
+/** From the garden's study-door landing (344, 162): straight up into the house's back face, and into the study. */
 export async function gardenToStudy(page: Page): Promise<void> {
-  await holdUntilNear(page, 'ArrowRight', 'door_study');
+  await holdUntilNear(page, 'ArrowUp', 'door_study');
   await throughDoor(page, 'study');
 }
 
-/** From anywhere in the garden: down or up to the doorway's row y 228, left to the shed door, and through it. */
+/**
+ * The row a walk along to the shed door takes: 15 px below the door, so the
+ * shed's face (y 256) is never in the way and the door, 8 px above the face's
+ * edge, comes in reach 13 px either side of it wherever the row leg stopped.
+ */
+const SHED_DOOR_ROW = 263;
+
+/**
+ * From the study door's landing, or anywhere in the lawn not above or below
+ * the greenhouse: to the shed door landing's row y 274 if above it, then up
+ * to SHED_DOOR_ROW (a leg up stops on or above the row, never past the face),
+ * along to the shed door, and through it.
+ */
 export async function gardenToShed(page: Page): Promise<void> {
-  await walkTo(page, 228, 'left', 'door');
+  if ((await hook(page)).player.y < SHED_DOOR_ROW) await walkToRow(page, 274);
+  const { x } = (await hook(page)).player;
+  await walkTo(page, SHED_DOOR_ROW, x < 80 ? 'right' : 'left', 'door');
   await throughDoor(page, 'shed');
 }
 
@@ -88,13 +117,19 @@ export async function shedToGarden(page: Page): Promise<void> {
   await throughDoor(page, 'garden');
 }
 
+/** As SHED_DOOR_ROW for the greenhouse door (336, 408): 16 px below it, the glass box's south face at y 416. */
+const GREENHOUSE_DOOR_ROW = 424;
+
 /**
- * From anywhere in the garden left of the study door: to the row y 190 and right along it until
- * the study door is in reach, then up into the top fence, the greenhouse door in reach, and in.
+ * From the shed door's landing, or anywhere in the lawn beside the
+ * greenhouse rather than above it: to the greenhouse door landing's row
+ * y 434 if above it, then up to GREENHOUSE_DOOR_ROW, along under the glass
+ * box to its door, and in.
  */
 export async function gardenToGreenhouse(page: Page): Promise<void> {
-  await walkTo(page, 190, 'right', 'door_study');
-  await holdUntilNear(page, 'ArrowUp', 'door_greenhouse');
+  if ((await hook(page)).player.y < GREENHOUSE_DOOR_ROW) await walkToRow(page, 434);
+  const { x } = (await hook(page)).player;
+  await walkTo(page, GREENHOUSE_DOOR_ROW, x < 336 ? 'right' : 'left', 'door_greenhouse');
   await throughDoor(page, 'greenhouse');
 }
 

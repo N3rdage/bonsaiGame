@@ -27,7 +27,10 @@ export interface Rect {
 /** The rooms the world can show; also the `location` of a tree on that room's floor. */
 export type RoomKey = 'shed' | 'garden' | 'lounge' | 'hallway' | 'study' | 'greenhouse';
 
-/** The wall of a room's ring a door sits in; N is the top wall. */
+/**
+ * The wall a door sits in, named for the side of the player it is on: N is
+ * the top wall, or a building face above the player in the garden.
+ */
 export type Wall = 'N' | 'S' | 'E' | 'W';
 
 /**
@@ -55,7 +58,7 @@ export interface Prop {
    * (`displaySpot`) and draws nothing of its own.
    */
   readonly pedestalKey?: string;
-  /** Doors only: the room and door E takes the player to. */
+  /** Doors only: the room and door E takes the player to; a door without one (the garden's gate) is closed. */
   readonly target?: DoorTarget;
   /** Doors only: the wall the door sits in. */
   readonly wall?: Wall;
@@ -120,30 +123,17 @@ export interface Room {
 /** Other_4's ring is one row of 32 px tiles (`_tw`): each wall is a band that deep, so the player stops at the drawn tile. */
 export const WALL_BAND = fromPrototype(32);
 
-/** A gap in the ring's left side from `top` to `bottom`, logical px. */
-export interface Gap {
-  readonly top: number;
-  readonly bottom: number;
-}
-
 /**
  * Other_4's ring as collision bands just inside `bounds`: the top and bottom
- * rows across it and the left and right columns down it, the left one broken
- * by `leftGap` if there is one.
+ * rows across it and the left and right columns down it.
  */
-export function ringWalls(bounds: Rect, leftGap?: Gap): Rect[] {
+export function ringWalls(bounds: Rect): Rect[] {
   const { x, y, w, h } = bounds;
   const band = WALL_BAND;
-  const left = leftGap
-    ? [
-        { x, y, w: band, h: leftGap.top - y },
-        { x, y: leftGap.bottom, w: band, h: y + h - leftGap.bottom },
-      ]
-    : [{ x, y, w: band, h }];
   return [
     { x, y, w, h: band },
     { x, y: y + h - band, w, h: band },
-    ...left,
+    { x, y, w: band, h },
     { x: x + w - band, y, w: band, h },
   ];
 }

@@ -3,6 +3,7 @@ import {
   bootWorld,
   collectErrors,
   expect,
+  holdUntilAtLeast,
   hook,
   interact,
   openSettingsFromMenu,
@@ -13,12 +14,15 @@ import {
 
 // The world camera (src/world/worldCamera.ts, pinned in its unit tests): 2x on
 // a phone-sized viewport, following the player inside the room's drawn
-// extent; 1x and still on a desktop. The view's top-left is in room units.
-// Shed extent (80, 48) 320x176, garden (0, 0) 480x270; at 2x the view is
-// 240x135, so the shed's scroll stays in x 80..160, y 48..89 and the
-// garden's in x 0..240, y 0..135.
+// extent; 1x on a desktop, where it still follows a room taller than the
+// view. The view's top-left is in room units. Shed extent (80, 48) 320x176,
+// garden (0, 0) 464x512; at 2x the view is 240x135, so the shed's scroll
+// stays in x 80..160, y 48..89 and the garden's in x 0..224, y 0..377; at 1x
+// the view is 480x270, so the shed's is still and the garden's stays at x 0
+// and in y 0..242.
 const SHED = { x0: 80, x1: 160, y0: 48, y1: 89 };
-const GARDEN = { x0: 0, x1: 240, y0: 0, y1: 135 };
+const GARDEN = { x0: 0, x1: 224, y0: 0, y1: 377 };
+const GARDEN_DESKTOP = { x0: 0, x1: 0, y0: 0, y1: 242 };
 
 type Camera = NonNullable<BonsaiTestHook['camera']>;
 
@@ -111,17 +115,22 @@ test.describe('world camera on a phone', () => {
     await walkTo(page, 200, 'left', 'door');
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.room === 'garden');
-    // The landing spot (42, 228) is in the bottom-left corner.
-    expect(await camera(page)).toEqual({ zoom: 2, scrollX: GARDEN.x0, scrollY: GARDEN.y1 });
+    // The landing spot (80, 274), below the shed: against the left edge, centred on its row.
+    expect(await camera(page)).toEqual({ zoom: 2, scrollX: GARDEN.x0, scrollY: 206.5 });
     await record(page);
 
-    await walkUntilScroll(page, 'ArrowUp', 'scrollY', GARDEN.y0);
+    // Right along the row to the east fence, up the notch and the passage to the north
+    // fence, down the east side of the lawn to the south fence, and left along it.
     await walkUntilScroll(page, 'ArrowRight', 'scrollX', GARDEN.x1);
+    await holdUntilAtLeast(page, 'ArrowRight', 'x', 440);
+    await walkUntilScroll(page, 'ArrowUp', 'scrollY', GARDEN.y0);
     await walkUntilScroll(page, 'ArrowDown', 'scrollY', GARDEN.y1);
+    await walkUntilScroll(page, 'ArrowLeft', 'scrollX', GARDEN.x0);
 
     const seen = await recorded(page);
     inside(seen, GARDEN);
     expect(new Set(seen.map((c) => c.scrollX)).size).toBeGreaterThan(10);
+    expect(new Set(seen.map((c) => c.scrollY)).size).toBeGreaterThan(10);
     expect(errors).toEqual([]);
   });
 });
@@ -129,7 +138,9 @@ test.describe('world camera on a phone', () => {
 test.describe('world camera on a desktop', () => {
   test.skip(({ viewport }) => phone(viewport), 'desktop viewports only');
 
-  test('stays at 1x with the whole room in view in both rooms', async ({ page }) => {
+  test('stays at 1x: still in the shed, following the garden only up and down', async ({
+    page,
+  }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
     const still = { zoom: 1, scrollX: 0, scrollY: 0 };
@@ -137,15 +148,25 @@ test.describe('world camera on a desktop', () => {
     await record(page);
     await walkTo(page, 200, 'left', 'door');
     expect(await camera(page)).toEqual(still);
-    await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.room === 'garden');
-    await page.keyboard.down('ArrowUp');
-    await page.waitForFunction(() => (window.__bonsai?.player.y ?? 225) < 150);
-    await page.keyboard.up('ArrowUp');
-    expect(await camera(page)).toEqual(still);
     expect(new Set((await recorded(page)).map((c) => JSON.stringify(c)))).toEqual(
       new Set([JSON.stringify(still)]),
     );
+
+    await interact(page);
+    await page.waitForFunction(() => window.__bonsai?.room === 'garden');
+    // The landing (80, 274) centres the 270 px view on its row; the 464 px garden fits across.
+    expect(await camera(page)).toEqual({ zoom: 1, scrollX: 0, scrollY: 139 });
+    await record(page);
+    // Down to the south fence, right along it past the greenhouse to the east fence, then up
+    // the lawn's east side, the notch and the passage to the north fence.
+    await walkUntilScroll(page, 'ArrowDown', 'scrollY', GARDEN_DESKTOP.y1);
+    await holdUntilAtLeast(page, 'ArrowDown', 'y', 480);
+    await holdUntilAtLeast(page, 'ArrowRight', 'x', 440);
+    await walkUntilScroll(page, 'ArrowUp', 'scrollY', GARDEN_DESKTOP.y0);
+    const seen = await recorded(page);
+    inside(seen, GARDEN_DESKTOP);
+    expect(seen.every((c) => c.zoom === 1)).toBe(true);
+    expect(new Set(seen.map((c) => c.scrollY)).size).toBeGreaterThan(10);
     expect(errors).toEqual([]);
   });
 });

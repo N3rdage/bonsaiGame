@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
 import { PLAYER_SCALE, SHEETS } from './assets';
-import { DOORWAY, GARDEN_ROOM, ROOMS } from './gardenRoom';
+import { GARDEN_ROOM, ROOMS } from './gardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
@@ -52,9 +52,9 @@ describe('floor', () => {
   it('tiles the whole garden', () => {
     const garden = floorTiles(GARDEN_ROOM);
     expect(garden.sheet).toBe(SHEETS.floorGarden);
-    expect(garden.area).toEqual({ x: 0, y: 0, w: 480, h: 270 });
-    expect(garden.frames).toHaveLength(17);
-    expect(garden.frames[0]).toHaveLength(30);
+    expect(garden.area).toEqual({ x: 0, y: 0, w: 464, h: 512 });
+    expect(garden.frames).toHaveLength(32);
+    expect(garden.frames[0]).toHaveLength(29);
     expect(garden.frames[0]?.slice(0, 4)).toEqual([0, 1, 2, 0]);
   });
 
@@ -109,15 +109,52 @@ describe('walls', () => {
     }
   });
 
-  it("fences the garden, rows spr_fence and columns spr_fence_v, without corners or the doorway, then the shed's back wall", () => {
+  it('fences the garden, rows spr_fence and columns spr_fence_v, without corners, then its buildings over the ring', () => {
     expect(wallRuns(GARDEN_ROOM).map((r) => [r.sheet.key, r.x, r.y, r.w, r.h])).toEqual([
-      ['spr_fence', 16, 0, 448, 16],
-      ['spr_fence', 16, 254, 448, 16],
-      ['spr_fence_v', 0, 16, 16, DOORWAY.top - 16],
-      ['spr_fence_v', 0, DOORWAY.bottom, 16, 16],
-      ['spr_fence_v', 464, 16, 16, 240],
-      ['spr_shed_exterior', 0, 196, 32, 56],
+      ['spr_fence', 16, 0, 432, 16],
+      ['spr_fence', 16, 496, 432, 16],
+      ['spr_fence_v', 0, 16, 16, 480],
+      ['spr_fence_v', 448, 16, 16, 480],
+      ['spr_roof', 0, 0, 400, 144],
+      ['spr_wall_hallway', 160, 128, 240, 16],
+      ['spr_wall_hallway', 400, 0, 16, 144],
+      ['spr_roof', 0, 144, 160, 96],
+      ['spr_wall', 0, 240, 160, 16],
+      ['spr_wall_glass', 256, 304, 160, 112],
     ]);
+  });
+
+  it("leaves the fence showing only where plan B2 has one: east, south, west of the lawn and across the passage's top", () => {
+    const runs = wallRuns(GARDEN_ROOM);
+    const buildings = furnitureRuns(GARDEN_ROOM);
+    /** True if the 16 px tile at (x, y) is drawn over by a building. */
+    const hidden = (x: number, y: number): boolean =>
+      buildings.some((b) => x >= b.x && y >= b.y && x + 16 <= b.x + b.w && y + 16 <= b.y + b.h);
+    const fenceTiles = runs
+      .filter((r) => r.sheet === SHEETS.fence || r.sheet === SHEETS.fenceV)
+      .flatMap((r) =>
+        Array.from({ length: (r.w / 16) * (r.h / 16) }, (_, i) => ({
+          x: r.x + (i % (r.w / 16)) * 16,
+          y: r.y + Math.floor(i / (r.w / 16)) * 16,
+        })),
+      );
+    const shown = fenceTiles.filter((t) => !hidden(t.x, t.y));
+    // The north fence: the passage's top, x 416..448, the corner at 448 drawn by fenceCorners.
+    expect(shown.filter((t) => t.y === 0).map((t) => t.x)).toEqual([416, 432]);
+    // The west fence from the shed's south face (y 256) down to the south corner.
+    expect(shown.filter((t) => t.x === 0).map((t) => t.y)).toEqual(
+      Array.from({ length: 15 }, (_, i) => 256 + i * 16),
+    );
+    // The east fence and the south fence whole.
+    expect(shown.filter((t) => t.x === 448)).toHaveLength(30);
+    expect(shown.filter((t) => t.y === 496)).toHaveLength(27);
+    // Every fence tile and every building piece collides.
+    for (const r of runs) {
+      expect(
+        hitsWall(GARDEN_ROOM, r.x, r.y) && hitsWall(GARDEN_ROOM, r.x + r.w - 0.1, r.y + r.h - 0.1),
+        r.sheet.key,
+      ).toBe(true);
+    }
   });
 
   it("rings each house room's own bounds with its own wall sheet, every tile over a collision band", () => {
@@ -243,52 +280,81 @@ describe('walls', () => {
       const runs = furnitureRuns(room);
       expect(wallRuns(room).slice(wallRuns(room).length - runs.length)).toEqual(runs);
       for (const r of runs) {
-        // A one-frame piece is its sheet's size, halved; a run is whole tiles of it.
+        // A one-frame piece is its sheet's size, halved; a run is whole tiles of it, a row
+        // indoors, rows and columns over the garden's buildings.
         expect((r.w * 2) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
-        expect(r.h * 2).toBe(r.sheet.frameHeight);
-        // On the floor, clear of the walls' bands, but for the shed's back wall over the garden's fence.
+        if (room === GARDEN_ROOM) expect((r.h * 2) % r.sheet.frameHeight).toBe(0);
+        else expect(r.h * 2).toBe(r.sheet.frameHeight);
+        // Indoors, on the floor clear of the walls' bands; in the garden, over a building's solid footprint.
         const f = insideWalls(room);
-        expect(
-          r.x >= f.x && r.x + r.w <= f.x + f.w && r.y >= f.y && r.y + r.h <= f.y + f.h,
-          `${room.key} ${r.sheet.key}`,
-        ).toBe(r.sheet !== SHEETS.shedExterior);
+        const onFloor =
+          r.x >= f.x && r.x + r.w <= f.x + f.w && r.y >= f.y && r.y + r.h <= f.y + f.h;
+        const onSolid = room.walls.some(
+          (w) => r.x >= w.x && r.x + r.w <= w.x + w.w && r.y >= w.y && r.y + r.h <= w.y + w.h,
+        );
+        expect(room === GARDEN_ROOM ? onSolid : onFloor, `${room.key} ${r.sheet.key}`).toBe(true);
       }
     }
     // The shed's floor clutter is sorted against the player (furnitureSprites); only the wall-mounted shelf is baked.
     expect(furniture(SHED_ROOM)).toEqual([['spr_shelf', 206, 65, 28, 22]]);
-    expect(furniture(GARDEN_ROOM)).toEqual([['spr_shed_exterior', 0, 196, 32, 56]]);
+    expect(furniture(GARDEN_ROOM)).toHaveLength(6);
   });
 
-  it("bakes the shed's back wall after the fence, over the doorway's end tiles, with no shadow", () => {
-    const runs = wallRuns(GARDEN_ROOM);
-    const surround = runs.at(-1);
-    expect(surround).toEqual({ sheet: SHEETS.shedExterior, x: 0, y: 196, w: 32, h: 56 });
-    // The left fence column's tiles either side of the doorway, which the surround overlaps.
-    const [above, below] = runs.filter((r) => r.sheet === SHEETS.fenceV && r.x === 0);
-    expect(above && above.y + above.h).toBe(DOORWAY.top);
-    expect(below?.y).toBe(DOORWAY.bottom);
+  it("bakes the garden's buildings after the fence with no shadow, each door drawn over its face's band", () => {
     expect(furnitureShadows(GARDEN_ROOM)).toEqual([]);
-    // The door is drawn over the bake, in the surround's opening, sorted at its top edge as before.
-    const d = propSprite(propByKey(GARDEN_ROOM.props, 'door'));
-    expect(d && [d.sheet.key, d.x, d.y, d.scale, d.depth]).toEqual(['spr_door', 16, 228, 0.5, 220]);
+    const runs = furnitureRuns(GARDEN_ROOM);
+    for (const [key, sheet] of [
+      ['door', SHEETS.wall],
+      ['door_study', SHEETS.wallHallway],
+      ['door_greenhouse', SHEETS.wallGlass],
+    ] as const) {
+      const d = propSprite(propByKey(GARDEN_ROOM.props, key));
+      if (!d) throw new Error(key);
+      // The building's face run holds the door's 16 px square on its bottom edge; the door sorts at its top edge.
+      const face = runs.find(
+        (r) =>
+          r.sheet === sheet &&
+          d.x - 8 >= r.x &&
+          d.x + 8 <= r.x + r.w &&
+          d.y - 8 >= r.y &&
+          d.y + 8 === r.y + r.h,
+      );
+      expect(face, key).toBeDefined();
+      expect(d.depth, key).toBe(d.y - 8);
+    }
   });
 
-  it('mitres the garden corners with two rails each, three bands a leg, inside the corner tiles', () => {
+  it('mitres the garden corners where fences meet with two rails each, three bands a leg, inside the corner tiles', () => {
     const rects = fenceCorners(GARDEN_ROOM);
     expect(fenceCorners(SHED_ROOM)).toEqual([]);
     expect(fenceCorners(LOUNGE_ROOM)).toEqual([]);
-    // 4 corners x 2 L's x 2 legs x 3 bands.
+    // 3 corners (the top-left one is under the house's roof) x 2 L's x 2 legs x 3 bands.
+    expect(rects).toHaveLength(36);
+    const inTile = (r: (typeof rects)[number], x: number, y: number): boolean =>
+      r.x >= x && r.x + r.w <= x + 16 && r.y >= y && r.y + r.h <= y + 16;
+    // Top-right, over the passage; bottom-left; bottom-right; 12 rects each.
+    expect(rects.slice(0, 12).every((r) => inTile(r, 448, 0))).toBe(true);
+    expect(rects.slice(12, 24).every((r) => inTile(r, 0, 496))).toBe(true);
+    expect(rects.slice(24).every((r) => inTile(r, 448, 496))).toBe(true);
+    // Bottom-left, outer L: the horizontal leg on rows 22-24 from column 12 to the tile's edge.
+    expect(rects.slice(12, 15)).toEqual([
+      { colour: 0x785537, x: 6, y: 507, w: 10, h: 1.5 },
+      { colour: 0xa06e46, x: 6, y: 507, w: 10, h: 0.5 },
+      { colour: 0x462d19, x: 6, y: 508, w: 10, h: 0.5 },
+    ]);
+  });
+
+  it('mitres all four corners of a garden with nothing over them, top-left first', () => {
+    const open: Room = { ...GARDEN_ROOM, furniture: [] };
+    const rects = fenceCorners(open);
     expect(rects).toHaveLength(48);
-    const inTile = (r: (typeof rects)[number]): boolean =>
-      [0, 464].some((x) => r.x >= x && r.x + r.w <= x + 16) &&
-      [0, 254].some((y) => r.y >= y && r.y + r.h <= y + 16);
-    expect(rects.every(inTile)).toBe(true);
     // Top-left, outer L: the horizontal leg on rows 13-15 from column 12 to the tile's edge.
     expect(rects.slice(0, 3)).toEqual([
       { colour: 0x785537, x: 6, y: 6.5, w: 10, h: 1.5 },
       { colour: 0xa06e46, x: 6, y: 6.5, w: 10, h: 0.5 },
       { colour: 0x462d19, x: 6, y: 7.5, w: 10, h: 0.5 },
     ]);
+    expect(rects.slice(12)).toEqual(fenceCorners(GARDEN_ROOM));
   });
 });
 
@@ -308,7 +374,7 @@ describe('props', () => {
     const depth = (props: readonly Prop[], key: string) => propSprite(propByKey(props, key))?.depth;
     expect(depth(SHED_ROOM.props, 'workbench')).toBe(100);
     expect(depth(SHED_ROOM.props, 'door')).toBe(208);
-    expect(depth(GARDEN_ROOM.props, 'door')).toBe(220);
+    expect(depth(GARDEN_ROOM.props, 'door')).toBe(240);
   });
 
   it("draws the shed door on the bottom wall: inst_52E224DC's 32 px square at top-left (464, 416)", () => {
@@ -320,14 +386,23 @@ describe('props', () => {
     );
   });
 
-  it("draws each source plant's species frame and the garden door on its top-left origin", () => {
+  it("draws each source plant's species frame, the garden door in the shed's south face and the closed gate", () => {
     const frame = (key: string) => propSprite(propByKey(GARDEN_ROOM.props, key))?.frame;
     expect([frame('source_juniper'), frame('source_maple'), frame('source_pine')]).toEqual([
       0, 1, 2,
     ]);
     const door = propSprite(propByKey(GARDEN_ROOM.props, 'door'));
-    // Prototype top-left (16, 440), 32 px: logical (8, 220)..(24, 236).
-    expect(door && [door.x - 8, door.y - 8]).toEqual([8, 220]);
+    // The shed's south face's band, x 0..160, y 240..256: the door's 16 px square at (72, 240).
+    expect(door && [door.sheet.key, door.x - 8, door.y - 8]).toEqual(['spr_door', 72, 240]);
+    // The gate has no target but is a door in a wall: spr_door, closed, in the passage's north fence, sorted at its top.
+    const gate = propSprite(propByKey(GARDEN_ROOM.props, 'gate'));
+    expect(gate && [gate.sheet.key, gate.x, gate.y, gate.scale, gate.depth]).toEqual([
+      'spr_door',
+      440,
+      8,
+      0.5,
+      0,
+    ]);
   });
 
   it('draws no pedestal and no shadow for a display spot, which its furniture draws in the bake', () => {
@@ -362,7 +437,7 @@ describe('props', () => {
     expect(at(STUDY_ROOM.props, 'door_hallway')).toEqual(['spr_door', 136, 190, 0.5, 182]);
   });
 
-  it("draws the study's glazed double door over its 32x16 rect and the garden's glazed leaf on its fence, sorted at their top edge", () => {
+  it("draws the study's glazed double door over its 32x16 rect and the garden's glazed leaf in the house's back face, sorted at their top edge", () => {
     expect(SHEETS.doorGlass).toEqual({
       key: 'spr_door_glass',
       frameWidth: 64,
@@ -388,18 +463,18 @@ describe('props', () => {
     expect(at(STUDY_ROOM.props, 'door_garden')).toEqual(['spr_door_glass', 320, 216, 0.5, 208]);
     expect(at(GARDEN_ROOM.props, 'door_study')).toEqual([
       'spr_door_glass_single',
-      472,
-      190,
+      344,
+      136,
       0.5,
-      182,
+      128,
     ]);
     // The greenhouse's door and the garden's to it are glazed leaves too.
     expect(at(GARDEN_ROOM.props, 'door_greenhouse')).toEqual([
       'spr_door_glass_single',
-      448,
-      8,
+      336,
+      408,
       0.5,
-      0,
+      400,
     ]);
     expect(at(GREENHOUSE_ROOM.props, 'door_garden')).toEqual([
       'spr_door_glass_single',
@@ -442,8 +517,8 @@ describe('props', () => {
 describe('shadows', () => {
   it("halves the prototype's ellipses round each origin", () => {
     expect(propShadow(propByKey(GARDEN_ROOM.props, 'source_juniper'))).toEqual({
-      x: 140,
-      y: 90 + 10,
+      x: 80,
+      y: 472 + 10,
       w: 18,
       h: 2,
       alpha: 0.25,

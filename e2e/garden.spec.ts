@@ -10,6 +10,8 @@ import {
   collectErrors,
   continueGame,
   expect,
+  holdUntilAtLeast,
+  holdUntilNear,
   hook,
   interact,
   openInspector,
@@ -21,15 +23,16 @@ import {
   toTitle,
   walkTo,
 } from './drive';
+import { gardenToShed, throughDoor } from './rooms';
 
-// Shed door (240, 216), in the bottom wall, to the garden at (42, 228); garden
-// door (16, 228) back to the shed at (240, 190). Source plants: juniper
-// (140, 90), maple (260, 80).
+// Shed door (240, 216), in the bottom wall, to the garden at (80, 274); the
+// garden's door (80, 248), in the shed's south face, back to the shed at
+// (240, 190). Source plants along the south fence on the row y 472: juniper
+// x 80, maple 112, pine 144; a walk along the row y 469 has each in reach
+// from either side. The side gate (440, 8) tops the passage (rooms.ts).
 
-async function throughDoor(page: Page, room: string): Promise<void> {
-  await interact(page);
-  await page.waitForFunction((r) => window.__bonsai?.room === r, room);
-}
+/** The row the walks to the source plants take, 3 px above the plants' centres. */
+const BED_ROW = 469;
 
 async function toGarden(page: Page): Promise<void> {
   await walkTo(page, 200, 'left', 'door');
@@ -44,17 +47,32 @@ test.describe('the garden', () => {
 
     await toGarden(page);
     let h = await hook(page);
-    expect([h.room, h.player.x, h.player.y]).toEqual(['garden', 42, 228]);
+    expect([h.room, h.player.x, h.player.y, h.player.facing]).toEqual(['garden', 80, 274, 'down']);
     expect(h.near).toBe('');
 
-    await walkTo(page, 228, 'left', 'door');
-    await throughDoor(page, 'shed');
+    await gardenToShed(page);
     h = await hook(page);
     expect([h.room, h.player.x, h.player.y]).toEqual(['shed', 240, 190]);
     // Landed on the floor above the shed door, just out of its reach; a step down reaches it.
     expect(h.near).toBe('');
     await walkTo(page, 200, 'left', 'door');
     expect(h.treeLocations).toEqual([{ id: 0, name: "Granny's", location: 'shed' }]);
+    expect(errors).toEqual([]);
+  });
+
+  test('the side gate at the top of the passage is closed', async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await toGarden(page);
+    // Right along the landing's row into the east fence, then up the notch and the passage into the gate's fence.
+    await holdUntilAtLeast(page, 'ArrowRight', 'x', 440);
+    await holdUntilNear(page, 'ArrowUp', 'gate');
+    let h = await hook(page);
+    expect([h.room, h.near, h.prompt]).toEqual(['garden', 'gate', 'E: Gate']);
+    await interact(page);
+    await page.waitForFunction(() => window.__bonsai?.toast === 'The gate is closed.');
+    h = await hook(page);
+    expect([h.room, h.near]).toEqual(['garden', 'gate']);
     expect(errors).toEqual([]);
   });
 
@@ -65,12 +83,12 @@ test.describe('the garden', () => {
     const before = (await hook(page)).inventory;
     expect(before.cutting_juniper).toBe(0);
 
-    await walkTo(page, 90, 'right', 'source_juniper');
+    await walkTo(page, BED_ROW, 'right', 'source_juniper');
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.inventory.cutting_juniper === 1);
     expect((await hook(page)).toast).toBe('Took a Juniper cutting  (1 in inventory)');
 
-    await walkTo(page, 80, 'right', 'source_maple');
+    await walkTo(page, BED_ROW, 'right', 'source_maple');
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.toast.startsWith('Japanese Maple') === true);
     const h = await hook(page);
@@ -100,7 +118,7 @@ test.describe('the garden', () => {
     );
     expect((await hook(page)).season).toBe('autumn');
     await toGarden(page);
-    await walkTo(page, 80, 'right', 'source_maple');
+    await walkTo(page, BED_ROW, 'right', 'source_maple');
     expect((await hook(page)).prompt).toBe('E: Take Seeds');
     expect(await mapleSeeds(page)).toBe(1);
 
@@ -114,9 +132,10 @@ test.describe('the garden', () => {
 
 test.describe('garden screenshot', () => {
   // The shed door's landing on the S22 in landscape: the garden door set in the
-  // shed's back wall, as the phone's zoomed camera shows it. Weather off and
-  // the tutorial skipped, as in interiors.spec.ts, so nothing moves or covers it.
-  test("the garden's entry, its door in the shed's back wall", async ({ page }) => {
+  // shed's south face, the lawn and the greenhouse's corner below, as the
+  // phone's zoomed camera shows it. Weather off and the tutorial skipped, as in
+  // interiors.spec.ts, so nothing moves or covers it.
+  test("the garden's entry, its door in the shed's south face", async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape baseline only');
     await bootWorld(page);
     await openSettingsFromMenu(page);
@@ -129,7 +148,7 @@ test.describe('garden screenshot', () => {
 
     await toGarden(page);
     const h = await hook(page);
-    expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 42, 228, '']);
+    expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 80, 274, '']);
     await expect(page).toHaveScreenshot('garden-entry.png');
   });
 
@@ -163,7 +182,7 @@ test.describe('garden screenshot', () => {
 
       await toGarden(page);
       const h = await hook(page);
-      expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 42, 228, '']);
+      expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['garden', 80, 274, '']);
       await expect(page).toHaveScreenshot(`garden-${season}.png`);
     });
   }

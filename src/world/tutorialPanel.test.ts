@@ -181,16 +181,19 @@ describe('tutorial corner panel', () => {
   });
 
   it('clears the house pedestals with their labels and the garden source plants', () => {
-    const below = (p: Prop): number =>
-      p.pedestalKey === undefined ? p.y + p.h / 2 : PEDESTAL_LABEL_DY + p.y + LINE_10;
-    const props = [...LOUNGE_ROOM.props, ...STUDY_ROOM.props, ...GARDEN_ROOM.props].filter(
-      (p) => p.pedestalKey !== undefined || p.speciesKey !== undefined,
+    const below = (p: Prop): number => PEDESTAL_LABEL_DY + p.y + LINE_10;
+    const pedestals = [...LOUNGE_ROOM.props, ...STUDY_ROOM.props].filter(
+      (p) => p.pedestalKey !== undefined,
     );
-    expect(props).toHaveLength(7);
+    expect(pedestals).toHaveLength(4);
+    // At 1x the garden scrolls only up and down, so its plants can be at any height on screen: they clear the box on its left.
+    const plants = GARDEN_ROOM.props.filter((p) => p.speciesKey !== undefined);
+    expect(plants).toHaveLength(3);
     for (const step of tutorialAllSteps()) {
       const m = tutorialPanel(step, false, DESKTOP_UI);
       if (!m) throw new Error('no panel');
-      for (const p of props) expect(m.box.y).toBeGreaterThan(below(p));
+      for (const p of pedestals) expect(m.box.y).toBeGreaterThan(below(p));
+      for (const p of plants) expect(m.box.x).toBeGreaterThan(p.x + p.w / 2);
     }
   });
 });

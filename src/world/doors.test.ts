@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { LANDING_MARGIN, PLAYER_HALF, landing, wallDoor, type WallDoor } from './doors';
-import { GARDEN_ROOM, ROOMS } from './gardenRoom';
+import { SHEETS } from './assets';
+import { GARDEN_ROOM, GREENHOUSE, HOUSE, ROOMS, SHED } from './gardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { INTERACT_RANGE } from './interactables';
@@ -66,8 +67,8 @@ describe('doors', () => {
     expect(doors.map(({ room, door }) => `${room.key}.${door.key}:${door.wall}`)).toEqual([
       'shed.door:S',
       'shed.door_lounge:N',
-      'garden.door:W',
-      'garden.door_study:E',
+      'garden.door:N',
+      'garden.door_study:N',
       'garden.door_greenhouse:N',
       'lounge.door:S',
       'lounge.door_hallway:E',
@@ -105,15 +106,73 @@ describe('doors', () => {
       y: 190,
       facing: 'left',
     });
-    // W: the garden's shed door (16, 228), on the doorway's inner edge, cleared by its own half width.
-    expect(landing(GARDEN_ROOM, wallDoor(GARDEN_ROOM, 'door'))).toEqual({
-      x: 42,
-      y: 228,
+    // W: the hallway's lounge door (88, 190).
+    expect(landing(HALLWAY_ROOM, wallDoor(HALLWAY_ROOM, 'door_lounge'))).toEqual({
+      x: 114,
+      y: 190,
+      facing: 'right',
+    });
+  });
+
+  it("steps a door in a building's face inside the garden out from that face, not the fence ring", () => {
+    // Each face is one band deep, so the landing is 26 px below the door's centre as in a ring band.
+    for (const [key, x, y, face] of [
+      ['door', 80, 248, SHED],
+      ['door_study', 344, 136, HOUSE],
+      ['door_greenhouse', 336, 408, GREENHOUSE],
+    ] as const) {
+      const d = wallDoor(GARDEN_ROOM, key);
+      expect([d.x, d.y, d.wall], key).toEqual([x, y, 'N']);
+      expect(touches(face, d.x, d.y), key).toBe(true);
+      expect(face.y + face.h - d.y, key).toBe(8);
+      expect(landing(GARDEN_ROOM, d), key).toEqual({ x, y: y + 26, facing: 'down' });
+    }
+  });
+
+  it('measures from the innermost solid holding the door, and from the ring where none does', () => {
+    const base = { label: 'Door', prompt: 'Go', w: 16, h: 16 } as const;
+    const room: Room = {
+      ...SHED_ROOM,
+      walls: [...SHED_ROOM.walls, { x: 200, y: 48, w: 32, h: 40 }],
+      furniture: [{ sheet: SHEETS.desk, x: 280, y: 100, w: 32, h: 16, solid: true }],
+    };
+    // In the top band and a deeper wall overlapping it: stepped from the deeper one's edge, y 88.
+    const deep: WallDoor = { ...base, key: 'a', x: 216, y: 56, wall: 'N' };
+    expect(landing(room, deep)).toEqual({
+      x: 216,
+      y: 56 + 32 + PLAYER_HALF + LANDING_MARGIN,
+      facing: 'down',
+    });
+    // In a solid piece of furniture's front edge, facing up into the room from its top (y 100).
+    const desk: WallDoor = { ...base, key: 'b', x: 296, y: 108, wall: 'S' };
+    expect(landing(room, desk)).toEqual({ x: 296, y: 82, facing: 'up' });
+    // Held by no solid (outside the ring): the ring band's inner edge on its side, x 96 for W.
+    const gap: WallDoor = { ...base, key: 'c', x: 70, y: 150, wall: 'W' };
+    expect(landing(room, gap)).toEqual({
+      x: 70 + 26 + PLAYER_HALF + LANDING_MARGIN,
+      y: 150,
       facing: 'right',
     });
   });
 
   it('refuses a key that is not a door in a wall', () => {
     expect(() => wallDoor(SHED_ROOM, 'workbench')).toThrow('shed has no door workbench');
+  });
+
+  it("finds the garden's gate in the passage's north fence, a door with no target", () => {
+    const gate = wallDoor(GARDEN_ROOM, 'gate');
+    expect([gate.label, gate.prompt, gate.x, gate.y, gate.w, gate.h, gate.wall]).toEqual([
+      'Gate',
+      'Gate',
+      440,
+      8,
+      16,
+      16,
+      'N',
+    ]);
+    expect(gate.target).toBeUndefined();
+    expect(doors.some(({ door }) => door.key === 'gate')).toBe(false);
+    // In the ring's top band, so a landing would be 26 px below it, inside the passage.
+    expect(landing(GARDEN_ROOM, gate)).toEqual({ x: 440, y: 34, facing: 'down' });
   });
 });
