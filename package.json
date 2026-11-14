@@ -18,6 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:alt": "playwright test --config playwright.alt.config.ts",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build",
     "art:sheets": "node art/sheets.mjs",
     "art:interiors": "node art/interiors.mjs",
