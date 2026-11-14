@@ -20,17 +20,18 @@ import {
 } from './drive';
 import { gardenToGreenhouse, shedToGarden } from './rooms';
 
-// A version-5 save with a pedestal (id 0) at (240, 160) and a floor shelf
-// (id 1) at (304, 160) in the greenhouse, Granny's juniper carried. The
-// pedestal's one spot, placed_0, is centred at (248, 168); the shelf's two,
-// placed_1 and placed_1_2, at (312, 168) and (328, 168). Placed furniture is
-// walk-through. The greenhouse's landing is (240, 206).
+// A version-6 save with a pedestal (id 0) at (240, 128) and a floor shelf
+// (id 1) at (288, 128) in the greenhouse, both on its 10x7 floor (x 160..320,
+// y 80..192), Granny's juniper carried. The pedestal's one spot, placed_0, is
+// centred at (248, 136); the shelf's two, placed_1 and placed_1_2, at
+// (296, 136) and (312, 136). Placed furniture is walk-through. The
+// greenhouse's landing is (240, 174).
 
 async function seedAndContinue(page: Page): Promise<void> {
   const state = createNewGameState();
   state.placed = [
-    { id: 0, kind: 'pedestal', room: 'greenhouse', x: 240, y: 160 },
-    { id: 1, kind: 'floor_shelf', room: 'greenhouse', x: 304, y: 160 },
+    { id: 0, kind: 'pedestal', room: 'greenhouse', x: 240, y: 128 },
+    { id: 1, kind: 'floor_shelf', room: 'greenhouse', x: 288, y: 128 },
   ];
   state.nextPlacedId = 2;
   const [starter] = state.trees;
@@ -64,12 +65,12 @@ test.describe('placed furniture', () => {
 
     let h = await hook(page);
     expect(h.placed).toEqual([
-      { id: 0, kind: 'pedestal', x: 240, y: 160, w: 16, h: 16, spots: ['placed_0'] },
+      { id: 0, kind: 'pedestal', x: 240, y: 128, w: 16, h: 16, spots: ['placed_0'] },
       {
         id: 1,
         kind: 'floor_shelf',
-        x: 304,
-        y: 160,
+        x: 288,
+        y: 128,
         w: 32,
         h: 16,
         spots: ['placed_1', 'placed_1_2'],
@@ -105,13 +106,13 @@ test.describe('placed furniture', () => {
     expect(h.placed?.map((p) => p.kind)).toEqual(['pedestal', 'floor_shelf']);
 
     // Empty-handed at the shelf's empty first spot: Pick up puts it back in the inventory.
-    await walkTo(page, 168, 'right', 'placed_1');
+    await walkTo(page, 136, 'right', 'placed_1');
     expect((await hook(page)).prompt).toContain('Pick up');
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.toast === 'Picked up Floor shelf');
     h = await hook(page);
     expect(h.placed).toEqual([
-      { id: 0, kind: 'pedestal', x: 240, y: 160, w: 16, h: 16, spots: ['placed_0'] },
+      { id: 0, kind: 'pedestal', x: 240, y: 128, w: 16, h: 16, spots: ['placed_0'] },
     ]);
 
     await openMenu(page);

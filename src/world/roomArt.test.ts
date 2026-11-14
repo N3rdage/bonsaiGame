@@ -63,7 +63,7 @@ describe('floor', () => {
       [LOUNGE_ROOM, SHEETS.floorLounge, { x: 64, y: 112, w: 352, h: 96 }, 6, 22],
       [HALLWAY_ROOM, SHEETS.floorHallway, { x: 96, y: 176, w: 288, h: 32 }, 2, 18],
       [STUDY_ROOM, SHEETS.floorStudy, { x: 144, y: 112, w: 192, h: 96 }, 6, 12],
-      [GREENHOUSE_ROOM, SHEETS.floorGreenhouse, { x: 64, y: 64, w: 352, h: 160 }, 10, 22],
+      [GREENHOUSE_ROOM, SHEETS.floorGreenhouse, { x: 160, y: 80, w: 160, h: 112 }, 7, 10],
     ] as const) {
       const tiles = floorTiles(room);
       expect(tiles.sheet).toBe(sheet);
@@ -193,10 +193,10 @@ describe('walls', () => {
         GREENHOUSE_ROOM,
         SHEETS.wallGlass,
         [
-          [48, 48, 384, 16],
-          [48, 224, 384, 16],
-          [48, 64, 16, 160],
-          [416, 64, 16, 160],
+          [144, 64, 192, 16],
+          [144, 192, 192, 16],
+          [144, 80, 16, 112],
+          [320, 80, 16, 112],
         ],
       ],
     ] as const) {
@@ -479,9 +479,9 @@ describe('props', () => {
     expect(at(GREENHOUSE_ROOM.props, 'door_garden')).toEqual([
       'spr_door_glass_single',
       240,
-      232,
+      200,
       0.5,
-      224,
+      192,
     ]);
     // Every other door keeps the prototype's spr_door.
     const doors = Object.values(ROOMS).flatMap((r) =>

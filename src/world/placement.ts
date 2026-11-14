@@ -6,6 +6,7 @@
  * earns display revenue like any displayed tree. Pure; no Phaser.
  */
 
+import { PLACEABLE_SIZES } from '../sim/greenhouseFloor';
 import { inventoryAdd, inventoryRemove } from '../sim/inventory';
 import { DISPLAYED_PREFIX, treeOnPedestal } from '../sim/tree';
 import type { GameState, PlaceableKind, PlacedItem } from '../sim/types';
@@ -15,15 +16,15 @@ import type { Facing } from './player';
 import { TILE } from './roomArt';
 import { insideWalls, type Furniture, type Prop, type Rect, type Room } from './shedRoom';
 
-/** Each kind's label, footprint in logical px and display spots, side by side along its width. */
+/** Each kind's label, footprint in logical px (`PLACEABLE_SIZES`) and display spots, side by side along its width. */
 export const PLACEABLES: Readonly<
   Record<
     PlaceableKind,
     { readonly label: string; readonly w: number; readonly h: number; readonly spots: number }
   >
 > = {
-  pedestal: { label: 'Pedestal', w: 16, h: 16, spots: 1 },
-  floor_shelf: { label: 'Floor shelf', w: 32, h: 16, spots: 2 },
+  pedestal: { label: 'Pedestal', ...PLACEABLE_SIZES.pedestal, spots: 1 },
+  floor_shelf: { label: 'Floor shelf', ...PLACEABLE_SIZES.floor_shelf, spots: 2 },
 };
 
 /** Each kind's sprite, its frame the footprint at half scale. */
