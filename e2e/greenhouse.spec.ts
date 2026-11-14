@@ -12,7 +12,9 @@ import {
 import { gardenToGreenhouse, greenhouseToGarden, shedToGarden } from './rooms';
 
 // The doors and landings are in rooms.ts. The greenhouse is an empty glass
-// house off the garden's top fence, x 48..432 and y 48..240.
+// house standing in the back garden's lawn, 5 x 3.5 m: x 144..336 and y 64..208 with
+// its glass, a 10x7-tile floor x 160..320, y 80..192, its door at (240, 200)
+// in the bottom wall.
 
 async function expectAt(page: Page, room: string, x: number, y: number): Promise<void> {
   const h = await hook(page);
@@ -31,7 +33,7 @@ test.describe('the greenhouse', () => {
     await expectAt(page, 'garden', 80, 274);
 
     await gardenToGreenhouse(page);
-    await expectAt(page, 'greenhouse', 240, 206);
+    await expectAt(page, 'greenhouse', 240, 174);
     await greenhouseToGarden(page);
     await expectAt(page, 'garden', 336, 434);
     expect(errors).toEqual([]);
@@ -55,7 +57,7 @@ test.describe('greenhouse screenshot', () => {
 
     await shedToGarden(page);
     await gardenToGreenhouse(page);
-    await expectAt(page, 'greenhouse', 240, 206);
+    await expectAt(page, 'greenhouse', 240, 174);
     await expect(page).toHaveScreenshot('greenhouse-entry.png');
   });
 });

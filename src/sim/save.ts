@@ -9,12 +9,15 @@
  * is version 3 with the display spots' final keys (`PRE_V4_DISPLAY_KEYS`);
  * version 5 (`SaveFileV5`) adds the placed furniture (`placed`, `nextPlacedId`),
  * read as none from older saves; a duplicate placed id is refused and
- * `nextPlacedId` is raised above every placed id.
+ * `nextPlacedId` is raised above every placed id. Version 6 (`SaveFileV6`)
+ * has version 5's shape; the greenhouse shrank to 5 x 3.5 m between them, so
+ * a version-5 save passes through `migrateGreenhouseGrid`.
  * Storage is injected (MemorySaveStorage here, localStorage in src/platform)
  * so this module stays free of DOM APIs.
  */
 
-import { createInventory } from './inventory';
+import { onGreenhouseFloor } from './greenhouseFloor';
+import { createInventory, inventoryAdd } from './inventory';
 import { SPECIES_KEYS } from './species';
 import { STYLE_KEYS } from './styles';
 import { DISPLAYED_PREFIX, createTree } from './tree';
@@ -37,16 +40,17 @@ import type {
   WireRecord,
 } from './types';
 
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 export const SAVE_SLOT_COUNT = 3;
 
 /**
- * The shape `serializeState` writes. Version 4 was the same without `placed`
- * and `nextPlacedId`; version 3 was version 4 with the old display keys;
- * version 2 was version 3 without `seasonTipShown`.
+ * The shape `serializeState` writes. Version 5 was the same shape with its
+ * greenhouse items laid out on the old 22x10 floor; version 4 was version 5
+ * without `placed` and `nextPlacedId`; version 3 was version 4 with the old
+ * display keys; version 2 was version 3 without `seasonTipShown`.
  */
-export interface SaveFileV5 {
-  version: 5;
+export interface SaveFileV6 {
+  version: 6;
   savedAt: string;
   day: number;
   money: number;
@@ -107,9 +111,9 @@ export function formatSaveTimestamp(date: Date): string {
   );
 }
 
-/** Writes a version-5 save. `state.paused` is transient and never written; loads start unpaused. */
+/** Writes a version-6 save. `state.paused` is transient and never written; loads start unpaused. */
 export function serializeState(state: GameState, now: Date): string {
-  const file: SaveFileV5 = {
+  const file: SaveFileV6 = {
     version: SAVE_VERSION,
     savedAt: formatSaveTimestamp(now),
     day: state.day,
@@ -147,7 +151,8 @@ export function deserializeSave(text: string): GameState {
   if (version === 2) return migrateDisplayKeys(readV2Save(raw));
   if (version === 3) return migrateDisplayKeys(readV3Save(raw));
   if (version === 4) return readV4Save(raw);
-  if (version === 5) return readV5Save(raw);
+  if (version === 5) return migrateGreenhouseGrid(readPlacedSave(raw, 'Save v5'));
+  if (version === 6) return readPlacedSave(raw, 'Save v6');
   throw new Error(`Unsupported save version: ${String(raw.version)}`);
 }
 
@@ -344,7 +349,7 @@ export function importPrototypeSave(raw: unknown): GameState {
 }
 
 // ---------------------------------------------------------------------------
-// Versions 2 to 5: this port's shape
+// Versions 2 to 6: this port's shape
 
 /**
  * A version-2 save: version 3's fields without `seasonTipShown`, which
@@ -383,9 +388,8 @@ function placeableKind(v: unknown, where: string): PlaceableKind {
   throw new Error(`${where}: unknown placed kind ${String(v)}`);
 }
 
-/** A version-5 save: version 4 plus the placed furniture. */
-function readV5Save(raw: Record<string, unknown>): GameState {
-  const where = 'Save v5';
+/** A version-5 or version-6 save, one shape: version 4 plus the placed furniture. */
+function readPlacedSave(raw: Record<string, unknown>, where: string): GameState {
   const rawPlaced = Array.isArray(raw.placed) ? (raw.placed as unknown[]) : [];
   const placed = rawPlaced.map((item, i): PlacedItem => {
     const r = asRecord(item);
@@ -408,6 +412,28 @@ function readV5Save(raw: Record<string, unknown>): GameState {
     placed,
     nextPlacedId: Math.max(int(raw.nextPlacedId, 0), maxId + 1),
   };
+}
+
+/**
+ * Every version-5 save passes through here: its greenhouse was 22x10 tiles,
+ * version 6's is 10x7 (`GREENHOUSE_FLOOR`). A greenhouse item that still lies
+ * wholly on the floor keeps its x, y; any other goes back into the inventory,
+ * and a tree displayed on one of its spots is put down on the greenhouse floor.
+ * `nextPlacedId` is left alone, so no id is reused.
+ */
+function migrateGreenhouseGrid(state: GameState): GameState {
+  const removed = state.placed.filter(
+    (p) => p.room === 'greenhouse' && !onGreenhouseFloor(p.kind, p.x, p.y),
+  );
+  const ids = new Set(removed.map((p) => p.id));
+  const placedSpot = new RegExp(`^${DISPLAYED_PREFIX}placed_(\\d+)(?:_\\d+)?$`);
+  for (const item of removed) inventoryAdd(state.inventory, item.kind);
+  for (const t of state.trees) {
+    const id = placedSpot.exec(t.location)?.[1];
+    if (id !== undefined && ids.has(Number(id))) t.location = 'greenhouse';
+  }
+  state.placed = state.placed.filter((p) => !ids.has(p.id));
+  return state;
 }
 
 /**
