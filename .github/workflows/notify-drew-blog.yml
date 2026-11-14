@@ -10,6 +10,9 @@ permissions: {}
 jobs:
   dispatch:
     runs-on: ubuntu-latest
+    # The dispatch token lives in the `production` environment, whose deployment branches are
+    # limited to `main`, so a workflow on any other branch cannot read it (security audit 2026-11-14).
+    environment: production
     steps:
       - name: Send repository_dispatch to drew-blog
         env:
