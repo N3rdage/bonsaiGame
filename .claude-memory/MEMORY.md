@@ -19,8 +19,5 @@
 - [Bundle bookkeeping with final feature PR](feedback_bookkeeping_with_final_pr.md) — TODO/ARCH/CLAUDE updates ride the last feature PR, not a follow-up.
 - [Sign-off rhyme call-and-response](feedback_signoff_rhyme.md) — initiator says "See you later, alligator"; response is "In a while, crocodile". Don't swap.
 - [UI text must be ASCII](project_ui_text_ascii_only.md) — built-in font only covers ASCII; em-dashes/curly quotes render blank in drawn strings. Use " - ", not "—".
-- [Azure subscription check](feedback_azure_subscription.md) — only "Sponge Box Consulting - Business Sub" ("Bikini Bottom"); verify `az account show` before any Azure action.
-- [agentic-gaming infra repo](project_agentic_gaming_infra.md) — private repo N3rdage/agentic-gaming (F:gentic-gaming): Bicep/scripts/orchestrator/backlog, two GitHub Apps (agent + reviewer), autonomous merge loop, bonsai.silly.ninja; in-flight items as of 2026-11-08.
-- [Git Bash path conversion](reference_git_bash_pathconv.md) — `!`/Bash on Windows mangles `/subscriptions/...` args; prefix az with `MSYS_NO_PATHCONV=1` or use PowerShell.
-- [Azure from a cloud session](reference_cloud_session_azure.md) — start on the "Bonsai Greenhouse (Azure ops)" environment, pip-install az into a venv, device-code login as the operator account, az logout after.
-- [Operator session playbook](reference_operator_session_playbook.md) — how to steer the orchestrator from a cloud session: orient order, relaying decisions and steering via issue comments, what the session can and cannot do (Azure job writes need Cloud Shell), the blog pipeline, backlog conventions.
+- [Operator and infrastructure notes live in the private repo](reference_private_operator_notes.md) — the platform, Azure access, the operator playbook and Drew's time zone are in `N3rdage/agentic-gaming` under `docs/operator-memory/`; read them there.
+- [No identifiers in this public repo](feedback_no_identifiers_in_public_repo.md) — never write account names, tenant or subscription names, resource names, App ids or Drew's location into memory, docs, PRs or posts here.
