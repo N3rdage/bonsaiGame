@@ -28,12 +28,12 @@ test.describe('the greenhouse', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await shedToGarden(page);
-    await expectAt(page, 'garden', 42, 228);
+    await expectAt(page, 'garden', 80, 274);
 
     await gardenToGreenhouse(page);
     await expectAt(page, 'greenhouse', 240, 206);
     await greenhouseToGarden(page);
-    await expectAt(page, 'garden', 448, 34);
+    await expectAt(page, 'garden', 336, 434);
     expect(errors).toEqual([]);
   });
 });

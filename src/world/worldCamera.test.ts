@@ -40,7 +40,7 @@ describe('viewSize', () => {
 describe('worldView', () => {
   it('pins the drawn extents it clamps to', () => {
     expect(SHED).toEqual({ x: 80, y: 48, w: 320, h: 176 });
-    expect(GARDEN).toEqual({ x: 0, y: 0, w: 480, h: 270 });
+    expect(GARDEN).toEqual({ x: 0, y: 0, w: 464, h: 512 });
   });
 
   it('centres the view on the player away from the edges', () => {
@@ -65,23 +65,34 @@ describe('worldView', () => {
   });
 
   it('keeps the garden view inside the room at each edge', () => {
+    // Clamp range at 2x: x 0..224 (464 - 240), y 0..377 (512 - 135).
     expect(worldView({ x: 20, y: 135 }, GARDEN, 2).scrollX).toBe(0);
-    expect(worldView({ x: 460, y: 135 }, GARDEN, 2).scrollX).toBe(240);
-    expect(worldView({ x: 240, y: 20 }, GARDEN, 2).scrollY).toBe(0);
-    expect(worldView({ x: 240, y: 250 }, GARDEN, 2).scrollY).toBe(135);
-    // The garden door's landing spot is in the bottom-left corner.
-    expect(worldView({ x: 50, y: 225 }, GARDEN, 2)).toEqual({ zoom: 2, scrollX: 0, scrollY: 135 });
+    expect(worldView({ x: 440, y: 135 }, GARDEN, 2).scrollX).toBe(224);
+    expect(worldView({ x: 440, y: 20 }, GARDEN, 2).scrollY).toBe(0);
+    expect(worldView({ x: 240, y: 490 }, GARDEN, 2).scrollY).toBe(377);
+    // The shed door's landing (80, 274) is against the left edge, the view centred on its row.
+    expect(worldView({ x: 80, y: 274 }, GARDEN, 2)).toEqual({
+      zoom: 2,
+      scrollX: 0,
+      scrollY: 206.5,
+    });
   });
 
-  it('shows the whole canvas at 1x wherever the player is, as the unzoomed world did', () => {
+  it('shows the whole shed at 1x wherever the player is, as the unzoomed world did', () => {
     for (const at of [
       { x: 96, y: 60 },
       { x: 240, y: 135 },
       { x: 384, y: 210 },
     ]) {
       expect(worldView(at, SHED, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 0 });
-      expect(worldView(at, GARDEN, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 0 });
     }
+  });
+
+  it('follows the garden up and down at 1x, taller than the 270 px view, with its 464 px width held still', () => {
+    // Clamp range at 1x: x stays 0 (the garden is narrower than the 480 px canvas), y 0..242 (512 - 270).
+    expect(worldView({ x: 440, y: 20 }, GARDEN, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 0 });
+    expect(worldView({ x: 80, y: 274 }, GARDEN, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 139 });
+    expect(worldView({ x: 240, y: 490 }, GARDEN, 1)).toEqual({ zoom: 1, scrollX: 0, scrollY: 242 });
   });
 
   it("follows along the house rooms' own extents and centres those shorter than the view", () => {
