@@ -87,10 +87,10 @@ describe('doors', () => {
       y: 82,
       facing: 'down',
     });
-    // S: the greenhouse's door (240, 232).
+    // S: the greenhouse's door (240, 200).
     expect(landing(GREENHOUSE_ROOM, wallDoor(GREENHOUSE_ROOM, 'door_garden'))).toEqual({
       x: 240,
-      y: 206,
+      y: 174,
       facing: 'up',
     });
     // S, 32 wide: the study's glass doors (320, 216).

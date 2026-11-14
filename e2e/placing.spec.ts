@@ -29,11 +29,11 @@ import {
 } from './drive';
 import { gardenToGreenhouse, shedToGarden, throughDoor } from './rooms';
 
-// A version-5 save with a pedestal and a floor shelf in the inventory, nothing
+// A version-6 save with a pedestal and a floor shelf in the inventory, nothing
 // placed (so the first placed item is placed_0), Granny's juniper carried. The
-// greenhouse's floor is x 64..416, y 64..224; its landing is (240, 206) and a
-// walk straight down from it stops against the bottom wall at y 223.5, the
-// door's tile (240, 224) below in the wall band.
+// greenhouse's floor is 10x7 tiles, x 160..320, y 80..192; its landing is
+// (240, 174) and a walk straight down from it stops against the bottom wall at
+// y 191.5, the door's tile (240, 192) below in the wall band.
 
 async function seedAndContinue(page: Page): Promise<void> {
   const state = createNewGameState();
@@ -95,17 +95,17 @@ test.describe('placement mode', () => {
     await nextPlacingKind(page);
     expect((await hook(page)).placing?.kind).toBe('pedestal');
 
-    // The player came in facing up. A step up and back down to y 196..202.25, facing down:
-    // the ghost is the landing tile, inside the door's clearance ring.
-    await walkToRow(page, 190);
-    await walkToRow(page, 196);
+    // The player came in facing up. A step up and back down to y 164..170.25, facing down:
+    // the ghost is the floor's bottom row below the landing, inside the door's clearance ring.
+    await walkToRow(page, 158);
+    await walkToRow(page, 164);
     await settle(page);
     let h = await hook(page);
     expect(h.player.facing).toBe('down');
     expect(h.placing).toEqual({
       kind: 'pedestal',
       x: 240,
-      y: 208,
+      y: 176,
       w: 16,
       h: 16,
       check: 'blocks the door',
@@ -127,15 +127,15 @@ test.describe('placement mode', () => {
     await page.waitForFunction(() => window.__bonsai?.panel === '');
     expect((await hook(page)).placingVisible).toBe(true);
 
-    // Against the bottom wall facing down, the ghost is over the door's tile, in the wall band.
-    await holdUntilAtLeast(page, 'ArrowDown', 'y', 223);
+    // Against the bottom wall facing down, the ghost is over the door's tile, below row 7 in the wall band.
+    await holdUntilAtLeast(page, 'ArrowDown', 'y', 191);
     await settle(page);
     h = await hook(page);
     expect(h.player.facing).toBe('down');
     expect(h.placing).toEqual({
       kind: 'pedestal',
       x: 240,
-      y: 224,
+      y: 192,
       w: 16,
       h: 16,
       check: 'off the floor',
@@ -150,7 +150,7 @@ test.describe('placement mode', () => {
     expect(h.placed).toEqual([]);
 
     // Up onto open floor: the ghost on the tile above the player is green.
-    await holdUntilAtMost(page, 'ArrowUp', 'y', 190);
+    await holdUntilAtMost(page, 'ArrowUp', 'y', 158);
     await settle(page);
     h = await hook(page);
     const ghost = h.placing;
@@ -238,7 +238,7 @@ test.describe('placement mode', () => {
     expect((await hook(page)).placing?.kind).toBe('floor_shelf');
 
     // Up from the landing onto open floor, clear of the door: the shelf's ghost is green.
-    await holdUntilAtMost(page, 'ArrowUp', 'y', 170);
+    await holdUntilAtMost(page, 'ArrowUp', 'y', 138);
     await settle(page);
     h = await hook(page);
     const ghost = h.placing;
