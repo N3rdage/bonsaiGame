@@ -137,7 +137,7 @@ function sideDoor(png, mirror) {
   put(27, 21, BRASS_DARK);
 }
 
-export const WINDOW ={ name: 'spr_window', width: SIZE, height: SIZE, draw: windowPane };
+export const WINDOW = { name: 'spr_window', width: SIZE, height: SIZE, draw: windowPane };
 
 export const DOUBLE_DOOR = {
   name: 'spr_door_glass',
