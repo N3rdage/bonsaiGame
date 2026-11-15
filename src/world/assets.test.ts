@@ -54,6 +54,12 @@ describe('sprite sheets', () => {
       ['spr_pot_stack', 40, 40, 1],
       ['spr_sack', 32, 34, 1],
       ['spr_roof', 32, 32, 1],
+      ['spr_road', 64, 192, 1],
+      ['spr_fence_low', 32, 32, 1],
+      ['spr_drive', 32, 32, 1],
+      ['spr_bed', 32, 32, 1],
+      ['spr_roller_door', 154, 32, 1],
+      ['spr_gate', 32, 32, 1],
       ['spr_pedestal', 32, 32, 1],
       ['spr_floor_shelf', 64, 32, 1],
     ]);

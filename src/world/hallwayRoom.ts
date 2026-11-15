@@ -4,9 +4,11 @@
  * and canvas but only 64 px tall, a ring of solid walls round a two-tile floor
  * with the dark background above and below, no windows and no display spots,
  * a runner down it and a console table, neither of which stops the player,
- * and a door in each side wall. Both doors sit on the row y 190, as do the
- * doors they lead to, so every walk through the house is a straight walk along
- * that row into the wall the door is in.
+ * a door in each side wall and the front door in the top wall. Both side
+ * doors sit on the row y 190, as do the doors they lead to, so every walk
+ * through the house is a straight walk along that row into the wall the door
+ * is in. The corridor keeps this shape until plan B3's 3 x 2 m entrance hall
+ * replaces it; the front door is already at its centre, where B3 puts it.
  */
 
 import { SHEETS } from './assets';
@@ -60,6 +62,13 @@ export const HALLWAY_ROOM: Room = {
       ...prop('door_lounge', 'Door', 'To Lounge', 160 + 16, 364 + 16, 16, 16),
       wall: 'W',
       target: { room: 'lounge', door: 'door_hallway' },
+    },
+    // The front door (plan B3 row 6), in the top wall's band at its centre, prototype
+    // top-left (464, 320), to beside the front garden's door to the hallway.
+    {
+      ...prop('door_front', 'Door', 'To Front Garden', 464 + 16, 320 + 16, 16, 16),
+      wall: 'N',
+      target: { room: 'frontGarden', door: 'door_house' },
     },
     // The right wall's band, prototype top-left (768, 364), to beside the study's door.
     {

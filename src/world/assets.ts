@@ -6,7 +6,7 @@
  * horizontal strip in the order of the sprite's `.yy` frames. The house
  * rooms' tiles (lounge, hallway, study, greenhouse), their window and their furniture have
  * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws them,
- * and the buildings' roofs seen from the garden.
+ * the buildings' roofs seen from the garden and the front garden's sheets.
  * The shed's window is the house rooms' window, not the prototype's
  * `spr_window`, which shares its name.
  */
@@ -71,6 +71,14 @@ export const SHEETS = {
   sack: sheet('spr_sack', 1, 32, 34),
   // The house's and the shed's roofs seen from the garden, drawn by art/interiors.mjs.
   roof: sheet('spr_roof'),
+  // The front garden's road (3 m deep, its kerb at the foot), low front fence, drive, beds,
+  // the garage's roller door (2.4 m) and the side gate, drawn by art/interiors.mjs.
+  road: sheet('spr_road', 1, 64, 192),
+  fenceLow: sheet('spr_fence_low'),
+  drive: sheet('spr_drive'),
+  bed: sheet('spr_bed'),
+  rollerDoor: sheet('spr_roller_door', 1, 154, 32),
+  gate: sheet('spr_gate'),
   // The placed furniture: the prototype's pedestal, packed, and the floor shelf, drawn by art/interiors.mjs.
   pedestal: sheet('spr_pedestal'),
   floorShelf: sheet('spr_floor_shelf', 1, 64, 32),

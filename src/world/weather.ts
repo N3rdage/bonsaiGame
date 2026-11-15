@@ -141,12 +141,12 @@ export const SHED_WEATHER_AREA: WeatherArea = {
 /** Spawn and wrap band just outside the area: the prototype's 24 px, halved. */
 export const WEATHER_MARGIN = fromPrototype(24);
 
-/** Whether a room has the indoor motes (every room but the garden, which has the season's weather; the glass greenhouse is indoors). */
+/** Whether a room has the indoor motes (every room but the back and front gardens, which have the season's weather; the glass greenhouse is indoors). */
 export function isIndoor(room: Room): boolean {
-  return room.key !== 'garden';
+  return room.key !== 'garden' && room.key !== 'frontGarden';
 }
 
-/** An indoor room's wall ring from its top-left corner tile to its bottom-right one (the shed's SHED_WEATHER_AREA), or the whole room for the garden. */
+/** An indoor room's wall ring from its top-left corner tile to its bottom-right one (the shed's SHED_WEATHER_AREA), or the whole canvas for a garden (the front garden's road and roofs too). */
 export function weatherArea(room: Room): WeatherArea {
   if (!isIndoor(room)) return { x0: 0, y0: 0, x1: room.width, y1: room.height };
   const { x, y, w, h } = room.bounds;
