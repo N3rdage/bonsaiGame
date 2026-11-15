@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { branchPoint, trunkFrameAt, trunkFrames } from '../sim/geometry';
+import { branchFrameAt, branchPoint, trunkFrameAt, trunkFrames } from '../sim/geometry';
 import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { BonsaiTree, Branch, Vec3 } from '../sim/types';
@@ -36,6 +36,7 @@ import {
   speciesBark,
   stitchRings,
   trunkBaseRadius,
+  tubeNormals,
   wireCoilSegments,
   wireCoilTurns,
   wireRadius,
@@ -91,6 +92,35 @@ function centroid(ring: Vec3[]): Vec3 {
 }
 
 const dist = (a: Vec3, b: Vec3): number => Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+const dot = (a: Vec3, b: Vec3): number => a.x * b.x + a.y * b.y + a.z * b.z;
+
+function normalAt(mesh: MeshArrays, v: number): Vec3 {
+  const n = mesh.normals;
+  return { x: n[v * 3] ?? NaN, y: n[v * 3 + 1] ?? NaN, z: n[v * 3 + 2] ?? NaN };
+}
+
+/** Degrees between a unit normal and the plane perpendicular to the unit tangent. */
+function tiltDeg(n: Vec3, tangent: Vec3): number {
+  return (Math.asin(Math.min(1, Math.abs(dot(n, tangent)))) * 180) / Math.PI;
+}
+
+/**
+ * Ring and point index of vertex `k` within a stitched tube of `segments`-point
+ * rings: segment s of band b emits (a_s, b_s, a_s+1, a_s+1, b_s, b_s+1).
+ */
+function tubeVertex(k: number, segments: number): { ring: number; point: number } {
+  const band = Math.floor(k / (segments * 6));
+  const seg = Math.floor(k / 6) % segments;
+  const [onB, next] = [
+    [0, 0],
+    [1, 0],
+    [0, 1],
+    [0, 1],
+    [1, 0],
+    [1, 1],
+  ][k % 6] ?? [NaN, NaN];
+  return { ring: band + (onB ?? NaN), point: (seg + (next ?? NaN)) % segments };
+}
 
 describe('tree mesh constants (scr_bonsai_mesh build_trunk / build_branch)', () => {
   it('match the prototype', () => {
@@ -245,6 +275,25 @@ describe('ring helpers', () => {
     ]);
   });
 
+  it('tubeNormals drops the along-tangent part of each offset; stitchRings uses given normals', () => {
+    // A flat ring around a tube rising at 45 degrees in the xz plane.
+    const c = { x: 1, y: 2, z: 3 };
+    const t = { x: Math.SQRT1_2, y: 0, z: Math.SQRT1_2 };
+    const ring = buildRing(c, 0.5, 4);
+    const normals = tubeNormals(ring, c, t);
+    // +x offset: (0.5, 0, 0) minus its along-tangent part (0.25, 0, 0.25), normalised.
+    expectVec(normals[0] ?? c, { x: Math.SQRT1_2, y: 0, z: -Math.SQRT1_2 }, 12);
+    expectVec(normals[1] ?? c, { x: 0, y: 1, z: 0 }, 12);
+    for (const n of normals) expect(dot(n, t)).toBeCloseTo(0, 12);
+
+    const list = new TriangleList();
+    stitchRings(list, ring, ring, { r: 0, g: 0, b: 0 }, 0, 1, { a: normals, b: normals });
+    const mesh = list.build();
+    // Segment 0 is (a0, b0, a1, a1, b0, b1).
+    expectVec(normalAt(mesh, 0), normals[0] ?? c, 6);
+    expectVec(normalAt(mesh, 2), normals[1] ?? c, 6);
+  });
+
   it('ringU and ringNormals', () => {
     expect(ringU(0, 10)).toBe(0);
     expect(ringU(5, 10)).toBe(1);
@@ -353,6 +402,62 @@ describe('buildTreeMesh', () => {
     };
     expectVec(centroid(tip), tipCentre);
     for (const p of tip) expect(dist(p, tipCentre)).toBeCloseTo(0.005, 5);
+  });
+
+  it('shades a steeply rising branch radial to its tangent, on the same flat rings', () => {
+    const tree = starterTree();
+    const first = tree.branches[0];
+    if (!first) throw new Error('no branch');
+    const branch: Branch = { ...first, girth: 8, bendV: 70 };
+    tree.branches = [branch];
+    // The tip rises at more than 60 degrees.
+    expect(branchFrameAt(tree, branch, 1).tangent.z).toBeGreaterThan(Math.sin(Math.PI / 3));
+
+    const mesh = buildTreeMesh(tree);
+    const total = mesh.positions.length / 3;
+    const start = total - BRANCH_SEGMENTS * BRANCH_RING_SEGMENTS * 6;
+    const r0 = (branch.girth / 1000) * 4;
+    let oldWorst = 0;
+    for (let k = 0; k < total - start; k++) {
+      const { ring, point } = tubeVertex(k, BRANCH_RING_SEGMENTS);
+      const t = ring / BRANCH_SEGMENTS;
+      const r = Math.max(r0 + (r0 * BRANCH_TIP_FRACTION - r0) * t, BRANCH_MIN_RADIUS);
+      const centre = branchPoint(tree, branch, t);
+      const flat = buildRing(centre, r, BRANCH_RING_SEGMENTS);
+      const p = flat[point] ?? centre;
+      // Geometry unmoved: the prototype's flat ring around branchPoint, exactly.
+      expect(positionAt(mesh, start + k)).toEqual({
+        x: Math.fround(p.x),
+        y: Math.fround(p.y),
+        z: Math.fround(p.z),
+      });
+
+      const { tangent } = branchFrameAt(tree, branch, t);
+      const n = normalAt(mesh, start + k);
+      expect(Math.hypot(n.x, n.y, n.z)).toBeCloseTo(1, 6);
+      expect(tiltDeg(n, tangent)).toBeLessThan(5);
+      expect(dot(n, { x: p.x - centre.x, y: p.y - centre.y, z: p.z - centre.z })).toBeGreaterThan(
+        0,
+      );
+      oldWorst = Math.max(oldWorst, tiltDeg(ringNormals(flat)[point] ?? n, tangent));
+    }
+    // The old in-ring-plane normals tilt far off the surface on this branch.
+    expect(oldWorst).toBeGreaterThan(45);
+  });
+
+  it("keeps the trunk's normals radial to its own tangent (its rings are already square to it)", () => {
+    const tree = VIEWER_FIXTURES.bent();
+    const mesh = buildTreeMesh(tree);
+    const frames = trunkFrames(tree);
+    const trunkVertices = (frames.length - 1) * TRUNK_RING_SEGMENTS * 6;
+    for (let k = 0; k < trunkVertices; k++) {
+      const f = frames[tubeVertex(k, TRUNK_RING_SEGMENTS).ring];
+      if (!f) throw new Error('no frame');
+      const p = positionAt(mesh, k);
+      const n = normalAt(mesh, k);
+      expect(dot(n, f.tangent)).toBeCloseTo(0, 5);
+      expect(dot(n, { x: p.x - f.pos.x, y: p.y - f.pos.y, z: p.z - f.pos.z })).toBeGreaterThan(0);
+    }
   });
 
   it("builds a maple's and a pine's trunk and branches in their own bark", () => {
