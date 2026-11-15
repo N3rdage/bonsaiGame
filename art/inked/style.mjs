@@ -1,8 +1,7 @@
 // The Inked style as data: its authoring scale, its palette and its knobs.
-// STYLE is the look Drew chose (backlog #137): the proposal's Inked made a
-// little grungier. PROPOSAL_STYLE turns every grunge knob off, which
-// reproduces the proposal render of #127 exactly; it exists so the two can be
-// shown side by side. art/inked/README.md documents each knob.
+// STYLE is the game's look: rough, uneven ink with dry-brush breaks and
+// spatter, washes that pool and bleed, paper grain, corner shading and wear.
+// art/inked/README.md documents each knob.
 
 /** Art px per logical px: a 16 px tile is 64 art px. */
 export const PER_LOGICAL = 4;
@@ -81,22 +80,4 @@ export const STYLE = {
   crossHatch: { angle: -0.75, spacing: 1.7 },
   cornerShade: 7,
   wear: 1,
-};
-
-/** The proposal's Inked (#127): every grunge knob off. */
-export const PROPOSAL_STYLE = {
-  jitter: 0.5,
-  overshoot: 1.5,
-  weightVariation: 0,
-  dryBrush: { strength: 0, minLength: 0, every: 1 },
-  spatter: { chance: 0, minWidth: 0, dots: 0, radius: 0 },
-  washPool: 0,
-  washPoolWidth: 0,
-  washBleed: 0,
-  washGranulation: 0,
-  grain: 0,
-  shadowAlpha: 0.35,
-  crossHatch: null,
-  cornerShade: 0,
-  wear: 0,
 };

@@ -205,7 +205,7 @@ describe('garden room', () => {
     return p;
   };
 
-  it("is plan B2's back garden, 14.5 x 16 m at 32 px a metre, with its green floor", () => {
+  it("is plan B3's back garden, 14.5 x 16 m at 32 px a metre, with its green floor", () => {
     expect([GARDEN_ROOM.key, GARDEN_ROOM.width, GARDEN_ROOM.height]).toEqual(['garden', 464, 512]);
     expect(GARDEN_ROOM.bounds).toEqual({ x: 0, y: 0, w: 464, h: 512 });
     expect(GARDEN_ROOM.floor).toBe(0x30502c);

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Bonsai Greenhouse is a cozy bonsai-growing sim, being rewritten as an installable **TypeScript web game** (Vite, Phaser for 2D rooms, Three.js for the 3D viewer, PWA). The GameMaker prototype it grew from is preserved, whole and frozen, in `archive/gamemaker/`. The rewrite is in progress; see `TODO.md` for which slices have landed.
+Bonsai Greenhouse is a cozy bonsai-growing sim, being rewritten as an installable **TypeScript web game** (Vite, Phaser for 2D rooms, Three.js for the 3D viewer, PWA). The GameMaker prototype it grew from is preserved, whole and frozen, in `archive/gamemaker/`. The rewrite is in progress; `TODO.md` is the roadmap of what is still to do.
 
 Read in this order for anything non-trivial:
 
@@ -21,6 +21,7 @@ A controlling agent builds this game on a schedule, with Drew reviewing PRs and 
 - The `needs-drew` label, a changes-requested review from Drew, or `hold` in a comment from Drew means that PR waits for him, however green it is.
 - Questions for Drew go to a `decision` issue in the backlog repo with A/B/C options and a recommendation, not into PR descriptions.
 - Milestones, major blockers and design decisions each get a blog post (see below) in their own PR.
+- Documents describe the present, never their own past. Git history, merged PRs and closed backlog issues are the record: no changelogs or shipped lists, no dated notes, no "previously" or "no longer" asides, no superseded plans kept beside the current one. A finished `TODO.md` row is deleted, not marked done. `blog/`, `archive/` and the ADRs are records by design and exempt.
 
 ## Build / run / test
 
@@ -42,7 +43,7 @@ npm run build && npm run test:e2e   # Playwright against the production build
 
 ## Layout
 
-- `src/main.ts` boots Phaser. `src/scenes/` holds Phaser scenes (world, UI). `src/sim/` is the simulation: pure, deterministic, no rendering or browser imports; `src/sim/types.ts` is its data model and `src/sim/__fixtures__/` holds real prototype saves for the importer tests. `src/platform/` is the thin browser-facing layer (storage adapters). `src/viewer/` (when it lands) is the Three.js tree viewer.
+- `src/main.ts` boots Phaser. `src/scenes/` holds Phaser scenes (world, UI). `src/sim/` is the simulation: pure, deterministic, no rendering or browser imports; `src/sim/types.ts` is its data model and `src/sim/__fixtures__/` holds real prototype saves for the importer tests. `src/platform/` is the thin browser-facing layer (storage adapters). `src/viewer/` is the Three.js tree viewer.
 - `e2e/` Playwright specs. `public/` static assets including `staticwebapp.config.json`, which Vite copies into `dist/`.
 - `archive/gamemaker/` the prototype. Read it, do not edit it.
 - `art/` source pixel art, the Python scripts that generate placeholder sprites, and `sheets.mjs` (`npm run art:sheets`), which packs the prototype's sprite frames into the sheets under `public/assets/`.

@@ -21,7 +21,7 @@ Entries should record:
 
 - **Watering is binary.** Click resets water to 100. Real-world: partial watering, soil moisture varies by drainage + pot size, over-watering causes root rot.
 - **Fertilizer is a 7-day window.** Boolean "fertilized or not." Real-world: NPK ratios, slow-vs-fast release, depletion curves over weeks, over-fertilizing burns roots.
-- **Soil is a two-tier flag, not a mix.** Basic vs premium akadama (`soil_tier`) modulates vigor-drift rate and water-stress penalties (see #2c), but it's a single boolean upgrade. Real-world: akadama / lava rock / pumice mix *percentages* tune drainage, water retention and root health independently — a continuous recipe, not one switch.
+- **Soil is a two-tier flag, not a mix.** Basic vs premium akadama (`soil_tier`) modulates vigor-drift rate and water-stress penalties, but it's a single boolean upgrade. Real-world: akadama / lava rock / pumice mix *percentages* tune drainage, water retention and root health independently — a continuous recipe, not one switch.
 
 ## Environment
 
@@ -32,14 +32,14 @@ Entries should record:
 ## Propagation
 
 - **Cuttings root immediately and always succeed.** Real-world: 2–8 week rooting period, species-dependent success rate (juniper ~50–70%, harder species much lower), failure leaves a wasted cutting.
-- **Cuttings are taken only in spring and summer ([TODO](TODO.md) 2e-a).** Autumn and winter refuse with the day the next spring starts. The tutorial's Take a cutting step therefore waits for spring if the player reaches autumn first; a new game starts on day 0, in spring, so autumn does not arrive until day 57. Real-world: softwood and semi-hardwood cuttings in spring and summer are the easy case, but hardwood cuttings are taken in late autumn and winter.
-- **Only cuttings (juniper) and seeds implemented ([#3](TODO.md)).** A seed in the inventory plants at the planting table as a 2 cm sprout that is already up: no germination time, no failure, no stratification. Seeds come from the garden's source plants in autumn (one per take, under the cuttings' limit of three a visit and two weeks' recovery, shared with them) and as $9 packets from the shop all year; there is no seed ripening, viability or storage. Real-world: also air layering, grafting, division. Each unlocks different morphology starting points.
+- **Cuttings are taken only in spring and summer.** Autumn and winter refuse with the day the next spring starts. The tutorial's Take a cutting step therefore waits for spring if the player reaches autumn first; a new game starts on day 0, in spring, so autumn does not arrive until day 57. Real-world: softwood and semi-hardwood cuttings in spring and summer are the easy case, but hardwood cuttings are taken in late autumn and winter.
+- **Only cuttings (juniper) and seeds implemented.** A seed in the inventory plants at the planting table as a 2 cm sprout that is already up: no germination time, no failure, no stratification. Seeds come from the garden's source plants in autumn (one per take, under the cuttings' limit of three a visit and two weeks' recovery, shared with them) and as $9 packets from the shop all year; there is no seed ripening, viability or storage. Real-world: also air layering, grafting, division. Each unlocks different morphology starting points.
 
 ## Morphology / growth
 
 - **Branch spawn is uniform random, capped at 15.** No species-specific branching habits, no apical-dominance gradient, no inhibition from neighbouring branches.
 - **No branch dieback.** Real-world: shaded interior branches die back naturally as the canopy thickens — a major design lever for stylists.
-- **Pruning (removing a branch) is winter-only; clipping is year-round ([TODO](TODO.md) 2e-b).** The gate is the calendar season, not dormancy: a juniper is not dormant in the game's winter, yet the 3D viewer's Prune mode still refuses in spring, summer and autumn and says `Prune: requires winter`. There is no hard-versus-light prune distinction. Real-world: structural pruning is best done in late winter or early spring, light maintenance pruning through the growing season, and the timing varies by species.
+- **Pruning (removing a branch) is winter-only; clipping is year-round.** The gate is the calendar season, not dormancy: a juniper is not dormant in the game's winter, yet the 3D viewer's Prune mode still refuses in spring, summer and autumn and says `Prune: requires winter`. There is no hard-versus-light prune distinction. Real-world: structural pruning is best done in late winter or early spring, light maintenance pruning through the growing season, and the timing varies by species.
 - **No back-budding.** Hard cuts don't trigger latent buds to break. Real-world: a controlled hard prune is *how* you densify a tree.
 - **No nebari (root flare) modelling.** Trunk base is uniform. Real-world: surface roots are one of the most-judged style criteria.
 - **Species differ only in bark colour and leaf proportions.** Every species draws its leaves with the one foliage sprite, stretched broad for a maple and narrow for a pine, and its bark as one flat colour; the room sprite differs only in trunk colour. Real-world: a palmate maple leaf, a pine's paired needles and a juniper's scale foliage are different shapes, and bark has texture (a pine's plates, a maple's smooth skin) that changes with age.
@@ -54,7 +54,7 @@ Entries should record:
 
 - **Shop catalogue is static.** Prices and inventory never change. Real-world: seasonal availability (pots scarce in spring, etc.), supplier reputation.
 - **Display revenue is flat per day.** Real-world: audience fatigue (same tree shown too long loses appeal), seasonal interest peaks (autumn maple shows fetch more in autumn).
-- **Placed furniture is weightless and everlasting.** A pedestal or floor shelf put down (`src/world/placement.ts`) has no weight or load limit, costs nothing to put down or pick up, never wears, and only the greenhouse takes it for now. Real-world: shelving sags, weathers and has a load rating.
+- **Placed furniture is weightless and everlasting.** A pedestal or floor shelf put down (`src/world/placement.ts`) has no weight or load limit, costs nothing to put down or pick up, never wears, and only the greenhouse takes it. Real-world: shelving sags, weathers and has a load rating.
 - **No collector reputation / commission system.** Real-world: a hobbyist economy runs on relationships, themed shows, judged competitions.
 
 ## Audio

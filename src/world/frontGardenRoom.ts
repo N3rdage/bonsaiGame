@@ -141,8 +141,8 @@ export const FRONT_GARDEN_ROOM: Room = {
       target: { room: 'hallway', door: 'door_front' },
     },
     // B3 row 11: the side gate in the passage's fence, to the back garden's gate. At x 13.5 m,
-    // not the plan's 13.75, in line with the back garden's side of it (gardenRoom.ts), so the
-    // player lands clear of the east fence's band.
+    // in line with the back garden's side of it (gardenRoom.ts), so the player lands clear of the
+    // east fence's band.
     {
       ...southDoor('gate', 'Gate', 'To Back Garden', siteX(13.5)),
       target: { room: 'garden', door: 'gate' },

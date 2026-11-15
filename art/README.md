@@ -38,8 +38,8 @@ use frames **0, 4, 8, 12** (the `contact` pose of each direction).
 
 ## Choices made vs the spec
 
-- **Props are the 32×32 centre baseline** (the clean drop-in), not the optional
-  32×48 tall variant — so no Draw changes needed beyond swapping the sprite.
+- **Props are the 32×32 centre baseline** (the clean drop-in), so each Draw
+  only swaps in the sprite.
 - **`spr_foliage` is intentionally pale** (~225,232,220 neutral green) with hard
   alpha holes, so the per-species/season vertex colour tints it correctly.
 - **`spr_tree_small` not generated** — out of scope (procedural/data-driven tree).
@@ -113,18 +113,6 @@ python3 make_assets.py    # writes the 12 PNGs into ./out
 python3 preview.py        # rebuilds _preview.png
 ```
 
-## Proposal renders
-
-`proposal/render.mjs` (`npm run art:proposal`) draws the art-direction
-proposal for backlog #127 into `docs/proposals/art-direction/`: the same shed
-scene in three candidate styles (Potting Shed, Soft Linen, Inked), each at the
-S22 Ultra's landscape size and at 2x, with a palette strip, plus the scale-rule
-diagram. `proposal/scale.mjs` is the scale rule as data, `scene.mjs` the scene,
-one module per candidate and `canvas.mjs` the compositor; the Inked candidate
-draws with the generator in `inked/`, once as proposed and once as chosen. It
-is seeded, so a rerun reproduces the committed PNGs;
-`docs/proposals/art-direction/README.md` explains them.
-
 ## Inked generator
 
-Inked is the chosen art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (knobs, palette, what to call and how to keep the wobble varied).
+Inked is the game's art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (the scale rule, knobs, palette, what to call and how to keep the wobble varied). A sheet generator imports `createPage`, `finish` and `finishCutOut` from `inked/index.mjs` and `writePng` from `inked/canvas.mjs`; `inked/viewer.mjs` (`npm run art:viewer`) is one, drawing the 3D viewer's foliage and bark textures.

@@ -1,5 +1,5 @@
 /* eslint-disable no-console -- an entry script (`npm run art:sounds`) that reports what it wrote. */
-// Generates the game's sound effects (backlog 7-b): short mono 16-bit PCM
+// Generates the game's sound effects: short mono 16-bit PCM
 // WAVs at 22050 Hz, one per key of SOUND_KEYS in src/platform/audio.ts,
 // written to public/assets/audio/<key>.wav.
 //
