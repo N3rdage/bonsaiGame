@@ -153,10 +153,9 @@ export const GARDEN_ROOM: Room = {
         sheet: SHEETS.doorGlassSingle,
       },
     ),
-    // B3 row 12: the side gate in the passage's north fence, to the front garden's gate. The plan
-    // puts it at x 13.75 m, the middle of the passage to the fence's outer edge; the east fence's
-    // band takes the passage's last 0.5 m, so it stands at 13.5 m, the middle of the walkable
-    // metre, where the player lands clear of both the fence and the house.
+    // B3 row 12: the side gate in the passage's north fence, to the front garden's gate. The east
+    // fence's band takes the passage's last 0.5 m, so it stands at 13.5 m, the middle of the
+    // walkable metre, where the player lands clear of both the fence and the house.
     {
       ...door('gate', 'To Front Garden', 13.5 * METRE, WALL_BAND / 2, {
         wall: 'N',
