@@ -17,6 +17,12 @@
 // a leaf bar) and `shadows` that darken a band south and east of each
 // building so the buildings read as solids standing in the gardens.
 //
+// Plan B3 is B2's lot (shared through `lot()` and `OUTBUILDINGS`) with the
+// house row redrawn: a 3 x 2 m hallway on the north wall and a kitchen behind
+// it, open to the lounge. An `opens` edge clears the wall between two rooms of
+// one walkable space and draws a dashed partition instead; a `windows` entry
+// is a glazed gap with a pane line, and no arrow or row numbers.
+//
 // Today: the six rooms as separate boxes, each door on the wall it is in
 // today, and a curve per door pair that leaves one door the way the player
 // walks out and enters the other the way the player walks in. Pairs whose
@@ -55,6 +61,7 @@ const AGREE = [52, 84, 140];
 const CONTRADICT = [196, 44, 36];
 const FILLS = {
   house: [240, 226, 196],
+  kitchen: [226, 210, 176],
   shed: [200, 156, 108],
   greenhouse: [206, 232, 216],
   garden: [156, 200, 124],
@@ -202,6 +209,41 @@ function drawDoorGap(c, p, { at: [mx, my], wall, glazed, gate }) {
   }
 }
 
+/**
+ * A window `width` metres wide centred at `at` in a north or south wall: the
+ * wall's ink cleared to glass with a thin pane line along the wall. Not a door,
+ * so no arrow and no row numbers.
+ */
+function drawWindow(c, p, { at: [mx, my], width }) {
+  const half = (width * p.scale) / 2;
+  const depth = (WALL * p.scale) / 2;
+  const cx = p.x(mx);
+  const cy = p.y(my);
+  c.rect(cx - half, cy - depth, cx + half, cy + depth, GLASS_DOOR);
+  c.rect(cx - half, cy - 1, cx + half, cy + 1, WALL_INK);
+}
+
+/**
+ * An open edge between two rooms of one walkable space: the wall along x `x`
+ * between `y` metres is cleared back to the two rooms' fills (west, east), the
+ * grid redrawn through it, and a dashed partition line drawn where it stood.
+ * The wall's ends, where it meets the walls across it, stay inked.
+ */
+function drawOpenEdge(c, p, { x, y: [y0, y1], fills: [west, east] }, gridOrigin) {
+  const t = Math.round((WALL * p.scale) / 2);
+  const cx = p.x(x);
+  const [gx, gy] = [p.x(gridOrigin[0]), p.y(gridOrigin[1])];
+  for (let py = p.y(y0) + t; py < p.y(y1) - t; py += 1) {
+    for (let px = cx - t; px < cx + t; px += 1) {
+      c.set(px, py, FILLS[px < cx ? west : east]);
+      if ((px - gx) % p.scale === 0 || (py - gy) % p.scale === 0) c.darken(px, py, 0.9);
+    }
+  }
+  for (let py = p.y(y0) + t; py < p.y(y1) - t; py += 1) {
+    if ((py - p.y(y0)) % 10 < 6) c.rect(cx - 1, py, cx + 1, py + 1, WALL_INK);
+  }
+}
+
 /** A closed roller door `width` metres wide centred at `at` in a north or south wall: grey with three slats. */
 function drawRollerDoor(c, p, { at: [mx, my], width }) {
   const half = (width * p.scale) / 2;
@@ -304,6 +346,84 @@ const HOUSE = [
   { lines: ['HALLWAY', '2.5 X', '4.5'], kind: 'house', rect: [6, 0, 8.5, 4.5], label: [7.25, 1.0] },
   { lines: ['STUDY', '4.5 X 4.5'], kind: 'house', rect: [8.5, 0, 13, 4.5], label: [10.75, 1.3] },
 ];
+
+/** Plan B2's buildings outside the house row, shared with B3. */
+const OUTBUILDINGS = [
+  { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 4.5, 5, 8], label: [2.5, 6.25] },
+  { lines: ['GARAGE', '3.5 X 8.0'], kind: 'garage', rect: [-3.5, 0, 0, 8], scale: 2 },
+  { lines: ['GREENHOUSE', '5.0 X 3.5'], kind: 'greenhouse', rect: [8, 9.5, 13, 13] },
+];
+
+/**
+ * Plan B2's lot, shared with B3: the road, the front garden with its 0.8 m
+ * path centred on the front door at x `path`, the back garden, its fences and
+ * source plants, the shadows and the garage's roller door.
+ */
+function lot(path) {
+  return {
+    origin: [-3.5, -7],
+    extent: [18, 23],
+    areas: [
+      { kind: 'road', rect: [-3.5, -7, 14.5, -4] },
+      { kind: 'garden', rect: [-3.5, -4, 14.5, 0], label: [3.5, -2], lines: ['FRONT GARDEN', '18.0 X 4.0'] },
+      { kind: 'paving', rect: [-3.5, -4, 0, 0] },
+      { kind: 'paving', rect: [path - 0.4, -4, path + 0.4, 0] },
+    ],
+    road: { rect: [-3.5, -7, 14.5, -4], centre: -5.5, kerb: -4, label: [11, -5.5] },
+    shadows: [
+      [0, 0, 13, 4.5],
+      [0, 4.5, 5, 8],
+      [-3.5, 0, 0, 8],
+      [8, 9.5, 13, 13],
+    ],
+    garden: {
+      rects: [
+        [13, 0, 14.5, 4.5],
+        [5, 4.5, 14.5, 8],
+        [0, 8, 14.5, 16],
+      ],
+      label: [4.5, 11.5],
+      lines: ['BACK GARDEN', '14.5 X 8.0', '+ NOTCH', '+ PASSAGE'],
+    },
+    fences: [
+      [
+        [0, -4],
+        [path - 0.4, -4],
+      ],
+      [
+        [path + 0.4, -4],
+        [14.5, -4],
+      ],
+      [
+        [14.5, -4],
+        [14.5, 16],
+      ],
+      [
+        [-3.5, -4],
+        [-3.5, 0],
+      ],
+      [
+        [0, 8],
+        [0, 16],
+      ],
+      [
+        [0, 16],
+        [14.5, 16],
+      ],
+      [
+        [13, 0],
+        [14.5, 0],
+      ],
+    ],
+    plantsLabel: [3.5, 14.6],
+    plants: [
+      [2.5, 15.35],
+      [3.5, 15.35],
+      [4.5, 15.35],
+    ],
+    rollers: [{ at: [-1.75, 0], width: 2.4 }],
+  };
+}
 
 const PLANS = [
   {
@@ -425,79 +545,41 @@ const PLANS = [
   {
     file: 'plan-b2-lean-to-front.png',
     title: 'PLAN B2  LEAN-TO WITH A FRONT',
-    origin: [-3.5, -7],
-    extent: [18, 23],
-    areas: [
-      { kind: 'road', rect: [-3.5, -7, 14.5, -4] },
-      { kind: 'garden', rect: [-3.5, -4, 14.5, 0], label: [3.5, -2], lines: ['FRONT GARDEN', '18.0 X 4.0'] },
-      { kind: 'paving', rect: [-3.5, -4, 0, 0] },
-      { kind: 'paving', rect: [6.85, -4, 7.65, 0] },
-    ],
-    road: { rect: [-3.5, -7, 14.5, -4], centre: -5.5, kerb: -4, label: [11, -5.5] },
+    ...lot(7.25),
     rooms: [
       ...HOUSE.map((room) => (room.lines[0] === 'HALLWAY' ? { ...room, label: [7.25, 1.4] } : room)),
-      { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 4.5, 5, 8], label: [2.5, 6.25] },
-      { lines: ['GARAGE', '3.5 X 8.0'], kind: 'garage', rect: [-3.5, 0, 0, 8], scale: 2 },
-      { lines: ['GREENHOUSE', '5.0 X 3.5'], kind: 'greenhouse', rect: [8, 9.5, 13, 13] },
+      ...OUTBUILDINGS,
     ],
-    shadows: [
-      [0, 0, 13, 4.5],
-      [0, 4.5, 5, 8],
-      [-3.5, 0, 0, 8],
-      [8, 9.5, 13, 13],
-    ],
-    garden: {
-      rects: [
-        [13, 0, 14.5, 4.5],
-        [5, 4.5, 14.5, 8],
-        [0, 8, 14.5, 16],
-      ],
-      label: [4.5, 11.5],
-      lines: ['BACK GARDEN', '14.5 X 8.0', '+ NOTCH', '+ PASSAGE'],
-    },
-    fences: [
-      [
-        [0, -4],
-        [6.85, -4],
-      ],
-      [
-        [7.65, -4],
-        [14.5, -4],
-      ],
-      [
-        [14.5, -4],
-        [14.5, 16],
-      ],
-      [
-        [-3.5, -4],
-        [-3.5, 0],
-      ],
-      [
-        [0, 8],
-        [0, 16],
-      ],
-      [
-        [0, 16],
-        [14.5, 16],
-      ],
-      [
-        [13, 0],
-        [14.5, 0],
-      ],
-    ],
-    plantsLabel: [3.5, 14.6],
-    plants: [
-      [2.5, 15.35],
-      [3.5, 15.35],
-      [4.5, 15.35],
-    ],
-    rollers: [{ at: [-1.75, 0], width: 2.4 }],
     doors: [
       { at: [2.5, 4.5], wall: 'S', rows: [3, 1] },
       { at: [2.5, 8], wall: 'S', rows: [2, 13] },
       { at: [6, 2.25], wall: 'E', rows: [4, 5] },
       { at: [7.25, 0], wall: 'S', rows: [10, 6] },
       { at: [8.5, 2.25], wall: 'E', rows: [7, 8] },
+      { at: [10.75, 4.5], wall: 'S', rows: [9, 14], glazed: true },
+      { at: [13.75, 0], wall: 'S', rows: [11, 12], gate: true },
+      { at: [10.5, 13], wall: 'S', rows: [16, 15] },
+    ],
+  },
+  {
+    file: 'plan-b3-hallway-kitchen.png',
+    title: 'PLAN B3  HALLWAY AND KITCHEN',
+    ...lot(7),
+    rooms: [
+      { lines: ['LOUNGE', '5.5 X 4.5'], kind: 'house', rect: [0, 0, 5.5, 4.5], label: [2.75, 2.25] },
+      { lines: ['HALL', '3 X 2'], kind: 'house', rect: [5.5, 0, 8.5, 2], label: [7, 1.4], scale: 2 },
+      { lines: ['KITCHEN', '3.0 X 2.5'], kind: 'kitchen', rect: [5.5, 2, 8.5, 4.5], label: [7, 3.2], scale: 2 },
+      { lines: ['STUDY', '4.5 X 4.5'], kind: 'house', rect: [8.5, 0, 13, 4.5], label: [10.75, 2.25] },
+      ...OUTBUILDINGS,
+    ],
+    opens: [{ x: 5.5, y: [2, 4.5], fills: ['house', 'kitchen'] }],
+    windows: [{ at: [7, 4.5], width: 1.2 }],
+    doors: [
+      { at: [2.5, 4.5], wall: 'S', rows: [3, 1] },
+      { at: [2.5, 8], wall: 'S', rows: [2, 13] },
+      { at: [5.5, 1], wall: 'E', rows: [4, 5] },
+      { at: [7, 0], wall: 'S', rows: [10, 6] },
+      { at: [8.5, 1], wall: 'E', rows: [7, 8] },
       { at: [10.75, 4.5], wall: 'S', rows: [9, 14], glazed: true },
       { at: [13.75, 0], wall: 'S', rows: [11, 12], gate: true },
       { at: [10.5, 13], wall: 'S', rows: [16, 15] },
@@ -554,6 +636,8 @@ function drawPlan(plan) {
   }
 
   for (const room of plan.rooms) drawWalls(c, p, room.rect);
+  for (const edge of plan.opens ?? []) drawOpenEdge(c, p, edge, [mx, my]);
+  for (const window of plan.windows ?? []) drawWindow(c, p, window);
   for (const [a, b] of plan.fences) drawFence(c, p, a, b);
   for (const door of plan.doors) drawDoorGap(c, p, door);
   for (const roller of plan.rollers ?? []) drawRollerDoor(c, p, roller);
