@@ -24,8 +24,8 @@ import {
 
 /**
  * 384x128, x 48..432 and y 96..224: its bottom wall is the shed's row, so the
- * shed door's square stays at x 240, and it is no taller than a phone's
- * zoomed view (135), which shows its whole height.
+ * shed door's square stays at x 240, and it fits a phone's zoomed view
+ * (384x216), which shows the whole room.
  */
 export const LOUNGE_BOUNDS: Rect = { x: 48, y: 96, w: 384, h: 128 };
 
