@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
 import { PLAYER_SCALE, SHEETS } from './assets';
+import { FRONT_GARDEN_ROOM } from './frontGardenRoom';
 import { GARDEN_ROOM, ROOMS } from './gardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
@@ -28,6 +29,7 @@ import {
 } from './roomArt';
 import { SHED_ROOM, hitsWall, insideWalls, type Prop, type Room } from './shedRoom';
 import { STUDY_ROOM } from './studyRoom';
+import { isIndoor } from './weather';
 
 const propByKey = (props: readonly Prop[], key: string): Prop => {
   const p = props.find((q) => q.key === key);
@@ -281,18 +283,24 @@ describe('walls', () => {
       expect(wallRuns(room).slice(wallRuns(room).length - runs.length)).toEqual(runs);
       for (const r of runs) {
         // A one-frame piece is its sheet's size, halved; a run is whole tiles of it, a row
-        // indoors, rows and columns over the garden's buildings.
+        // indoors, rows and columns outdoors.
+        const outdoor = room === GARDEN_ROOM || room === FRONT_GARDEN_ROOM;
         expect((r.w * 2) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
-        if (room === GARDEN_ROOM) expect((r.h * 2) % r.sheet.frameHeight).toBe(0);
+        if (outdoor) expect((r.h * 2) % r.sheet.frameHeight).toBe(0);
         else expect(r.h * 2).toBe(r.sheet.frameHeight);
-        // Indoors, on the floor clear of the walls' bands; in the garden, over a building's solid footprint.
+        // Indoors, on the floor clear of the walls' bands; in the garden, over a building's solid
+        // footprint; in the front garden, anywhere on its canvas (the road and roofs outside bounds).
         const f = insideWalls(room);
         const onFloor =
           r.x >= f.x && r.x + r.w <= f.x + f.w && r.y >= f.y && r.y + r.h <= f.y + f.h;
         const onSolid = room.walls.some(
           (w) => r.x >= w.x && r.x + r.w <= w.x + w.w && r.y >= w.y && r.y + r.h <= w.y + w.h,
         );
-        expect(room === GARDEN_ROOM ? onSolid : onFloor, `${room.key} ${r.sheet.key}`).toBe(true);
+        const onCanvas =
+          r.x >= 0 && r.y >= 0 && r.x + r.w <= room.width && r.y + r.h <= room.height;
+        const placed =
+          room === GARDEN_ROOM ? onSolid : room === FRONT_GARDEN_ROOM ? onCanvas : onFloor;
+        expect(placed, `${room.key} ${r.sheet.key}`).toBe(true);
       }
     }
     // The shed's floor clutter is sorted against the player (furnitureSprites); only the wall-mounted shelf is baked.
@@ -386,7 +394,7 @@ describe('props', () => {
     );
   });
 
-  it("draws each source plant's species frame, the garden door in the shed's south face and the closed gate", () => {
+  it("draws each source plant's species frame, the garden door in the shed's south face and the side gate", () => {
     const frame = (key: string) => propSprite(propByKey(GARDEN_ROOM.props, key))?.frame;
     expect([frame('source_juniper'), frame('source_maple'), frame('source_pine')]).toEqual([
       0, 1, 2,
@@ -394,14 +402,23 @@ describe('props', () => {
     const door = propSprite(propByKey(GARDEN_ROOM.props, 'door'));
     // The shed's south face's band, x 0..160, y 240..256: the door's 16 px square at (72, 240).
     expect(door && [door.sheet.key, door.x - 8, door.y - 8]).toEqual(['spr_door', 72, 240]);
-    // The gate has no target but is a door in a wall: spr_door, closed, in the passage's north fence, sorted at its top.
+    // The gate is a door in a wall drawn as a board gate, in the passage's north fence, sorted at its top.
     const gate = propSprite(propByKey(GARDEN_ROOM.props, 'gate'));
     expect(gate && [gate.sheet.key, gate.x, gate.y, gate.scale, gate.depth]).toEqual([
-      'spr_door',
-      440,
+      'spr_gate',
+      432,
       8,
       0.5,
       0,
+    ]);
+    // Its other side, in the front garden's south band, is the same gate, sorted at its top.
+    const front = propSprite(propByKey(FRONT_GARDEN_ROOM.props, 'gate'));
+    expect(front && [front.sheet.key, front.x, front.y, front.scale, front.depth]).toEqual([
+      'spr_gate',
+      544,
+      216,
+      0.5,
+      208,
     ]);
   });
 
@@ -492,10 +509,13 @@ describe('props', () => {
         .filter((p) => p.target && propSprite(p)?.sheet !== SHEETS.door)
         .map((p) => `${r.key}.${p.key}`),
     );
-    expect(doors).toHaveLength(12);
+    expect(doors).toHaveLength(16);
+    // The side gate's two sides are board gates (spr_gate), not glazed, nor spr_door.
     expect(glazed).toEqual([
       'garden.door_study',
       'garden.door_greenhouse',
+      'garden.gate',
+      'frontGarden.gate',
       'study.door_garden',
       'greenhouse.door_garden',
     ]);
@@ -582,8 +602,14 @@ describe('season wash', () => {
   });
 
   it('never washes an indoor room', () => {
-    for (const room of Object.values(ROOMS).filter((r) => r.key !== 'garden')) {
+    for (const room of Object.values(ROOMS).filter((r) => isIndoor(r))) {
       for (const season of SEASONS) expect(seasonWash(room, season)).toBeUndefined();
+    }
+  });
+
+  it('washes the front garden as the back garden, season for season', () => {
+    for (const season of SEASONS) {
+      expect(seasonWash(FRONT_GARDEN_ROOM, season)).toBe(seasonWash(GARDEN_ROOM, season));
     }
   });
 

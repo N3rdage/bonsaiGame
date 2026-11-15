@@ -1262,8 +1262,6 @@ export class WorldScene extends Phaser.Scene {
       });
     } else if (target) {
       this.enterRoom(target);
-    } else if (near.wall) {
-      this.showToast(`The ${near.label.toLowerCase()} is closed.`);
     } else if (speciesKey) {
       this.takeFromPlant(near.key, speciesKey);
     } else if (near.key === SHOP_KIOSK_KEY) {
@@ -1423,7 +1421,7 @@ export class WorldScene extends Phaser.Scene {
    * colour (the prototype's background layer), the floor tiles, the room
    * style's dim and rug (the shed's), the decor's ground shadows, the wall or
    * fence runs with the windows and furniture, then the garden's
-   * mitred corners, and last the season's wash over all of it (the garden's).
+   * mitred corners, and last the season's wash over all of it (the gardens').
    */
   private bakeRoom(
     key: string,

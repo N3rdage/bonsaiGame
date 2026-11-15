@@ -1,6 +1,7 @@
 /**
  * The shed, the room a new game starts in, as pure data, and the shape every
- * room shares (the garden is in gardenRoom.ts, the lounge in loungeRoom.ts, the hallway in
+ * room shares (the garden is in gardenRoom.ts, the front garden in
+ * frontGardenRoom.ts, the lounge in loungeRoom.ts, the hallway in
  * hallwayRoom.ts, the study in studyRoom.ts, the greenhouse in greenhouseRoom.ts).
  *
  * Every prototype coordinate and distance halves (`fromPrototype`, prototype.ts).
@@ -25,7 +26,8 @@ export interface Rect {
 }
 
 /** The rooms the world can show; also the `location` of a tree on that room's floor. */
-export type RoomKey = 'shed' | 'garden' | 'lounge' | 'hallway' | 'study' | 'greenhouse';
+export type RoomKey =
+  'shed' | 'garden' | 'frontGarden' | 'lounge' | 'hallway' | 'study' | 'greenhouse';
 
 /**
  * The wall a door sits in, named for the side of the player it is on: N is
@@ -58,11 +60,11 @@ export interface Prop {
    * (`displaySpot`) and draws nothing of its own.
    */
   readonly pedestalKey?: string;
-  /** Doors only: the room and door E takes the player to; a door without one (the garden's gate) is closed. */
+  /** Doors only: the room and door E takes the player to. */
   readonly target?: DoorTarget;
   /** Doors only: the wall the door sits in. */
   readonly wall?: Wall;
-  /** Doors only: the door's sprite when it is not the prototype's `spr_door` (the study's glazed doors and the garden's to them). */
+  /** Doors only: the door's sprite when it is not the prototype's `spr_door` (the study's glazed doors and the garden's to them, the side gate's two sides). */
   readonly sheet?: Sheet;
   /** Garden source plants only (obj_source_plant's `species_key`): what a cutting is of. */
   readonly speciesKey?: SpeciesKey;

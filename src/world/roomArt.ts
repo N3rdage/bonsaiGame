@@ -20,6 +20,7 @@ import {
   type Room,
   type RoomKey,
 } from './shedRoom';
+import { isIndoor } from './weather';
 
 /** One prototype tile, 32 px, in logical px. */
 export const TILE = fromPrototype(32);
@@ -78,6 +79,16 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallColumn: SHEETS.fenceV,
     inset: false,
     fenced: true,
+    floorDim: 0,
+  },
+  // The front garden fills its canvas with lawn like the back garden; its north row is the low
+  // front fence, its south row lies under the faces' furniture, and its corners are plain tiles.
+  frontGarden: {
+    floor: SHEETS.floorGarden,
+    wallRow: SHEETS.fenceLow,
+    wallColumn: SHEETS.fenceV,
+    inset: false,
+    fenced: false,
     floorDim: 0,
   },
   lounge: {
@@ -271,7 +282,7 @@ export interface Wash {
 }
 
 /**
- * The garden's per-season wash (new content, #113): a touch fresher in
+ * The gardens' per-season wash (new content, #113): a touch fresher in
  * spring, today's look in summer, browning in autumn, pale and frosted in
  * winter. A wash rather than a multiply tint, since a multiply only darkens
  * and the green grass can neither turn brown nor pale under one.
@@ -283,9 +294,9 @@ const GARDEN_SEASON_WASHES: Readonly<Record<Season, Wash | undefined>> = {
   winter: { colour: 0xe6eef6, alpha: 0.5 },
 };
 
-/** The wash over the room's static art (floor, fence, corners, furniture) in this season, or none; the indoor rooms have none. */
+/** The wash over the room's static art (floor, fence, corners, furniture) in this season, or none; the gardens have it, the indoor rooms none. */
 export function seasonWash(room: Room, season: Season): Wash | undefined {
-  return room.key === 'garden' ? GARDEN_SEASON_WASHES[season] : undefined;
+  return isIndoor(room) ? undefined : GARDEN_SEASON_WASHES[season];
 }
 
 /** A prop's sprite: sheet and frame, centred on (x, y) at `scale`, drawn at `depth`. */
@@ -306,7 +317,7 @@ const PROP_SHEETS: Record<string, Sheet> = {
 
 /**
  * The prop's sprite, centred on the prop: the workbench, planting table and
- * kiosk at 1x, a door (any prop in a wall, the garden's closed gate too) at
+ * kiosk at 1x, a door (any prop in a wall, the side gate too) at
  * 1x on the centre of its rect (spr_door's origin is
  * its top-left; each door's rect is that 32 px square, halved), in its own
  * `sheet` if it has one (the study's glazed double door is 64x32), a source
