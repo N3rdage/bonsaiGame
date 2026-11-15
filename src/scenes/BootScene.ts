@@ -6,7 +6,7 @@ import { LocalStorageSettingsStorage } from '../platform/localStorageSettingsSto
 import { loadSettings } from '../platform/settings';
 import { SEASONS } from '../sim/seasons';
 import { VIEWER_FIXTURES, isViewerFixtureKey } from '../viewer/viewerFixtures';
-import { ALL_SHEETS, sheetUrl } from '../world/assets';
+import { ALL_SHEETS, sheetFilter, sheetUrl } from '../world/assets';
 import { parseTimeScale } from '../world/clock';
 import type { TitleSceneData } from './sceneData';
 import { FONT_KEY } from './textStyle';
@@ -41,6 +41,12 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    // The game's `pixelArt` config loads every texture nearest-filtered; Inked sheets scale smoothly.
+    for (const sheet of ALL_SHEETS) {
+      if (sheetFilter(sheet) === 'linear') {
+        this.textures.get(sheet.key).setFilter(Phaser.Textures.FilterMode.LINEAR);
+      }
+    }
     // `?tree=<fixture>` makes the viewer show a fixture tree instead of the
     // starter, for its screenshot tests; it stays until R4's interactables give
     // a real way to pick a tree.

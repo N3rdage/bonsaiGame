@@ -20,7 +20,7 @@ import {
   type Room,
 } from './shedRoom';
 
-/** 224x128, x 128..352 and y 96..224, centred on the canvas's x 240 and smaller than a phone's zoomed view (240x135). */
+/** 224x128, x 128..352 and y 96..224, centred on the canvas's x 240 and smaller than a phone's zoomed view (384x216). */
 export const STUDY_BOUNDS: Rect = { x: 128, y: 96, w: 224, h: 128 };
 
 /** spr_desk's 64x32 prototype px, halved: in the top-left corner, against both walls. */

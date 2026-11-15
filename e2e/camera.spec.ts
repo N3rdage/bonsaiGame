@@ -4,6 +4,7 @@ import {
   collectErrors,
   expect,
   holdUntilAtLeast,
+  holdUntilAtMost,
   hook,
   interact,
   openSettingsFromMenu,
@@ -12,16 +13,18 @@ import {
   walkTo,
 } from './drive';
 
-// The world camera (src/world/worldCamera.ts, pinned in its unit tests): 2x on
-// a phone-sized viewport, following the player inside the room's drawn
+// The world camera (src/world/worldCamera.ts, pinned in its unit tests): 1.25x
+// on a phone-sized viewport, following the player inside the room's drawn
 // extent; 1x on a desktop, where it still follows a room taller than the
 // view. The view's top-left is in room units. Shed extent (80, 48) 320x176,
-// garden (0, 0) 464x512; at 2x the view is 240x135, so the shed's scroll
-// stays in x 80..160, y 48..89 and the garden's in x 0..224, y 0..377; at 1x
-// the view is 480x270, so the shed's is still and the garden's stays at x 0
-// and in y 0..242.
-const SHED = { x0: 80, x1: 160, y0: 48, y1: 89 };
-const GARDEN = { x0: 0, x1: 224, y0: 0, y1: 377 };
+// garden (0, 0) 464x512. At 1.25x the view is 384x216: the shed is smaller
+// than it both ways, so worldView centres the shed in it and the view stands
+// still at (80 + (320 - 384) / 2, 48 + (176 - 216) / 2) = (48, 28) wherever the
+// player walks; the garden's scroll follows in x 0..80 (464 - 384) and
+// y 0..296 (512 - 216). At 1x the view is 480x270, so the shed's is still at
+// (0, 0) and the garden's stays at x 0 and in y 0..242.
+const SHED_PHONE = { x0: 48, x1: 48, y0: 28, y1: 28 };
+const GARDEN = { x0: 0, x1: 80, y0: 0, y1: 296 };
 const GARDEN_DESKTOP = { x0: 0, x1: 0, y0: 0, y1: 242 };
 
 type Camera = NonNullable<BonsaiTestHook['camera']>;
@@ -64,7 +67,7 @@ async function recorded(page: Page): Promise<Camera[]> {
   return page.evaluate(() => (window as unknown as { __cameraSeen: Camera[] }).__cameraSeen);
 }
 
-function inside(seen: readonly Camera[], box: typeof SHED): void {
+function inside(seen: readonly Camera[], box: typeof GARDEN): void {
   expect(seen.length).toBeGreaterThan(0);
   for (const c of seen) {
     expect(c.scrollX).toBeGreaterThanOrEqual(box.x0);
@@ -80,32 +83,37 @@ const phone = (viewport: { width: number; height: number } | null): boolean =>
 test.describe('world camera on a phone', () => {
   test.skip(({ viewport }) => !phone(viewport), 'phone-sized viewports only');
 
-  test('zooms 2x, follows the player and stays inside the shed', async ({ page }) => {
+  test('zooms 1.25x and holds the whole shed in view, still, wherever the player walks', async ({
+    page,
+  }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
-    expect(await camera(page)).toEqual({ zoom: 2, scrollX: 120, scrollY: 67.5 });
+    const still = { zoom: 1.25, scrollX: SHED_PHONE.x0, scrollY: SHED_PHONE.y0 };
+    expect(await camera(page)).toEqual(still);
     // The HUD camera keeps the device scale (824x384 at 2.8125 fits 4 device px per logical px).
     expect((await hook(page)).zoom).toBe(4);
     await record(page);
 
-    await walkUntilScroll(page, 'ArrowLeft', 'scrollX', SHED.x0);
-    await walkUntilScroll(page, 'ArrowUp', 'scrollY', SHED.y0);
-    await walkUntilScroll(page, 'ArrowRight', 'scrollX', SHED.x1);
-    await walkUntilScroll(page, 'ArrowDown', 'scrollY', SHED.y1);
-    // Pressed against the bottom wall and the right one, the view stays put.
+    // Out to each side of the shed in turn and on into the bottom-right corner.
+    await holdUntilAtMost(page, 'ArrowLeft', 'x', 200);
+    await holdUntilAtMost(page, 'ArrowUp', 'y', 115.5);
+    await holdUntilAtLeast(page, 'ArrowRight', 'x', 280);
+    await holdUntilAtLeast(page, 'ArrowDown', 'y', 156.5);
     await page.keyboard.down('ArrowRight');
     await page.keyboard.down('ArrowDown');
     const f = (await hook(page)).frames;
     await page.waitForFunction((n) => (window.__bonsai?.frames ?? 0) >= n + 60, f);
     await page.keyboard.up('ArrowRight');
     await page.keyboard.up('ArrowDown');
-    expect(await camera(page)).toEqual({ zoom: 2, scrollX: SHED.x1, scrollY: SHED.y1 });
+    expect(await camera(page)).toEqual(still);
 
+    // The player crossed the shed, so the shed fitting the view, not a stalled walk, held it still.
     const seen = await recorded(page);
-    inside(seen, SHED);
-    // It followed: the scroll took many values on the way, not just the corners.
-    expect(new Set(seen.map((c) => c.scrollX)).size).toBeGreaterThan(10);
-    expect(new Set(seen.map((c) => c.scrollY)).size).toBeGreaterThan(10);
+    expect(seen.length).toBeGreaterThan(0);
+    expect(new Set(seen.map((c) => JSON.stringify(c)))).toEqual(new Set([JSON.stringify(still)]));
+    const { player } = await hook(page);
+    expect(player.x).toBeGreaterThanOrEqual(280);
+    expect(player.y).toBeGreaterThanOrEqual(156.5);
     expect(errors).toEqual([]);
   });
 
@@ -116,15 +124,17 @@ test.describe('world camera on a phone', () => {
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.room === 'garden');
     // The landing spot (80, 274), below the shed: against the left edge, centred on its row.
-    expect(await camera(page)).toEqual({ zoom: 2, scrollX: GARDEN.x0, scrollY: 206.5 });
+    expect(await camera(page)).toEqual({ zoom: 1.25, scrollX: GARDEN.x0, scrollY: 166 });
     await record(page);
 
     // Right along the row to the east fence, up the notch and the passage to the north
-    // fence, down the east side of the lawn to the south fence, and left along it.
+    // fence, down the east side of the lawn to the south fence (the view reaches its
+    // bottom at y 404, beside the greenhouse, so on below it to y 480), and left along it.
     await walkUntilScroll(page, 'ArrowRight', 'scrollX', GARDEN.x1);
     await holdUntilAtLeast(page, 'ArrowRight', 'x', 440);
     await walkUntilScroll(page, 'ArrowUp', 'scrollY', GARDEN.y0);
     await walkUntilScroll(page, 'ArrowDown', 'scrollY', GARDEN.y1);
+    await holdUntilAtLeast(page, 'ArrowDown', 'y', 480);
     await walkUntilScroll(page, 'ArrowLeft', 'scrollX', GARDEN.x0);
 
     const seen = await recorded(page);

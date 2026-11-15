@@ -2,11 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ALL_SHEETS,
+  INKED_PER_LOGICAL,
   PLAYER_SCALE,
   SHEETS,
   SPRITE_SCALE,
   floorFrame,
   playerFrame,
+  sheetFilter,
+  sheetPxPerLogical,
   sheetUrl,
   sourcePlantFrame,
 } from './assets';
@@ -64,7 +67,33 @@ describe('sprite sheets', () => {
       ['spr_gate', 32, 32, 1],
       ['spr_pedestal', 32, 32, 1],
       ['spr_floor_shelf', 64, 32, 1],
+      ['spr_paper', 256, 256, 1],
     ]);
+  });
+
+  it('gives every sheet a kind, the paper the one Inked sheet', () => {
+    for (const s of ALL_SHEETS) expect(['pixel', 'inked']).toContain(s.art);
+    expect(ALL_SHEETS.filter((s) => s.art === 'inked')).toEqual([SHEETS.paper]);
+  });
+
+  it('draws a pixel sheet at 2 px per logical px nearest, an Inked one at 4 linear', () => {
+    expect(INKED_PER_LOGICAL).toBe(4);
+    expect(SHEETS.floorShed.art).toBe('pixel');
+    expect(sheetPxPerLogical(SHEETS.floorShed)).toBe(2);
+    expect(sheetFilter(SHEETS.floorShed)).toBe('nearest');
+    expect(sheetPxPerLogical(SHEETS.paper)).toBe(4);
+    expect(sheetFilter(SHEETS.paper)).toBe('linear');
+  });
+
+  it('lays the paper as one 64 logical px tile, 256 sheet px square: one grain period', () => {
+    expect(SHEETS.paper).toEqual({
+      key: 'spr_paper',
+      frameWidth: 256,
+      frameHeight: 256,
+      frames: 1,
+      art: 'inked',
+    });
+    expect(SHEETS.paper.frameWidth / sheetPxPerLogical(SHEETS.paper)).toBe(64);
   });
 
   it("loads the placed furniture's sprites, each its footprint at half scale", () => {
