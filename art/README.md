@@ -38,8 +38,8 @@ use frames **0, 4, 8, 12** (the `contact` pose of each direction).
 
 ## Choices made vs the spec
 
-- **Props are the 32×32 centre baseline** (the clean drop-in), not the optional
-  32×48 tall variant — so no Draw changes needed beyond swapping the sprite.
+- **Props are the 32×32 centre baseline** (the clean drop-in), so each Draw
+  only swaps in the sprite.
 - **`spr_foliage` is intentionally pale** (~225,232,220 neutral green) with hard
   alpha holes, so the per-species/season vertex colour tints it correctly.
 - **`spr_tree_small` not generated** — out of scope (procedural/data-driven tree).
