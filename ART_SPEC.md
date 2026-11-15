@@ -5,8 +5,8 @@ origin, frames, naming — plus a shared palette. The prototype's sprites follow
 it, and the web build packs those sprites into its sheets (`art/README.md`).
 
 **Workflow:** PNGs made to this spec are imported as sprites in the GM IDE
-(sizes/origins below) and drawn by each object's Draw, with the procedural
-drawing kept as a fallback so nothing ever renders blank.
+(sizes/origins below), assigned to their objects there, and drawn by name in
+each object's Draw event.
 
 ---
 
@@ -117,9 +117,9 @@ Import Strip for multi-frame), then:
 3. Name the sprite exactly as in the table.
 4. For multi-frame sprites, frame order matters (see Notes).
 
-Sprites are not assigned to objects in the IDE: each object's `Draw` draws its
-sprite by name, with the procedural drawing as a **fallback** when the sprite is
-absent, so the game always renders.
+Each object has its sprite assigned in the IDE (it gives the collision box,
+origin and `sprite_height`), and its `Draw` event draws that sprite by name
+with `draw_sprite_ext` over a drop shadow.
 
 ## Out of scope
 - Static tree sprites (procedural/data-driven — see above).

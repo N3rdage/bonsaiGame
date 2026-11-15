@@ -37,7 +37,7 @@ import { STUDY_ROOM } from './studyRoom';
 /** Logical px per metre of the site plan: two 16 px tiles. */
 const METRE = 32;
 
-/** Plan B2's back garden bounding box, 14.5 x 16 m. */
+/** Plan B3's back garden bounding box, 14.5 x 16 m. */
 const BOUNDS: Rect = { x: 0, y: 0, w: 14.5 * METRE, h: 16 * METRE };
 
 /** The house (lounge, hallway and study), x 0..13 m, y 0..4.5 m: solid. */
@@ -126,22 +126,22 @@ export const GARDEN_ROOM: Room = {
   walls: [...ringWalls(BOUNDS), HOUSE, SHED, ...furnitureWalls(EXTERIORS)],
   furniture: EXTERIORS,
   props: [
-    // B2's bed along the south fence below the shed, one plant a metre from x 2.5 m.
+    // B3's bed along the south fence below the shed, one plant a metre from x 2.5 m.
     sourcePlant('juniper', 2.5 * METRE, BED_Y),
     sourcePlant('maple', 3.5 * METRE, BED_Y),
     sourcePlant('pine', 4.5 * METRE, BED_Y),
-    // B2 row 13: in the shed's south face at x 2.5 m, back to just above the shed's door.
+    // B3 row 13: in the shed's south face at x 2.5 m, back to just above the shed's door.
     door('door', 'Back to Shed', 2.5 * METRE, SHED.y + SHED.h - WALL_BAND / 2, {
       wall: 'N',
       target: { room: 'shed', door: 'door' },
     }),
-    // B2 row 14: the study's glazed door in the house's back face on the notch's north edge, x 10.75 m.
+    // B3 row 14: the study's glazed door in the house's back face on the notch's north edge, x 10.75 m.
     door('door_study', 'To Study', 10.75 * METRE, HOUSE.h - WALL_BAND / 2, {
       wall: 'N',
       target: { room: 'study', door: 'door_garden' },
       sheet: SHEETS.doorGlassSingle,
     }),
-    // B2 row 15: in the greenhouse's south face, standing in the lawn at x 10.5 m.
+    // B3 row 15: in the greenhouse's south face, standing in the lawn at x 10.5 m.
     door(
       'door_greenhouse',
       'To Greenhouse',
