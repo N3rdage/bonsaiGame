@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -7,17 +7,32 @@ import { describe, expect, it } from 'vitest';
 // browser suite run under it. Browsers ignore `frame-ancestors` in a meta tag,
 // so the header carries it alone; otherwise the two must stay equal. The
 // Strict-Transport-Security header is pinned here too: a year, subdomains
-// included, and no `preload`, which is the domain owner's call.
+// included, and no `preload`, which is the domain owner's call. So is the
+// per-route cache policy: hashed chunks under /assets/ are immutable, but the
+// fixed-name sprite sheets and sounds beside them must revalidate.
 
 const root = path.join(import.meta.dirname, '../..');
 
 type Policy = Map<string, string[]>;
 
-function globalHeaders(): Record<string, string> {
-  const config = JSON.parse(
+interface Route {
+  route: string;
+  headers?: Record<string, string>;
+}
+
+interface SwaConfig {
+  globalHeaders: Record<string, string>;
+  routes: Route[];
+}
+
+function swaConfig(): SwaConfig {
+  return JSON.parse(
     readFileSync(path.join(root, 'public/staticwebapp.config.json'), 'utf8'),
-  ) as { globalHeaders: Record<string, string> };
-  return config.globalHeaders;
+  ) as SwaConfig;
+}
+
+function globalHeaders(): Record<string, string> {
+  return swaConfig().globalHeaders;
 }
 
 function parse(policy: string): Policy {
@@ -71,5 +86,63 @@ describe('Strict-Transport-Security', () => {
     expect(globalHeaders()['Strict-Transport-Security']).toBe(
       'max-age=31536000; includeSubDomains',
     );
+  });
+});
+
+// The test's model of the documented SWA rule: routes are evaluated in array
+// order, evaluation stops at the first match, and a wildcard matches any
+// characters (a trailing `/calendar*` matches `/calendar/january/1`, so `/` too).
+// This is not SWA's implementation; it pins what the config relies on.
+function firstMatch(routes: Route[], urlPath: string): Route | undefined {
+  return routes.find(({ route }) => {
+    const pattern = route
+      .split('*')
+      .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+      .join('.*');
+    return new RegExp(`^${pattern}$`).test(urlPath);
+  });
+}
+
+describe('Cache-Control routes', () => {
+  const NO_CACHE = 'no-cache';
+  const IMMUTABLE = 'public, max-age=31536000, immutable';
+  const { routes } = swaConfig();
+  const indexOf = (route: string): number => routes.findIndex((r) => r.route === route);
+  const cacheControl = (urlPath: string): string | undefined =>
+    firstMatch(routes, urlPath)?.headers?.['Cache-Control'];
+
+  it('revalidates fixed-name sprite sheets and sounds, ahead of the immutable /assets/* route', () => {
+    const assets = indexOf('/assets/*');
+    expect(assets).toBeGreaterThanOrEqual(0);
+    for (const route of ['/assets/spr_*', '/assets/audio/*']) {
+      const index = indexOf(route);
+      expect(index, route).toBeGreaterThanOrEqual(0);
+      expect(index, `${route} before /assets/*`).toBeLessThan(assets);
+      expect(routes[index]?.headers?.['Cache-Control'], route).toBe(NO_CACHE);
+    }
+  });
+
+  it('keeps hashed chunks immutable for a year and the service worker no-cache', () => {
+    expect(routes[indexOf('/assets/*')]?.headers?.['Cache-Control']).toBe(IMMUTABLE);
+    expect(routes[indexOf('/sw.js')]?.headers?.['Cache-Control']).toBe(NO_CACHE);
+  });
+
+  it.each([
+    ['/assets/spr_player.png', NO_CACHE],
+    ['/assets/audio/click.wav', NO_CACHE],
+    ['/assets/index-abc123.js', IMMUTABLE],
+    ['/assets/phaser-abc123.js', IMMUTABLE],
+    ['/sw.js', NO_CACHE],
+  ])('first match for %s is %s', (urlPath, expected) => {
+    expect(cacheControl(urlPath)).toBe(expected);
+  });
+
+  it.each([
+    ['public/assets', '/assets/', '.png'],
+    ['public/assets/audio', '/assets/audio/', '.wav'],
+  ])('every %s file served in place resolves to no-cache', (dir, urlPrefix, extension) => {
+    const files = readdirSync(path.join(root, dir)).filter((name) => name.endsWith(extension));
+    expect(files.length).toBeGreaterThan(0);
+    for (const name of files) expect(cacheControl(`${urlPrefix}${name}`), name).toBe(NO_CACHE);
   });
 });

@@ -20,6 +20,14 @@
       "headers": { "Cache-Control": "no-cache" }
     },
     {
+      "route": "/assets/spr_*",
+      "headers": { "Cache-Control": "no-cache" }
+    },
+    {
+      "route": "/assets/audio/*",
+      "headers": { "Cache-Control": "no-cache" }
+    },
+    {
       "route": "/assets/*",
       "headers": { "Cache-Control": "public, max-age=31536000, immutable" }
     }
