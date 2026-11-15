@@ -46,6 +46,22 @@ interface BonsaiTestHook {
   readonly viewer?: BonsaiViewerHook;
   /** Key of the room the world is showing, 'shed', 'garden', 'frontGarden', 'lounge', 'hallway', 'study' or 'greenhouse'; '' on the title. */
   readonly room: string;
+  /** World only: the current room's `bounds`, the outer edge of its wall ring (top-left and size, logical px); the floor is the band's 16 px inside it. */
+  readonly roomBounds?: {
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+  };
+  /** World only: the current room's doors in a wall (the side gate's sides too), each its key, centre in logical px and wall, 'N', 'S', 'E' or 'W'. */
+  readonly doors?: readonly {
+    readonly key: string;
+    readonly x: number;
+    readonly y: number;
+    readonly wall: string;
+  }[];
+  /** World only: the key of the door in the current room the player was set down beside on entering it (one of `doors`), or '' in the room the world started in. */
+  readonly arrivedBeside?: string;
   /** The 2D player in logical px (feet position) and its facing: 'right', 'left', 'down' or 'up'. */
   readonly player: { readonly x: number; readonly y: number; readonly facing: string };
   /** World only: the room's sorted furniture, each sheet key and its depth (its bottom edge); the player's depth is its y + 12. */

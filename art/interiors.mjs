@@ -35,6 +35,8 @@ for (const sheet of [
   doors.WINDOW,
   doors.DOUBLE_DOOR,
   doors.SINGLE_DOOR,
+  doors.SIDE_DOOR_W,
+  doors.SIDE_DOOR_E,
   lounge.FIREPLACE,
   lounge.SIDE_TABLE,
   study.DESK,

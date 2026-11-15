@@ -6,6 +6,10 @@
 // four panes each in a wooden frame, a brass handle on each meeting stile.
 // spr_door_glass_single.png: one such leaf, 32x32, the garden's door back to
 // the study.
+// spr_door_side_w.png and spr_door_side_e.png: the house's doors between
+// rooms, 32x32, seen from the side in a left (W) or right (E) wall: a narrow
+// frame in the wall band and the leaf standing ajar into the room, the one
+// the other's mirror.
 
 import {
   BRASS,
@@ -13,6 +17,7 @@ import {
   GLASS,
   GLASS_DARK,
   GLASS_LIGHT,
+  SOOT,
   WOOD_DARK,
   WOOD_LIGHT,
   WOOD_MID,
@@ -84,6 +89,54 @@ function glassLeaf(png, ox, handleRight) {
   fill(png, ox + hx, 18, ox + hx + 1, 18, BRASS_DARK);
 }
 
+/**
+ * A door in a side wall seen from the side, drawn for a W wall (the room to
+ * its right), or mirrored for an E wall. A narrow frame down the middle of
+ * the wall band: a lintel across the top, a jamb either side and the dark
+ * doorway between them on a threshold. The leaf stands ajar into the room from
+ * the room-side jamb, its top and foot dropping a pixel every three columns
+ * as it swings towards the viewer: a dark outline, a lit hinge stile, two
+ * panels and a brass handle by its free edge. Transparent round it, so the
+ * wall shows.
+ */
+function sideDoor(png, mirror) {
+  const put = (x, y, c) => {
+    setPixel(png, mirror ? SIZE - 1 - x : x, y, c);
+  };
+  for (let x = 6; x <= 19; x += 1) {
+    put(x, 1, WOOD_DARK);
+    put(x, 2, WOOD_LIGHT);
+    put(x, 3, WOOD_MID);
+  }
+  for (let y = 4; y < SIZE; y += 1) {
+    for (let x = 6; x <= 19; x += 1) {
+      let c = SOOT;
+      if (x === 6 || x === 19) c = WOOD_DARK;
+      else if (x === 7 || x === 18) c = WOOD_MID;
+      else if (y === SIZE - 1) c = WOOD_DARK;
+      put(x, y, c);
+    }
+  }
+  for (let x = 20; x <= 28; x += 1) {
+    const drop = Math.floor((x - 20) / 3);
+    const top = 3 + drop;
+    const foot = 28 + drop;
+    for (let y = top; y <= foot; y += 1) {
+      let c = WOOD_MID;
+      if (x === 28 || y === top || y === foot) c = WOOD_DARK;
+      else if (x === 20) c = WOOD_LIGHT;
+      else if ((x === 22 || x === 26) && (y - top) % 12 > 2) c = WOOD_DARK;
+      else if (x >= 23 && x <= 25 && ((y - top) % 12 === 3 || (y - top) % 12 === 11)) {
+        c = WOOD_DARK;
+      }
+      put(x, y, c);
+    }
+  }
+  put(27, 19, BRASS);
+  put(27, 20, BRASS);
+  put(27, 21, BRASS_DARK);
+}
+
 export const WINDOW = { name: 'spr_window', width: SIZE, height: SIZE, draw: windowPane };
 
 export const DOUBLE_DOOR = {
@@ -103,5 +156,23 @@ export const SINGLE_DOOR = {
   height: SIZE,
   draw(png) {
     glassLeaf(png, 0, false);
+  },
+};
+
+export const SIDE_DOOR_W = {
+  name: 'spr_door_side_w',
+  width: SIZE,
+  height: SIZE,
+  draw(png) {
+    sideDoor(png, false);
+  },
+};
+
+export const SIDE_DOOR_E = {
+  name: 'spr_door_side_e',
+  width: SIZE,
+  height: SIZE,
+  draw(png) {
+    sideDoor(png, true);
   },
 };
