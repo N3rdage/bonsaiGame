@@ -8,27 +8,67 @@
  * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws them,
  * the buildings' roofs seen from the garden and the front garden's sheets.
  * The shed's window is the house rooms' window, not the prototype's
- * `spr_window`, which shares its name.
+ * `spr_window`, which shares its name. `npm run art:paper`
+ * (art/inked/paperSheet.mjs) draws the Inked rooms' paper, `spr_paper`.
  */
 
 import type { SpeciesKey } from '../sim/types';
 import type { Facing } from './player';
 import { PROTOTYPE_SCALE } from './prototype';
 
+/**
+ * How a sheet is authored and filtered: `pixel` is the prototype's crisp art at
+ * PROTOTYPE_SCALE sheet px per logical px, drawn nearest-neighbour (the game
+ * config's `pixelArt`); `inked` is Inked art (art/inked/README.md) at
+ * INKED_PER_LOGICAL sheet px per logical px, drawn with linear filtering.
+ */
+export type SheetArt = 'pixel' | 'inked';
+
 export interface Sheet {
   /** Texture key and file name (without `.png`), the prototype sprite's name. */
   readonly key: string;
+  /** Frame size in sheet px. */
   readonly frameWidth: number;
   readonly frameHeight: number;
   readonly frames: number;
+  readonly art: SheetArt;
 }
 
+/** Sheet px per logical px of an Inked sheet: art/inked/style.mjs's PER_LOGICAL, the same 4. */
+export const INKED_PER_LOGICAL = 4;
+
+/** A prototype pixel sheet; its frame size in sheet (prototype) px. */
 const sheet = (key: string, frames = 1, size = 32, height = size): Sheet => ({
   key,
   frameWidth: size,
   frameHeight: height,
   frames,
+  art: 'pixel',
 });
+
+/** An Inked sheet; its frame size in logical px, authored at INKED_PER_LOGICAL. */
+const inked = (
+  key: string,
+  frames: number,
+  sizeLogical: number,
+  heightLogical = sizeLogical,
+): Sheet => ({
+  key,
+  frameWidth: sizeLogical * INKED_PER_LOGICAL,
+  frameHeight: heightLogical * INKED_PER_LOGICAL,
+  frames,
+  art: 'inked',
+});
+
+/** Sheet px per logical px: PROTOTYPE_SCALE for a pixel sheet, INKED_PER_LOGICAL for an Inked one. */
+export function sheetPxPerLogical(s: Sheet): number {
+  return s.art === 'inked' ? INKED_PER_LOGICAL : PROTOTYPE_SCALE;
+}
+
+/** The texture filter the sheet is drawn with: pixel art stays crisp, Inked art scales smoothly. */
+export function sheetFilter(s: Sheet): 'nearest' | 'linear' {
+  return s.art === 'inked' ? 'linear' : 'nearest';
+}
 
 export const SHEETS = {
   player: sheet('spr_player', 16),
@@ -85,6 +125,8 @@ export const SHEETS = {
   // The placed furniture: the prototype's pedestal, packed, and the floor shelf, drawn by art/interiors.mjs.
   pedestal: sheet('spr_pedestal'),
   floorShelf: sheet('spr_floor_shelf', 1, 64, 32),
+  // The Inked rooms' paper, drawn by art/inked/paperSheet.mjs: one 64 px grain period, so it tiles seamlessly.
+  paper: inked('spr_paper', 1, 64),
 } as const satisfies Record<string, Sheet>;
 
 /** Every sheet, in load order. */

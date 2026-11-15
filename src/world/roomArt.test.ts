@@ -12,11 +12,13 @@ import {
   SHED_FLOOR_DIM,
   SHED_RUG,
   TILE,
+  bakeScale,
   fenceCorners,
   floorTiles,
   furnitureRuns,
   furnitureShadows,
   furnitureSprites,
+  paperTiles,
   playerShadow,
   propShadow,
   propSprite,
@@ -91,6 +93,46 @@ describe('floor', () => {
     expect([SHED_RUG.x, SHED_RUG.y, SHED_RUG.w, SHED_RUG.h, SHED_RUG.inset]).toEqual([
       180, 110, 120, 70, 3.5,
     ]);
+  });
+});
+
+describe('bake', () => {
+  it('lays no paper and bakes every room today at the prototype 2 px per logical px', () => {
+    for (const room of Object.values(ROOMS)) {
+      expect(ROOM_STYLES[room.key].paper).toBe(false);
+      expect(paperTiles(room)).toEqual([]);
+      expect(bakeScale(room)).toBe(2);
+    }
+  });
+
+  it('lays the paper over the whole room from (0, 0) in 64 px steps and bakes at 4 when it is on', () => {
+    const style = { ...ROOM_STYLES.shed, paper: true };
+    expect(bakeScale(SHED_ROOM, style)).toBe(4);
+    const tiles = paperTiles(SHED_ROOM, style);
+    // The shed's 480x270 canvas: 8 columns (8 * 64 = 512 >= 480), 5 rows (5 * 64 = 320 >= 270).
+    expect(tiles).toHaveLength(8 * 5);
+    expect(tiles.every((t) => t.sheet === SHEETS.paper)).toBe(true);
+    expect(tiles.slice(0, 2).map(({ x, y }) => [x, y])).toEqual([
+      [0, 0],
+      [64, 0],
+    ]);
+    expect(tiles.at(-1)).toMatchObject({ x: 448, y: 256 });
+    // Every logical px of the room lies in exactly one tile.
+    for (const [px, py] of [
+      [0, 0],
+      [479, 269],
+      [63.5, 64],
+      [240, 135],
+    ] as const) {
+      expect(
+        tiles.filter((t) => px >= t.x && px < t.x + 64 && py >= t.y && py < t.y + 64),
+      ).toHaveLength(1);
+    }
+  });
+
+  it('bakes at 4 when any sheet it draws is Inked, paper or not', () => {
+    expect(bakeScale(SHED_ROOM, { ...ROOM_STYLES.shed, floor: SHEETS.paper })).toBe(4);
+    expect(bakeScale(SHED_ROOM, { ...ROOM_STYLES.shed, wallColumn: SHEETS.paper })).toBe(4);
   });
 });
 
@@ -494,12 +536,14 @@ describe('props', () => {
       frameWidth: 64,
       frameHeight: 32,
       frames: 1,
+      art: 'pixel',
     });
     expect(SHEETS.doorGlassSingle).toEqual({
       key: 'spr_door_glass_single',
       frameWidth: 32,
       frameHeight: 32,
       frames: 1,
+      art: 'pixel',
     });
     const at = (props: readonly Prop[], key: string) => {
       const p = propByKey(props, key);
