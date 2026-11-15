@@ -12,7 +12,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { writePng } from '../proposal/canvas.mjs';
+import { writePng } from './canvas.mjs';
 import { createPage, finish, finishCutOut } from './index.mjs';
 
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'viewer');

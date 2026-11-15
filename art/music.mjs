@@ -1,5 +1,5 @@
 /* eslint-disable no-console -- an entry script (`npm run art:music`) that reports what it wrote. */
-// Generates the game's ambient music (backlog 7-c): one short seamless loop
+// Generates the game's ambient music: one short seamless loop
 // per key of MUSIC_KEYS in src/platform/audio.ts, mono 16-bit PCM WAVs at
 // 11025 Hz, written to public/assets/audio/<key>.wav.
 //

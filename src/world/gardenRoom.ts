@@ -1,5 +1,5 @@
 /**
- * The back garden, as pure data, in plan B2's shape (docs/site-plan/README.md):
+ * The back garden, as pure data, in plan B3's shape (docs/site-plan/README.md):
  * 1 m is 32 logical px and the house's north-west corner is (0, 0). Its
  * bounding box, x 0..14.5 m and y 0..16 m, is the room; the walkable ground
  * is the passage beside the study (x 13..14.5 m, y 0..4.5 m), the notch
