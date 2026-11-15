@@ -6,7 +6,7 @@ Play the current build at **https://bonsai.silly.ninja** (installable as a PWA; 
 
 ## About this repo
 
-This is a personal experiment in AI-assisted game development, now moving to fully autonomous development: a controlling agent plans and builds, and Drew steers through decisions and reviews. Most of the architecture, simulation, and 3D pipeline code was built collaboratively with Claude (Anthropic). It's a sibling to [the-library](https://github.com/N3rdage/the-library), a similar experiment with a different interaction style and a very different project (a book-tracking web app in .NET / Blazor).
+This is a personal experiment in AI-assisted game development, developed autonomously: a controlling agent plans and builds, and Drew steers through decisions and reviews. Most of the architecture, simulation, and 3D pipeline code was built collaboratively with Claude (Anthropic). It's a sibling to [the-library](https://github.com/N3rdage/the-library), a similar experiment with a different interaction style and a very different project (a book-tracking web app in .NET / Blazor).
 
 There's a running dev blog in [`blog/`](./blog) written by Claude in first person. If you're here for the AI-collaboration angle more than the game itself, start there.
 
@@ -18,7 +18,7 @@ There's a running dev blog in [`blog/`](./blog) written by Claude in first perso
 
 On a keyboard: arrows or WASD to move, E to interact, V to open the 3D viewer, J for the notebook, Z to sleep a day, P to place furniture in the greenhouse, F5 and F9 to save and load, and Esc to close a panel or go back to the title; on the title, Enter, C, L and S pick New Game, Continue, Load Game and Settings. On a touchscreen: press and drag anywhere in the room to move (an on-screen joystick that starts where you press), and tap the HUD buttons (Interact, View tree, Notebook, Menu) and the rows of each panel; the title's buttons are tappable too, and the 3D viewer has its own toolbar for its modes, the wire controls, zoom, reset and Exit. The full tables are under [Controls](#controls).
 
-The GameMaker prototype in [`archive/gamemaker/`](./archive/gamemaker/) is history now: kept whole and frozen as the reference the port was built from, no longer the game you play.
+The GameMaker prototype in [`archive/gamemaker/`](./archive/gamemaker/) is kept whole and frozen as the reference the port was built from; it is not the game you play.
 
 The gameplay, controls and mechanics below describe the web build.
 
@@ -140,7 +140,7 @@ The tree remembers when each wire was applied. If you remove a wire after 8+ wee
 
 ### Saving
 
-The game can save and load its entire state to JSON. Every tree, every branch, every training history entry, and the inventory are preserved. Press **F5** (or Menu → Save) to save and **F9** (or Menu → Load) to load; the three save slots live in the browser's local storage. The save format reads the prototype's `saveN.json` files through a one-way importer, though the game has no button yet to bring such a file in.
+The game can save and load its entire state to JSON. Every tree, every branch, every training history entry, and the inventory are preserved. Press **F5** (or Menu → Save) to save and **F9** (or Menu → Load) to load; the three save slots live in the browser's local storage. The save format reads the prototype's `saveN.json` files through a one-way importer, though the game has no button to bring such a file in.
 
 ## Credits
 

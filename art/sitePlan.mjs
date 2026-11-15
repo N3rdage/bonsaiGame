@@ -1,34 +1,23 @@
 /* eslint-disable no-console -- an entry script (`npm run art:site-plan`) that reports what it wrote. */
-// Draws the site-plan diagrams for docs/site-plan/ (backlog #129): three
-// candidate layouts of the whole property seen from above, north up, at
-// 40 px per metre on a 1 m grid, and one diagram of how today's doors
-// contradict each other.
+// Draws the site plan for docs/site-plan/ (plan-b3-hallway-kitchen.png): the
+// whole property seen from above, north up, at 40 px per metre on a 1 m grid.
 //
-// Plans: rooms are flat-tinted rectangles in real metres (house cream, shed
-// wood, greenhouse glass, lawn green, outside paper), walls 0.3 m thick,
-// garden fences dashed. Every door is a 0.8 m gap (1.6 m double gap, tinted
-// blue, when glazed) with a two-headed arrow through it, and each side of a
-// door carries the index of its row in that layout's door table in
-// docs/site-plan/README.md, drawn inside the room the row belongs to.
-//
-// Plan B2 is plan B as the owner changed it: negative coordinates (an
-// `origin` shifts the drawing), extra `areas` of other fills (front lawn,
-// paving, the road with its dashed centre line and kerb), a closed garage
-// with a roller door, a side gate (a door flagged `gate`: lawn-tinted gap with
-// a leaf bar) and `shadows` that darken a band south and east of each
-// building so the buildings read as solids standing in the gardens.
-//
-// Plan B3 is B2's lot (shared through `lot()` and `OUTBUILDINGS`) with the
-// house row redrawn: a 3 x 2 m hallway on the north wall and a kitchen behind
-// it, open to the lounge. An `opens` edge clears the wall between two rooms of
-// one walkable space and draws a dashed partition instead; a `windows` entry
-// is a glazed gap with a pane line, and no arrow or row numbers.
-//
-// Today: the six rooms as separate boxes, each door on the wall it is in
-// today, and a curve per door pair that leaves one door the way the player
-// walks out and enters the other the way the player walks in. Pairs whose
-// walls face each other draw straight and blue; pairs that contradict loop
-// and draw red.
+// Rooms are flat-tinted rectangles in real metres (house cream, kitchen a
+// darker cream, shed wood, greenhouse glass, garage grey, lawn green, outside
+// paper), walls 0.3 m thick, garden fences dashed. The `origin` shifts the
+// drawing so the front garden and road sit at negative y; `areas` are other
+// fills (front lawn, paving, the road with its dashed centre line and kerb),
+// and `shadows` darken a band south and east of each building so the
+// buildings read as solids standing in the gardens. Every door is a 0.8 m gap
+// (1.6 m double gap, tinted blue, when glazed; a lawn-tinted gap with a leaf
+// bar when it is the side gate) with a two-headed arrow through it, and each
+// side of a door carries the index of its row in the door table in
+// docs/site-plan/README.md, drawn inside the room the row belongs to. The
+// garage's roller door is drawn closed. An `opens` edge clears the wall
+// between two rooms of one walkable space (the lounge and its kitchen) and
+// draws a dashed partition instead; a `windows` entry is a glazed gap with a
+// pane line, and no arrow or row numbers. The hallway is labelled HALL so the
+// label fits beside its three doors.
 //
 // Labels use the 5x7 font in sitePlanFont.mjs. No randomness, so a rerun
 // reproduces the committed bytes. Run with `npm run art:site-plan`.
@@ -58,8 +47,6 @@ const THRESHOLD = [250, 248, 242];
 const GLASS_DOOR = [176, 214, 240];
 const PLANT = [52, 104, 56];
 const LABEL_BACK = [255, 255, 255];
-const AGREE = [52, 84, 140];
-const CONTRADICT = [196, 44, 36];
 const FILLS = {
   house: [240, 226, 196],
   kitchen: [226, 210, 176],
@@ -345,289 +332,132 @@ function drawScaleBar(c, x, y, pxPerMetre) {
   c.text('GRID 1 M', x + 5 * pxPerMetre + 40, y - 2, 2, INK);
 }
 
-// ---------------------------------------------------------------- plans
+// ---------------------------------------------------------------- the plan
 
 const PX_PER_METRE = 40;
 
-const HOUSE = [
-  { lines: ['LOUNGE', '6.0 X 4.5'], kind: 'house', rect: [0, 0, 6, 4.5], label: [3, 1.3] },
-  { lines: ['HALLWAY', '2.5 X', '4.5'], kind: 'house', rect: [6, 0, 8.5, 4.5], label: [7.25, 1.0] },
-  { lines: ['STUDY', '4.5 X 4.5'], kind: 'house', rect: [8.5, 0, 13, 4.5], label: [10.75, 1.3] },
-];
-
-/** Plan B2's buildings outside the house row, shared with B3. */
-const OUTBUILDINGS = [
-  { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 4.5, 5, 8], label: [2.5, 6.25] },
-  { lines: ['GARAGE', '3.5 X 8.0'], kind: 'garage', rect: [-3.5, 0, 0, 8], scale: 2 },
-  { lines: ['GREENHOUSE', '5.0 X 3.5'], kind: 'greenhouse', rect: [8, 9.5, 13, 13] },
-];
+/** The front path's centre, under the front door, in metres east. */
+const PATH = 7;
 
 /**
- * Plan B2's lot, shared with B3: the road, the front garden with its 0.8 m
- * path centred on the front door at x `path`, the back garden, its fences and
- * source plants, the shadows and the garage's roller door.
+ * Plan B3: the house row (lounge, hallway, kitchen open to the lounge, study),
+ * the shed, garage and greenhouse, the road, the front garden with its 0.8 m
+ * path to the front door, the back garden, its fences and source plants, the
+ * shadows and the garage's roller door.
  */
-function lot(path) {
-  return {
-    origin: [-3.5, -7],
-    extent: [18, 23],
-    areas: [
-      { kind: 'road', rect: [-3.5, -7, 14.5, -4] },
-      {
-        kind: 'garden',
-        rect: [-3.5, -4, 14.5, 0],
-        label: [3.5, -2],
-        lines: ['FRONT GARDEN', '18.0 X 4.0'],
-      },
-      { kind: 'paving', rect: [-3.5, -4, 0, 0] },
-      { kind: 'paving', rect: [path - 0.4, -4, path + 0.4, 0] },
-    ],
-    road: { rect: [-3.5, -7, 14.5, -4], centre: -5.5, kerb: -4, label: [11, -5.5] },
-    shadows: [
-      [0, 0, 13, 4.5],
-      [0, 4.5, 5, 8],
-      [-3.5, 0, 0, 8],
-      [8, 9.5, 13, 13],
-    ],
-    garden: {
-      rects: [
-        [13, 0, 14.5, 4.5],
-        [5, 4.5, 14.5, 8],
-        [0, 8, 14.5, 16],
-      ],
-      label: [4.5, 11.5],
-      lines: ['BACK GARDEN', '14.5 X 8.0', '+ NOTCH', '+ PASSAGE'],
+const PLAN = {
+  file: 'plan-b3-hallway-kitchen.png',
+  title: 'PLAN B3  HALLWAY AND KITCHEN',
+  origin: [-3.5, -7],
+  extent: [18, 23],
+  areas: [
+    { kind: 'road', rect: [-3.5, -7, 14.5, -4] },
+    {
+      kind: 'garden',
+      rect: [-3.5, -4, 14.5, 0],
+      label: [3.5, -2],
+      lines: ['FRONT GARDEN', '18.0 X 4.0'],
     },
-    fences: [
-      [
-        [0, -4],
-        [path - 0.4, -4],
-      ],
-      [
-        [path + 0.4, -4],
-        [14.5, -4],
-      ],
-      [
-        [14.5, -4],
-        [14.5, 16],
-      ],
-      [
-        [-3.5, -4],
-        [-3.5, 0],
-      ],
-      [
-        [0, 8],
-        [0, 16],
-      ],
-      [
-        [0, 16],
-        [14.5, 16],
-      ],
-      [
-        [13, 0],
-        [14.5, 0],
-      ],
+    { kind: 'paving', rect: [-3.5, -4, 0, 0] },
+    { kind: 'paving', rect: [PATH - 0.4, -4, PATH + 0.4, 0] },
+  ],
+  road: { rect: [-3.5, -7, 14.5, -4], centre: -5.5, kerb: -4, label: [11, -5.5] },
+  shadows: [
+    [0, 0, 13, 4.5],
+    [0, 4.5, 5, 8],
+    [-3.5, 0, 0, 8],
+    [8, 9.5, 13, 13],
+  ],
+  garden: {
+    rects: [
+      [13, 0, 14.5, 4.5],
+      [5, 4.5, 14.5, 8],
+      [0, 8, 14.5, 16],
     ],
-    plantsLabel: [3.5, 14.6],
-    plants: [
-      [2.5, 15.35],
-      [3.5, 15.35],
-      [4.5, 15.35],
-    ],
-    rollers: [{ at: [-1.75, 0], width: 2.4 }],
-  };
-}
-
-const PLANS = [
-  {
-    file: 'plan-a-the-l.png',
-    title: 'PLAN A  THE L',
-    extent: [13, 17.5],
-    rooms: [
-      ...HOUSE,
-      { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 4.5, 5, 8], label: [2.2, 6.25] },
-      { lines: ['GREENHOUSE', '8.0 X 5.0'], kind: 'greenhouse', rect: [5, 12.5, 13, 17.5] },
-    ],
-    garden: { rects: [[5, 4.5, 13, 12.5]], label: [9, 8.5], lines: ['GARDEN', '8.0 X 8.0'] },
-    fences: [
-      [
-        [5, 8],
-        [5, 12.5],
-      ],
-      [
-        [13, 4.5],
-        [13, 12.5],
-      ],
-    ],
-    plantsLabel: [10.05, 7.5],
-    plants: [
-      [12.35, 6.5],
-      [12.35, 7.5],
-      [12.35, 8.5],
-    ],
-    doors: [
-      { at: [2.5, 4.5], wall: 'S', rows: [3, 1] },
-      { at: [5, 6.25], wall: 'E', rows: [2, 9] },
-      { at: [6, 2.25], wall: 'E', rows: [4, 5] },
-      { at: [8.5, 2.25], wall: 'E', rows: [6, 7] },
-      { at: [10.75, 4.5], wall: 'S', rows: [8, 10], glazed: true },
-      { at: [9, 12.5], wall: 'S', rows: [11, 12] },
-    ],
+    label: [4.5, 11.5],
+    lines: ['BACK GARDEN', '14.5 X 8.0', '+ NOTCH', '+ PASSAGE'],
   },
-  {
-    file: 'plan-b-lean-to.png',
-    title: 'PLAN B  LEAN-TO',
-    extent: [18, 16],
-    rooms: [
-      ...HOUSE,
-      { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 4.5, 5, 8], label: [2.5, 6.25] },
-      {
-        lines: ['GREENHOUSE', '5.0 X 8.0'],
-        kind: 'greenhouse',
-        rect: [13, 8, 18, 16],
-        label: [15.5, 10],
-      },
+  fences: [
+    [
+      [0, -4],
+      [PATH - 0.4, -4],
     ],
-    garden: {
-      rects: [
-        [5, 4.5, 13, 8],
-        [0, 8, 13, 16],
-      ],
-      label: [6.5, 12],
-      lines: ['GARDEN', '13.0 X 8.0', '+ 8.0 X 3.5'],
+    [
+      [PATH + 0.4, -4],
+      [14.5, -4],
+    ],
+    [
+      [14.5, -4],
+      [14.5, 16],
+    ],
+    [
+      [-3.5, -4],
+      [-3.5, 0],
+    ],
+    [
+      [0, 8],
+      [0, 16],
+    ],
+    [
+      [0, 16],
+      [14.5, 16],
+    ],
+    [
+      [13, 0],
+      [14.5, 0],
+    ],
+  ],
+  plantsLabel: [3.5, 14.6],
+  plants: [
+    [2.5, 15.35],
+    [3.5, 15.35],
+    [4.5, 15.35],
+  ],
+  rollers: [{ at: [-1.75, 0], width: 2.4 }],
+  rooms: [
+    {
+      lines: ['LOUNGE', '5.5 X 4.5'],
+      kind: 'house',
+      rect: [0, 0, 5.5, 4.5],
+      label: [2.75, 2.25],
     },
-    fences: [
-      [
-        [13, 4.5],
-        [13, 8],
-      ],
-      [
-        [0, 8],
-        [0, 16],
-      ],
-      [
-        [0, 16],
-        [13, 16],
-      ],
-    ],
-    plantsLabel: [3.5, 14.6],
-    plants: [
-      [2.5, 15.35],
-      [3.5, 15.35],
-      [4.5, 15.35],
-    ],
-    doors: [
-      { at: [2.5, 4.5], wall: 'S', rows: [3, 1] },
-      { at: [2.5, 8], wall: 'S', rows: [2, 9] },
-      { at: [6, 2.25], wall: 'E', rows: [4, 5] },
-      { at: [8.5, 2.25], wall: 'E', rows: [6, 7] },
-      { at: [10.75, 4.5], wall: 'S', rows: [8, 10], glazed: true },
-      { at: [13, 12], wall: 'E', rows: [11, 12] },
-    ],
-  },
-  {
-    file: 'plan-c-across-the-lawn.png',
-    title: 'PLAN C  ACROSS THE LAWN',
-    extent: [13, 17.5],
-    rooms: [
-      ...HOUSE,
-      { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 12.5, 5, 16] },
-      { lines: ['GREENHOUSE', '8.0 X 5.0'], kind: 'greenhouse', rect: [5, 12.5, 13, 17.5] },
-    ],
-    garden: { rects: [[0, 4.5, 13, 12.5]], label: [5.5, 8.5], lines: ['GARDEN', '13.0 X 8.0'] },
-    fences: [
-      [
-        [0, 4.5],
-        [0, 12.5],
-      ],
-      [
-        [13, 4.5],
-        [13, 12.5],
-      ],
-    ],
-    plantsLabel: [10.05, 8.5],
-    plants: [
-      [12.35, 7.5],
-      [12.35, 8.5],
-      [12.35, 9.5],
-    ],
-    doors: [
-      { at: [3, 4.5], wall: 'S', rows: [2, 8] },
-      { at: [6, 2.25], wall: 'E', rows: [3, 4] },
-      { at: [8.5, 2.25], wall: 'E', rows: [5, 6] },
-      { at: [10.75, 4.5], wall: 'S', rows: [7, 9], glazed: true },
-      { at: [2.5, 12.5], wall: 'S', rows: [10, 1] },
-      { at: [9, 12.5], wall: 'S', rows: [11, 12] },
-    ],
-  },
-  {
-    file: 'plan-b2-lean-to-front.png',
-    title: 'PLAN B2  LEAN-TO WITH A FRONT',
-    ...lot(7.25),
-    rooms: [
-      ...HOUSE.map((room) =>
-        room.lines[0] === 'HALLWAY' ? { ...room, label: [7.25, 1.4] } : room,
-      ),
-      ...OUTBUILDINGS,
-    ],
-    doors: [
-      { at: [2.5, 4.5], wall: 'S', rows: [3, 1] },
-      { at: [2.5, 8], wall: 'S', rows: [2, 13] },
-      { at: [6, 2.25], wall: 'E', rows: [4, 5] },
-      { at: [7.25, 0], wall: 'S', rows: [10, 6] },
-      { at: [8.5, 2.25], wall: 'E', rows: [7, 8] },
-      { at: [10.75, 4.5], wall: 'S', rows: [9, 14], glazed: true },
-      { at: [13.75, 0], wall: 'S', rows: [11, 12], gate: true },
-      { at: [10.5, 13], wall: 'S', rows: [16, 15] },
-    ],
-  },
-  {
-    file: 'plan-b3-hallway-kitchen.png',
-    title: 'PLAN B3  HALLWAY AND KITCHEN',
-    ...lot(7),
-    rooms: [
-      {
-        lines: ['LOUNGE', '5.5 X 4.5'],
-        kind: 'house',
-        rect: [0, 0, 5.5, 4.5],
-        label: [2.75, 2.25],
-      },
-      {
-        lines: ['HALL', '3 X 2'],
-        kind: 'house',
-        rect: [5.5, 0, 8.5, 2],
-        label: [7, 1.4],
-        scale: 2,
-      },
-      {
-        lines: ['KITCHEN', '3.0 X 2.5'],
-        kind: 'kitchen',
-        rect: [5.5, 2, 8.5, 4.5],
-        label: [7, 3.2],
-        scale: 2,
-      },
-      {
-        lines: ['STUDY', '4.5 X 4.5'],
-        kind: 'house',
-        rect: [8.5, 0, 13, 4.5],
-        label: [10.75, 2.25],
-      },
-      ...OUTBUILDINGS,
-    ],
-    opens: [{ x: 5.5, y: [2, 4.5], fills: ['house', 'kitchen'] }],
-    windows: [{ at: [7, 4.5], width: 1.2 }],
-    doors: [
-      { at: [2.5, 4.5], wall: 'S', rows: [3, 1] },
-      { at: [2.5, 8], wall: 'S', rows: [2, 13] },
-      { at: [5.5, 1], wall: 'E', rows: [4, 5] },
-      { at: [7, 0], wall: 'S', rows: [10, 6] },
-      { at: [8.5, 1], wall: 'E', rows: [7, 8] },
-      { at: [10.75, 4.5], wall: 'S', rows: [9, 14], glazed: true },
-      { at: [13.75, 0], wall: 'S', rows: [11, 12], gate: true },
-      { at: [10.5, 13], wall: 'S', rows: [16, 15] },
-    ],
-  },
-];
+    {
+      lines: ['HALL', '3 X 2'],
+      kind: 'house',
+      rect: [5.5, 0, 8.5, 2],
+      label: [7, 1.4],
+      scale: 2,
+    },
+    {
+      lines: ['KITCHEN', '3.0 X 2.5'],
+      kind: 'kitchen',
+      rect: [5.5, 2, 8.5, 4.5],
+      label: [7, 3.2],
+      scale: 2,
+    },
+    {
+      lines: ['STUDY', '4.5 X 4.5'],
+      kind: 'house',
+      rect: [8.5, 0, 13, 4.5],
+      label: [10.75, 2.25],
+    },
+    { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 4.5, 5, 8], label: [2.5, 6.25] },
+    { lines: ['GARAGE', '3.5 X 8.0'], kind: 'garage', rect: [-3.5, 0, 0, 8], scale: 2 },
+    { lines: ['GREENHOUSE', '5.0 X 3.5'], kind: 'greenhouse', rect: [8, 9.5, 13, 13] },
+  ],
+  opens: [{ x: 5.5, y: [2, 4.5], fills: ['house', 'kitchen'] }],
+  windows: [{ at: [7, 4.5], width: 1.2 }],
+  doors: [
+    { at: [2.5, 4.5], wall: 'S', rows: [3, 1] },
+    { at: [2.5, 8], wall: 'S', rows: [2, 13] },
+    { at: [5.5, 1], wall: 'E', rows: [4, 5] },
+    { at: [7, 0], wall: 'S', rows: [10, 6] },
+    { at: [8.5, 1], wall: 'E', rows: [7, 8] },
+    { at: [10.75, 4.5], wall: 'S', rows: [9, 14], glazed: true },
+    { at: [13.5, 0], wall: 'S', rows: [11, 12], gate: true },
+    { at: [10.5, 13], wall: 'S', rows: [16, 15] },
+  ],
+};
 
 /**
  * Draws a door's two-headed arrow and its two row indices. `wall` is the
@@ -718,125 +548,5 @@ function drawPlan(plan) {
   c.save(plan.file);
 }
 
-// ---------------------------------------------------------------- today
-
-const TODAY_SCALE = 32;
-
-const TODAY_ROOMS = [
-  { name: 'LOUNGE', kind: 'house', rect: [3, 0, 9, 4.5], labelY: 1.2 },
-  { name: 'HALLWAY', kind: 'house', rect: [10.5, 0, 13.5, 4.5], labelY: 1.2 },
-  { name: 'STUDY', kind: 'house', rect: [15, 0, 19.5, 4.5], labelY: 1.2 },
-  { name: 'SHED', kind: 'shed', rect: [3, 6.5, 8, 10] },
-  { name: 'GREENHOUSE', kind: 'greenhouse', rect: [10, 6.5, 16, 10.5] },
-];
-
-const TODAY_GARDEN = [3, 12.5, 19.5, 18.5];
-
-/** Each pair: the two doors as { at, wall } in the walls they are in today. */
-const TODAY_PAIRS = [
-  [
-    { at: [5.5, 6.5], wall: 'N' },
-    { at: [5.5, 4.5], wall: 'S' },
-  ],
-  [
-    { at: [5.5, 10], wall: 'S' },
-    { at: [3, 15.5], wall: 'W' },
-  ],
-  [
-    { at: [9, 2.25], wall: 'E' },
-    { at: [10.5, 2.25], wall: 'W' },
-  ],
-  [
-    { at: [13.5, 2.25], wall: 'E' },
-    { at: [15, 2.25], wall: 'W' },
-  ],
-  [
-    { at: [17.25, 4.5], wall: 'S', glazed: true },
-    { at: [19.5, 15.5], wall: 'E' },
-  ],
-  [
-    { at: [13, 12.5], wall: 'N' },
-    { at: [13, 10.5], wall: 'S' },
-  ],
-];
-
-/**
- * A curve from just inside door `a` to just inside door `b`: it leaves `a`
- * along a's outward normal and enters `b` against b's outward normal, the
- * way the player walks. Heads at both ends point into the rooms.
- */
-function drawPairCurve(c, p, a, b) {
-  const [ex, ey] = OUTWARD[a.wall];
-  const [ix, iy] = OUTWARD[b.wall].map((v) => -v);
-  const agree = ex === ix && ey === iy;
-  const colour = agree ? AGREE : CONTRADICT;
-  const start = [a.at[0] - ex * 0.5, a.at[1] - ey * 0.5];
-  const end = [b.at[0] + ix * 0.5, b.at[1] + iy * 0.5];
-  const k = Math.min(3.5, 0.45 * Math.hypot(end[0] - start[0], end[1] - start[1]));
-  const c1 = [a.at[0] + ex * k, a.at[1] + ey * k];
-  const c2 = [b.at[0] - ix * k, b.at[1] - iy * k];
-  const point = (t) => {
-    const u = 1 - t;
-    return [0, 1].map(
-      (d) =>
-        u * u * u * start[d] + 3 * u * u * t * c1[d] + 3 * u * t * t * c2[d] + t * t * t * end[d],
-    );
-  };
-  const points = [];
-  for (let s = 0; s <= 240; s += 1) points.push(point(s / 240));
-  for (const [r, ink] of [
-    [4, PAPER],
-    [2, colour],
-  ]) {
-    for (let s = 6; s < points.length - 6; s += 1) {
-      const [x0, y0] = points[s - 1];
-      const [x1, y1] = points[s];
-      c.line(p.x(x0), p.y(y0), p.x(x1), p.y(y1), r, ink);
-    }
-  }
-  c.head(p.x(end[0]), p.y(end[1]), ix, iy, 14, 8, colour);
-  c.head(p.x(start[0]), p.y(start[1]), -ex, -ey, 14, 8, colour);
-}
-
-function drawToday() {
-  const width = 23.5 * TODAY_SCALE + 2 * MARGIN;
-  const height = 18.5 * TODAY_SCALE + 2 * MARGIN + HEADER + 20;
-  const c = canvas(width, height);
-  const p = projection(MARGIN, MARGIN + HEADER, TODAY_SCALE);
-
-  drawRoomFill(c, p, TODAY_GARDEN, FILLS.garden);
-  for (const room of TODAY_ROOMS) drawRoomFill(c, p, room.rect, FILLS[room.kind]);
-  for (const room of TODAY_ROOMS) drawWalls(c, p, room.rect);
-  const [gx0, gy0, gx1, gy1] = TODAY_GARDEN;
-  drawFence(c, p, [gx0, gy0], [gx1, gy0]);
-  drawFence(c, p, [gx0, gy1], [gx1, gy1]);
-  drawFence(c, p, [gx0, gy0], [gx0, gy1]);
-  drawFence(c, p, [gx1, gy0], [gx1, gy1]);
-  for (const pair of TODAY_PAIRS) for (const door of pair) drawDoorGap(c, p, door);
-
-  for (const room of TODAY_ROOMS) {
-    const [x0, y0, x1, y1] = room.rect;
-    drawRoomLabel(
-      c,
-      p.x((x0 + x1) / 2),
-      p.y(room.labelY ?? (y0 + y1) / 2),
-      [room.name],
-      (x1 - x0) * TODAY_SCALE,
-    );
-  }
-  drawRoomLabel(c, p.x(11.25), p.y(17.2), ['GARDEN'], 1000);
-
-  for (const [a, b] of TODAY_PAIRS) drawPairCurve(c, p, a, b);
-
-  c.text('TODAY  WHERE EACH DOOR LANDS', MARGIN, 24, 3, INK);
-  const ly = p.y(18.5) + 26;
-  c.line(MARGIN, ly, MARGIN + 40, ly, 2, AGREE);
-  c.text('WALLS FACE EACH OTHER', MARGIN + 52, ly - 7, 2, INK);
-  c.line(MARGIN + 380, ly, MARGIN + 420, ly, 2, CONTRADICT);
-  c.text('WALLS CONTRADICT', MARGIN + 432, ly - 7, 2, INK);
-  c.save('plan-today.png');
-}
-
 mkdirSync(OUT, { recursive: true });
-for (const plan of PLANS) drawPlan(plan);
-drawToday();
+drawPlan(PLAN);
