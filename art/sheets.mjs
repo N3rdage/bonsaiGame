@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- an entry script (`npm run art:sheets`) that reports what it wrote. */
 // Builds the web build's sprite sheets from the GameMaker prototype's frames.
 //
 // Each prototype sprite keeps one PNG per frame under

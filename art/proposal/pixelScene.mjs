@@ -50,7 +50,11 @@ function window(p, M, S) {
   p.rect(x + 2, y + h - 5, w - 4, 3, M.glass.s);
   p.rect(x + 15, y + 2, 2, h - 4, M.wood.m);
   p.rect(x + 2, y + 11, w - 4, 2, M.wood.m);
-  for (const [gx, gy] of [[x + 5, y + 8], [x + 21, y + 8], [x + 6, y + 20]]) {
+  for (const [gx, gy] of [
+    [x + 5, y + 8],
+    [x + 21, y + 8],
+    [x + 6, y + 20],
+  ]) {
     for (let i = 0; i < 3; i += 1) p.px(gx + i, gy - i, M.lamp);
   }
   p.box(x - 2, y + h - 2, w + 4, 4, M.top);
@@ -97,7 +101,8 @@ function floor(p, M, S) {
   if (p.style.dither) {
     p.checker(x, y, w, 3, M.floor.s);
     const pool = S.SHED.window;
-    for (let ry = 0; ry < 22; ry += 1) p.checker(pool.x - 4 + Math.floor(ry / 2), 70 + ry, pool.w, 1, M.floor.h);
+    for (let ry = 0; ry < 22; ry += 1)
+      p.checker(pool.x - 4 + Math.floor(ry / 2), 70 + ry, pool.w, 1, M.floor.h);
   }
 }
 
@@ -126,7 +131,8 @@ function doorLeaf(p, M, S) {
     for (let y = top; y <= bottom; y += 1) {
       let c = M.boards.m;
       const rail = y === top + 12 || y === top + 26;
-      if (p.style.outline && (x === fx || x === hx - 1 || y === top || y === bottom)) c = M.boards.o;
+      if (p.style.outline && (x === fx || x === hx - 1 || y === top || y === bottom))
+        c = M.boards.o;
       else if (x === fx || x === fx + 1 || y === top) c = M.boards.h;
       else if (rail || x === hx - 1) c = M.boards.s;
       p.px(x, y, c);
@@ -135,7 +141,7 @@ function doorLeaf(p, M, S) {
   p.box(fx + 2, fy - 22, 2, 3, M.brass);
 }
 
-function workbench(p, M, S) {
+function workbench(p, M) {
   p.shadow(40, 67, 27, 4);
   p.box(17, 46, 4, 22, M.wood);
   p.box(59, 46, 4, 22, M.wood);
@@ -150,7 +156,7 @@ function workbench(p, M, S) {
   p.box(49, 33, 2, 2, M.metal);
 }
 
-function plantingTable(p, M, S) {
+function plantingTable(p, M) {
   p.shadow(124, 67, 23, 4);
   p.box(105, 46, 4, 22, M.wood);
   p.box(139, 46, 4, 22, M.wood);
@@ -166,7 +172,7 @@ function plantingTable(p, M, S) {
   p.box(104, 46, 40, 5, M.wood);
 }
 
-function kiosk(p, M, S) {
+function kiosk(p, M) {
   p.shadow(28, 115, 22, 4);
   p.box(8, 92, 40, 24, M.wood);
   for (const sx of [20, 34]) p.rect(sx, 95, 1, 18, M.wood.s);
@@ -183,7 +189,15 @@ function kiosk(p, M, S) {
 function bonsai(p, M, S) {
   const { cx, base } = S.BONSAI;
   pot(p, cx - 5, base - 4, 10, 5, M.terracotta);
-  for (const [tx, ty] of [[0, -5], [0, -6], [-1, -7], [-1, -8], [0, -9], [1, -10], [1, -11]]) {
+  for (const [tx, ty] of [
+    [0, -5],
+    [0, -6],
+    [-1, -7],
+    [-1, -8],
+    [0, -9],
+    [1, -10],
+    [1, -11],
+  ]) {
     p.px(cx + tx - 1, base + ty, M.bark.h);
     p.px(cx + tx, base + ty, M.bark.m);
   }
@@ -201,7 +215,7 @@ function pedestal(p, M, S) {
   bonsai(p, M, S);
 }
 
-function avatar(p, M, S) {
+function avatar(p, M) {
   p.shadow(104, 115, 7, 2.5);
   p.box(100, 104, 4, 10, M.trousers);
   p.box(104, 104, 4, 10, M.trousers);
@@ -219,7 +233,7 @@ function avatar(p, M, S) {
   p.px(102, 90, M.skin.s);
 }
 
-function wateringCan(p, M, S) {
+function wateringCan(p, M) {
   p.shadow(61, 121, 7, 2);
   p.box(56, 113, 8, 9, M.metal);
   for (let i = 0; i < 5; i += 1) {
@@ -232,7 +246,7 @@ function wateringCan(p, M, S) {
   p.rect(63, 111, 1, 2, M.metal.s);
 }
 
-function sack(p, M, S) {
+function sack(p, M) {
   p.shadow(140, 141, 8, 2.5);
   p.ellipse(140, 134, 7, 8, M.cream);
   p.box(137, 124, 6, 5, M.cream);
@@ -240,7 +254,7 @@ function sack(p, M, S) {
   p.rect(134, 133, 4, 1, M.cream.s);
 }
 
-function potStack(p, M, S) {
+function potStack(p, M) {
   p.shadow(144, 99, 7, 2);
   p.box(140, 88, 8, 12, M.terracotta);
   for (const ry of [84, 88, 92]) p.box(138, ry, 12, 3, M.terracotta);
@@ -253,7 +267,18 @@ function rug(p, M, S, o) {
   for (const sy of [y + 8, y + h - 9]) p.rect(x + 4, sy, w - 8, 1, M.rugEdge.h);
 }
 
-const DRAW = { rug, workbench, plantingTable, kiosk, pedestal, avatar, wateringCan, sack, potStack, doorLeaf };
+const DRAW = {
+  rug,
+  workbench,
+  plantingTable,
+  kiosk,
+  pedestal,
+  avatar,
+  wateringCan,
+  sack,
+  potStack,
+  doorLeaf,
+};
 
 /** Draws the whole shed of scene `S` (scene.mjs) with painter `p` in materials `M`. */
 export function drawShed(p, M, S) {
@@ -277,7 +302,8 @@ export function bookcase(p, M, x, floorY) {
   for (let shelf = 0; shelf < 3; shelf += 1) {
     const sy = top + 14 + shelf * 14;
     p.rect(x + 3, sy, 34, 12, M.wood.s);
-    for (let bx = x + 4, i = shelf; bx < x + 34; bx += 5, i += 1) p.box(bx, sy + 2 + (i % 2), 4, 10 - (i % 2), books[i % books.length]);
+    for (let bx = x + 4, i = shelf; bx < x + 34; bx += 5, i += 1)
+      p.box(bx, sy + 2 + (i % 2), 4, 10 - (i % 2), books[i % books.length]);
   }
 }
 

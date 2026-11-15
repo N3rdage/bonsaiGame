@@ -38,7 +38,13 @@ export const WASHES = {
   shadow: [110, 94, 80],
 };
 /** Which washes wear as which material: wood splits and knots, pots chip and ring, cloth frays and stains. */
-export const WEAR_BY_WASH = { wood: 'wood', top: 'wood', terracotta: 'pot', rug: 'cloth', cream: 'cloth' };
+export const WEAR_BY_WASH = {
+  wood: 'wood',
+  top: 'wood',
+  terracotta: 'pot',
+  rug: 'cloth',
+  cream: 'cloth',
+};
 
 const mix = (wash) => PAPER.map((p, i) => Math.round(p * (1 - WASH_ALPHA) + wash[i] * WASH_ALPHA));
 

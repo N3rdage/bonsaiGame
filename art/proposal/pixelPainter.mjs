@@ -42,14 +42,20 @@ export function painter(canvas, style) {
     }
   };
 
-  const inEllipse = (x, y, cx, cy, rx, ry) => ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1;
+  const inEllipse = (x, y, cx, cy, rx, ry) =>
+    ((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2 <= 1;
 
   /** An elliptical form, lit from the upper left. */
   const ellipse = (cx, cy, rx, ry, m) => {
     for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y += 1) {
       for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x += 1) {
         if (!inEllipse(x, y, cx, cy, rx, ry)) continue;
-        const edge = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => !inEllipse(x + dx, y + dy, cx, cy, rx, ry));
+        const edge = [
+          [1, 0],
+          [-1, 0],
+          [0, 1],
+          [0, -1],
+        ].some(([dx, dy]) => !inEllipse(x + dx, y + dy, cx, cy, rx, ry));
         const u = (x + 0.5 - cx) / rx;
         const v = (y + 0.5 - cy) / ry;
         let c = m.m;

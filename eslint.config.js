@@ -8,7 +8,6 @@ export default tseslint.config(
   {
     ignores: [
       'archive/**',
-      'art/**',
       'blog/**',
       'dist/**',
       'dev-dist/**',
@@ -35,7 +34,10 @@ export default tseslint.config(
     },
   },
   {
-    files: ['**/*.js'],
+    // Plain JavaScript: the root configs and the art generators (Node
+    // scripts, not in any tsconfig project) get @eslint/js recommended and
+    // the global browser+node globals, without the type-checked rules.
+    files: ['**/*.js', 'art/**/*.mjs'],
     ...tseslint.configs.disableTypeChecked,
   },
   prettier,

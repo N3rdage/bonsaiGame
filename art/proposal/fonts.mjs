@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- an entry script (`npm run art:fonts`) that reports what it wrote. */
 // A one-off font comparison for the Inked art direction (#137): an HTML mock
 // of the HUD badge and one panel over the Inked shed, screenshotted by
 // Playwright's chromium at the S22 Ultra's landscape device pixels, once per
@@ -18,12 +19,27 @@ import { chromium } from '@playwright/test';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const OUT = join(ROOT, 'docs', 'proposals', 'art-direction', 'fonts');
-const SHED = pathToFileURL(join(ROOT, 'docs', 'proposals', 'art-direction', 'inked-grunge-shed-s22-landscape.png')).href;
-const font = (pkg, file) => pathToFileURL(join(ROOT, 'node_modules', '@fontsource', pkg, 'files', file)).href;
+const SHED = pathToFileURL(
+  join(ROOT, 'docs', 'proposals', 'art-direction', 'inked-grunge-shed-s22-landscape.png'),
+).href;
+const font = (pkg, file) =>
+  pathToFileURL(join(ROOT, 'node_modules', '@fontsource', pkg, 'files', file)).href;
 
 const FACES = [
-  { slug: 'vt323', family: 'VT323', files: [[font('vt323', 'vt323-latin-400-normal.woff2'), 400]], scale: 1, weight: 400 },
-  { slug: 'caveat', family: 'Caveat', files: [[font('caveat', 'caveat-latin-400-normal.woff2'), 400]], scale: 1.05, weight: 400 },
+  {
+    slug: 'vt323',
+    family: 'VT323',
+    files: [[font('vt323', 'vt323-latin-400-normal.woff2'), 400]],
+    scale: 1,
+    weight: 400,
+  },
+  {
+    slug: 'caveat',
+    family: 'Caveat',
+    files: [[font('caveat', 'caveat-latin-400-normal.woff2'), 400]],
+    scale: 1.05,
+    weight: 400,
+  },
   {
     slug: 'nunito',
     family: 'Nunito',
@@ -58,7 +74,10 @@ body { margin: 0; width: 2318px; height: 1080px; background: url('${SHED}'); fon
 mkdirSync(OUT, { recursive: true });
 const scratch = mkdtempSync(join(tmpdir(), 'bonsai-fonts-'));
 const browser = await chromium.launch();
-const tab = await browser.newPage({ viewport: { width: 2318, height: 1080 }, deviceScaleFactor: 1 });
+const tab = await browser.newPage({
+  viewport: { width: 2318, height: 1080 },
+  deviceScaleFactor: 1,
+});
 for (const face of FACES) {
   const html = join(scratch, `${face.slug}.html`);
   writeFileSync(html, page(face));

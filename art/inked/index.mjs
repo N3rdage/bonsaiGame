@@ -13,7 +13,16 @@ import { kit } from './kit.mjs';
 import { createInk, toCanvas } from './stroke.mjs';
 import { PAPER, PER_LOGICAL, STYLE, SUPERSAMPLE } from './style.mjs';
 
-export { INK, PAPER, PER_LOGICAL, PROPOSAL_STYLE, STYLE, SURROUND, WASHES, palette } from './style.mjs';
+export {
+  INK,
+  PAPER,
+  PER_LOGICAL,
+  PROPOSAL_STYLE,
+  STYLE,
+  SURROUND,
+  WASHES,
+  palette,
+} from './style.mjs';
 
 /**
  * A page `width` x `height` logical px with its kit. `seed` is the sheet's own
@@ -22,7 +31,14 @@ export { INK, PAPER, PER_LOGICAL, PROPOSAL_STYLE, STYLE, SURROUND, WASHES, palet
  * where the paper grain is sampled.
  */
 export function createPage(width, height, { seed, style = STYLE, origin = [0, 0] }) {
-  const ink = createInk(width, height, { perLogical: PER_LOGICAL, ss: SUPERSAMPLE, paper: PAPER, style, seed, origin });
+  const ink = createInk(width, height, {
+    perLogical: PER_LOGICAL,
+    ss: SUPERSAMPLE,
+    paper: PAPER,
+    style,
+    seed,
+    origin,
+  });
   return { ink, k: kit(ink, seeded(seed)) };
 }
 
