@@ -186,7 +186,8 @@ export class TreeViewer {
   private readonly gradient = toonGradient();
   // Toon-lit vertex colours (`toon.ts`); every geometry is indexed in both
   // windings, so faces draw from both sides, as the prototype's did, with
-  // front-face culling only skipping the copy that faces away.
+  // the materials' default back-face culling (`FrontSide`) only skipping the
+  // copy that faces away.
   private readonly potMaterial = new MeshToonMaterial({
     vertexColors: true,
     gradientMap: this.gradient,

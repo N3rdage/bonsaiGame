@@ -48,7 +48,8 @@ export const OUTLINE_DEPTH = 0.1;
 
 /**
  * An index list drawing each triangle of a flat triangle list twice, once in
- * each winding. With front-face culling it draws every face from both sides
+ * each winding. With back-face culling (three.js's default `FrontSide`) it
+ * draws every face from both sides
  * while the stored normal is used as it is, outward, on either side, where
  * a double-sided material would flip it for faces seen from the back.
  */

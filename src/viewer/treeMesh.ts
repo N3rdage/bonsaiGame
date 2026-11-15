@@ -6,7 +6,7 @@
  * `add_wire_coil`, `add_wire_anchor`, `build_ring_with_basis`,
  * `build_oriented_ring`, `build_ring` and `stitch_rings` in
  * archive/gamemaker/scripts/scr_bonsai_mesh/scr_bonsai_mesh.gml. Shape comes
- * from `trunkFrames`, `branchPoint` and the `*FrameAt` lookups only, so what
+ * from `trunkFrames` and the `*FrameAt` lookups only, so what
  * you see is what you score. A wired branch's wire coil and trunk anchor are
  * appended to the bark list right after that branch's bark, as the prototype
  * appended them to its bark buffer. Bark takes the species' `look` colours
@@ -15,13 +15,7 @@
  */
 
 import type { BonsaiTree, Branch, Frame, SpeciesKey, Vec3 } from '../sim/types';
-import {
-  DISPLAY_SCALE,
-  branchFrameAt,
-  branchPoint,
-  trunkFrameAt,
-  trunkFrames,
-} from '../sim/geometry';
+import { DISPLAY_SCALE, branchFrameAt, trunkFrameAt, trunkFrames } from '../sim/geometry';
 import { getSpecies } from '../sim/species';
 import { clamp, dcos, dsin } from '../sim/vec3';
 import { hexToRgb } from './foliageMesh';
@@ -145,6 +139,24 @@ export function ringNormals(ring: Vec3[]): Vec3[] {
 }
 
 /**
+ * Each ring point's surface normal on a tube running along the unit `tangent`
+ * through `centre`: the part of its offset from the centre perpendicular to
+ * the tangent. A ring that is not perpendicular to its tube (a branch's flat
+ * rings on a rising branch) needs this; `ringNormals` would tilt with the ring.
+ */
+export function tubeNormals(ring: Vec3[], centre: Vec3, tangent: Vec3): Vec3[] {
+  return ring.map((p) => {
+    const d = { x: p.x - centre.x, y: p.y - centre.y, z: p.z - centre.z };
+    const along = d.x * tangent.x + d.y * tangent.y + d.z * tangent.z;
+    return unit({
+      x: d.x - along * tangent.x,
+      y: d.y - along * tangent.y,
+      z: d.z - along * tangent.z,
+    });
+  });
+}
+
+/**
  * Bark texture coordinate around a ring: 0 to 2 once round, so the
  * mirrored-repeat bark texture runs forward then back and meets itself
  * without a seam.
@@ -159,7 +171,8 @@ export const BARK_TILE_LENGTH = 0.25;
 /**
  * Two triangles per ring segment, (a1, b1, a2) then (a2, b1, b2), in one
  * colour, with smooth outward normals and bark texture coordinates: u around
- * (`ringU`), `vA` and `vB` along.
+ * (`ringU`), `vA` and `vB` along. Normals are `normals.a` and `normals.b` when
+ * given, one per ring point, else each ring's `ringNormals`.
  */
 export function stitchRings(
   list: TriangleList,
@@ -168,10 +181,11 @@ export function stitchRings(
   c: Rgb,
   vA = 0,
   vB = 0,
+  normals?: { readonly a: Vec3[]; readonly b: Vec3[] },
 ): void {
   const n = ringA.length;
-  const na = ringNormals(ringA);
-  const nb = ringNormals(ringB);
+  const na = normals?.a ?? ringNormals(ringA);
+  const nb = normals?.b ?? ringNormals(ringB);
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     const a1 = ringA[i];
@@ -197,20 +211,23 @@ export function stitchRings(
 /**
  * A tube laid ring by ring: each ring is stitched to the one before, its bark
  * v the distance its centre has travelled along the tube in `BARK_TILE_LENGTH`s.
+ * Normals are each ring's `ringNormals` unless the ring brings its own.
  */
 class Tube {
-  private prev: { ring: Vec3[]; centre: Vec3; v: number } | undefined;
+  private prev: { ring: Vec3[]; normals: Vec3[]; centre: Vec3; v: number } | undefined;
 
   constructor(
     private readonly list: TriangleList,
     private readonly c: Rgb,
   ) {}
 
-  ring(centre: Vec3, ring: Vec3[]): void {
+  ring(centre: Vec3, ring: Vec3[], normals = ringNormals(ring)): void {
     const { prev } = this;
     const v = prev ? prev.v + dist(prev.centre, centre) / BARK_TILE_LENGTH : 0;
-    if (prev) stitchRings(this.list, prev.ring, ring, this.c, prev.v, v);
-    this.prev = { ring, centre, v };
+    if (prev) {
+      stitchRings(this.list, prev.ring, ring, this.c, prev.v, v, { a: prev.normals, b: normals });
+    }
+    this.prev = { ring, normals, centre, v };
   }
 }
 
@@ -236,8 +253,10 @@ function buildBranchBark(list: TriangleList, tree: BonsaiTree, branch: Branch, b
   for (let i = 0; i <= BRANCH_SEGMENTS; i++) {
     const t = i / BRANCH_SEGMENTS;
     const r = Math.max(lerp(r0, r0 * BRANCH_TIP_FRACTION, t), BRANCH_MIN_RADIUS);
-    const centre = branchPoint(tree, branch, t);
-    tube.ring(centre, buildRing(centre, r, BRANCH_RING_SEGMENTS));
+    // Flat rings (the prototype's shape), shaded radial to the branch's tangent.
+    const { pos, tangent } = branchFrameAt(tree, branch, t);
+    const ring = buildRing(pos, r, BRANCH_RING_SEGMENTS);
+    tube.ring(pos, ring, tubeNormals(ring, pos, tangent));
   }
 }
 
