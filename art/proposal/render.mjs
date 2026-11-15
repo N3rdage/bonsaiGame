@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- an entry script (`npm run art:proposal`) that reports what it wrote. */
 // Renders the art-direction proposal (backlog #127): the same shed scene in
 // three candidate styles, each at the S22 Ultra's landscape size and at 2x,
 // with its palette strip, plus the scale-rule diagram. Potting Shed also gets
@@ -18,14 +19,29 @@ import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createCanvas, paletteStrip, phoneView, s22Frame, S22, toDevice, writePng } from './canvas.mjs';
+import {
+  createCanvas,
+  paletteStrip,
+  phoneView,
+  s22Frame,
+  S22,
+  toDevice,
+  writePng,
+} from './canvas.mjs';
 import { inked, inkedGrunge } from './inked.mjs';
 import * as pottingShed from './pottingShed.mjs';
 import * as scaleRule from './scaleRule.mjs';
 import * as scene from './scene.mjs';
 import * as softLinen from './softLinen.mjs';
 
-const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'docs', 'proposals', 'art-direction');
+const OUT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..',
+  '..',
+  'docs',
+  'proposals',
+  'art-direction',
+);
 mkdirSync(OUT, { recursive: true });
 
 function save(file, canvas) {

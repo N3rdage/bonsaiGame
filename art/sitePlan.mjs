@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- an entry script (`npm run art:site-plan`) that reports what it wrote. */
 // Draws the site-plan diagrams for docs/site-plan/ (backlog #129): three
 // candidate layouts of the whole property seen from above, north up, at
 // 40 px per metre on a 1 m grid, and one diagram of how today's doors
@@ -124,7 +125,8 @@ function canvas(width, height) {
           const s1 = side(a, b, x + 0.5, y + 0.5);
           const s2 = side(b, d, x + 0.5, y + 0.5);
           const s3 = side(d, a, x + 0.5, y + 0.5);
-          if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) c.set(x, y, colour);
+          if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0))
+            c.set(x, y, colour);
         }
       }
     },
@@ -159,7 +161,11 @@ function canvas(width, height) {
 
 /** Maps metres to pixels: the point (mx, my) in metres sits at (ox, oy) on the canvas. */
 function projection(ox, oy, scale, [mx, my] = [0, 0]) {
-  return { x: (m) => ox + Math.round((m - mx) * scale), y: (m) => oy + Math.round((m - my) * scale), scale };
+  return {
+    x: (m) => ox + Math.round((m - mx) * scale),
+    y: (m) => oy + Math.round((m - my) * scale),
+    scale,
+  };
 }
 
 // ---------------------------------------------------------------- shared pieces
@@ -269,8 +275,10 @@ function drawShadow(c, p, [x0, y0, x1, y1]) {
   const shade = (x, y) => {
     if (open(x, y)) c.darken(x, y, SHADOW);
   };
-  for (let y = bottom + t; y < bottom + t + 4; y += 1) for (let x = l - t; x < r + t + 4; x += 1) shade(x, y);
-  for (let x = r + t; x < r + t + 4; x += 1) for (let y = top - t; y < bottom + t; y += 1) shade(x, y);
+  for (let y = bottom + t; y < bottom + t + 4; y += 1)
+    for (let x = l - t; x < r + t + 4; x += 1) shade(x, y);
+  for (let x = r + t; x < r + t + 4; x += 1)
+    for (let y = top - t; y < bottom + t; y += 1) shade(x, y);
 }
 
 /** The road's dashed centre line (1 m dashes, 1 m gaps) along y `centre` and its kerb along y `kerb`, in metres. */
@@ -365,7 +373,12 @@ function lot(path) {
     extent: [18, 23],
     areas: [
       { kind: 'road', rect: [-3.5, -7, 14.5, -4] },
-      { kind: 'garden', rect: [-3.5, -4, 14.5, 0], label: [3.5, -2], lines: ['FRONT GARDEN', '18.0 X 4.0'] },
+      {
+        kind: 'garden',
+        rect: [-3.5, -4, 14.5, 0],
+        label: [3.5, -2],
+        lines: ['FRONT GARDEN', '18.0 X 4.0'],
+      },
       { kind: 'paving', rect: [-3.5, -4, 0, 0] },
       { kind: 'paving', rect: [path - 0.4, -4, path + 0.4, 0] },
     ],
@@ -468,7 +481,12 @@ const PLANS = [
     rooms: [
       ...HOUSE,
       { lines: ['SHED', '5.0 X 3.5'], kind: 'shed', rect: [0, 4.5, 5, 8], label: [2.5, 6.25] },
-      { lines: ['GREENHOUSE', '5.0 X 8.0'], kind: 'greenhouse', rect: [13, 8, 18, 16], label: [15.5, 10] },
+      {
+        lines: ['GREENHOUSE', '5.0 X 8.0'],
+        kind: 'greenhouse',
+        rect: [13, 8, 18, 16],
+        label: [15.5, 10],
+      },
     ],
     garden: {
       rects: [
@@ -547,7 +565,9 @@ const PLANS = [
     title: 'PLAN B2  LEAN-TO WITH A FRONT',
     ...lot(7.25),
     rooms: [
-      ...HOUSE.map((room) => (room.lines[0] === 'HALLWAY' ? { ...room, label: [7.25, 1.4] } : room)),
+      ...HOUSE.map((room) =>
+        room.lines[0] === 'HALLWAY' ? { ...room, label: [7.25, 1.4] } : room,
+      ),
       ...OUTBUILDINGS,
     ],
     doors: [
@@ -566,10 +586,32 @@ const PLANS = [
     title: 'PLAN B3  HALLWAY AND KITCHEN',
     ...lot(7),
     rooms: [
-      { lines: ['LOUNGE', '5.5 X 4.5'], kind: 'house', rect: [0, 0, 5.5, 4.5], label: [2.75, 2.25] },
-      { lines: ['HALL', '3 X 2'], kind: 'house', rect: [5.5, 0, 8.5, 2], label: [7, 1.4], scale: 2 },
-      { lines: ['KITCHEN', '3.0 X 2.5'], kind: 'kitchen', rect: [5.5, 2, 8.5, 4.5], label: [7, 3.2], scale: 2 },
-      { lines: ['STUDY', '4.5 X 4.5'], kind: 'house', rect: [8.5, 0, 13, 4.5], label: [10.75, 2.25] },
+      {
+        lines: ['LOUNGE', '5.5 X 4.5'],
+        kind: 'house',
+        rect: [0, 0, 5.5, 4.5],
+        label: [2.75, 2.25],
+      },
+      {
+        lines: ['HALL', '3 X 2'],
+        kind: 'house',
+        rect: [5.5, 0, 8.5, 2],
+        label: [7, 1.4],
+        scale: 2,
+      },
+      {
+        lines: ['KITCHEN', '3.0 X 2.5'],
+        kind: 'kitchen',
+        rect: [5.5, 2, 8.5, 4.5],
+        label: [7, 3.2],
+        scale: 2,
+      },
+      {
+        lines: ['STUDY', '4.5 X 4.5'],
+        kind: 'house',
+        rect: [8.5, 0, 13, 4.5],
+        label: [10.75, 2.25],
+      },
       ...OUTBUILDINGS,
     ],
     opens: [{ x: 5.5, y: [2, 4.5], fills: ['house', 'kitchen'] }],
@@ -597,10 +639,17 @@ function drawDoorMarks(c, p, { at: [mx, my], wall, rows, glazed }) {
   const cx = p.x(mx);
   const cy = p.y(my);
   const reach = 26;
-  c.line(cx - nx * (reach - 6), cy - ny * (reach - 6), cx + nx * (reach - 6), cy + ny * (reach - 6), 1.5, INK);
+  c.line(
+    cx - nx * (reach - 6),
+    cy - ny * (reach - 6),
+    cx + nx * (reach - 6),
+    cy + ny * (reach - 6),
+    1.5,
+    INK,
+  );
   c.head(cx + nx * reach, cy + ny * reach, nx, ny, 9, 6, INK);
   c.head(cx - nx * reach, cy - ny * reach, -nx, -ny, 9, 6, INK);
-  const along = (((glazed ? GLAZED_DOOR : DOOR) / 2) * p.scale) + 14;
+  const along = ((glazed ? GLAZED_DOOR : DOOR) / 2) * p.scale + 14;
   const [ax, ay] = [Math.abs(ny), Math.abs(nx)];
   rows.forEach((row, i) => {
     const side = i === 0 ? -1 : 1;
@@ -729,7 +778,8 @@ function drawPairCurve(c, p, a, b) {
   const point = (t) => {
     const u = 1 - t;
     return [0, 1].map(
-      (d) => u * u * u * start[d] + 3 * u * u * t * c1[d] + 3 * u * t * t * c2[d] + t * t * t * end[d],
+      (d) =>
+        u * u * u * start[d] + 3 * u * u * t * c1[d] + 3 * u * t * t * c2[d] + t * t * t * end[d],
     );
   };
   const points = [];
@@ -766,7 +816,13 @@ function drawToday() {
 
   for (const room of TODAY_ROOMS) {
     const [x0, y0, x1, y1] = room.rect;
-    drawRoomLabel(c, p.x((x0 + x1) / 2), p.y(room.labelY ?? (y0 + y1) / 2), [room.name], (x1 - x0) * TODAY_SCALE);
+    drawRoomLabel(
+      c,
+      p.x((x0 + x1) / 2),
+      p.y(room.labelY ?? (y0 + y1) / 2),
+      [room.name],
+      (x1 - x0) * TODAY_SCALE,
+    );
   }
   drawRoomLabel(c, p.x(11.25), p.y(17.2), ['GARDEN'], 1000);
 

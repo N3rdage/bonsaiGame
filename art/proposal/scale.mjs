@@ -28,5 +28,10 @@ export const SIZES = {
   window: { real: [1.0, null, 0.8], footprint: null, sprite: [32, 24], sillAboveFloor: 16 },
   backWall: { real: [null, null, 2.4], sprite: [null, 48] },
   wallCap: { real: [null, 0.25, null], sprite: [8, null] },
-  starterBonsai: { real: [0.12, 0.12, 0.25], sprite: [14, 18], pot: [10, 5], heroScale: HERO_SCALE },
+  starterBonsai: {
+    real: [0.12, 0.12, 0.25],
+    sprite: [14, 18],
+    pot: [10, 5],
+    heroScale: HERO_SCALE,
+  },
 };

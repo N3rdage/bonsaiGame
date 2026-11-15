@@ -26,7 +26,11 @@ import { applyGrain, hash } from './paper.mjs';
  * sheet) and `origin` the page's top-left in world logical px, where the grain
  * is sampled.
  */
-export function createInk(width, height, { perLogical, ss, paper, style, seed = 0, origin = [0, 0] }) {
+export function createInk(
+  width,
+  height,
+  { perLogical, ss, paper, style, seed = 0, origin = [0, 0] },
+) {
   const k = perLogical * ss;
   const W = width * k;
   const H = height * k;
@@ -121,7 +125,10 @@ function pressureAlong(ink, path, amount) {
   let s = 0;
   return path.map(([x, y], i) => {
     if (i > 0) s += Math.hypot(x - path[i - 1][0], y - path[i - 1][1]);
-    const wave = waves.reduce((sum, [length, phase, weight]) => sum + weight * Math.sin(2 * Math.PI * (s / length + phase)), 0);
+    const wave = waves.reduce(
+      (sum, [length, phase, weight]) => sum + weight * Math.sin(2 * Math.PI * (s / length + phase)),
+      0,
+    );
     return Math.max(0.3, 1 + amount * wave);
   });
 }
@@ -129,7 +136,8 @@ function pressureAlong(ink, path, amount) {
 /** How starved of ink the brush is at each point of `path`: zero, except round a few seeded breaks on a long line. */
 function drynessAlong(ink, path, { strength, minLength, every }) {
   const cum = [0];
-  for (let i = 1; i < path.length; i += 1) cum.push(cum[i - 1] + Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]));
+  for (let i = 1; i < path.length; i += 1)
+    cum.push(cum[i - 1] + Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]));
   const total = cum[cum.length - 1];
   if (strength <= 0 || total < minLength * ink.k) return null;
   const g = ink.g;
@@ -139,7 +147,11 @@ function drynessAlong(ink, path, { strength, minLength, every }) {
   ]);
   if (breaks.length === 0) return null;
   return cum.map((s) =>
-    breaks.reduce((dry, [centre, half]) => Math.max(dry, strength * Math.max(0, 1 - ((s - centre) / half) ** 2)), 0),
+    breaks.reduce(
+      (dry, [centre, half]) =>
+        Math.max(dry, strength * Math.max(0, 1 - ((s - centre) / half) ** 2)),
+      0,
+    ),
   );
 }
 
@@ -199,7 +211,11 @@ export function stroke(ink, pts, { width, colour, rnd, jitter = 0.5, overshoot =
     const t = path.length > 1 ? i / (path.length - 1) : 0.5;
     const swell = 0.55 + 0.45 * Math.sin(Math.PI * t);
     const r = (width * ink.ss * swell * (0.85 + 0.3 * rnd())) / 2;
-    return [x - ((ny - py) / len) * drift, y + ((nx - px) / len) * drift, pressure ? r * pressure[i] : r];
+    return [
+      x - ((ny - py) / len) * drift,
+      y + ((nx - px) / len) * drift,
+      pressure ? r * pressure[i] : r,
+    ];
   });
   for (let i = 0; i + 1 < pen.length; i += 1) {
     const [ax, ay, ra] = pen[i];
@@ -207,7 +223,8 @@ export function stroke(ink, pts, { width, colour, rnd, jitter = 0.5, overshoot =
     const dry = dryness ? (dryness[i] + dryness[i + 1]) / 2 : 0;
     capsule(ink, ax, ay, ra, bx, by, rb, colour, dry, bristles);
   }
-  if (pen.length === 1) capsule(ink, pen[0][0], pen[0][1], pen[0][2], pen[0][0], pen[0][1], pen[0][2], colour);
+  if (pen.length === 1)
+    capsule(ink, pen[0][0], pen[0][1], pen[0][2], pen[0][0], pen[0][1], pen[0][2], colour);
   spatterAround(ink, pen, width, colour, spatter);
 }
 
@@ -244,7 +261,11 @@ export function hatch(ink, poly, { angle, spacing, width, colour, rnd }) {
 
 /** Box-filters the samples down to art px and lays the paper grain over them: an RGBA canvas. */
 export function toCanvas(ink) {
-  const out = { width: ink.artWidth, height: ink.artHeight, data: new Uint8ClampedArray(ink.artWidth * ink.artHeight * 4) };
+  const out = {
+    width: ink.artWidth,
+    height: ink.artHeight,
+    data: new Uint8ClampedArray(ink.artWidth * ink.artHeight * 4),
+  };
   const { ss } = ink;
   for (let y = 0; y < out.height; y += 1) {
     for (let x = 0; x < out.width; x += 1) {

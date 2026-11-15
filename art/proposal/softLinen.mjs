@@ -83,7 +83,13 @@ const SHADE = [
   [c.linen, c['warm grey light']],
 ];
 
-export const style = { outline: false, dither: true, plasterWall: true, lampGlow: c.lamp, shade: SHADE };
+export const style = {
+  outline: false,
+  dither: true,
+  plasterWall: true,
+  lampGlow: c.lamp,
+  shade: SHADE,
+};
 export const surround = c.dusk;
 
 /** Draws `scene` (scene.mjs) onto `canvas`, one canvas pixel per logical pixel. */

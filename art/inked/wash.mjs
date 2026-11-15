@@ -55,7 +55,8 @@ export function wash(ink, pts, c, a) {
         if (d >= limit) continue;
         alpha = (a + washPool) * 0.6 * (1 - d / limit) ** 2;
       }
-      if (washGranulation > 0) alpha *= 1 + washGranulation * (2 * valueNoise(x, y, 1.5 * ink.ss, seed + 1) - 1);
+      if (washGranulation > 0)
+        alpha *= 1 + washGranulation * (2 * valueNoise(x, y, 1.5 * ink.ss, seed + 1) - 1);
       paint(ink, x, y, c, Math.min(1, alpha));
     }
   }

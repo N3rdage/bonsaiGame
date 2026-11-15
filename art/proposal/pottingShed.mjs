@@ -90,7 +90,13 @@ const SHADE = [
   [c['terracotta shadow'], c['terracotta outline']],
 ];
 
-export const style = { outline: true, dither: false, plasterWall: false, lampGlow: null, shade: SHADE };
+export const style = {
+  outline: true,
+  dither: false,
+  plasterWall: false,
+  lampGlow: null,
+  shade: SHADE,
+};
 export const surround = c.night;
 export const materials = MATERIALS;
 

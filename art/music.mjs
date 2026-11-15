@@ -1,3 +1,4 @@
+/* eslint-disable no-console -- an entry script (`npm run art:music`) that reports what it wrote. */
 // Generates the game's ambient music (backlog 7-c): one short seamless loop
 // per key of MUSIC_KEYS in src/platform/audio.ts, mono 16-bit PCM WAVs at
 // 11025 Hz, written to public/assets/audio/<key>.wav.
@@ -181,7 +182,13 @@ const RECIPES = {
     });
     const tune = [81, 76, 79, 72, 74, 76, 69, 72, 76, 74, 72, 69];
     tune.forEach((m, i) => {
-      pluck(out, { at: (i * LOOP_S) / tune.length, hz: note(m), decay: 2.2, gain: 0.35, partials: [1, 0.2] });
+      pluck(out, {
+        at: (i * LOOP_S) / tune.length,
+        hz: note(m),
+        decay: 2.2,
+        gain: 0.35,
+        partials: [1, 0.2],
+      });
     });
     return out;
   },

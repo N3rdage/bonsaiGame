@@ -84,8 +84,13 @@ export function render(scene) {
   const p = painter(diagram, pottingShed.style);
   p.rect(0, FLOOR_Y, WIDTH, HEIGHT - FLOOR_Y, M.floor.m);
   p.rect(0, FLOOR_Y, WIDTH, 1, M.wood.o);
-  for (let x = 0; x < WIDTH; x += TILE) p.rect(x, FLOOR_Y + 1, 1, x % (TILE * 2) === 0 ? 6 : 3, M.wood.o);
-  for (const { crop: [, , w], x } of LINE_UP) p.shadow(x + w / 2, FLOOR_Y, w / 2 + 3, 3);
+  for (let x = 0; x < WIDTH; x += TILE)
+    p.rect(x, FLOOR_Y + 1, 1, x % (TILE * 2) === 0 ? 6 : 3, M.wood.o);
+  for (const {
+    crop: [, , w],
+    x,
+  } of LINE_UP)
+    p.shadow(x + w / 2, FLOOR_Y, w / 2 + 3, 3);
   for (const { crop: rect, x } of LINE_UP) blit(diagram, crop(room, rect), x, FLOOR_Y - rect[3]);
   bookcase(p, M, BOOKCASE.x, FLOOR_Y);
 
