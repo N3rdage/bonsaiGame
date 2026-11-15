@@ -1,12 +1,21 @@
 import Phaser from 'phaser';
 import { registerSW } from 'virtual:pwa-register';
 import { currentViewport, isPhone, isPhonePortrait, lockLandscape } from './platform/orientation';
+import { handleNeedReload } from './platform/swUpdate';
 import { BootScene } from './scenes/BootScene';
 import { TitleScene } from './scenes/TitleScene';
 import { WorldScene } from './scenes/WorldScene';
 import { canvasSize, deviceScale } from './world/resolution';
 
-registerSW({ immediate: true });
+// autoUpdate: an updated worker saves the running world's slot before the page reloads (src/platform/swUpdate.ts).
+registerSW({
+  immediate: true,
+  onNeedReload: () => {
+    handleNeedReload(() => {
+      window.location.reload();
+    });
+  },
+});
 
 /** Whether the rotate prompt is up (see applyOrientation below). */
 let rotatePrompt = false;
