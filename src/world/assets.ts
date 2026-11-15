@@ -56,6 +56,9 @@ export const SHEETS = {
   // The study's glazed double door (two leaves) and the garden's single glazed leaf back to it.
   doorGlass: sheet('spr_door_glass', 1, 64, 32),
   doorGlassSingle: sheet('spr_door_glass_single'),
+  // The house's doors between rooms seen from the side, in a left (W) wall and, mirrored, a right (E) one.
+  doorSideW: sheet('spr_door_side_w'),
+  doorSideE: sheet('spr_door_side_e'),
   // The house furniture, one frame at its exact size in prototype px (the bookshelf one bay of its run).
   fireplace: sheet('spr_fireplace', 1, 64, 48),
   sideTable: sheet('spr_side_table'),

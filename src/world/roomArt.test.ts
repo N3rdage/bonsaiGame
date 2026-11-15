@@ -443,15 +443,49 @@ describe('props', () => {
     expect(at(SHED_ROOM.props, 'door_lounge')).toEqual(['spr_door', 240, 56, 0.5, topWall?.y]);
   });
 
-  it('draws the doors on the row y 190 in the side walls, sorted at their top edge', () => {
+  it('draws the doors on the row y 190 in the side walls seen from the side, the E walls mirroring the W, sorted at their top edge', () => {
     const at = (props: readonly Prop[], key: string) => {
-      const s = propSprite(propByKey(props, key));
-      return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
+      const p = propByKey(props, key);
+      const s = propSprite(p);
+      // The frame at the sprite's scale covers the door's 16 px square in the wall band exactly.
+      expect(s && [s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale]).toEqual([
+        p.w,
+        p.h,
+      ]);
+      return s && [p.wall, s.sheet.key, s.x, s.y, s.scale, s.depth];
     };
-    expect(at(LOUNGE_ROOM.props, 'door_hallway')).toEqual(['spr_door', 424, 190, 0.5, 182]);
-    expect(at(HALLWAY_ROOM.props, 'door_lounge')).toEqual(['spr_door', 88, 190, 0.5, 182]);
-    expect(at(HALLWAY_ROOM.props, 'door_study')).toEqual(['spr_door', 392, 190, 0.5, 182]);
-    expect(at(STUDY_ROOM.props, 'door_hallway')).toEqual(['spr_door', 136, 190, 0.5, 182]);
+    expect(at(LOUNGE_ROOM.props, 'door_hallway')).toEqual([
+      'E',
+      'spr_door_side_e',
+      424,
+      190,
+      0.5,
+      182,
+    ]);
+    expect(at(HALLWAY_ROOM.props, 'door_lounge')).toEqual([
+      'W',
+      'spr_door_side_w',
+      88,
+      190,
+      0.5,
+      182,
+    ]);
+    expect(at(HALLWAY_ROOM.props, 'door_study')).toEqual([
+      'E',
+      'spr_door_side_e',
+      392,
+      190,
+      0.5,
+      182,
+    ]);
+    expect(at(STUDY_ROOM.props, 'door_hallway')).toEqual([
+      'W',
+      'spr_door_side_w',
+      136,
+      190,
+      0.5,
+      182,
+    ]);
   });
 
   it("draws the study's glazed double door over its 32x16 rect and the garden's glazed leaf in the house's back face, sorted at their top edge", () => {
@@ -504,18 +538,23 @@ describe('props', () => {
     const doors = Object.values(ROOMS).flatMap((r) =>
       r.props.filter((p) => p.target).map((p) => `${r.key}.${p.key}`),
     );
-    const glazed = Object.values(ROOMS).flatMap((r) =>
+    const ownSheet = Object.values(ROOMS).flatMap((r) =>
       r.props
         .filter((p) => p.target && propSprite(p)?.sheet !== SHEETS.door)
         .map((p) => `${r.key}.${p.key}`),
     );
     expect(doors).toHaveLength(16);
-    // The side gate's two sides are board gates (spr_gate), not glazed, nor spr_door.
-    expect(glazed).toEqual([
+    // Besides the glazed doors: the side gate's two sides, board gates (spr_gate),
+    // and the house's four side-on doors between rooms.
+    expect(ownSheet).toEqual([
       'garden.door_study',
       'garden.door_greenhouse',
       'garden.gate',
       'frontGarden.gate',
+      'lounge.door_hallway',
+      'hallway.door_lounge',
+      'hallway.door_study',
+      'study.door_hallway',
       'study.door_garden',
       'greenhouse.door_garden',
     ]);

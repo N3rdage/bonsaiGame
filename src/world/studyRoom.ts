@@ -58,11 +58,13 @@ export const STUDY_ROOM: Room = {
     // bay: a walk into the right wall and up stops against it at (335.75, 128.75),
     // 11.3 px from the spot's centre (328, 120.5).
     displaySpot('pedestal_2', 'study_bookshelf', BOOKSHELF, 113, 320, 16),
-    // The left wall's band, prototype top-left (256, 364), back to beside the hallway's study door.
+    // The left wall's band, prototype top-left (256, 364), seen from the side, back to beside
+    // the hallway's study door.
     {
       ...prop('door_hallway', 'Door', 'To Hallway', 256 + 16, 364 + 16, 16, 16),
       wall: 'W',
       target: { room: 'hallway', door: 'door_study' },
+      sheet: SHEETS.doorSideW,
     },
     // Glazed double doors to the garden in the bottom wall's band, x 304..336, just left of the
     // corner tile. A walk into the right wall and down stops at (335.75, 207.5) on the 1.25 px

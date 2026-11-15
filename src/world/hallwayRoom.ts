@@ -57,11 +57,13 @@ export const HALLWAY_ROOM: Room = {
   walls: ringWalls(HALLWAY_BOUNDS),
   furniture: [RUNNER, HALL_TABLE],
   props: [
-    // The left wall's band, prototype top-left (160, 364), back to beside the lounge's hallway door.
+    // The left wall's band, prototype top-left (160, 364), seen from the side, back to beside
+    // the lounge's hallway door.
     {
       ...prop('door_lounge', 'Door', 'To Lounge', 160 + 16, 364 + 16, 16, 16),
       wall: 'W',
       target: { room: 'lounge', door: 'door_hallway' },
+      sheet: SHEETS.doorSideW,
     },
     // The front door (plan B3 row 6), in the top wall's band at its centre, prototype
     // top-left (464, 320), to beside the front garden's door to the hallway.
@@ -70,11 +72,12 @@ export const HALLWAY_ROOM: Room = {
       wall: 'N',
       target: { room: 'frontGarden', door: 'door_house' },
     },
-    // The right wall's band, prototype top-left (768, 364), to beside the study's door.
+    // The right wall's band, prototype top-left (768, 364), seen from the side, to beside the study's door.
     {
       ...prop('door_study', 'Door', 'To Study', 768 + 16, 364 + 16, 16, 16),
       wall: 'E',
       target: { room: 'study', door: 'door_hallway' },
+      sheet: SHEETS.doorSideE,
     },
   ],
   // A dark warm umber behind the ring, between the shed's 0x241e18 and the lounge's 0x2a1c1a.

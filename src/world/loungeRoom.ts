@@ -81,11 +81,13 @@ export const LOUNGE_ROOM: Room = {
       wall: 'S',
       target: { room: 'shed', door: 'door_lounge' },
     },
-    // In the right wall (prototype top-left (832, 364)) on the row y 190, to beside the hallway's lounge door.
+    // In the right wall (prototype top-left (832, 364)) on the row y 190, seen from the side,
+    // to beside the hallway's lounge door.
     {
       ...prop('door_hallway', 'Door', 'To Hallway', 832 + 16, 364 + 16, 16, 16),
       wall: 'E',
       target: { room: 'hallway', door: 'door_lounge' },
+      sheet: SHEETS.doorSideE,
     },
   ],
   // A warm dark plum-brown behind the ring, a shade redder than the shed's 0x241e18 to suit the carpet.

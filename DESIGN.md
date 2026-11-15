@@ -32,6 +32,18 @@ locked. Until then: primitives, consistently styled.
 they sit a half-tile larger than the standard grid — they're meant to
 read as "things in the room," not "wall fixtures."
 
+## Property layout
+
+The property is site plan B3 ([the plan](docs/site-plan/plan-b3-hallway-kitchen.png)), and
+[`docs/site-plan/README.md`](docs/site-plan/README.md) is its canon: the room table and the
+sixteen-row door and gate table. The house row is the lounge (with its open-plan kitchen),
+the hallway and the study, with the shed behind the lounge, the closed garage to the west,
+the front garden and the road to the north, and the back garden's passage, notch and lawn,
+with the freestanding greenhouse in the lawn, to the east and south. Every door leads to
+its partner in the opposite wall, and the doors make a loop: in at the front door, west
+through the lounge and the shed to the back garden or east through the study's glazed
+doors, then up the passage and through the side gate to the front garden.
+
 ## Rooms
 
 Both rooms are currently **1366×768** (≈42×24 tiles), matching the

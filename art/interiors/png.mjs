@@ -1,4 +1,3 @@
-/* eslint-disable no-console -- `write` reports each sheet `npm run art:interiors` writes. */
 // The drawing primitives every interiors module shares: the tile size, a
 // seeded generator, pixel and rectangle fills, and `write`, which draws one
 // sheet into a fresh PNG and saves it to public/assets/.
@@ -45,5 +44,6 @@ export function write({ name, width, height, draw }) {
   const png = new PNG({ width, height });
   draw(png);
   writeFileSync(join(OUT, `${name}.png`), PNG.sync.write(png));
+  // eslint-disable-next-line no-console -- reports each sheet `npm run art:interiors` writes.
   console.log(`${name}.png  ${String(png.width)}x${String(png.height)}`);
 }
