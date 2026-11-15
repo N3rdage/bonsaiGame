@@ -4,13 +4,14 @@
  *
  * Ported from `_draw_pot`, `_pot_quad` and `_pot_box` in
  * archive/gamemaker/objects/obj_viewer_3d/Draw_0.gml. Z-up, soil surface at
- * z=0, base below. Drawn without culling, so winding order does not matter.
+ * z=0, base below. Drawn from both sides, so winding order does not matter;
+ * every vertex carries its face's outward normal instead.
  */
 
 import type { PotTier, Vec3 } from '../sim/types';
 import { DISPLAY_SCALE } from '../sim/geometry';
 import { dcos, dsin } from '../sim/vec3';
-import { TriangleList, type MeshArrays } from './meshArrays';
+import { TriangleList, unit, type MeshArrays } from './meshArrays';
 import { SOIL_RGB, potPalette, type Rgb } from './potPalette';
 
 const S = DISPLAY_SCALE;
@@ -51,14 +52,22 @@ function box(
   const b2 = { ...b, z: z1 };
   const c2 = { ...c, z: z1 };
   const d2 = { ...d, z: z1 };
-  list.quad(a, b, b2, a2, side);
-  list.quad(b, c, c2, b2, side);
-  list.quad(c, d, d2, c2, side);
-  list.quad(d, a, a2, d2, side);
-  list.quad(a2, b2, c2, d2, base);
+  list.quad(a, b, b2, a2, side, { x: 0, y: -1, z: 0 });
+  list.quad(b, c, c2, b2, side, { x: 1, y: 0, z: 0 });
+  list.quad(c, d, d2, c2, side, { x: 0, y: 1, z: 0 });
+  list.quad(d, a, a2, d2, side, { x: -1, y: 0, z: 0 });
+  list.quad(a2, b2, c2, d2, base, DOWN);
 }
 
 const ring = (c: number, s: number, r: number, z: number): Vec3 => ({ x: c * r, y: s * r, z });
+
+const UP: Vec3 = { x: 0, y: 0, z: 1 };
+const DOWN: Vec3 = { x: 0, y: 0, z: -1 };
+
+/** The body wall's outward normal at angle (c, s): radial, tipped down because the wall narrows to the base. */
+export function wallNormal(c: number, s: number): Vec3 {
+  return unit({ x: c * POT_DEPTH, y: s * POT_DEPTH, z: -(POT_R_TOP - POT_R_BOT) });
+}
 
 export function buildPotGeometry(tier: PotTier): MeshArrays {
   const pal = potPalette(tier);
@@ -78,31 +87,37 @@ export function buildPotGeometry(tier: PotTier): MeshArrays {
     const wt2 = ring(c2, s2, POT_R_TOP, 0);
     const wb1 = ring(c1, s1, POT_R_BOT, -POT_DEPTH);
     const wb2 = ring(c2, s2, POT_R_BOT, -POT_DEPTH);
-    list.vertex(wt1, pal.body);
-    list.vertex(wt2, pal.body);
-    list.vertex(wb2, pal.bodyLine);
-    list.vertex(wt1, pal.body);
-    list.vertex(wb2, pal.bodyLine);
-    list.vertex(wb1, pal.bodyLine);
+    const n1 = wallNormal(c1, s1);
+    const n2 = wallNormal(c2, s2);
+    list.vertex(wt1, pal.body, n1);
+    list.vertex(wt2, pal.body, n2);
+    list.vertex(wb2, pal.bodyLine, n2);
+    list.vertex(wt1, pal.body, n1);
+    list.vertex(wb2, pal.bodyLine, n2);
+    list.vertex(wb1, pal.bodyLine, n1);
 
-    list.vertex({ x: 0, y: 0, z: -POT_DEPTH }, pal.bodyLine);
-    list.vertex(wb1, pal.bodyLine);
-    list.vertex(wb2, pal.bodyLine);
+    list.vertex({ x: 0, y: 0, z: -POT_DEPTH }, pal.bodyLine, DOWN);
+    list.vertex(wb1, pal.bodyLine, DOWN);
+    list.vertex(wb2, pal.bodyLine, DOWN);
 
     const ro1 = ring(c1, s1, rOuter, 0);
     const ro2 = ring(c2, s2, rOuter, 0);
-    list.quad(wt1, ro1, ro2, wt2, pal.rim);
-    list.quad(
-      ro1,
-      ring(c1, s1, rOuter, -POT_LIP_H),
-      ring(c2, s2, rOuter, -POT_LIP_H),
-      ro2,
-      pal.rim,
-    );
+    list.quad(wt1, ro1, ro2, wt2, pal.rim, UP);
+    // The rim band, smooth around like the wall.
+    const r1 = { x: c1, y: s1, z: 0 };
+    const r2 = { x: c2, y: s2, z: 0 };
+    const rb1 = ring(c1, s1, rOuter, -POT_LIP_H);
+    const rb2 = ring(c2, s2, rOuter, -POT_LIP_H);
+    list.vertex(ro1, pal.rim, r1);
+    list.vertex(rb1, pal.rim, r1);
+    list.vertex(rb2, pal.rim, r2);
+    list.vertex(ro1, pal.rim, r1);
+    list.vertex(rb2, pal.rim, r2);
+    list.vertex(ro2, pal.rim, r2);
 
-    list.vertex({ x: 0, y: 0, z: POT_SOIL_Z }, SOIL_RGB);
-    list.vertex(ring(c1, s1, POT_R_SOIL, POT_SOIL_Z), SOIL_RGB);
-    list.vertex(ring(c2, s2, POT_R_SOIL, POT_SOIL_Z), SOIL_RGB);
+    list.vertex({ x: 0, y: 0, z: POT_SOIL_Z }, SOIL_RGB, UP);
+    list.vertex(ring(c1, s1, POT_R_SOIL, POT_SOIL_Z), SOIL_RGB, UP);
+    list.vertex(ring(c2, s2, POT_R_SOIL, POT_SOIL_Z), SOIL_RGB, UP);
   }
 
   if (tier === 1) {

@@ -17,7 +17,7 @@ import { DISPLAY_SCALE, branchPoint } from '../sim/geometry';
 import type { Season } from '../sim/seasons';
 import { getSpecies, speciesSeasonalColor } from '../sim/species';
 import { clamp } from '../sim/vec3';
-import { TriangleList, type MeshArrays } from './meshArrays';
+import { TriangleList, unit, type MeshArrays } from './meshArrays';
 import type { Rgb } from './potPalette';
 import { seededRandom } from './seededRandom';
 
@@ -70,11 +70,16 @@ const UV = [
   [0, 1],
 ] as const;
 
-function addQuad(list: TriangleList, corners: readonly [Vec3, Vec3, Vec3, Vec3], c: Rgb): void {
+function addQuad(
+  list: TriangleList,
+  corners: readonly [Vec3, Vec3, Vec3, Vec3],
+  c: Rgb,
+  n: Vec3,
+): void {
   const [p1, p2, p3, p4] = corners;
   [p1, p2, p3, p1, p3, p4].forEach((p, i) => {
     const [u, v] = UV[i] ?? [0, 0];
-    list.vertex(p, c, u, v);
+    list.vertex(p, c, n, u, v);
   });
 }
 
@@ -83,9 +88,16 @@ function addQuad(list: TriangleList, corners: readonly [Vec3, Vec3, Vec3, Vec3],
  * crossed about the vertical (z) axis. Each is `s` half-tall in z and
  * `aspect * s` half-wide across (x for the first, y for the second), so an
  * aspect of 1 is the prototype's square leaf, above 1 a broad leaf and below 1
- * a tall needle tuft.
+ * a tall needle tuft. Both quads take the shading normal `n`.
  */
-export function addLeaf(list: TriangleList, c: Vec3, s: number, aspect: number, col: Rgb): void {
+export function addLeaf(
+  list: TriangleList,
+  c: Vec3,
+  s: number,
+  aspect: number,
+  col: Rgb,
+  n: Vec3,
+): void {
   const w = aspect * s;
   addQuad(
     list,
@@ -96,6 +108,7 @@ export function addLeaf(list: TriangleList, c: Vec3, s: number, aspect: number, 
       { x: c.x - w, y: c.y, z: c.z + s },
     ],
     col,
+    n,
   );
   addQuad(
     list,
@@ -106,7 +119,20 @@ export function addLeaf(list: TriangleList, c: Vec3, s: number, aspect: number, 
       { x: c.x, y: c.y - w, z: c.z + s },
     ],
     col,
+    n,
   );
+}
+
+/** How far the leaf normals lean up from the cluster's centre, in display units: the tops of clusters catch the light. */
+export const LEAF_NORMAL_LIFT = LEAF_SPREAD * 0.5;
+
+/**
+ * A leaf's shading normal: out from its cluster's centre (offset `o`),
+ * leaning up by `LEAF_NORMAL_LIFT`, so a cluster shades as one rounded mass
+ * whichever way its crossed quads happen to face.
+ */
+export function leafNormal(o: Vec3): Vec3 {
+  return unit({ x: o.x, y: o.y, z: o.z + LEAF_NORMAL_LIFT });
 }
 
 /** `add_foliage_cluster`: a seeded scatter of leaves around `centre`, shaped by the species' look. */
@@ -126,7 +152,7 @@ export function addFoliageCluster(
     const oy = rng.range(-LEAF_SPREAD, LEAF_SPREAD);
     const oz = rng.range(-LEAF_SPREAD * 0.5, LEAF_SPREAD * 0.5);
     const c = { x: centre.x + ox, y: centre.y + oy, z: centre.z + oz };
-    addLeaf(list, c, size, look.leafAspect, col);
+    addLeaf(list, c, size, look.leafAspect, col, leafNormal({ x: ox, y: oy, z: oz }));
   }
 }
 

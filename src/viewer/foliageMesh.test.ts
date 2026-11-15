@@ -7,6 +7,7 @@ import {
   FOLIAGE_MIN_ORIGIN_FRACTION,
   LEAF_COUNT_BASE,
   LEAF_COUNT_PER_DENSITY,
+  LEAF_NORMAL_LIFT,
   LEAF_SIZE_BASE,
   LEAF_SIZE_PER_DENSITY,
   LEAF_SPREAD,
@@ -18,6 +19,7 @@ import {
   hexToRgb,
   leafCount,
   leafHalfSize,
+  leafNormal,
 } from './foliageMesh';
 import { TriangleList, type MeshArrays } from './meshArrays';
 
@@ -46,6 +48,11 @@ function firstBranch(tree: BonsaiTree): Branch {
 function positionAt(mesh: MeshArrays, v: number): Vec3 {
   const p = mesh.positions;
   return { x: p[v * 3] ?? NaN, y: p[v * 3 + 1] ?? NaN, z: p[v * 3 + 2] ?? NaN };
+}
+
+function normalAt(mesh: MeshArrays, v: number): Vec3 {
+  const n = mesh.normals;
+  return { x: n[v * 3] ?? NaN, y: n[v * 3 + 1] ?? NaN, z: n[v * 3 + 2] ?? NaN };
 }
 
 function uvsOf(mesh: MeshArrays, first: number, n: number): number[][] {
@@ -131,7 +138,7 @@ describe('addLeaf (_add_quad_xz then _add_quad_yz)', () => {
     const list = new TriangleList();
     const c = { x: 1, y: 2, z: 3 };
     const s = 0.5;
-    addLeaf(list, c, s, 1, { r: 10, g: 20, b: 30 });
+    addLeaf(list, c, s, 1, { r: 10, g: 20, b: 30 }, { x: 0, y: 0.6, z: 0.8 });
     const mesh = list.build();
     expect(mesh.positions.length / 3).toBe(12);
 
@@ -168,11 +175,15 @@ describe('addLeaf (_add_quad_xz then _add_quad_yz)', () => {
     expect(Array.from(mesh.colors.slice(0, 3))).toEqual(
       [10 / 255, 20 / 255, 30 / 255].map(Math.fround),
     );
+    // Both quads take the leaf's one shading normal.
+    for (let v = 0; v < 12; v++) {
+      expectVec(normalAt(mesh, v), { x: 0, y: 0.6, z: 0.8 });
+    }
   });
 
   it('stretches both quads across by the aspect and keeps their height', () => {
     const list = new TriangleList();
-    addLeaf(list, { x: 1, y: 2, z: 3 }, 0.5, 2, { r: 0, g: 0, b: 0 });
+    addLeaf(list, { x: 1, y: 2, z: 3 }, 0.5, 2, { r: 0, g: 0, b: 0 }, { x: 0, y: 0, z: 1 });
     const mesh = list.build();
     // xz quad: corners 1 and 3 are (c.x + 1, c.y, c.z - 0.5) and (c.x - 1, c.y, c.z + 0.5).
     expectVec(positionAt(mesh, 1), { x: 2, y: 2, z: 2.5 });
@@ -180,6 +191,30 @@ describe('addLeaf (_add_quad_xz then _add_quad_yz)', () => {
     // yz quad: the same across y.
     expectVec(positionAt(mesh, 7), { x: 1, y: 3, z: 2.5 });
     expectVec(positionAt(mesh, 11), { x: 1, y: 1, z: 3.5 });
+  });
+});
+
+describe('leafNormal', () => {
+  it('points out from the cluster centre, lifted by LEAF_NORMAL_LIFT, at unit length', () => {
+    expect(LEAF_NORMAL_LIFT).toBeCloseTo(LEAF_SPREAD * 0.5, 12);
+    const n = leafNormal({ x: LEAF_NORMAL_LIFT, y: 0, z: 0 });
+    expectVec(n, { x: Math.SQRT1_2, y: 0, z: Math.SQRT1_2 }, 12);
+  });
+
+  it('points straight up for a leaf at the centre, and never has zero length', () => {
+    expectVec(leafNormal({ x: 0, y: 0, z: 0 }), { x: 0, y: 0, z: 1 }, 12);
+    const n = leafNormal({ x: 0, y: 0, z: -LEAF_NORMAL_LIFT });
+    expect(Math.hypot(n.x, n.y, n.z)).toBeCloseTo(1, 12);
+  });
+
+  it('gives every leaf of a built cluster one normal per leaf, at unit length', () => {
+    const mesh = buildFoliageMesh(starterTree(), 'spring');
+    const count = mesh.positions.length / 3;
+    for (let leaf = 0; leaf < count; leaf += VERTICES_PER_LEAF) {
+      const first = normalAt(mesh, leaf);
+      expect(Math.hypot(first.x, first.y, first.z)).toBeCloseTo(1, 6);
+      for (let v = 1; v < VERTICES_PER_LEAF; v++) expectVec(normalAt(mesh, leaf + v), first);
+    }
   });
 });
 

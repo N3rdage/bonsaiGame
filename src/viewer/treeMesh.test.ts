@@ -10,6 +10,7 @@ import {
   ANCHOR_MIN_SEGS,
   ANCHOR_SEGMENTS,
   ANCHOR_TURNS,
+  BARK_TILE_LENGTH,
   BRANCH_MIN_RADIUS,
   BRANCH_RING_SEGMENTS,
   BRANCH_SEGMENTS,
@@ -30,6 +31,8 @@ import {
   buildRing,
   buildRingWithBasis,
   buildTreeMesh,
+  ringNormals,
+  ringU,
   speciesBark,
   stitchRings,
   trunkBaseRadius,
@@ -114,8 +117,17 @@ describe('tree mesh constants (scr_bonsai_mesh build_trunk / build_branch)', () 
     });
   });
 
-  it('match the prototype wire (add_wire_coil / add_wire_anchor)', () => {
-    expect(WIRE_RGB).toEqual({ r: 180, g: 110, b: 50 });
+  it('match the prototype wire (add_wire_coil / add_wire_anchor), in Inked ink brown', () => {
+    expect(WIRE_RGB).toEqual({ r: 46, g: 30, b: 22 });
+    // Darker than every species' bark in every channel, so the coil reads over it.
+    for (const key of ['juniper', 'maple', 'pine'] as const) {
+      const { trunk, branch } = speciesBark(key);
+      for (const bark of [trunk, branch]) {
+        expect(WIRE_RGB.r).toBeLessThan(bark.r);
+        expect(WIRE_RGB.g).toBeLessThan(bark.g);
+        expect(WIRE_RGB.b).toBeLessThan(bark.b);
+      }
+    }
     expect(WIRE_GAUGE_MIN).toBe(0.15);
     expect(WIRE_GAUGE_MAX).toBe(0.3);
     expect(WIRE_FULL_BEND_DEG).toBe(60);
@@ -202,6 +214,49 @@ describe('ring helpers', () => {
     ]);
     expectColor(colorAt(mesh, 17), red);
   });
+
+  it('stitchRings gives each vertex its ring point outward normal and bark UVs', () => {
+    const square = (z: number): Vec3[] => [
+      { x: 1, y: 0, z },
+      { x: 0, y: 1, z },
+      { x: -1, y: 0, z },
+      { x: 0, y: -1, z },
+    ];
+    const list = new TriangleList();
+    stitchRings(list, square(0), square(1), { r: 0, g: 0, b: 0 }, 0.5, 1.5);
+    const mesh = list.build();
+    const count = mesh.positions.length / 3;
+    expect(count).toBe(4 * 6);
+    for (let v = 0; v < count; v++) {
+      const p = positionAt(mesh, v);
+      const n = {
+        x: mesh.normals[v * 3] ?? NaN,
+        y: mesh.normals[v * 3 + 1] ?? NaN,
+        z: mesh.normals[v * 3 + 2] ?? NaN,
+      };
+      expect(n.x).toBeCloseTo(p.x, 6);
+      expect(n.y).toBeCloseTo(p.y, 6);
+      expect(n.z).toBeCloseTo(0, 6);
+      expect(mesh.uvs[v * 2 + 1]).toBe(p.z === 0 ? 0.5 : 1.5);
+    }
+    // The last segment runs u from 1.5 to 2, not back to 0.
+    expect(Array.from(mesh.uvs.slice(18 * 2, 24 * 2)).filter((_, i) => i % 2 === 0)).toEqual([
+      1.5, 1.5, 2, 2, 1.5, 2,
+    ]);
+  });
+
+  it('ringU and ringNormals', () => {
+    expect(ringU(0, 10)).toBe(0);
+    expect(ringU(5, 10)).toBe(1);
+    expect(ringU(10, 10)).toBe(2);
+    const ring = buildRing({ x: 1, y: 2, z: 3 }, 0.25, 6);
+    for (const [i, n] of ringNormals(ring).entries()) {
+      const p = ring[i] ?? { x: NaN, y: NaN, z: NaN };
+      expect(n.x).toBeCloseTo((p.x - 1) / 0.25, 12);
+      expect(n.y).toBeCloseTo((p.y - 2) / 0.25, 12);
+      expect(n.z).toBeCloseTo(0, 12);
+    }
+  });
 });
 
 describe('buildTreeMesh', () => {
@@ -211,9 +266,27 @@ describe('buildTreeMesh', () => {
     expect(mesh.positions.length / 3).toBe(688 * 3);
     expect(mesh.positions.length / 3).toBe(2064);
     expect(mesh.colors).toHaveLength(mesh.positions.length);
-    // Untextured: two zero UVs per vertex.
+    expect(mesh.normals).toHaveLength(mesh.positions.length);
     expect(mesh.uvs).toHaveLength((mesh.positions.length / 3) * 2);
-    expect(mesh.uvs.every((u) => u === 0)).toBe(true);
+  });
+
+  it('textures the bark: u runs 0 to 2 round each ring, v grows along the trunk by BARK_TILE_LENGTH', () => {
+    const tree = starterTree();
+    const mesh = buildTreeMesh(tree);
+    const trunkVertices = 20 * 10 * 6;
+    const us = new Set<number>();
+    let vMax = 0;
+    for (let i = 0; i < trunkVertices; i++) {
+      us.add(Math.round((mesh.uvs[i * 2] ?? NaN) * 10));
+      vMax = Math.max(vMax, mesh.uvs[i * 2 + 1] ?? NaN);
+    }
+    expect([...us].sort((a, b) => a - b)).toEqual([0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20]);
+    // The trunk's centreline is at least its height long.
+    expect(vMax).toBeGreaterThanOrEqual(
+      ((tree.trunk.heightCm / 100) * 4) / BARK_TILE_LENGTH - 1e-4,
+    );
+    // The first band starts at v 0.
+    expect(mesh.uvs[1]).toBe(0);
   });
 
   it('builds a fresh juniper cutting: 8 trunk segments x 10 x 2 + 2 branches x 72 = 304 triangles', () => {
@@ -375,9 +448,9 @@ describe('wire (scr_bonsai_mesh add_wire_coil / add_wire_anchor)', () => {
   /** Vertices as emitted, in double precision (the built mesh stores Float32). */
   class RecordingList extends TriangleList {
     readonly points: Vec3[] = [];
-    override vertex(p: Vec3, c: Rgb, u = 0, v = 0): void {
+    override vertex(p: Vec3, c: Rgb, n: Vec3, u = 0, v = 0): void {
       this.points.push(p);
-      super.vertex(p, c, u, v);
+      super.vertex(p, c, n, u, v);
     }
   }
 

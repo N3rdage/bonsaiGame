@@ -16,6 +16,7 @@ import {
   TRIANGLES_PER_FOOT,
   TRIANGLES_PER_SEGMENT,
   buildPotGeometry,
+  wallNormal,
 } from './potGeometry';
 import type { MeshArrays } from './meshArrays';
 
@@ -24,6 +25,11 @@ const tier0Triangles = POT_SEGMENTS * TRIANGLES_PER_SEGMENT;
 function positionAt(mesh: MeshArrays, v: number): Vec3 {
   const p = mesh.positions;
   return { x: p[v * 3] ?? NaN, y: p[v * 3 + 1] ?? NaN, z: p[v * 3 + 2] ?? NaN };
+}
+
+function normalAt(mesh: MeshArrays, v: number): Vec3 {
+  const n = mesh.normals;
+  return { x: n[v * 3] ?? NaN, y: n[v * 3 + 1] ?? NaN, z: n[v * 3 + 2] ?? NaN };
 }
 
 function colorAt(mesh: MeshArrays, v: number): [number, number, number] {
@@ -179,6 +185,44 @@ describe('buildPotGeometry (obj_viewer_3d _draw_pot)', () => {
       maxRadius = Math.max(maxRadius, Math.hypot(x, y));
     }
     expect(maxRadius).toBeCloseTo(POT_R_TOP + POT_LIP, 5);
+  });
+
+  it('gives the wall a radial normal tipped down by its slope', () => {
+    const n = wallNormal(1, 0);
+    const slope = (POT_R_TOP - POT_R_BOT) / POT_DEPTH;
+    expect(n.y).toBe(0);
+    expect(n.z / n.x).toBeCloseTo(-slope, 12);
+    expect(Math.hypot(n.x, n.y, n.z)).toBeCloseTo(1, 12);
+  });
+
+  it('faces every part of the first segment outward', () => {
+    const pot = buildPotGeometry(0);
+    const down = { x: 0, y: 0, z: -1 };
+    const up = { x: 0, y: 0, z: 1 };
+    const a = (2 * Math.PI) / 28;
+    const wall1 = wallNormal(1, 0);
+    const wall2 = wallNormal(Math.cos(a), Math.sin(a));
+    const band1 = { x: 1, y: 0, z: 0 };
+    const band2 = { x: Math.cos(a), y: Math.sin(a), z: 0 };
+    const expected: Vec3[] = [
+      ...[wall1, wall2, wall2, wall1, wall2, wall1],
+      ...[down, down, down],
+      ...[up, up, up, up, up, up],
+      ...[band1, band1, band2, band1, band2, band2],
+      ...[up, up, up],
+    ];
+    expected.forEach((n, v) => {
+      expectVec(normalAt(pot, v), n);
+    });
+  });
+
+  it.each([0, 1] as const)('gives tier %i a unit normal per vertex', (tier) => {
+    const pot = buildPotGeometry(tier);
+    expect(pot.normals).toHaveLength(pot.positions.length);
+    for (let v = 0; v < pot.normals.length / 3; v++) {
+      const n = normalAt(pot, v);
+      expect(Math.hypot(n.x, n.y, n.z)).toBeCloseTo(1, 6);
+    }
   });
 
   it('keeps colours in 0..1', () => {
