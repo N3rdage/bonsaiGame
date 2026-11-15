@@ -153,6 +153,72 @@ What changes from today:
 - New: the front door, the front garden, the side gate, the garage exterior and the road.
 - The greenhouse grid goes from 22 x 10 to 10 x 7 (version 6 migration).
 
+## Plan B3: Hallway and kitchen
+
+![Plan B3: Hallway and kitchen](./plan-b3-hallway-kitchen.png)
+
+B3 is B2 with the house row redrawn as Drew asked on agentic-gaming#132 (2026-11-14): the hallway 3 m wide by 2 m deep, flush with the front of the house, and a kitchen behind it, open plan to the lounge, with a window onto the back garden (agentic-gaming#153). The house's outer footprint (0 .. 13 x 0 .. 4.5) and everything outside it are B2's unchanged except the front path, which follows the front door 0.25 m west. In the drawing the hallway is labelled HALL to fit beside its three doors, the kitchen is the darker floor behind a dashed line that marks where the lounge ends (no wall, no door), and the window is the blue gap with a pane line in the kitchen's south wall.
+
+| Room | x | y | Interior |
+| --- | --- | --- | --- |
+| Lounge (walkable with the kitchen as one room) | 0 .. 5.5 | 0 .. 4.5 | 5.5 x 4.5 |
+| Hallway | 5.5 .. 8.5 | 0 .. 2 | 3.0 x 2.0 |
+| Kitchen (open plan, part of the lounge) | 5.5 .. 8.5 | 2 .. 4.5 | 3.0 x 2.5 |
+| Study | 8.5 .. 13 | 0 .. 4.5 | 4.5 x 4.5 |
+| Shed | 0 .. 5 | 4.5 .. 8 | 5.0 x 3.5 |
+| Garage (closed, no room yet) | −3.5 .. 0 | 0 .. 8 | 3.5 x 8.0 |
+| Front garden | −3.5 .. 14.5 | −4 .. 0 | 18.0 x 4.0: drive (x −3.5 .. 0), 0.8 m path at x 7 (paving 6.6 .. 7.4), lawn |
+| Back garden | 13 .. 14.5, 5 .. 14.5 and 0 .. 14.5 | 0 .. 4.5, 4.5 .. 8 and 8 .. 16 | 1.5 x 4.5 passage, 9.5 x 3.5 notch and 14.5 x 8.0 lawn |
+| Greenhouse | 8 .. 13 | 9.5 .. 13 | 5.0 x 3.5 (freestanding in the lawn) |
+| Road (drawn, not walked) | −3.5 .. 14.5 | −7 .. −4 | 18.0 x 3.0 |
+
+**The kitchen is part of the lounge, not a room of its own.** The lounge-kitchen is one walkable room keyed `lounge`, an L whose `bounds` are the rectangle 0 .. 8.5 x 0 .. 4.5 with the hallway's rectangle (5.5 .. 8.5 x 0 .. 2) solid, the same trick the back garden uses for the house and shed footprints (bonsaiGame#190). The lounge's door to the hallway (row 4) is then a door in that solid rect's west face, which `landing()` already measures from since #190. The alternative, a separate kitchen room with an open edge to the lounge, would need a doorless room transition the room model does not have, and walking from the sofa to the kettle would cut the screen; one room keeps the walk continuous and adds no room key, so no save changes.
+
+Sizes at 1 tile = 50 cm: the lounge-kitchen is 17 x 9 tiles with a 6 x 4 tile bite out of its north-east corner, the hallway 6 x 4 tiles (room for its runner and console table along the south wall between the side doors), the kitchen 6 x 5 tiles (a 60 cm counter run under the window and up the east wall leaves about 4.5 x 3.5 tiles of floor), the study 9 x 9 tiles as in B2.
+
+| # | Room | Wall | Position | Leads to | Arrival |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Shed | N | 2.5 | Lounge, S wall at 2.5 | just inside the lounge's south door, facing north |
+| 2 | Shed | S | 2.5 | Back garden, N edge of the lawn at x 2.5 (y 8) | just inside the lawn's north edge, facing south |
+| 3 | Lounge | S | 2.5 | Shed, N wall at 2.5 | just inside the shed's north door, facing south |
+| 4 | Lounge | E (the hallway's W wall, x 5.5) | 1.0 | Hallway, W wall at 1.0 | just inside the hallway's west door, facing east |
+| 5 | Hallway | W | 1.0 | Lounge, E wall at 1.0 (x 5.5) | just inside the lounge's east door, facing west |
+| 6 | Hallway | N (front door) | 1.5 (x 7) | Front garden, S edge at x 7 (y 0), the top of the path | just inside the front garden's south edge, facing north |
+| 7 | Hallway | E | 1.0 | Study, W wall at 1.0 | just inside the study's west door, facing east |
+| 8 | Study | W | 1.0 | Hallway, E wall at 1.0 | just inside the hallway's east door, facing west |
+| 9 | Study | S (glazed double) | 2.25 (x 10.75) | Back garden, N edge of the notch at x 10.75 (y 4.5) | just inside the notch's north edge, facing south |
+| 10 | Front garden | S edge | x 7 (y 0) | Hallway, N wall at 1.5 | just inside the hallway's front door, facing south |
+| 11 | Front garden | S edge (side gate) | x 13.75 (y 0) | Back garden, N edge of the passage at x 13.75 | just inside the gate, in the passage, facing south |
+| 12 | Back garden | N edge of the passage (side gate) | x 13.75 (y 0) | Front garden, S edge at x 13.75 | just inside the gate, facing north |
+| 13 | Back garden | N edge of the lawn | x 2.5 (y 8) | Shed, S wall at 2.5 | just inside the shed's south door, facing north |
+| 14 | Back garden | N edge of the notch | x 10.75 (y 4.5) | Study, S glazed doors at 2.25 | just inside the study's glazed doors, facing north |
+| 15 | Back garden | the greenhouse's S face, in the lawn | x 10.5 (y 13) | Greenhouse, S wall at 2.5 | just inside the greenhouse's south door, facing north |
+| 16 | Greenhouse | S | 2.5 (x 10.5) | Back garden, the lawn just south of the greenhouse at x 10.5 | just outside the greenhouse's door, facing south |
+| W | Lounge (the kitchen) | S (window, 1.2 m) | 7.0 (x 7, the kitchen's centre) | nothing: a window, not a door; it looks onto the notch's north edge, seen from the back garden as glass in the house's back face | none |
+
+The rows keep B2's numbers; rows 4 to 8 and 10 move, the rest are B2's. The loop still closes: in at the front door (10) to the hallway, west into the lounge (5) and south through the shed (3, then 2) to the back garden, or east into the study (7) and out of its glazed doors (9); up the passage, through the gate (12) into the front garden and back in at the front door (10). The garage's roller door is B2's (N wall, 2.4 m, x −1.75, closed). A new game still starts in the shed.
+
+What changes from B2:
+
+- The hallway shrinks from 2.5 x 4.5 (x 6 .. 8.5) to 3.0 x 2.0 (x 5.5 .. 8.5, y 0 .. 2), against the north wall. Its 3 m comes out of the lounge, whose east wall moves from x 6 to x 5.5 (6.0 to 5.5 wide), because the study stays exactly as B2 has it: 4.5 m wide with its glazed doors at x 10.75, where the back garden's study door was built (`src/world/gardenRoom.ts`, bonsaiGame#190).
+- The front door moves from x 7.25 to x 7 (still the hallway's centre), and the front path with it: paving 6.6 .. 7.4 instead of 6.85 .. 7.65, and the gap in the fence along the road with it.
+- The hallway's side doors move from 2.25 to 1.0 along their walls (y 1.0), the middle of the 2 m hallway: lounge E and hallway W at x 5.5, hallway E and study W at x 8.5. Still side-on.
+- New: the kitchen, 5.5 .. 8.5 x 2 .. 4.5, open to the lounge with no wall and no door; the lounge's walkable floor grows from 6.0 x 4.5 to 5.5 x 4.5 plus 3.0 x 2.5.
+- New: the kitchen window, 1.2 m in the house's south wall at x 7, onto the notch. The back garden draws it in the house's back face; it is not walkable and pairs with nothing.
+
+What changes from today:
+
+- Every door pair survives.
+- The shed's garden door stays in its south wall, and the garden's door to it moves from the west fence to the lawn's north edge.
+- The garden's study door moves from the east fence to the notch's north edge.
+- The greenhouse's door stays in its south wall, and the garden's door to it moves from the north fence to the greenhouse's south face, standing in the lawn.
+- The house's two internal door pairs (lounge to hallway, hallway to study) are seen side-on, in the hallway's west and east walls near the front of the house.
+- The hallway becomes a 3 x 2 m entrance hall and the lounge an L-shaped lounge-kitchen (one room, `lounge`).
+- New: the front door, the front garden, the side gate, the garage exterior, the road, the kitchen and its window.
+- The greenhouse grid goes from 22 x 10 to 10 x 7 (version 6 migration).
+
+Saves: nothing beyond B2. Trees are keyed by display-spot names and room keys, and B3 adds no room key and renames none (the kitchen is part of `lounge`), so trees need no migration; the only furniture migration is the greenhouse grid's to version 6 (agentic-gaming#135).
+
 ## Plan C: Across the lawn
 
 ![Plan C: Across the lawn](./plan-c-across-the-lawn.png)
@@ -201,7 +267,7 @@ Tree locations are keyed by display-spot names and room keys, not coordinates, s
 
 ## Decision
 
-Drew chose plan B with changes on agentic-gaming#132 (2026-11-14); B2 above is that plan as drawn and is the layout the implementation follows. A and C stay here as the record of what was considered.
+Drew chose plan B with changes on agentic-gaming#132 (2026-11-14); B2 above is that plan as drawn. Later the same day he changed B2's house row (a 3 x 2 m hallway on the front wall and a kitchen open to the lounge with a garden window), and **B3 is the layout the implementation follows**. A, B, C and B2 stay here as the record of what was considered.
 
 ## How to regenerate
 
