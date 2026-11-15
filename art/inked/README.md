@@ -10,12 +10,13 @@ Hand-drawn ink over watercolour washes on paper. Authored at 4 art px per logica
 
 | File         | What it is                                                                                                  |
 | ------------ | ----------------------------------------------------------------------------------------------------------- |
-| `index.mjs`  | the entry: `createPage`, `finish`, and the palette and styles re-exported. Import from here.                |
+| `index.mjs`  | the entry: `createPage`, `finish`, `finishCutOut` (a sprite with its surrounding paper cut to crisp alpha), and the palette and styles re-exported. Import from here. |
 | `style.mjs`  | the palette, the washes by material, which washes wear, and the knobs: `STYLE` and `PROPOSAL_STYLE`          |
 | `kit.mjs`    | the drawing vocabulary: `shape`, `box`, `blob`, `line`, `hatchIn`, `groundShadow`, `cornerShade`, and wear   |
 | `stroke.mjs` | the rasteriser: polygon fill, pen strokes (pressure, dry brush, spatter), hatching, the downsample           |
 | `wash.mjs`   | washes that pool into a darker rim, bleed past the outline and granulate                                     |
 | `paper.mjs`  | the hash and value noise, and the one paper grain every sheet shares                                         |
+| `viewer.mjs` | the 3D viewer's `src/viewer/foliage.png` (cut out) and `bark.png`, `npm run art:viewer`; ink drawn heavier because the viewer shows them five or six times smaller |
 
 ## The knobs
 
@@ -42,7 +43,7 @@ Tune a knob in `STYLE`, not in a room: every sheet must share one look.
 
 ## The palette
 
-Paper `[242, 234, 218]`, ink `[50, 42, 38]`, surround `[62, 54, 50]`, and one wash per material in `WASHES` (wall, floor, wood, top, cap, stone, metal, terracotta, foliage, soil, shirt, trousers, skin, hair, brass, glass, lamp, cream, rug, outside, shadow), each laid at `WASH_ALPHA` 0.65. `WEAR_BY_WASH` says which washes wear as wood (`wood`, `top`), pot (`terracotta`) or cloth (`rug`, `cream`). The proposal's `inked-palette.png` shows every colour as it lands on paper. A new material is a new entry in `WASHES` (and in `WEAR_BY_WASH` if it wears), never an inline colour.
+Paper `[242, 234, 218]`, ink `[50, 42, 38]`, surround `[62, 54, 50]`, and one wash per material in `WASHES` (wall, floor, wood, top, cap, stone, metal, terracotta, foliage, soil, shirt, trousers, skin, hair, brass, glass, lamp, cream, rug, outside, shadow, and the 3D viewer's near-neutral bark and leaf), each laid at `WASH_ALPHA` 0.65. `WEAR_BY_WASH` says which washes wear as wood (`wood`, `top`), pot (`terracotta`) or cloth (`rug`, `cream`). The proposal's `inked-palette.png` shows every colour as it lands on paper. A new material is a new entry in `WASHES` (and in `WEAR_BY_WASH` if it wears), never an inline colour.
 
 ## What a room generator must call, and must not reinvent
 

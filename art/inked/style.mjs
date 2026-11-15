@@ -36,7 +36,16 @@ export const WASHES = {
   rug: [190, 120, 110],
   outside: [150, 184, 118],
   shadow: [110, 94, 80],
+  // The 3D viewer's textures are tinted by each species' colours, so their washes are near neutral.
+  bark: [170, 160, 148],
+  leaf: [188, 190, 178],
 };
+/**
+ * How far from paper a finished pixel may be and still count as paper when a
+ * cut-out sprite (`finishCutOut`) drops the paper around its forms: above
+ * the grain's deepest darkening, below every wash as it lands.
+ */
+export const CUT_OUT_TOLERANCE = 42;
 /** Which washes wear as which material: wood splits and knots, pots chip and ring, cloth frays and stains. */
 export const WEAR_BY_WASH = {
   wood: 'wood',
