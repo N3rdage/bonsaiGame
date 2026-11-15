@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { trackFor } from '../platform/audio';
+import { registerSaveBeforeReload } from '../platform/swUpdate';
 import { loadGame, saveGame } from '../sim/save';
 import { seasonForDay, type Season } from '../sim/seasons';
 import { scoreTree } from '../sim/scoring';
@@ -641,7 +642,11 @@ export class WorldScene extends Phaser.Scene {
     };
     this.game.events.on(Phaser.Core.Events.PAUSE, pauseMusic);
     this.game.events.on(Phaser.Core.Events.RESUME, resumeMusic);
+    const unregisterSave = registerSaveBeforeReload(() => {
+      this.save();
+    });
     this.events.once('shutdown', () => {
+      unregisterSave();
       this.events.off(Phaser.Scenes.Events.ADDED_TO_SCENE, toHud);
       this.game.events.off(Phaser.Core.Events.PAUSE, pauseMusic);
       this.game.events.off(Phaser.Core.Events.RESUME, resumeMusic);
