@@ -10,8 +10,12 @@ import { clamp } from '../sim/vec3';
 import { GAME_HEIGHT, GAME_WIDTH } from './resolution';
 import type { Rect } from './shedRoom';
 
-/** How much nearer the world is drawn on a phone-sized viewport. */
-export const PHONE_WORLD_ZOOM = 2;
+/**
+ * How much nearer the world is drawn on a phone-sized viewport: a 384x216
+ * room-unit view, 12 x 6.75 m at 32 px per metre, the whole lounge on the S22
+ * without scrolling.
+ */
+export const PHONE_WORLD_ZOOM = 1.25;
 
 /**
  * The world zoom for a `cssWidth` x `cssHeight` viewport: `PHONE_WORLD_ZOOM`

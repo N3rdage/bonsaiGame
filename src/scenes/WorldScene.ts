@@ -154,16 +154,25 @@ import {
   type WeatherArea,
   type WeatherProfile,
 } from '../world/weather';
-import { PLAYER_SCALE, SHEETS, SPRITE_SCALE, playerFrame } from '../world/assets';
+import {
+  PLAYER_SCALE,
+  SHEETS,
+  SPRITE_SCALE,
+  playerFrame,
+  sheetPxPerLogical,
+  type Sheet,
+} from '../world/assets';
 import {
   PEDESTAL_EMPTY_COLOUR,
   PEDESTAL_EMPTY_LABEL,
   PEDESTAL_LABEL_DY,
   ROOM_STYLES,
+  bakeScale,
   fenceCorners,
   floorTiles,
   furnitureShadows,
   furnitureSprites,
+  paperTiles,
   playerShadow,
   propShadow,
   propSprite,
@@ -199,8 +208,9 @@ const PLAYER_H = SHEETS.player.frameHeight * PLAYER_SCALE;
 const FLOOR_DEPTH = -2;
 const SHADOW_DEPTH = -1;
 /**
- * The baked room's quad: one texture sample per fragment, nearest as the game's
- * pixelArt textures are. An Image would go through Phaser's batched sprite
+ * The baked room's quad: one texture sample per fragment, with the baked
+ * texture's own filter (nearest at prototype px as the game's pixelArt
+ * textures are, linear for a bake at Inked px; bakeRoom). An Image would go through Phaser's batched sprite
  * shader, whose per-fragment work over the whole canvas costs a third of the
  * frame rate on software GL (headless Chromium, CI). A Shader draws only under
  * WebGL, which src/main.ts asks Phaser for explicitly (the 3D viewer needs it anyway).
@@ -1420,38 +1430,49 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * The room's static art baked once into a texture at prototype px, so each
-   * 32 px tile keeps its pixels and a frame draws it as one quad: the room's
-   * colour (the prototype's background layer), the floor tiles, the room
-   * style's dim and rug (the shed's), the decor's ground shadows, the wall or
-   * fence runs with the windows and furniture, then the garden's
-   * mitred corners, and last the season's wash over all of it (the gardens').
+   * The room's static art baked once into a texture at the room's bake scale
+   * (bakeScale: prototype px for pixel sheets, Inked px once any sheet it
+   * draws is Inked), so each tile keeps its pixels and a frame draws it as one
+   * quad: the room's colour (the prototype's background layer), the paper
+   * when its style lays it, the floor tiles, the room style's dim and rug (the
+   * shed's), the decor's ground shadows, the wall or fence runs with the
+   * windows and furniture, then the garden's mitred corners, and last the
+   * season's wash over all of it (the gardens'). A sheet coarser than the bake
+   * scale is scaled up to it; a bake finer than prototype px is
+   * linear-filtered, as its Inked sheets are.
    */
   private bakeRoom(
     key: string,
     room: Room,
     wash: Wash | undefined,
   ): Phaser.Textures.DynamicTexture | undefined {
-    const texture = this.textures.addDynamicTexture(
-      key,
-      room.width * PROTOTYPE_SCALE,
-      room.height * PROTOTYPE_SCALE,
-    );
+    const s = bakeScale(room);
+    const texture = this.textures.addDynamicTexture(key, room.width * s, room.height * s);
     if (!texture) return undefined;
+    if (s !== PROTOTYPE_SCALE) texture.setFilter(Phaser.Textures.FilterMode.LINEAR);
     texture.fill(room.floor);
+    /** Stamps a sheet's frame with its top-left at logical (x, y), scaled from its own px to the bake's. */
+    const stampAt = (sheet: Sheet, frame: number, x: number, y: number): void => {
+      const f = s / sheetPxPerLogical(sheet);
+      texture.stamp(sheet.key, frame, x * s, y * s, {
+        originX: 0,
+        originY: 0,
+        scaleX: f,
+        scaleY: f,
+      });
+    };
+    for (const t of paperTiles(room)) stampAt(t.sheet, 0, t.x, t.y);
     const floor = floorTiles(room);
-    const { frameWidth, frameHeight } = floor.sheet;
-    const topLeft = { originX: 0, originY: 0 };
+    const tileW = floor.sheet.frameWidth / sheetPxPerLogical(floor.sheet);
+    const tileH = floor.sheet.frameHeight / sheetPxPerLogical(floor.sheet);
     const { area } = floor;
     floor.frames.forEach((row, y) => {
       row.forEach((frame, x) => {
-        const tx = area.x * PROTOTYPE_SCALE + x * frameWidth;
-        const ty = area.y * PROTOTYPE_SCALE + y * frameHeight;
-        texture.stamp(floor.sheet.key, frame, tx, ty, topLeft);
+        stampAt(floor.sheet, frame, area.x + x * tileW, area.y + y * tileH);
       });
     });
-    // roomArt's rects are in logical px; the Graphics scales them up to the texture's prototype px.
-    const rug = this.make.graphics({}, false).setScale(PROTOTYPE_SCALE);
+    // roomArt's rects are in logical px; the Graphics scales them up to the texture's px.
+    const rug = this.make.graphics({}, false).setScale(s);
     const { floorDim, rug: r } = ROOM_STYLES[room.key];
     if (floorDim > 0) rug.fillStyle(0x000000, floorDim).fillRect(area.x, area.y, area.w, area.h);
     if (r) {
@@ -1465,10 +1486,13 @@ export class WorldScene extends Phaser.Scene {
     for (const d of furnitureShadows(room))
       rug.fillStyle(0x000000, d.alpha).fillEllipse(d.x, d.y, d.w, d.h);
     texture.draw(rug);
-    const s = PROTOTYPE_SCALE;
-    for (const w of wallRuns(room))
-      texture.repeat(w.sheet.key, 0, w.x * s, w.y * s, w.w * s, w.h * s);
-    const corners = this.make.graphics({}, false).setScale(PROTOTYPE_SCALE);
+    // A run repeats its sheet's frame over its rect; a TileSprite `scale` of f draws each sheet px
+    // as f bake px, so the repeated area is the rect's bake px over f and the last tile still crops.
+    for (const w of wallRuns(room)) {
+      const f = s / sheetPxPerLogical(w.sheet);
+      texture.repeat(w.sheet.key, 0, w.x * s, w.y * s, (w.w * s) / f, (w.h * s) / f, { scale: f });
+    }
+    const corners = this.make.graphics({}, false).setScale(s);
     for (const c of fenceCorners(room)) corners.fillStyle(c.colour).fillRect(c.x, c.y, c.w, c.h);
     if (wash) corners.fillStyle(wash.colour, wash.alpha).fillRect(0, 0, room.width, room.height);
     texture.draw(corners).render();

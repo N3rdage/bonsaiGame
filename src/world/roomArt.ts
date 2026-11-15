@@ -8,7 +8,8 @@
  * prototype's numbers are in prototype px and halved here.
  */
 
-import { SHEETS, SPRITE_SCALE, floorFrame, sourcePlantFrame } from './assets';
+import { SHEETS, SPRITE_SCALE, floorFrame, sheetPxPerLogical, sourcePlantFrame } from './assets';
+import { PROTOTYPE_SCALE } from './prototype';
 import type { Season } from '../sim/seasons';
 import type { Sheet } from './assets';
 import {
@@ -60,6 +61,8 @@ export interface RoomStyle {
   /** Black over the floor at this alpha, 0 for none. */
   readonly floorDim: number;
   readonly rug?: typeof SHED_RUG;
+  /** The Inked paper (spr_paper) laid over the whole room first, under the floor (paperTiles). */
+  readonly paper: boolean;
 }
 
 /** The house rooms (new content: lounge, hallway, study) are drawn as the shed is, each with its own floor and walls and no dim or rug. */
@@ -72,6 +75,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     fenced: false,
     floorDim: SHED_FLOOR_DIM,
     rug: SHED_RUG,
+    paper: false,
   },
   garden: {
     floor: SHEETS.floorGarden,
@@ -80,6 +84,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     inset: false,
     fenced: true,
     floorDim: 0,
+    paper: false,
   },
   // The front garden fills its canvas with lawn like the back garden; its north row is the low
   // front fence, its south row lies under the faces' furniture, and its corners are plain tiles.
@@ -90,6 +95,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     inset: false,
     fenced: false,
     floorDim: 0,
+    paper: false,
   },
   lounge: {
     floor: SHEETS.floorLounge,
@@ -98,6 +104,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     inset: true,
     fenced: false,
     floorDim: 0,
+    paper: false,
   },
   hallway: {
     floor: SHEETS.floorHallway,
@@ -106,6 +113,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     inset: true,
     fenced: false,
     floorDim: 0,
+    paper: false,
   },
   study: {
     floor: SHEETS.floorStudy,
@@ -114,6 +122,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     inset: true,
     fenced: false,
     floorDim: 0,
+    paper: false,
   },
   // The greenhouse is drawn as a house room: its glass on all four sides round a paved floor.
   greenhouse: {
@@ -123,6 +132,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     inset: true,
     fenced: false,
     floorDim: 0,
+    paper: false,
   },
 };
 
@@ -150,6 +160,50 @@ export function floorTiles(room: Room): FloorTiles {
 /** A run of one wall sprite repeated from its top-left over the rect. */
 export interface WallRun extends Rect {
   readonly sheet: Sheet;
+}
+
+/** One paper tile's top-left in logical px. */
+export interface PaperTile {
+  readonly sheet: Sheet;
+  readonly x: number;
+  readonly y: number;
+}
+
+/**
+ * When the style lays paper, spr_paper over the whole room from (0, 0) in
+ * steps of its own logical size (64 px, one grain period), rows top to
+ * bottom, so the grain runs on unbroken across the room; none otherwise.
+ */
+export function paperTiles(room: Room, style: RoomStyle = ROOM_STYLES[room.key]): PaperTile[] {
+  if (!style.paper) return [];
+  const sheet = SHEETS.paper;
+  const step = sheet.frameWidth / sheetPxPerLogical(sheet);
+  return Array.from({ length: Math.ceil(room.height / step) }, (_, row) =>
+    Array.from({ length: Math.ceil(room.width / step) }, (_, column) => ({
+      sheet,
+      x: column * step,
+      y: row * step,
+    })),
+  ).flat();
+}
+
+/**
+ * The baked room texture's px per logical px: the finest of PROTOTYPE_SCALE
+ * and every sheet the bake draws (its floor, wall and window runs, baked
+ * furniture and, when laid, the paper), so no sheet is drawn below its own
+ * resolution. Pixel sheets only give PROTOTYPE_SCALE; any Inked sheet gives
+ * INKED_PER_LOGICAL.
+ */
+export function bakeScale(room: Room, style: RoomStyle = ROOM_STYLES[room.key]): number {
+  const sheets = [
+    style.floor,
+    style.wallRow,
+    style.wallColumn,
+    ...windowRuns(room).map((r) => r.sheet),
+    ...furnitureRuns(room).map((r) => r.sheet),
+    ...paperTiles(room, style).map((t) => t.sheet),
+  ];
+  return Math.max(PROTOTYPE_SCALE, ...sheets.map(sheetPxPerLogical));
 }
 
 /**
