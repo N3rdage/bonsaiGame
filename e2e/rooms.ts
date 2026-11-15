@@ -16,8 +16,7 @@ import {
 // furniture, pedestal_1 lounge_mantel (240, 125) on the fireplace (x 224..256,
 // y 112..136) straight above the landing, and pedestal_2 lounge_side_table
 // (408, 122) on the side table (x 400..416, y 112..128) in the top-right
-// corner; both pieces stop the player. Every door past the shed sits on the row y 190 in a side
-// wall: the lounge's door_hallway (424, 190) to the hallway at (114, 190); the
+// corner; both pieces stop the player. Every side-wall door past the shed sits on the row y 190: the lounge's door_hallway (424, 190) to the hallway at (114, 190); the
 // hallway's door_lounge (88, 190) back to the lounge at (398, 190) and
 // door_study (392, 190) to the study at (162, 190); the study's door_hallway
 // (136, 190) back to the hallway at (366, 190). The study's glass doors,
@@ -32,7 +31,17 @@ import {
 // door is in a building's face above the player (wall N), its landing 26 px
 // below it. The shed door (80, 248) lands at (80, 274); the study door
 // (344, 136) at (344, 162), the greenhouse door (336, 408) at (336, 434). The
-// source plants stand along the south fence at y 472, x 80, 112 and 144.
+// source plants stand along the south fence at y 472, x 80, 112 and 144. The
+// side gate (432, 8), in the passage's north fence, leads to the front garden;
+// the front garden's gate lands at (432, 34).
+//
+// The hallway's front door (240, 168), in its top wall at the corridor's
+// centre, leads to the front garden at (336, 190); the front garden's door
+// back (336, 216) lands in the hallway at (240, 194). The front garden is plan
+// B3's (frontGardenRoom.ts), a 576x272 canvas: the road above y 96, bounds
+// (0, 96) 576x128, its floor x 16..560, y 112..208, and every door in its south
+// band facing up, its landing 26 px above it: door_house (336, 216) at
+// (336, 190), the gate (544, 216) at (544, 190).
 //
 // Every walk ends against a wall or a solid piece of furniture, which stops
 // the player in reach however late the key is released (backlog #81), or is
@@ -41,7 +50,10 @@ import {
 // bottom wall (y 207.5), 17.9 px from the glass doors; from each garden
 // landing, straight up into the face, 8.5 px below its door; from the
 // greenhouse's landing straight down into its bottom wall (y 223.5), 8.5 px
-// from its door.
+// from its door; from the hallway's row up into its top wall (y 176.5), 8.5 px
+// below the front door; along the front garden's landing row and down into
+// its south band (y 207.5), 8.5 px above its door or gate; from the passage's
+// landing up into its north fence (y 16.5), 8.5 px below the gate.
 
 /** Uses the door in reach and waits for `room`. */
 export async function throughDoor(page: Page, room: string): Promise<void> {
@@ -137,6 +149,46 @@ export async function gardenToGreenhouse(page: Page): Promise<void> {
 export async function greenhouseToGarden(page: Page): Promise<void> {
   await holdUntilNear(page, 'ArrowDown', 'door_garden');
   await throughDoor(page, 'garden');
+}
+
+/**
+ * From the hallway's lounge-door landing (114, 190): right along the row to
+ * the front door's x 240 (stopped at most 6.25 px past it; the door, 22 px
+ * above the row, never comes in reach on it), then straight up into the top
+ * wall, the front door in reach, and out into the front garden.
+ */
+export async function hallwayToFront(page: Page): Promise<void> {
+  await holdUntilAtLeast(page, 'ArrowRight', 'x', 240);
+  await holdUntilNear(page, 'ArrowUp', 'door_front');
+  await throughDoor(page, 'frontGarden');
+}
+
+/**
+ * From the front garden's door landing (336, 190): right along the lawn to
+ * the gate's x 544 (at most 6.25 px past it), then straight down into the
+ * south band, the gate in reach, and through it to the back garden's passage.
+ */
+export async function frontToGate(page: Page): Promise<void> {
+  await holdUntilAtLeast(page, 'ArrowRight', 'x', 544);
+  await holdUntilNear(page, 'ArrowDown', 'gate');
+  await throughDoor(page, 'garden');
+}
+
+/** From the back garden's gate landing (432, 34): straight up into the passage's north fence, and through the gate. */
+export async function gardenGateToFront(page: Page): Promise<void> {
+  await holdUntilNear(page, 'ArrowUp', 'gate');
+  await throughDoor(page, 'frontGarden');
+}
+
+/**
+ * From the front garden's gate landing (544, 190): left along the lawn to the
+ * front door's x 336 (at most 6.25 px past it), then straight down into the
+ * house's front face, the door in reach, and into the hallway.
+ */
+export async function frontToHallway(page: Page): Promise<void> {
+  await holdUntilAtMost(page, 'ArrowLeft', 'x', 336);
+  await holdUntilNear(page, 'ArrowDown', 'door_house');
+  await throughDoor(page, 'hallway');
 }
 
 /**

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
 import { seededRandom } from '../viewer/seededRandom';
+import { FRONT_GARDEN_ROOM } from './frontGardenRoom';
 import { GARDEN_ROOM } from './gardenRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
@@ -113,6 +114,12 @@ describe('weatherArea', () => {
     // B2's back garden's bounding box, buildings included.
     expect(weatherArea(GARDEN_ROOM)).toEqual({ x0: 0, y0: 0, x1: 464, y1: 512 });
     expect(WEATHER_MARGIN).toBe(12);
+  });
+
+  it("gives the front garden the season's weather over its whole canvas, the road and roofs too", () => {
+    expect(isIndoor(FRONT_GARDEN_ROOM)).toBe(false);
+    expect(weatherArea(FRONT_GARDEN_ROOM)).toEqual({ x0: 0, y0: 0, x1: 576, y1: 272 });
+    expect(weatherProfile('winter', isIndoor(FRONT_GARDEN_ROOM)).kind).toBe('snow');
   });
 
   it("gives the lounge, hallway, study and greenhouse the shed's indoor motes over each room's own ring", () => {

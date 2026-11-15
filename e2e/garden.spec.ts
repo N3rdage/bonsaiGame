@@ -10,8 +10,6 @@ import {
   collectErrors,
   continueGame,
   expect,
-  holdUntilAtLeast,
-  holdUntilNear,
   hook,
   interact,
   openInspector,
@@ -29,7 +27,8 @@ import { gardenToShed, throughDoor } from './rooms';
 // garden's door (80, 248), in the shed's south face, back to the shed at
 // (240, 190). Source plants along the south fence on the row y 472: juniper
 // x 80, maple 112, pine 144; a walk along the row y 469 has each in reach
-// from either side. The side gate (440, 8) tops the passage (rooms.ts).
+// from either side. The side gate (432, 8) tops the passage, to the front
+// garden (rooms.ts, front.spec.ts).
 
 /** The row the walks to the source plants take, 3 px above the plants' centres. */
 const BED_ROW = 469;
@@ -57,22 +56,6 @@ test.describe('the garden', () => {
     expect(h.near).toBe('');
     await walkTo(page, 200, 'left', 'door');
     expect(h.treeLocations).toEqual([{ id: 0, name: "Granny's", location: 'shed' }]);
-    expect(errors).toEqual([]);
-  });
-
-  test('the side gate at the top of the passage is closed', async ({ page }) => {
-    const errors = collectErrors(page);
-    await bootWorld(page);
-    await toGarden(page);
-    // Right along the landing's row into the east fence, then up the notch and the passage into the gate's fence.
-    await holdUntilAtLeast(page, 'ArrowRight', 'x', 440);
-    await holdUntilNear(page, 'ArrowUp', 'gate');
-    let h = await hook(page);
-    expect([h.room, h.near, h.prompt]).toEqual(['garden', 'gate', 'E: Gate']);
-    await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'The gate is closed.');
-    h = await hook(page);
-    expect([h.room, h.near]).toEqual(['garden', 'gate']);
     expect(errors).toEqual([]);
   });
 

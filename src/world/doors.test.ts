@@ -29,7 +29,7 @@ function inward(door: WallDoor, at: { x: number; y: number }): boolean {
 
 describe('doors', () => {
   it('gives every door a wall and a target door in the target room that leads back', () => {
-    expect(doors).toHaveLength(12);
+    expect(doors).toHaveLength(16);
     for (const { room, door } of doors) {
       const name = `${room.key}.${door.key}`;
       const target = door.target;
@@ -70,9 +70,13 @@ describe('doors', () => {
       'garden.door:N',
       'garden.door_study:N',
       'garden.door_greenhouse:N',
+      'garden.gate:N',
+      'frontGarden.door_house:S',
+      'frontGarden.gate:S',
       'lounge.door:S',
       'lounge.door_hallway:E',
       'hallway.door_lounge:W',
+      'hallway.door_front:N',
       'hallway.door_study:E',
       'study.door_hallway:W',
       'study.door_garden:S',
@@ -159,20 +163,42 @@ describe('doors', () => {
     expect(() => wallDoor(SHED_ROOM, 'workbench')).toThrow('shed has no door workbench');
   });
 
-  it("finds the garden's gate in the passage's north fence, a door with no target", () => {
+  it("leads the back garden's gate, in the passage's north fence, to the front garden's", () => {
     const gate = wallDoor(GARDEN_ROOM, 'gate');
     expect([gate.label, gate.prompt, gate.x, gate.y, gate.w, gate.h, gate.wall]).toEqual([
       'Gate',
-      'Gate',
-      440,
+      'To Front Garden',
+      432,
       8,
       16,
       16,
       'N',
     ]);
-    expect(gate.target).toBeUndefined();
-    expect(doors.some(({ door }) => door.key === 'gate')).toBe(false);
-    // In the ring's top band, so a landing would be 26 px below it, inside the passage.
-    expect(landing(GARDEN_ROOM, gate)).toEqual({ x: 440, y: 34, facing: 'down' });
+    expect([gate.target, gate.sheet]).toEqual([{ room: 'frontGarden', door: 'gate' }, SHEETS.gate]);
+  });
+
+  it('lands each way through the front door and the side gate (plan B3 rows 6, 10, 11, 12)', () => {
+    const front = ROOMS.frontGarden;
+    // Row 6, the hallway's front door (240, 168) in its top band: into the front garden just
+    // inside its south edge, 26 px above its door to the hallway (336, 216), facing up.
+    expect(landing(front, wallDoor(front, 'door_house'))).toEqual({
+      x: 336,
+      y: 190,
+      facing: 'up',
+    });
+    // Row 10, the front garden's door to the hallway: into the hallway just below its front door, facing down.
+    expect(landing(HALLWAY_ROOM, wallDoor(HALLWAY_ROOM, 'door_front'))).toEqual({
+      x: 240,
+      y: 194,
+      facing: 'down',
+    });
+    // Row 11, the front garden's gate (544, 216): into the passage just below its gate (432, 8), facing down.
+    expect(landing(GARDEN_ROOM, wallDoor(GARDEN_ROOM, 'gate'))).toEqual({
+      x: 432,
+      y: 34,
+      facing: 'down',
+    });
+    // Row 12, the back garden's gate: into the front garden just above its gate, facing up.
+    expect(landing(front, wallDoor(front, 'gate'))).toEqual({ x: 544, y: 190, facing: 'up' });
   });
 });

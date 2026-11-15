@@ -16,6 +16,7 @@
 import { getSpecies } from '../sim/species';
 import { SHEETS } from './assets';
 import type { SpeciesKey } from '../sim/types';
+import { FRONT_GARDEN_ROOM } from './frontGardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
@@ -152,9 +153,18 @@ export const GARDEN_ROOM: Room = {
         sheet: SHEETS.doorGlassSingle,
       },
     ),
-    // B2 row 12: the side gate in the passage's north fence at x 13.75 m. It leads nowhere
-    // until the front garden exists (SP-4), so it has no target and E finds it closed.
-    { ...door('gate', 'Gate', 13.75 * METRE, WALL_BAND / 2, { wall: 'N' }), label: 'Gate' },
+    // B3 row 12: the side gate in the passage's north fence, to the front garden's gate. The plan
+    // puts it at x 13.75 m, the middle of the passage to the fence's outer edge; the east fence's
+    // band takes the passage's last 0.5 m, so it stands at 13.5 m, the middle of the walkable
+    // metre, where the player lands clear of both the fence and the house.
+    {
+      ...door('gate', 'To Front Garden', 13.5 * METRE, WALL_BAND / 2, {
+        wall: 'N',
+        target: { room: 'frontGarden', door: 'gate' },
+        sheet: SHEETS.gate,
+      }),
+      label: 'Gate',
+    },
   ],
   // rm_garden_back's background colour 4281094192 is ABGR 0xff2c5030.
   floor: 0x30502c,
@@ -163,6 +173,7 @@ export const GARDEN_ROOM: Room = {
 export const ROOMS: Record<RoomKey, Room> = {
   shed: SHED_ROOM,
   garden: GARDEN_ROOM,
+  frontGarden: FRONT_GARDEN_ROOM,
   lounge: LOUNGE_ROOM,
   hallway: HALLWAY_ROOM,
   study: STUDY_ROOM,
