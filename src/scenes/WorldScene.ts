@@ -334,6 +334,8 @@ export class WorldScene extends Phaser.Scene {
   >;
   /** The room shown, and what its floor, walls and props were drawn as. */
   private room: Room = SHED_ROOM;
+  /** The key of the door in `room` the player was set down beside on entering it, '' in the room the world started in. */
+  private arrivedBeside = '';
   /** The camera that draws the room; `cameras.main` is the HUD's, on top of it. */
   private worldCamera!: Phaser.Cameras.Scene2D.Camera;
   /** What the world camera shows, in room units: the hook's `camera`. */
@@ -434,6 +436,7 @@ export class WorldScene extends Phaser.Scene {
     this.ghost = undefined;
     this.clockS = 0;
     this.room = SHED_ROOM;
+    this.arrivedBeside = '';
     this.roomParts = [];
     this.roomTexture = undefined;
     this.plants.clear();
@@ -1315,6 +1318,7 @@ export class WorldScene extends Phaser.Scene {
     this.stopPlacing();
     this.sfx.play('door');
     this.room = ROOMS[target.room];
+    this.arrivedBeside = target.door;
     const { x, y, facing } = landing(this.room, wallDoor(this.room, target.door));
     this.music.play(trackFor(this.room.key));
     this.plants.clear();
@@ -2007,6 +2011,11 @@ export class WorldScene extends Phaser.Scene {
       paused: state.paused,
       viewer: this.viewer.snapshot(),
       room: this.room.key,
+      roomBounds: { ...this.room.bounds },
+      doors: this.room.props.flatMap(({ key, x, y, wall }) =>
+        wall === undefined ? [] : [{ key, x, y, wall }],
+      ),
+      arrivedBeside: this.arrivedBeside,
       player: { x: this.player.x, y: this.player.y, facing: this.player.facing },
       sortedDecor: furnitureSprites(this.room).map((f) => ({ sheet: f.sheet.key, depth: f.depth })),
       placed: state.placed

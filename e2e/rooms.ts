@@ -33,7 +33,9 @@ import {
 // (344, 136) at (344, 162), the greenhouse door (336, 408) at (336, 434). The
 // source plants stand along the south fence at y 472, x 80, 112 and 144. The
 // side gate (432, 8), in the passage's north fence, leads to the front garden;
-// the front garden's gate lands at (432, 34).
+// the front garden's gate lands at (432, 34). The passage, x 416..448 between
+// the house's east face and the east fence, runs down from the gate to the
+// notch, x 160..448 and y 144..256, below the house's back face.
 //
 // The hallway's front door (240, 168), in its top wall at the corridor's
 // centre, leads to the front garden at (336, 190); the front garden's door
@@ -53,12 +55,25 @@ import {
 // from its door; from the hallway's row up into its top wall (y 176.5), 8.5 px
 // below the front door; along the front garden's landing row and down into
 // its south band (y 207.5), 8.5 px above its door or gate; from the passage's
-// landing up into its north fence (y 16.5), 8.5 px below the gate.
+// landing up into its north fence (y 16.5), 8.5 px below the gate; along the
+// row y 190 into a side wall (x 144 in the study, x 96 in the hallway), 8 px
+// from its door; from the passage's landing down the passage and along the
+// notch under the house's face to the study door, and from the lounge's
+// hallway landing down and along its bottom wall to the shed door, as walkTo
+// legs.
 
-/** Uses the door in reach and waits for `room`. */
-export async function throughDoor(page: Page, room: string): Promise<void> {
+/** The hook read just before a door was used and just after the room it leads to showed. */
+export interface Crossing {
+  readonly from: BonsaiTestHook;
+  readonly to: BonsaiTestHook;
+}
+
+/** Uses the door in reach and waits for `room`; returns the hook on either side of the door. */
+export async function throughDoor(page: Page, room: string): Promise<Crossing> {
+  const from = await hook(page);
   await interact(page);
   await page.waitForFunction((r) => window.__bonsai?.room === r, room);
+  return { from, to: await hook(page) };
 }
 
 /**
@@ -66,24 +81,54 @@ export async function throughDoor(page: Page, room: string): Promise<void> {
  * and back (the return pass covers a release that carried past the door; it
  * does nothing while the door is in reach), and through it.
  */
-export async function shedToLounge(page: Page): Promise<void> {
+export async function shedToLounge(page: Page): Promise<Crossing> {
   await holdUntilAtMost(page, 'ArrowUp', 'y', 66);
   const fromLeft = (await hook(page)).player.x < 240;
   await holdUntilNear(page, fromLeft ? 'ArrowRight' : 'ArrowLeft', 'door_lounge');
   await holdUntilNear(page, fromLeft ? 'ArrowLeft' : 'ArrowRight', 'door_lounge');
-  await throughDoor(page, 'lounge');
+  return throughDoor(page, 'lounge');
 }
 
 /** From a lounge landing on the row y 190: right along the row into the right wall, and through its door. */
-export async function loungeToHallway(page: Page): Promise<void> {
+export async function loungeToHallway(page: Page): Promise<Crossing> {
   await holdUntilNear(page, 'ArrowRight', 'door_hallway');
-  await throughDoor(page, 'hallway');
+  return throughDoor(page, 'hallway');
 }
 
 /** From the hallway's lounge-door landing: right along the corridor into its right wall, and into the study. */
-export async function hallwayToStudy(page: Page): Promise<void> {
+export async function hallwayToStudy(page: Page): Promise<Crossing> {
   await holdUntilNear(page, 'ArrowRight', 'door_study');
-  await throughDoor(page, 'study');
+  return throughDoor(page, 'study');
+}
+
+/**
+ * From a study landing on the row y 190 (the hallway door's, or the glass
+ * doors' (320, 190)): left along the row into the left wall at x 144, its
+ * door (136, 190) in reach, and into the hallway.
+ */
+export async function studyToHallway(page: Page): Promise<Crossing> {
+  await holdUntilNear(page, 'ArrowLeft', 'door_hallway');
+  return throughDoor(page, 'hallway');
+}
+
+/**
+ * From the hallway's study-door landing (366, 190): left along the corridor
+ * into its left wall at x 96 (the front door, 22 px above the row, never in
+ * reach on the way), its lounge door (88, 190) in reach, and into the lounge.
+ */
+export async function hallwayToLounge(page: Page): Promise<Crossing> {
+  await holdUntilNear(page, 'ArrowLeft', 'door_lounge');
+  return throughDoor(page, 'lounge');
+}
+
+/**
+ * From the lounge's hallway landing (398, 190): a walkTo leg down to the row
+ * y 200 (stopped by the bottom wall at y 207.5 at the latest), then left
+ * along it until the shed door (240, 216) is in reach, and into the shed.
+ */
+export async function loungeToShed(page: Page): Promise<Crossing> {
+  await walkTo(page, 200, 'left', 'door');
+  return throughDoor(page, 'shed');
 }
 
 /**
@@ -91,16 +136,34 @@ export async function hallwayToStudy(page: Page): Promise<void> {
  * already above the glass doors (from the hallway's landing), then down into
  * the bottom wall, the doors in reach, and out into the garden.
  */
-export async function studyToGarden(page: Page): Promise<void> {
+export async function studyToGarden(page: Page): Promise<Crossing> {
   if ((await hook(page)).player.x < 300) await holdUntilAtLeast(page, 'ArrowRight', 'x', 330);
   await holdUntilNear(page, 'ArrowDown', 'door_garden');
-  await throughDoor(page, 'garden');
+  return throughDoor(page, 'garden');
 }
 
 /** From the garden's study-door landing (344, 162): straight up into the house's back face, and into the study. */
-export async function gardenToStudy(page: Page): Promise<void> {
+export async function gardenToStudy(page: Page): Promise<Crossing> {
   await holdUntilNear(page, 'ArrowUp', 'door_study');
-  await throughDoor(page, 'study');
+  return throughDoor(page, 'study');
+}
+
+/**
+ * The row a walk along the notch to the study door takes: 2 px below the
+ * house's back face (y 144), so the row leg, stopping at most 6.25 px past
+ * it, leaves the door (344, 136) at most 16.25 px above the player, and the
+ * door comes in reach at least 11 px either side of it.
+ */
+const NOTCH_ROW = 146;
+
+/**
+ * From the back garden's gate landing (432, 34): a walkTo leg straight down
+ * the passage into the notch to NOTCH_ROW, then left along the house's back
+ * face until the study door is in reach, and into the study.
+ */
+export async function passageToStudy(page: Page): Promise<Crossing> {
+  await walkTo(page, NOTCH_ROW, 'left', 'door_study');
+  return throughDoor(page, 'study');
 }
 
 /**
@@ -110,23 +173,32 @@ export async function gardenToStudy(page: Page): Promise<void> {
  */
 const SHED_DOOR_ROW = 263;
 
+/** The greenhouse's west face: a walk up from the lawn must start left of it. */
+const GREENHOUSE_WEST = 256;
+
 /**
- * From the study door's landing, or anywhere in the lawn not above or below
- * the greenhouse: to the shed door landing's row y 274 if above it, then up
- * to SHED_DOOR_ROW (a leg up stops on or above the row, never past the face),
- * along to the shed door, and through it.
+ * From the study door's landing, or anywhere in the lawn: below the
+ * greenhouse (from its door's landing), first left along the lawn until clear
+ * of its west face (a late release ends at the west fence, still clear); to
+ * the shed door landing's row y 274 if above it; then up to SHED_DOOR_ROW (a
+ * leg up stops on or above the row, never past the face), along to the shed
+ * door, and through it.
  */
-export async function gardenToShed(page: Page): Promise<void> {
+export async function gardenToShed(page: Page): Promise<Crossing> {
+  const start = (await hook(page)).player;
+  if (start.y > SHED_DOOR_ROW && start.x >= GREENHOUSE_WEST) {
+    await holdUntilAtMost(page, 'ArrowLeft', 'x', GREENHOUSE_WEST - 24);
+  }
   if ((await hook(page)).player.y < SHED_DOOR_ROW) await walkToRow(page, 274);
   const { x } = (await hook(page)).player;
   await walkTo(page, SHED_DOOR_ROW, x < 80 ? 'right' : 'left', 'door');
-  await throughDoor(page, 'shed');
+  return throughDoor(page, 'shed');
 }
 
 /** From the shed's start: down to the row y 200, in reach of the garden door in the bottom wall, and through it. */
-export async function shedToGarden(page: Page): Promise<void> {
+export async function shedToGarden(page: Page): Promise<Crossing> {
   await walkTo(page, 200, 'left', 'door');
-  await throughDoor(page, 'garden');
+  return throughDoor(page, 'garden');
 }
 
 /** As SHED_DOOR_ROW for the greenhouse door (336, 408): 16 px below it, the glass box's south face at y 416. */
@@ -138,17 +210,17 @@ const GREENHOUSE_DOOR_ROW = 424;
  * y 434 if above it, then up to GREENHOUSE_DOOR_ROW, along under the glass
  * box to its door, and in.
  */
-export async function gardenToGreenhouse(page: Page): Promise<void> {
+export async function gardenToGreenhouse(page: Page): Promise<Crossing> {
   if ((await hook(page)).player.y < GREENHOUSE_DOOR_ROW) await walkToRow(page, 434);
   const { x } = (await hook(page)).player;
   await walkTo(page, GREENHOUSE_DOOR_ROW, x < 336 ? 'right' : 'left', 'door_greenhouse');
-  await throughDoor(page, 'greenhouse');
+  return throughDoor(page, 'greenhouse');
 }
 
 /** From the greenhouse's landing (240, 206): down into the bottom wall, its door in reach, and out to the garden. */
-export async function greenhouseToGarden(page: Page): Promise<void> {
+export async function greenhouseToGarden(page: Page): Promise<Crossing> {
   await holdUntilNear(page, 'ArrowDown', 'door_garden');
-  await throughDoor(page, 'garden');
+  return throughDoor(page, 'garden');
 }
 
 /**
@@ -157,10 +229,10 @@ export async function greenhouseToGarden(page: Page): Promise<void> {
  * above the row, never comes in reach on it), then straight up into the top
  * wall, the front door in reach, and out into the front garden.
  */
-export async function hallwayToFront(page: Page): Promise<void> {
+export async function hallwayToFront(page: Page): Promise<Crossing> {
   await holdUntilAtLeast(page, 'ArrowRight', 'x', 240);
   await holdUntilNear(page, 'ArrowUp', 'door_front');
-  await throughDoor(page, 'frontGarden');
+  return throughDoor(page, 'frontGarden');
 }
 
 /**
@@ -168,16 +240,16 @@ export async function hallwayToFront(page: Page): Promise<void> {
  * the gate's x 544 (at most 6.25 px past it), then straight down into the
  * south band, the gate in reach, and through it to the back garden's passage.
  */
-export async function frontToGate(page: Page): Promise<void> {
+export async function frontToGate(page: Page): Promise<Crossing> {
   await holdUntilAtLeast(page, 'ArrowRight', 'x', 544);
   await holdUntilNear(page, 'ArrowDown', 'gate');
-  await throughDoor(page, 'garden');
+  return throughDoor(page, 'garden');
 }
 
 /** From the back garden's gate landing (432, 34): straight up into the passage's north fence, and through the gate. */
-export async function gardenGateToFront(page: Page): Promise<void> {
+export async function gardenGateToFront(page: Page): Promise<Crossing> {
   await holdUntilNear(page, 'ArrowUp', 'gate');
-  await throughDoor(page, 'frontGarden');
+  return throughDoor(page, 'frontGarden');
 }
 
 /**
@@ -185,10 +257,10 @@ export async function gardenGateToFront(page: Page): Promise<void> {
  * front door's x 336 (at most 6.25 px past it), then straight down into the
  * house's front face, the door in reach, and into the hallway.
  */
-export async function frontToHallway(page: Page): Promise<void> {
+export async function frontToHallway(page: Page): Promise<Crossing> {
   await holdUntilAtMost(page, 'ArrowLeft', 'x', 336);
   await holdUntilNear(page, 'ArrowDown', 'door_house');
-  await throughDoor(page, 'hallway');
+  return throughDoor(page, 'hallway');
 }
 
 /**
