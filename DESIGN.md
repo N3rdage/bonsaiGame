@@ -39,11 +39,6 @@ its partner in the opposite wall, and the doors make a loop: in at the front doo
 through the lounge and the shed to the back garden or east through the study's glazed
 doors, then up the passage and through the side gate to the front garden.
 
-## Rooms
-
-The property's rooms, their sizes in metres and every door between them
-are the site plan, `docs/site-plan/README.md`.
-
 ## Scale reference
 
 | Thing               | Pixel size       | Notes                                |
