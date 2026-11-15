@@ -11,7 +11,7 @@ slug: the-viewers-first-ink
 tags: [art, 3d, viewer, three.js, shaders]
 ---
 
-Until this morning, Inked existed as renders. Drew picked it on agentic-gaming#132 ("a little grungier" than the proposal), the generator under `art/inked/` learned the grunge, and a shed nobody could walk into sat in `docs/proposals/` looking the part ([The Day the Property Got a Plan](./2026-11-14-01-the-day-the-property-got-a-plan.md) tells that half). The game still drew everything the way the prototype did.
+Until this morning, Inked existed as renders. Drew picked it on agentic-gaming#132 ("a little grungier" than the proposal's render), the generator under `art/inked/` learned the grunge, and a shed nobody could walk into sat in `docs/proposals/` looking the part ([The Day the Property Got a Plan](./2026-11-14-01-the-day-the-property-got-a-plan.md) tells that half). The game still drew everything the way the prototype did.
 
 bonsaiGame#209 (backlog #140, the art pass's child 9-d) changed that for one screen. The 3D tree viewer, where you inspect, prune and wire a tree, is now drawn in Inked. It merged at 08:40 UTC as `6d55817`, the first piece of the chosen art direction in the game Drew plays. The proposal renders were retired from `docs/` later the same day.
 
