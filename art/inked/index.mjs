@@ -11,7 +11,7 @@
 import { seeded } from '../interiors/png.mjs';
 import { kit } from './kit.mjs';
 import { createInk, toCanvas } from './stroke.mjs';
-import { PAPER, PER_LOGICAL, STYLE, SUPERSAMPLE } from './style.mjs';
+import { CUT_OUT_TOLERANCE, INK, PAPER, PER_LOGICAL, STYLE, SUPERSAMPLE } from './style.mjs';
 
 export {
   INK,
@@ -44,3 +44,35 @@ export function createPage(width, height, { seed, style = STYLE, origin = [0, 0]
 
 /** The finished page as an RGBA canvas, grain laid. */
 export const finish = (page) => toCanvas(page.ink);
+
+/**
+ * The finished page as a cut-out sprite: every pixel of paper that reaches
+ * the page's edge through other paper turns fully transparent, everything
+ * else stays fully opaque. Paper inside an outline stays, so a form keeps
+ * its highlights; the alpha is crisp, for an alpha test. A cut pixel takes
+ * the ink's colour, so filtering at the sprite's edge darkens it into its
+ * outline instead of fringing it with paper.
+ */
+export function finishCutOut(page) {
+  const canvas = finish(page);
+  const { width, height, data } = canvas;
+  const isPaper = (p) =>
+    Math.hypot(data[p * 4] - PAPER[0], data[p * 4 + 1] - PAPER[1], data[p * 4 + 2] - PAPER[2]) <=
+    CUT_OUT_TOLERANCE;
+  const seen = new Uint8Array(width * height);
+  const stack = [];
+  for (let x = 0; x < width; x += 1) stack.push(x, (height - 1) * width + x);
+  for (let y = 0; y < height; y += 1) stack.push(y * width, y * width + width - 1);
+  while (stack.length > 0) {
+    const p = stack.pop();
+    if (seen[p] || !isPaper(p)) continue;
+    seen[p] = 1;
+    data.set([...INK, 0], p * 4);
+    const x = p % width;
+    if (x > 0) stack.push(p - 1);
+    if (x < width - 1) stack.push(p + 1);
+    if (p >= width) stack.push(p - width);
+    if (p < width * (height - 1)) stack.push(p + width);
+  }
+  return canvas;
+}

@@ -1,16 +1,25 @@
 import {
+  BufferAttribute,
   BufferGeometry,
-  DoubleSide,
+  Color,
+  DataTexture,
+  DirectionalLight,
   Float32BufferAttribute,
   Group,
+  LinearFilter,
+  LinearMipmapLinearFilter,
   LinearSRGBColorSpace,
   Mesh,
-  MeshBasicMaterial,
+  MeshToonMaterial,
+  MirroredRepeatWrapping,
   NearestFilter,
   NoColorSpace,
   PerspectiveCamera,
+  RedFormat,
   Scene,
+  ShaderMaterial,
   TextureLoader,
+  Vector2,
   WebGLRenderer,
   type Texture,
 } from 'three';
@@ -30,6 +39,7 @@ import {
   zoomCamera,
   type OrbitCamera,
 } from './camera';
+import barkUrl from './bark.png';
 import foliageUrl from './foliage.png';
 import { buildFoliageMesh } from './foliageMesh';
 import {
@@ -60,16 +70,67 @@ import { projectToScreen } from './projection';
 import { CAPTION_GAP, buildToolbarModel, type ToolbarModel, type ToolbarToggle } from './toolbar';
 import { buildTreeMesh } from './treeMesh';
 import { placeCamera } from './threeCamera';
+import {
+  INK_RGB,
+  LIGHT_DIRECTION,
+  OUTLINE_DEPTH,
+  OUTLINE_WIDTH_PX,
+  SURROUND_RGB,
+  TOON_RAMP,
+  bothWindings,
+  toonRampBytes,
+} from './toon';
 import { ViewerModal } from './ViewerModal';
 import { ViewerToolbar } from './ViewerToolbar';
 
-function toGeometry({ positions, colors, uvs }: MeshArrays): BufferGeometry {
+/** A triangle list as geometry indexed in both windings (`bothWindings`), so it draws from both sides with its normals as built. */
+function toGeometry({ positions, normals, colors, uvs }: MeshArrays): BufferGeometry {
   const geometry = new BufferGeometry();
   geometry.setAttribute('position', new Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new Float32BufferAttribute(normals, 3));
   geometry.setAttribute('color', new Float32BufferAttribute(colors, 3));
   geometry.setAttribute('uv', new Float32BufferAttribute(uvs, 2));
+  geometry.setIndex(new BufferAttribute(bothWindings(positions.length / 3), 1));
   return geometry;
 }
+
+/** A palette colour whose bytes reach the screen untouched (see `ensureRenderer`). */
+function rawColor({ r, g, b }: Rgb): Color {
+  return new Color().setRGB(r / 255, g / 255, b / 255, LinearSRGBColorSpace);
+}
+
+/** The stepped light ramp as a gradient map: nearest-sampled, so the bands stay hard. */
+function toonGradient(): DataTexture {
+  const texture = new DataTexture(toonRampBytes(), TOON_RAMP.length, 1, RedFormat);
+  texture.magFilter = NearestFilter;
+  texture.minFilter = NearestFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+// The ink hull: each vertex pushed OUTLINE_DEPTH away from the camera, then
+// out along its normal's screen direction by a fixed width in pixels, so the
+// hull hides behind its form except for a rim past the silhouette.
+const OUTLINE_VERTEX = /* glsl */ `
+uniform vec2 uWidth;
+uniform float uDepth;
+void main() {
+  vec4 view = modelViewMatrix * vec4(position, 1.0);
+  view.xyz += normalize(view.xyz) * uDepth;
+  vec4 clip = projectionMatrix * view;
+  vec2 dir = (projectionMatrix * vec4(normalize(normalMatrix * normal), 0.0)).xy;
+  float len = length(dir);
+  if (len > 1e-6) clip.xy += dir / len * uWidth * clip.w;
+  gl_Position = clip;
+}
+`;
+const OUTLINE_FRAGMENT = /* glsl */ `
+uniform vec3 uInk;
+void main() {
+  gl_FragColor = vec4(uInk, 1.0);
+}
+`;
 
 function rgba({ r, g, b }: Rgb, alpha: number): string {
   return `rgba(${String(r)}, ${String(g)}, ${String(b)}, ${String(alpha)})`;
@@ -122,17 +183,42 @@ export class TreeViewer {
   /** Every mesh lives here; y is mirrored to match the prototype (see `toViewerSpace`). */
   private readonly world = new Group();
   private readonly camera = new PerspectiveCamera(FOV_DEGREES, 1, NEAR, FAR);
-  // Unlit vertex colours with no culling: what the prototype drew.
-  private readonly material = new MeshBasicMaterial({ vertexColors: true, side: DoubleSide });
-  // The prototype's foliage pass: alpha test at 128 of 255, no culling, and
-  // the vertex colour tinting the neutral sprite into each species' seasonal
-  // colour. The map is assigned once the sprite has loaded.
-  private readonly foliageMaterial = new MeshBasicMaterial({
+  private readonly gradient = toonGradient();
+  // Toon-lit vertex colours (`toon.ts`); every geometry is indexed in both
+  // windings, so faces draw from both sides, as the prototype's did, with
+  // front-face culling only skipping the copy that faces away.
+  private readonly potMaterial = new MeshToonMaterial({
     vertexColors: true,
-    side: DoubleSide,
+    gradientMap: this.gradient,
+  });
+  // The bark texture's ink grain under the species' bark colour; the map is
+  // assigned once the textures have loaded.
+  private readonly barkMaterial = new MeshToonMaterial({
+    vertexColors: true,
+    gradientMap: this.gradient,
+  });
+  // The prototype's foliage pass, toon-lit: alpha test at 128 of 255 and the
+  // vertex colour tinting the neutral sprite into each species' seasonal
+  // colour. The map is assigned once the textures have loaded.
+  private readonly foliageMaterial = new MeshToonMaterial({
+    vertexColors: true,
+    gradientMap: this.gradient,
     alphaTest: 0.5,
   });
-  private foliageTexture: Texture | undefined;
+  /** The ink hull's width in clip units, x and y; set on every resize. */
+  private readonly outlineWidth = new Vector2();
+  private readonly outlineMaterial = new ShaderMaterial({
+    uniforms: {
+      uWidth: { value: this.outlineWidth },
+      uDepth: { value: OUTLINE_DEPTH },
+      uInk: { value: rawColor(INK_RGB) },
+    },
+    vertexShader: OUTLINE_VERTEX,
+    fragmentShader: OUTLINE_FRAGMENT,
+  });
+  /** True once the foliage sprite and the bark texture are both bound. */
+  private texturesReady = false;
+  private readonly textures: Texture[] = [];
   private pot: Mesh | undefined;
   private tree: BonsaiTree | undefined;
   private treeMesh: Mesh | undefined;
@@ -205,6 +291,11 @@ export class TreeViewer {
     this.camera.up.set(0, 0, 1);
     this.world.scale.set(1, -1, 1);
     this.scene.add(this.world);
+    // In the mirrored group, so LIGHT_DIRECTION is in the tree's own space.
+    // Intensity pi cancels the toon BRDF's 1/pi: the lit band is the palette colour.
+    const light = new DirectionalLight(0xffffff, Math.PI);
+    light.position.set(LIGHT_DIRECTION.x, LIGHT_DIRECTION.y, LIGHT_DIRECTION.z);
+    this.world.add(light);
 
     this.canvas.addEventListener('pointerdown', this.onPointerDown);
     this.canvas.addEventListener('pointermove', this.onPointerMove);
@@ -214,7 +305,13 @@ export class TreeViewer {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('resize', this.onResize);
 
-    new TextureLoader().load(foliageUrl, this.onFoliageLoaded);
+    const loader = new TextureLoader();
+    Promise.all([loader.loadAsync(foliageUrl), loader.loadAsync(barkUrl)]).then(
+      this.onTexturesLoaded,
+      (err: unknown) => {
+        console.warn('3D viewer: could not load its textures.', err);
+      },
+    );
   }
 
   get isOpen(): boolean {
@@ -241,7 +338,7 @@ export class TreeViewer {
     this.ui = createViewerUiState();
     this.pendingWireRemoval = -1;
     this.disposeMeshes();
-    this.pot = new Mesh(toGeometry(buildPotGeometry(tree.potTier)), this.material);
+    this.pot = this.inked(toGeometry(buildPotGeometry(tree.potTier)), this.potMaterial);
     this.world.add(this.pot);
     this.tree = tree;
     this.season = season;
@@ -305,9 +402,12 @@ export class TreeViewer {
     window.removeEventListener('resize', this.onResize);
     if (this.frame !== undefined) cancelAnimationFrame(this.frame);
     this.renderer?.dispose();
-    this.material.dispose();
+    this.potMaterial.dispose();
+    this.barkMaterial.dispose();
     this.foliageMaterial.dispose();
-    this.foliageTexture?.dispose();
+    this.outlineMaterial.dispose();
+    this.gradient.dispose();
+    for (const texture of this.textures) texture.dispose();
     this.canvas.remove();
     this.hotspotLayer.remove();
     this.toolbar.destroy();
@@ -330,7 +430,7 @@ export class TreeViewer {
       foliageVertices: this.foliageMesh
         ? this.foliageMesh.geometry.getAttribute('position').count
         : 0,
-      foliageReady: this.foliageTexture !== undefined,
+      foliageReady: this.texturesReady,
       mode: this.ui.mode,
       wireAction: this.ui.wireAction,
       bendDir: this.ui.bendDir,
@@ -362,9 +462,17 @@ export class TreeViewer {
     }
     // Palette values are already display sRGB; pass them through untouched.
     this.renderer.outputColorSpace = LinearSRGBColorSpace;
-    // The prototype's viewer room (rm_viewer_3d) clears to black.
-    this.renderer.setClearColor(0x000000);
+    // The prototype's viewer room (rm_viewer_3d) cleared to black; Inked's
+    // dark surround keeps the toolbar's light labels legible over it.
+    this.renderer.setClearColor(rawColor(SURROUND_RGB));
     return true;
+  }
+
+  /** A toon mesh with its ink hull as a child, sharing its geometry. */
+  private inked(geometry: BufferGeometry, material: MeshToonMaterial): Mesh {
+    const mesh = new Mesh(geometry, material);
+    mesh.add(new Mesh(geometry, this.outlineMaterial));
+    return mesh;
   }
 
   private disposeMesh(mesh: Mesh | undefined): void {
@@ -389,7 +497,7 @@ export class TreeViewer {
   /** Replaces the tree mesh with one built from the tree as it is now. */
   private rebuildTreeMesh(tree: BonsaiTree): void {
     this.disposeMesh(this.treeMesh);
-    this.treeMesh = new Mesh(toGeometry(buildTreeMesh(tree)), this.material);
+    this.treeMesh = this.inked(toGeometry(buildTreeMesh(tree)), this.barkMaterial);
     this.world.add(this.treeMesh);
     this.builtRevision = tree.revision;
   }
@@ -402,19 +510,29 @@ export class TreeViewer {
     this.foliageBuilt = { revision: tree.revision, season };
   }
 
-  private readonly onFoliageLoaded = (texture: Texture): void => {
+  private readonly onTexturesLoaded = ([foliage, bark]: [Texture, Texture]): void => {
     if (this.destroyed) {
-      texture.dispose();
+      foliage.dispose();
+      bark.dispose();
       return;
     }
-    // Sprite bytes pass through untouched, like the palette colours, and stay crisp.
-    texture.colorSpace = NoColorSpace;
-    texture.magFilter = NearestFilter;
-    texture.minFilter = NearestFilter;
-    texture.generateMipmaps = false;
-    this.foliageTexture = texture;
-    this.foliageMaterial.map = texture;
+    // Texture bytes pass through untouched, like the palette colours, and
+    // scale smoothly, as Inked art always does, through mipmaps, so the ink
+    // does not sparkle at the size the viewer shows it. The bark repeats
+    // mirrored, so it tiles without a seam (`ringU`).
+    for (const texture of [foliage, bark]) {
+      texture.colorSpace = NoColorSpace;
+      texture.magFilter = LinearFilter;
+      texture.minFilter = LinearMipmapLinearFilter;
+    }
+    bark.wrapS = MirroredRepeatWrapping;
+    bark.wrapT = MirroredRepeatWrapping;
+    this.textures.push(foliage, bark);
+    this.foliageMaterial.map = foliage;
     this.foliageMaterial.needsUpdate = true;
+    this.barkMaterial.map = bark;
+    this.barkMaterial.needsUpdate = true;
+    this.texturesReady = true;
     if (this.opened) this.requestRender();
   };
 
@@ -519,6 +637,8 @@ export class TreeViewer {
     const height = window.innerHeight;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(width, height, false);
+    // The ink width in clip units: 2 per viewport, so OUTLINE_WIDTH_PX CSS px whatever the pixel ratio.
+    this.outlineWidth.set((2 * OUTLINE_WIDTH_PX) / width, (2 * OUTLINE_WIDTH_PX) / height);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
   }

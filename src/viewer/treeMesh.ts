@@ -7,7 +7,7 @@
  * `build_oriented_ring`, `build_ring` and `stitch_rings` in
  * archive/gamemaker/scripts/scr_bonsai_mesh/scr_bonsai_mesh.gml. Shape comes
  * from `trunkFrames`, `branchPoint` and the `*FrameAt` lookups only, so what
- * you see is what you score. A wired branch's copper coil and trunk anchor are
+ * you see is what you score. A wired branch's wire coil and trunk anchor are
  * appended to the bark list right after that branch's bark, as the prototype
  * appended them to its bark buffer. Bark takes the species' `look` colours
  * (the prototype's one bark colour pair is the juniper's). Foliage is built separately in
@@ -25,7 +25,7 @@ import {
 import { getSpecies } from '../sim/species';
 import { clamp, dcos, dsin } from '../sim/vec3';
 import { hexToRgb } from './foliageMesh';
-import { TriangleList, type MeshArrays } from './meshArrays';
+import { TriangleList, unit, type MeshArrays } from './meshArrays';
 import type { Rgb } from './potPalette';
 
 export const TRUNK_RING_SEGMENTS = 10;
@@ -38,8 +38,8 @@ export const BRANCH_RING_SEGMENTS = 6;
 export const BRANCH_TIP_FRACTION = 0.2;
 export const BRANCH_MIN_RADIUS = 0.005;
 
-/** Copper training wire. */
-export const WIRE_RGB: Rgb = { r: 180, g: 110, b: 50 };
+/** Training wire in a dark ink brown, below every species' bark, so the coil reads as a drawn line over it. */
+export const WIRE_RGB: Rgb = { r: 46, g: 30, b: 22 };
 /** Wire radius as a fraction of the branch's base radius, unbent and at full bend. */
 export const WIRE_GAUGE_MIN = 0.15;
 export const WIRE_GAUGE_MAX = 0.3;
@@ -128,48 +128,116 @@ export function buildOrientedRing(centre: Vec3, radius: number, segments: number
   return buildRingWithBasis(centre, radius, segments, u, v);
 }
 
-/** Two triangles per ring segment, (a1, b1, a2) then (a2, b1, b2), in one colour. */
-export function stitchRings(list: TriangleList, ringA: Vec3[], ringB: Vec3[], c: Rgb): void {
+function centroid(ring: Vec3[]): Vec3 {
+  const n = ring.length;
+  const sum = ring.reduce((s, p) => ({ x: s.x + p.x, y: s.y + p.y, z: s.z + p.z }), {
+    x: 0,
+    y: 0,
+    z: 0,
+  });
+  return { x: sum.x / n, y: sum.y / n, z: sum.z / n };
+}
+
+/** Each ring point's outward unit normal: away from the ring's centre, so the tube shades smooth. */
+export function ringNormals(ring: Vec3[]): Vec3[] {
+  const c = centroid(ring);
+  return ring.map((p) => unit({ x: p.x - c.x, y: p.y - c.y, z: p.z - c.z }));
+}
+
+/**
+ * Bark texture coordinate around a ring: 0 to 2 once round, so the
+ * mirrored-repeat bark texture runs forward then back and meets itself
+ * without a seam.
+ */
+export function ringU(i: number, segments: number): number {
+  return (2 * i) / segments;
+}
+
+/** Bark texture coordinate along a tube: one texture height per this many display units. */
+export const BARK_TILE_LENGTH = 0.25;
+
+/**
+ * Two triangles per ring segment, (a1, b1, a2) then (a2, b1, b2), in one
+ * colour, with smooth outward normals and bark texture coordinates: u around
+ * (`ringU`), `vA` and `vB` along.
+ */
+export function stitchRings(
+  list: TriangleList,
+  ringA: Vec3[],
+  ringB: Vec3[],
+  c: Rgb,
+  vA = 0,
+  vB = 0,
+): void {
   const n = ringA.length;
+  const na = ringNormals(ringA);
+  const nb = ringNormals(ringB);
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     const a1 = ringA[i];
     const a2 = ringA[j];
     const b1 = ringB[i];
     const b2 = ringB[j];
-    if (!a1 || !a2 || !b1 || !b2) return;
-    list.vertex(a1, c);
-    list.vertex(b1, c);
-    list.vertex(a2, c);
-    list.vertex(a2, c);
-    list.vertex(b1, c);
-    list.vertex(b2, c);
+    const na1 = na[i];
+    const na2 = na[j];
+    const nb1 = nb[i];
+    const nb2 = nb[j];
+    if (!a1 || !a2 || !b1 || !b2 || !na1 || !na2 || !nb1 || !nb2) return;
+    const u1 = ringU(i, n);
+    const u2 = ringU(i + 1, n);
+    list.vertex(a1, c, na1, u1, vA);
+    list.vertex(b1, c, nb1, u1, vB);
+    list.vertex(a2, c, na2, u2, vA);
+    list.vertex(a2, c, na2, u2, vA);
+    list.vertex(b1, c, nb1, u1, vB);
+    list.vertex(b2, c, nb2, u2, vB);
   }
+}
+
+/**
+ * A tube laid ring by ring: each ring is stitched to the one before, its bark
+ * v the distance its centre has travelled along the tube in `BARK_TILE_LENGTH`s.
+ */
+class Tube {
+  private prev: { ring: Vec3[]; centre: Vec3; v: number } | undefined;
+
+  constructor(
+    private readonly list: TriangleList,
+    private readonly c: Rgb,
+  ) {}
+
+  ring(centre: Vec3, ring: Vec3[]): void {
+    const { prev } = this;
+    const v = prev ? prev.v + dist(prev.centre, centre) / BARK_TILE_LENGTH : 0;
+    if (prev) stitchRings(this.list, prev.ring, ring, this.c, prev.v, v);
+    this.prev = { ring, centre, v };
+  }
+}
+
+function dist(a: Vec3, b: Vec3): number {
+  return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 function buildTrunk(list: TriangleList, tree: BonsaiTree, bark: Rgb): void {
   const base = trunkBaseRadius(tree);
   const frames = trunkFrames(tree);
   const n = frames.length;
-  let prev: Vec3[] | undefined;
+  const tube = new Tube(list, bark);
   frames.forEach((f, i) => {
     const t = n > 1 ? i / (n - 1) : 0;
     const r = Math.max(lerp(base, base * (1 - tree.trunk.taper), t), TRUNK_MIN_RADIUS);
-    const ring = buildRingWithBasis(f.pos, r, TRUNK_RING_SEGMENTS, f.normal, f.binormal);
-    if (prev) stitchRings(list, prev, ring, bark);
-    prev = ring;
+    tube.ring(f.pos, buildRingWithBasis(f.pos, r, TRUNK_RING_SEGMENTS, f.normal, f.binormal));
   });
 }
 
 function buildBranchBark(list: TriangleList, tree: BonsaiTree, branch: Branch, bark: Rgb): void {
   const r0 = (branch.girth / 1000) * DISPLAY_SCALE;
-  let prev: Vec3[] | undefined;
+  const tube = new Tube(list, bark);
   for (let i = 0; i <= BRANCH_SEGMENTS; i++) {
     const t = i / BRANCH_SEGMENTS;
     const r = Math.max(lerp(r0, r0 * BRANCH_TIP_FRACTION, t), BRANCH_MIN_RADIUS);
-    const ring = buildRing(branchPoint(tree, branch, t), r, BRANCH_RING_SEGMENTS);
-    if (prev) stitchRings(list, prev, ring, bark);
-    prev = ring;
+    const centre = branchPoint(tree, branch, t);
+    tube.ring(centre, buildRing(centre, r, BRANCH_RING_SEGMENTS));
   }
 }
 
@@ -250,7 +318,7 @@ export function addWireAnchor(
   const startAngle = endAngle - ANCHOR_TURNS * 360;
   const radialSpeed = ANCHOR_TURNS * 2 * Math.PI;
 
-  let prev: Vec3[] | undefined;
+  const tube = new Tube(list, col);
   for (let i = 0; i <= ANCHOR_SEGMENTS; i++) {
     const s = i / ANCHOR_SEGMENTS;
     const { centre, tangent } = helixSample(
@@ -261,14 +329,12 @@ export function addWireAnchor(
       anchorH,
       radialSpeed,
     );
-    const ring = buildOrientedRing(centre, wireR, WIRE_RING_SEGMENTS, tangent);
-    if (prev) stitchRings(list, prev, ring, col);
-    prev = ring;
+    tube.ring(centre, buildOrientedRing(centre, wireR, WIRE_RING_SEGMENTS, tangent));
   }
 }
 
 /**
- * Copper helix around a wired branch, following its curve through
+ * Wire helix around a wired branch, following its curve through
  * `branchFrameAt` and riding on its tapering surface, then the trunk anchor.
  * Rings are perpendicular to the helix tangent, not the branch axis, so the
  * tight pitch does not skew them.
@@ -281,7 +347,7 @@ export function addWireCoil(list: TriangleList, tree: BonsaiTree, branch: Branch
   const segs = wireCoilSegments(branch);
   const radialSpeed = turns * 2 * Math.PI;
 
-  let prev: Vec3[] | undefined;
+  const tube = new Tube(list, WIRE_RGB);
   for (let i = 0; i <= segs; i++) {
     const s = i / segs;
     const offset = lerp(branchRBase, branchRBase * BRANCH_TIP_FRACTION, s) + wireR;
@@ -293,9 +359,7 @@ export function addWireCoil(list: TriangleList, tree: BonsaiTree, branch: Branch
       lengthWorld,
       radialSpeed,
     );
-    const ring = buildOrientedRing(centre, wireR, WIRE_RING_SEGMENTS, tangent);
-    if (prev) stitchRings(list, prev, ring, WIRE_RGB);
-    prev = ring;
+    tube.ring(centre, buildOrientedRing(centre, wireR, WIRE_RING_SEGMENTS, tangent));
   }
 
   addWireAnchor(list, tree, branch, wireR, WIRE_RGB);
