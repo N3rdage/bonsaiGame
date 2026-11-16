@@ -7,11 +7,11 @@
  * rooms' tiles (lounge, hallway, study, greenhouse), their window and their furniture have
  * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws them,
  * the buildings' roofs seen from the garden and the front garden's sheets.
- * The shed's window is the house rooms' window, not the prototype's
- * `spr_window`, which shares its name. `npm run art:paper`
- * (art/inked/paperSheet.mjs) draws the Inked rooms' paper, `spr_paper`, and
- * `npm run art:player` (art/inked/player.mjs) the Inked player, `spr_player`,
- * in the prototype's frame order.
+ * `npm run art:paper` (art/inked/paperSheet.mjs) draws the Inked rooms'
+ * paper, `spr_paper`, `npm run art:player` (art/inked/player.mjs) the Inked
+ * player, `spr_player`, in the prototype's frame order, and `npm run
+ * art:shed` (art/inked/shed.mjs) every sheet the shed draws: its floor, wall
+ * face and caps, window, doors, furniture, decor and rug.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -75,16 +75,28 @@ export function sheetFilter(s: Sheet): 'nearest' | 'linear' {
 export const SHEETS = {
   // The player, drawn by art/inked/player.mjs: 16 frames of 16 x 32 logical px, a 1.7 m gardener.
   player: inked('spr_player', 16, 16, 32),
-  floorShed: sheet('spr_floor_shed', 3),
+  // The shed's floorboards, drawn by art/inked/shed.mjs: 3 variants of a 16 px tile.
+  floorShed: inked('spr_floor_shed', 3, 16),
   floorGarden: sheet('spr_floor_garden', 3),
   sourcePlant: sheet('spr_source_plant', 3, 48),
   wall: sheet('spr_wall'),
   fence: sheet('spr_fence'),
   fenceV: sheet('spr_fence_v'),
   door: sheet('spr_door'),
-  workbench: sheet('spr_workbench'),
-  plantingTable: sheet('spr_planting_table'),
-  shopKiosk: sheet('spr_shop_kiosk'),
+  // The shed's walls, drawn by art/inked/shed.mjs: the back wall's 2.4 m face (3 variants of a
+  // 16 x 48 tile) and the 8 px caps of the south wall (16 x 8) and the side walls (8 x 16), 3 each.
+  shedWall: inked('spr_shed_wall', 3, 16, 48),
+  shedCap: inked('spr_shed_cap', 3, 16, 8),
+  shedCapV: inked('spr_shed_cap_v', 3, 8, 16),
+  // The shed's window on the face, its lounge door front-on in the face and its garden door in the south cap.
+  shedWindow: inked('spr_shed_window', 1, 32, 24),
+  shedDoor: inked('spr_shed_door', 1, 24, 40),
+  shedDoorS: inked('spr_shed_door_s', 1, 24, 16),
+  // The shed's furniture at the scale rule's heights and its rug, drawn by art/inked/shed.mjs.
+  workbench: inked('spr_workbench', 1, 48, 40),
+  plantingTable: inked('spr_planting_table', 1, 32, 40),
+  shopKiosk: inked('spr_shop_kiosk', 1, 24, 56),
+  shedRug: inked('spr_shed_rug', 1, 120, 70),
   // The house rooms' placeholder tiles, drawn by art/interiors.mjs (the prototype had no interiors).
   floorLounge: sheet('spr_floor_lounge', 3),
   wallLounge: sheet('spr_wall_lounge'),
@@ -109,12 +121,12 @@ export const SHEETS = {
   bookshelf: sheet('spr_bookshelf'),
   runner: sheet('spr_runner', 1, 416, 48),
   hallTable: sheet('spr_hall_table', 1, 32, 24),
-  // The shed's decor (obj_game_controller Draw_0), packed from the prototype at its size.
-  shelf: sheet('spr_shelf', 1, 56, 44),
-  tools: sheet('spr_tools', 1, 36, 52),
-  wateringCan: sheet('spr_watering_can', 1, 32, 30),
-  potStack: sheet('spr_pot_stack', 1, 40),
-  sack: sheet('spr_sack', 1, 32, 34),
+  // The shed's decor (obj_game_controller Draw_0), drawn by art/inked/shed.mjs at the scale rule's heights.
+  shelf: inked('spr_shelf', 1, 24, 20),
+  tools: inked('spr_tools', 1, 12, 32),
+  wateringCan: inked('spr_watering_can', 1, 16, 12),
+  potStack: inked('spr_pot_stack', 1, 12, 20),
+  sack: inked('spr_sack', 1, 16, 20),
   // The house's and the shed's roofs seen from the garden, drawn by art/interiors.mjs.
   roof: sheet('spr_roof'),
   // The front garden's road (3 m deep, its kerb at the foot), low front fence, drive, beds,

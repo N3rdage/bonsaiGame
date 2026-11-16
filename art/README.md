@@ -59,16 +59,12 @@ archive sprite changes.
 
 | File | Px size | Frames | Made from |
 |------|---------|--------|-----------|
-| `spr_floor_shed.png` | 96×32 | 3 | `spr_floor_shed` |
 | `spr_floor_garden.png` | 96×32 | 3 | `spr_floor_garden` |
 | `spr_source_plant.png` | 144×48 | 3 | `spr_source_plant` |
 | `spr_wall.png` | 32×32 | 1 | `spr_wall` |
 | `spr_fence.png` | 32×32 | 1 | `spr_fence` |
 | `spr_fence_v.png` | 32×32 | 1 | `spr_fence_v` |
 | `spr_door.png` | 32×32 | 1 | `spr_door` |
-| `spr_workbench.png` | 32×32 | 1 | `spr_workbench` |
-| `spr_planting_table.png` | 32×32 | 1 | `spr_planting_table` |
-| `spr_shop_kiosk.png` | 32×32 | 1 | `spr_shop_kiosk` |
 | `spr_pedestal.png` | 32×32 | 1 | `spr_pedestal` |
 
 The house rooms (lounge, hallway, study) are new content with no prototype
@@ -93,12 +89,11 @@ room or subject (`lounge.mjs`, `hallway.mjs`, `study.mjs`, `greenhouse.mjs`,
 | `spr_wall_study.png` | 32×32 | 1 | `interiors.mjs`: dark wooden panelling, two raised panels, over a skirting board |
 | `spr_roof.png` | 32×32 | 1 | `interiors.mjs`: slate shingles in staggered 8×4 courses (seamless), a few mossy pixels; the garden tiles it over the house's and the shed's footprints |
 
-The decor sprites (`make_decor.py`: shelf, tools, watering can, pot stack,
-sack) are in the web build: `sheets.mjs` packs the prototype's frames of
-`spr_shelf`, `spr_tools`, `spr_watering_can`, `spr_pot_stack` and `spr_sack`,
-and the shed draws them (`src/world/shedRoom.ts`). The prototype's 56 px
-`spr_window` is not packed; the web build's `spr_window` is the one
-`interiors.mjs` draws. `spr_foliage` is the 3D viewer's
+The shed's sheets (its floor, workbench, planting table, kiosk and
+`make_decor.py`'s decor: shelf, tools, watering can, pot stack, sack) are
+not packed: the web build draws the shed in Inked (see below). The
+prototype's 56 px `spr_window` is not packed either; the web build's
+`spr_window` is the one `interiors.mjs` draws. `spr_foliage` is the 3D viewer's
 (`src/viewer/foliage.png`), and the room's trees are drawn in code as the
 prototype's `obj_tree_sprite` did, so `spr_tree_small` is not used.
 
@@ -114,4 +109,4 @@ python3 preview.py        # rebuilds _preview.png
 
 ## Inked generator
 
-Inked is the game's art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (the scale rule, knobs, palette, what to call and how to keep the wobble varied). A sheet generator imports `createPage`, `finish` and `finishCutOut` from `inked/index.mjs` and `writePng` from `inked/canvas.mjs`; `inked/viewer.mjs` (`npm run art:viewer`) is one, drawing the 3D viewer's foliage and bark textures. The web build's `spr_player.png` is Inked too, drawn by `inked/player.mjs` (`npm run art:player`) rather than packed from the prototype's frames: 16 frames of 16 x 32 logical px (64 x 128 sheet px) in the frame order above.
+Inked is the game's art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (the scale rule, knobs, palette, what to call and how to keep the wobble varied). A sheet generator imports `createPage`, `finish` and `finishCutOut` from `inked/index.mjs` and `writePng` from `inked/canvas.mjs`; `inked/viewer.mjs` (`npm run art:viewer`) is one, drawing the 3D viewer's foliage and bark textures. The web build's `spr_player.png` is Inked too, drawn by `inked/player.mjs` (`npm run art:player`) rather than packed from the prototype's frames: 16 frames of 16 x 32 logical px (64 x 128 sheet px) in the frame order above. So is every sheet the shed draws, by `inked/shed.mjs` (`npm run art:shed`): `spr_floor_shed` (3 variants of a 16 x 16 floorboard tile), the back wall's face `spr_shed_wall` (3 variants, 16 x 48), the 8 px caps `spr_shed_cap` (south, 16 x 8) and `spr_shed_cap_v` (sides, 8 x 16, 3 variants each), `spr_shed_window` (32 x 24), the lounge door front-on `spr_shed_door` (24 x 40), the garden door's opening in the south cap `spr_shed_door_s` (24 x 16), `spr_workbench` (48 x 40), `spr_planting_table` (32 x 40), `spr_shop_kiosk` (24 x 56), the decor `spr_shelf` (24 x 20), `spr_tools` (12 x 32), `spr_watering_can` (16 x 12), `spr_pot_stack` (12 x 20) and `spr_sack` (16 x 20), and the rug `spr_shed_rug` (120 x 70), all in logical px at 4 sheet px each.
