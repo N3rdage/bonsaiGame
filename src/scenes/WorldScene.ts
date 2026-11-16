@@ -168,7 +168,6 @@ import {
   PEDESTAL_LABEL_DY,
   ROOM_STYLES,
   bakeScale,
-  fenceCorners,
   floorTiles,
   furnitureShadows,
   furnitureSprites,
@@ -1441,8 +1440,8 @@ export class WorldScene extends Phaser.Scene {
    * quad: the room's colour (the prototype's background layer), the paper
    * when its style lays it, the floor tiles, the room style's rug (the
    * shed's), the decor's ground shadows, the wall, face or fence runs with the
-   * windows and furniture, then the garden's mitred corners, and last the
-   * season's wash over all of it (the gardens'). A sheet coarser than the bake
+   * windows and furniture, and last the season's wash over all of it (the
+   * gardens'). A sheet coarser than the bake
    * scale is scaled up to it; a bake finer than prototype px is
    * linear-filtered, as its Inked sheets are.
    */
@@ -1491,12 +1490,11 @@ export class WorldScene extends Phaser.Scene {
         scale: f,
       });
     }
-    const corners = this.make.graphics({}, false).setScale(s);
-    for (const c of fenceCorners(room)) corners.fillStyle(c.colour).fillRect(c.x, c.y, c.w, c.h);
-    if (wash) corners.fillStyle(wash.colour, wash.alpha).fillRect(0, 0, room.width, room.height);
-    texture.draw(corners).render();
+    const over = this.make.graphics({}, false).setScale(s);
+    if (wash) over.fillStyle(wash.colour, wash.alpha).fillRect(0, 0, room.width, room.height);
+    texture.draw(over).render();
     shadows.destroy();
-    corners.destroy();
+    over.destroy();
     return texture;
   }
 

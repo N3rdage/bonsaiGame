@@ -6,12 +6,16 @@
  * horizontal strip in the order of the sprite's `.yy` frames. The house
  * rooms' tiles (lounge, hallway, study, greenhouse), their window and their furniture have
  * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws them,
- * the buildings' roofs seen from the garden and the front garden's sheets.
- * `npm run art:paper` (art/inked/paperSheet.mjs) draws the Inked rooms'
- * paper, `spr_paper`, `npm run art:player` (art/inked/player.mjs) the Inked
- * player, `spr_player`, in the prototype's frame order, and `npm run
- * art:shed` (art/inked/shed.mjs) every sheet the shed draws: its floor, wall
- * face and caps, window, doors, furniture, decor and rug.
+ * the roof the front garden sees and the front garden's road, low fence,
+ * drive, beds and roller door. `npm run art:paper` (art/inked/paperSheet.mjs)
+ * draws the Inked rooms' paper, `spr_paper`, `npm run art:player`
+ * (art/inked/player.mjs) the Inked player, `spr_player`, in the prototype's
+ * frame order, `npm run art:shed` (art/inked/shed.mjs) every sheet the shed
+ * draws: its floor, wall face and caps, window, doors, furniture, decor and
+ * rug, and `npm run art:garden` (art/inked/garden.mjs) the back garden's:
+ * its lawn, fences, corners, side gate and source plants (the lawn, fences
+ * and gate shared with the front garden) and the buildings seen from it,
+ * their faces, roofs, caps, kitchen window and glazed door.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -77,11 +81,31 @@ export const SHEETS = {
   player: inked('spr_player', 16, 16, 32),
   // The shed's floorboards, drawn by art/inked/shed.mjs: 3 variants of a 16 px tile.
   floorShed: inked('spr_floor_shed', 3, 16),
-  floorGarden: sheet('spr_floor_garden', 3),
-  sourcePlant: sheet('spr_source_plant', 3, 48),
-  wall: sheet('spr_wall'),
-  fence: sheet('spr_fence'),
-  fenceV: sheet('spr_fence_v'),
+  // The gardens' lawn, fences and side gate, drawn by art/inked/garden.mjs: 3 variants of each
+  // 16 px tile (the fence's face front-on, a north-south fence in three-quarter view), the ring's
+  // corners NW, NE, SW, SE, and the gate's leaf, as tall as the 0.75 m fence.
+  floorGarden: inked('spr_floor_garden', 3, 16),
+  fence: inked('spr_fence', 3, 16),
+  fenceV: inked('spr_fence_v', 3, 16),
+  fenceCorner: inked('spr_fence_corner', 4, 16),
+  gate: inked('spr_gate', 1, 16),
+  // The source plants, one frame per species (juniper, maple, pine), each standing on its frame's foot.
+  sourcePlant: inked('spr_source_plant', 3, 24, 32),
+  // The buildings seen from the back garden, drawn by art/inked/garden.mjs: each face 2.4 m (16 x
+  // 48) over its roof's 16 px tiles, 3 variants each; the house's edge-on east wall as its 8 px
+  // cap, the kitchen window, the greenhouse's frame rails on its edges, and one glazed leaf
+  // front-on, the study's garden door and the greenhouse's.
+  shedFace: inked('spr_shed_face', 3, 16, 48),
+  shedRoof: inked('spr_shed_roof', 3, 16),
+  houseFace: inked('spr_house_face', 3, 16, 48),
+  houseRoof: inked('spr_house_roof', 3, 16),
+  houseCapV: inked('spr_house_cap_v', 3, 8, 16),
+  houseWindow: inked('spr_house_window', 1, 40, 24),
+  greenhouseRoof: inked('spr_greenhouse_roof', 3, 16),
+  greenhouseFace: inked('spr_greenhouse_face', 3, 16, 48),
+  greenhouseCap: inked('spr_greenhouse_cap', 3, 16, 8),
+  greenhouseCapV: inked('spr_greenhouse_cap_v', 3, 8, 16),
+  doorGlazed: inked('spr_door_glazed', 1, 24, 40),
   door: sheet('spr_door'),
   // The shed's walls, drawn by art/inked/shed.mjs: the back wall's 2.4 m face (3 variants of a
   // 16 x 48 tile) and the 8 px caps of the south wall (16 x 8) and the side walls (8 x 16), 3 each.
@@ -129,14 +153,13 @@ export const SHEETS = {
   sack: inked('spr_sack', 1, 16, 20),
   // The house's and the shed's roofs seen from the garden, drawn by art/interiors.mjs.
   roof: sheet('spr_roof'),
-  // The front garden's road (3 m deep, its kerb at the foot), low front fence, drive, beds,
-  // the garage's roller door (2.4 m) and the side gate, drawn by art/interiors.mjs.
+  // The front garden's road (3 m deep, its kerb at the foot), low front fence, drive, beds and
+  // the garage's roller door (2.4 m), drawn by art/interiors.mjs.
   road: sheet('spr_road', 1, 64, 192),
   fenceLow: sheet('spr_fence_low'),
   drive: sheet('spr_drive'),
   bed: sheet('spr_bed'),
   rollerDoor: sheet('spr_roller_door', 1, 154, 32),
-  gate: sheet('spr_gate'),
   // The placed furniture: the prototype's pedestal, packed, and the floor shelf, drawn by art/interiors.mjs.
   pedestal: sheet('spr_pedestal'),
   floorShelf: sheet('spr_floor_shelf', 1, 64, 32),

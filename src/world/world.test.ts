@@ -385,29 +385,34 @@ describe('garden room', () => {
     expect(ROOMS.shed).toBe(SHED_ROOM);
   });
 
-  it('draws the buildings over their footprints: roofs, one band of face where the garden sees them, a glass box', () => {
+  it('draws the buildings over their footprints: roofs, each 2.4 m face where the garden sees it, the caps of the walls it sees edge-on, a glass box', () => {
     expect(GARDEN_ROOM.furniture).toBe(EXTERIORS);
     expect(EXTERIORS.map(({ sheet, x, y, w, h, solid }) => [sheet, x, y, w, h, solid])).toEqual([
-      [SHEETS.roof, 0, 0, 400, 144, false],
-      [SHEETS.wallHallway, 160, 128, 240, 16, false],
-      [SHEETS.wallHallway, 400, 0, 16, 144, false],
-      [SHEETS.roof, 0, 144, 160, 96, false],
-      [SHEETS.wall, 0, 240, 160, 16, false],
-      [SHEETS.wallGlass, 256, 304, 160, 112, true],
+      [SHEETS.houseRoof, 0, 0, 416, 144, false],
+      [SHEETS.houseFace, 160, 96, 248, 48, false],
+      [SHEETS.houseCapV, 408, 0, 8, 144, false],
+      [SHEETS.houseWindow, 204, 100, 40, 24, false],
+      [SHEETS.shedRoof, 0, 144, 160, 112, false],
+      [SHEETS.shedFace, 0, 208, 160, 48, false],
+      [SHEETS.greenhouseRoof, 256, 304, 160, 112, true],
+      [SHEETS.greenhouseCap, 256, 304, 160, 8, false],
+      [SHEETS.greenhouseCapV, 256, 304, 8, 64, false],
+      [SHEETS.greenhouseCapV, 408, 304, 8, 64, false],
+      [SHEETS.greenhouseFace, 256, 368, 160, 48, false],
     ]);
-    // Only the glass box is solid furniture; the house and the shed are wall rects.
+    // Only the glass box is solid furniture, through its roof; the house and the shed are wall rects.
     expect(furnitureWalls(EXTERIORS)).toEqual([GREENHOUSE]);
-    // Every piece lies on the 16 px tile grid inside its building's footprint.
+    // Every piece lies on the 4 px grid (the kitchen window is centred on x 7 m) inside its building's footprint.
     for (const f of EXTERIORS) {
-      expect([f.x, f.y, f.w, f.h].every((v) => v % 16 === 0)).toBe(true);
+      expect([f.x, f.y, f.w, f.h].every((v) => v % 4 === 0)).toBe(true);
       const within = (r: Rect): boolean =>
         f.x >= r.x && f.y >= r.y && f.x + f.w <= r.x + r.w && f.y + f.h <= r.y + r.h;
       expect([HOUSE, SHED, GREENHOUSE].some(within), f.sheet.key).toBe(true);
     }
-    // Each door is drawn on its face's band, the glazed ones in their own sheet.
-    expect(propSprite(door(GARDEN_ROOM))?.sheet).toBe(SHEETS.door);
-    expect(propSprite(door(GARDEN_ROOM, 'door_study'))?.sheet).toBe(SHEETS.doorGlassSingle);
-    expect(propSprite(door(GARDEN_ROOM, 'door_greenhouse'))?.sheet).toBe(SHEETS.doorGlassSingle);
+    // Each door stands in its face: the shed's plank door, the glazed leaves of the study and the greenhouse.
+    expect(propSprite(door(GARDEN_ROOM))?.sheet).toBe(SHEETS.shedDoor);
+    expect(propSprite(door(GARDEN_ROOM, 'door_study'))?.sheet).toBe(SHEETS.doorGlazed);
+    expect(propSprite(door(GARDEN_ROOM, 'door_greenhouse'))?.sheet).toBe(SHEETS.doorGlazed);
   });
 });
 

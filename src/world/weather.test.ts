@@ -5,6 +5,7 @@ import { FRONT_GARDEN_ROOM } from './frontGardenRoom';
 import { GARDEN_ROOM } from './gardenRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
+import { PALETTE } from './palette';
 import { SHED_ROOM } from './shedRoom';
 import { STUDY_ROOM } from './studyRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
@@ -70,6 +71,14 @@ describe('weatherProfile', () => {
       0xd25a28, 0xe68c28, 0xb2441e, 0xa0702a,
     ]);
     expect(weatherProfile('winter', false).colours).toEqual([0xffffff, 0xe2ecf6]);
+    // The same colours named as Inked palette entries.
+    expect(SEASONS.map((s) => weatherProfile(s, false).colours)).toEqual([
+      [PALETTE.petal, PALETTE.petalDeep, PALETTE.petalPale],
+      [PALETTE.firefly, PALETTE.fireflyPale],
+      [PALETTE.leafRed, PALETTE.leafOrange, PALETTE.leafRust, PALETTE.leafOchre],
+      [PALETTE.snow, PALETTE.snowShade],
+    ]);
+    expect(weatherProfile('spring', true).colours).toEqual([PALETTE.mote]);
     expect(weatherProfile('spring', false)).toMatchObject({
       rotating: true,
       hover: false,
