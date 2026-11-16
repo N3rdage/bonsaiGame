@@ -21,22 +21,13 @@ const OUT = join(ROOT, 'public', 'assets');
 
 /** The prototype sprites the rooms and props draw (src/world/assets.ts). */
 const NAMES = [
-  'spr_floor_shed',
   'spr_floor_garden',
   'spr_source_plant',
   'spr_wall',
   'spr_fence',
   'spr_fence_v',
   'spr_door',
-  'spr_workbench',
-  'spr_planting_table',
-  'spr_shop_kiosk',
   'spr_pedestal',
-  'spr_shelf',
-  'spr_tools',
-  'spr_watering_can',
-  'spr_pot_stack',
-  'spr_sack',
 ];
 
 /** GameMaker's .yy is JSON with trailing commas. */
