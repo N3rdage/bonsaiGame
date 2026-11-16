@@ -287,7 +287,7 @@ describe('walls', () => {
       ...LOUNGE_ROOM,
       furniture: [
         { sheet: SHEETS.houseRoof, x: 32, y: 48, w: 48, h: 16, solid: false },
-        { sheet: SHEETS.roof, x: 32, y: 64, w: 48, h: 16, solid: false },
+        { sheet: SHEETS.wallLounge, x: 32, y: 64, w: 48, h: 16, solid: false },
       ],
     };
     expect(furnitureRuns(room).map((r) => [r.sheet.key, r.frame, r.x, r.y, r.w, r.h])).toEqual([
@@ -295,7 +295,7 @@ describe('walls', () => {
       ['spr_house_roof', 2, 32, 48, 16, 16],
       ['spr_house_roof', 0, 48, 48, 16, 16],
       ['spr_house_roof', 1, 64, 48, 16, 16],
-      ['spr_roof', undefined, 32, 64, 48, 16],
+      ['spr_wall_lounge', undefined, 32, 64, 48, 16],
     ]);
   });
 
@@ -608,6 +608,29 @@ describe('props', () => {
     expect(at(FRONT_GARDEN_ROOM.props, 'gate')).toEqual(['spr_gate', 0, 544, 224, 1, 0.25, 208]);
   });
 
+  it("stands the front garden's front door in the house's face on its foot, sorted at its drawn top so the player at it draws in front", () => {
+    const p = propByKey(FRONT_GARDEN_ROOM.props, 'door_house');
+    const s = propSprite(p);
+    // The 24 x 40 leaf, x 324..348, y 184..224: inside the face (y 176..224), on its foot.
+    expect(s && [s.sheet.key, s.x - 12, s.y - 40, s.x + 12, s.y, s.scale]).toEqual([
+      'spr_front_door',
+      324,
+      184,
+      348,
+      224,
+      0.25,
+    ]);
+    const face = furnitureRuns(FRONT_GARDEN_ROOM).filter((r) => r.sheet === SHEETS.houseFace);
+    expect(face.some((r) => r.y === 176 && r.y + r.h === 224 && r.x <= 324)).toBe(true);
+    // Sorted at its top, y 184, not its rect's (208): the player at its landing, (336, 190), has
+    // its feet at y 202, in front of it, and is never behind it, being always north of the wall.
+    expect(s?.depth).toBe(184);
+    expect(190 + PLAYER_FEET).toBeGreaterThan(s?.depth ?? Infinity);
+    // A south wall's door no taller than its band keeps its rect's top.
+    expect(propSprite(propByKey(SHED_ROOM.props, 'door'))?.depth).toBe(208);
+    expect(propSprite(propByKey(LOUNGE_ROOM.props, 'door'))?.depth).toBe(208);
+  });
+
   it('draws no pedestal and no shadow for a display spot, which its furniture draws in the bake', () => {
     for (const room of [LOUNGE_ROOM, STUDY_ROOM]) {
       const spots = room.props.filter((p) => p.pedestalKey !== undefined);
@@ -737,8 +760,8 @@ describe('props', () => {
     );
     expect(doors).toHaveLength(16);
     // Besides the glazed doors: the shed's two Inked doors and the garden's side of its garden
-    // door, the side gate's two sides, board gates (spr_gate), and the house's four side-on doors
-    // between rooms.
+    // door, the front garden's front door (spr_front_door), the side gate's two sides, board gates
+    // (spr_gate), and the house's four side-on doors between rooms.
     expect(ownSheet).toEqual([
       'shed.door',
       'shed.door_lounge',
@@ -746,6 +769,7 @@ describe('props', () => {
       'garden.door_study',
       'garden.door_greenhouse',
       'garden.gate',
+      'frontGarden.door_house',
       'frontGarden.gate',
       'lounge.door_hallway',
       'hallway.door_lounge',

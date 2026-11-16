@@ -5,9 +5,8 @@
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
  * horizontal strip in the order of the sprite's `.yy` frames. The house
  * rooms' tiles (lounge, hallway, study, greenhouse), their window and their furniture have
- * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws them,
- * the roof the front garden sees and the front garden's road, low fence,
- * drive, beds and roller door. `npm run art:paper` (art/inked/paperSheet.mjs)
+ * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws
+ * them. `npm run art:paper` (art/inked/paperSheet.mjs)
  * draws the Inked rooms' paper, `spr_paper`, `npm run art:player`
  * (art/inked/player.mjs) the Inked player, `spr_player`, in the prototype's
  * frame order, `npm run art:shed` (art/inked/shed.mjs) every sheet the shed
@@ -15,7 +14,10 @@
  * rug, and `npm run art:garden` (art/inked/garden.mjs) the back garden's:
  * its lawn, fences, corners, side gate and source plants (the lawn, fences
  * and gate shared with the front garden) and the buildings seen from it,
- * their faces, roofs, caps, kitchen window and glazed door.
+ * their faces, roofs, caps, kitchen window and glazed door (the house's
+ * face, roof and window shared with the front garden too), and `npm run
+ * art:front-garden` (art/inked/frontGarden.mjs) the front garden's own: its
+ * road, low fence, drive, path, beds, front door and roller door.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -94,7 +96,8 @@ export const SHEETS = {
   // The buildings seen from the back garden, drawn by art/inked/garden.mjs: each face 2.4 m (16 x
   // 48) over its roof's 16 px tiles, 3 variants each; the house's edge-on east wall as its 8 px
   // cap, the kitchen window, the greenhouse's frame rails on its edges, and one glazed leaf
-  // front-on, the study's garden door and the greenhouse's.
+  // front-on, the study's garden door and the greenhouse's. The house's face, roof and window are
+  // the front garden's too, for the garage's face and roof as well.
   shedFace: inked('spr_shed_face', 3, 16, 48),
   shedRoof: inked('spr_shed_roof', 3, 16),
   houseFace: inked('spr_house_face', 3, 16, 48),
@@ -151,15 +154,17 @@ export const SHEETS = {
   wateringCan: inked('spr_watering_can', 1, 16, 12),
   potStack: inked('spr_pot_stack', 1, 12, 20),
   sack: inked('spr_sack', 1, 16, 20),
-  // The house's and the shed's roofs seen from the garden, drawn by art/interiors.mjs.
-  roof: sheet('spr_roof'),
-  // The front garden's road (3 m deep, its kerb at the foot), low front fence, drive, beds and
-  // the garage's roller door (2.4 m), drawn by art/interiors.mjs.
-  road: sheet('spr_road', 1, 64, 192),
-  fenceLow: sheet('spr_fence_low'),
-  drive: sheet('spr_drive'),
-  bed: sheet('spr_bed'),
-  rollerDoor: sheet('spr_roller_door', 1, 154, 32),
+  // The front garden's own sheets, drawn by art/inked/frontGarden.mjs: 3 variants each of a 32 x 96
+  // slice of the 3 m road (its centre-line dash and kerb), the low front fence (16 px, cut out),
+  // the drive's block paving, the path's flags and a bed (16 px), and, cut out, the front door
+  // front-on (0.8 x 2.0 m, 24 x 40) and the garage's 2.4 m roller door (77 x 40).
+  road: inked('spr_road', 3, 32, 96),
+  fenceLow: inked('spr_fence_low', 3, 16),
+  drive: inked('spr_drive', 3, 16),
+  path: inked('spr_path', 3, 16),
+  bed: inked('spr_bed', 3, 16),
+  frontDoor: inked('spr_front_door', 1, 24, 40),
+  rollerDoor: inked('spr_roller_door', 1, 77, 40),
   // The placed furniture: the prototype's pedestal, packed, and the floor shelf, drawn by art/interiors.mjs.
   pedestal: sheet('spr_pedestal'),
   floorShelf: sheet('spr_floor_shelf', 1, 64, 32),

@@ -640,7 +640,7 @@ describe('front garden room', () => {
     ]);
     // The front door at x 7 m and the gate at 13.5 m, room x = (m + 3.5) * 32.
     expect([(7 + 3.5) * 32, (13.5 + 3.5) * 32]).toEqual([336, 544]);
-    expect(propSprite(door(room, 'door_house'))?.sheet).toBe(SHEETS.door);
+    expect(propSprite(door(room, 'door_house'))?.sheet).toBe(SHEETS.frontDoor);
     expect(propSprite(door(room, 'gate'))?.sheet).toBe(SHEETS.gate);
     expect(arrival(door(room, 'door_house'))).toEqual({ x: 240, y: 194, facing: 'down' });
     expect(arrival(door(room, 'gate'))).toEqual({ x: 432, y: 34, facing: 'down' });
@@ -667,19 +667,29 @@ describe('front garden room', () => {
     expect(room.furniture.map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual([
       ['spr_road', 0, 0, 576, 96],
       ['spr_drive', 16, 96, 96, 112],
-      ['spr_floor_greenhouse', 320, 96, 32, 112],
+      ['spr_path', 320, 96, 32, 112],
       ['spr_bed', 128, 112, 176, 16],
       ['spr_bed', 368, 112, 176, 16],
-      ['spr_wall_hallway', 0, 208, 112, 16],
-      ['spr_roller_door', 17.5, 208, 77, 16],
-      ['spr_wall_hallway', 112, 208, 416, 16],
-      ['spr_window', 152, 208, 32, 16],
-      ['spr_window', 216, 208, 32, 16],
-      ['spr_window', 408, 208, 32, 16],
-      ['spr_window', 472, 208, 32, 16],
+      // The 2.4 m faces stand on the south band's bottom edge, y 224, rising to y 176.
+      ['spr_house_face', 0, 176, 112, 48],
+      ['spr_roller_door', 17.5, 184, 77, 40],
+      ['spr_house_face', 112, 176, 416, 48],
+      // Each window 40 x 24, its sill 20 px above the face's foot, as the kitchen window's.
+      ['spr_house_window', 148, 180, 40, 24],
+      ['spr_house_window', 212, 180, 40, 24],
+      ['spr_house_window', 404, 180, 40, 24],
+      ['spr_house_window', 468, 180, 40, 24],
       ['spr_fence', 528, 208, 48, 16],
-      ['spr_roof', 0, 224, 528, 48],
+      ['spr_house_roof', 0, 224, 528, 48],
+      // The house's east wall, edge-on beside the passage: its cap from the face's top to the canvas's foot.
+      ['spr_house_cap_v', 520, 176, 8, 96],
     ]);
+    // The windows clear the front door's 24 px leaf, x 324..348, and stay inside the house's face.
+    const windows = room.furniture.filter((f) => f.sheet === SHEETS.houseWindow);
+    for (const w of windows) {
+      expect(w.x + w.w <= 324 || w.x >= 348).toBe(true);
+      expect(w.x >= HOUSE_FACE.x && w.x + w.w <= HOUSE_FACE.x + HOUSE_FACE.w).toBe(true);
+    }
     // The drive, x −3.5..0 m, and the path, centred on the front door, run from the kerb to the faces.
     expect(DRIVE.x + DRIVE.w).toBe(3.5 * 32);
     expect(PATH.x + PATH.w / 2).toBe(door(room, 'door_house').x);

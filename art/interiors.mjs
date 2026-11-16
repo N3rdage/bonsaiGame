@@ -1,10 +1,9 @@
 // Draws the house rooms' placeholder tiles (no prototype art exists for
-// interiors), the glazed doors and window, the house and greenhouse
-// furniture, the roof the front garden sees, and the front garden's road,
-// fence, paving, beds and roller door.
+// interiors), the glazed doors and window, and the house and greenhouse
+// furniture.
 //
 // Each sheet is drawn by a module under art/interiors/ (lounge, hallway,
-// study, greenhouse, doors, roof, frontGarden), which describes its sheets at the
+// study, greenhouse, doors), which describes its sheets at the
 // top; palette.mjs holds every shared colour and png.mjs the drawing
 // primitives. Every module exports its sheets as { name, width, height,
 // draw(png) }, and this writes them in a fixed order.
@@ -15,12 +14,10 @@
 // Run with `npm run art:interiors`; the output is committed.
 
 import * as doors from './interiors/doors.mjs';
-import * as frontGarden from './interiors/frontGarden.mjs';
 import * as greenhouse from './interiors/greenhouse.mjs';
 import * as hallway from './interiors/hallway.mjs';
 import * as lounge from './interiors/lounge.mjs';
 import { write } from './interiors/png.mjs';
-import * as roof from './interiors/roof.mjs';
 import * as study from './interiors/study.mjs';
 
 for (const sheet of [
@@ -43,13 +40,7 @@ for (const sheet of [
   study.BOOKSHELF,
   hallway.HALL_RUNNER,
   hallway.HALL_TABLE,
-  roof.ROOF,
   greenhouse.FLOOR_SHELF,
-  frontGarden.ROAD,
-  frontGarden.FENCE_LOW,
-  frontGarden.DRIVE,
-  frontGarden.BED,
-  frontGarden.ROLLER_DOOR,
 ]) {
   write(sheet);
 }

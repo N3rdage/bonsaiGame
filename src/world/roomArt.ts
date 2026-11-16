@@ -123,8 +123,12 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     corner: SHEETS.fenceCorner,
     paper: false,
   },
-  // The front garden fills its canvas with lawn like the back garden; its north row is the low
-  // front fence, its south row lies under the faces' furniture, and its corners are plain tiles.
+  // The front garden in Inked: its lawn, its north row the low front fence (cut out over the lawn;
+  // the drive and the path drawn over it are its gaps), its south row under the faces' furniture,
+  // its columns the back garden's side fence. Its corners are plain tiles of the row, the low
+  // fence running out to the canvas's edges: spr_fence_corner's post and palings are the 0.75 m
+  // fence's and would stand up out of the low one at the kerb. No paper: the lawn fills the
+  // canvas, under the road and the roofs, so nothing would show it.
   frontGarden: {
     floor: SHEETS.floorGarden,
     wallRow: SHEETS.fenceLow,
@@ -421,6 +425,11 @@ function onFootprint(
   return { sheet, frame, x, y, originY: 0.5, scale, depth };
 }
 
+/** The top edge of a sprite as drawn: its frame's height at its scale above (originY 1) or about (0.5) its y. */
+function spriteTop({ sheet, y, originY, scale }: PropSprite): number {
+  return y - sheet.frameHeight * scale * originY;
+}
+
 const PROP_SHEETS: Record<string, Sheet> = {
   workbench: SHEETS.workbench,
   planting_table: SHEETS.plantingTable,
@@ -439,7 +448,8 @@ const PROP_SHEETS: Record<string, Sheet> = {
  * which is drawn by the furniture it is on (obj_pedestal's 1.5x pedestal is
  * gone). A prop sorts against the player at its bottom edge; a door sits in
  * its wall or fence, so it sorts at its top edge, behind the player as the
- * walls are (obj_player_2d Step_0 draws the player in front of walls and doors).
+ * walls are (obj_player_2d Step_0 draws the player in front of walls and doors),
+ * a door in a south wall at its sprite's drawn top if that is higher.
  */
 export function propSprite(prop: Prop): PropSprite | undefined {
   const { x, y, h } = prop;
@@ -447,7 +457,13 @@ export function propSprite(prop: Prop): PropSprite | undefined {
     return onFootprint(SHEETS.sourcePlant, sourcePlantFrame(prop.speciesKey), x, y, h, y + h / 2);
   }
   if (prop.pedestalKey !== undefined) return undefined;
-  if (prop.wall) return onFootprint(prop.sheet ?? SHEETS.door, 0, x, y, h, y - h / 2);
+  if (prop.wall) {
+    const door = onFootprint(prop.sheet ?? SHEETS.door, 0, x, y, h, y - h / 2);
+    // The player is only ever north of a south wall's door, and its face is baked under the
+    // player, so the door sorts at its drawn top: one taller than the band (the front garden's
+    // front door, 40 px on the face's foot) stays behind the player standing at it.
+    return prop.wall === 'S' ? { ...door, depth: Math.min(door.depth, spriteTop(door)) } : door;
+  }
   const sheet = PROP_SHEETS[prop.key];
   return sheet && onFootprint(sheet, 0, x, y, h, y + h / 2);
 }
