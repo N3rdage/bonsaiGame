@@ -75,18 +75,19 @@ export const KITCHEN_WINDOW: Rect = { x: 7 * METRE - 20, y: HOUSE.h - 20 - 24, w
  * (art/inked/garden.mjs): each roof over its whole footprint, drawn first;
  * each face the garden sees 2.4 m (48 px) tall, standing on its footprint's
  * south edge over the roof's lower 32 px: the house's along the notch
- * (x 160..400) with the kitchen window in it, the shed's along the lawn, the
+ * (x 160..408) with the kitchen window in it, the shed's along the lawn, the
  * greenhouse's in the lawn. The house's east wall, along the passage, is
  * edge-on in the three-quarter view, so it shows only its 8 px cap on the
- * footprint's east edge; the greenhouse's north, east and west walls show
+ * footprint's east edge, drawn after the face so it covers the face's last
+ * 16 px tile's overhang (x 408..416); the greenhouse's north, east and west walls show
  * their frame rails on its edges. The house's and the shed's walls are their
  * footprints (GARDEN_ROOM.walls); the glass box is solid through its roof
  * run. The garage, west of the shed, is out of sight.
  */
 export const EXTERIORS: readonly Furniture[] = [
   run(SHEETS.houseRoof, HOUSE),
+  face(SHEETS.houseFace, HOUSE, SHED.w, HOUSE.w - WALL_CAP),
   run(SHEETS.houseCapV, { x: HOUSE.w - WALL_CAP, y: 0, w: WALL_CAP, h: HOUSE.h }),
-  face(SHEETS.houseFace, HOUSE, SHED.w, HOUSE.w - WALL_BAND),
   run(SHEETS.houseWindow, KITCHEN_WINDOW),
   run(SHEETS.shedRoof, SHED),
   face(SHEETS.shedFace, SHED, 0, SHED.w),

@@ -389,8 +389,8 @@ describe('garden room', () => {
     expect(GARDEN_ROOM.furniture).toBe(EXTERIORS);
     expect(EXTERIORS.map(({ sheet, x, y, w, h, solid }) => [sheet, x, y, w, h, solid])).toEqual([
       [SHEETS.houseRoof, 0, 0, 416, 144, false],
+      [SHEETS.houseFace, 160, 96, 248, 48, false],
       [SHEETS.houseCapV, 408, 0, 8, 144, false],
-      [SHEETS.houseFace, 160, 96, 240, 48, false],
       [SHEETS.houseWindow, 204, 100, 40, 24, false],
       [SHEETS.shedRoof, 0, 144, 160, 112, false],
       [SHEETS.shedFace, 0, 208, 160, 48, false],

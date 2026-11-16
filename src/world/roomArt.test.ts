@@ -244,10 +244,11 @@ describe('walls', () => {
       runs.filter((r) => r.sheet === sheet && (x === undefined || r.x === x));
     const summary = (sheet: Sheet, x?: number) => [at(sheet, x).length, ...extent(at(sheet, x))];
     // The house: its tiled roof over the whole footprint, its east wall's cap down the passage's
-    // side, its back face along the notch (x 160..400, y 96..144) with the kitchen window in it.
+    // side, its back face along the notch (x 160..408, y 96..144) with the kitchen window in it;
+    // the face's whole 16 px tiles run to 416, and the cap covers the last one's 8 px overhang.
     expect(summary(SHEETS.houseRoof)).toEqual([26 * 9, 0, 0, 416, 144]);
     expect(summary(SHEETS.houseCapV)).toEqual([9, 408, 0, 416, 144]);
-    expect(summary(SHEETS.houseFace)).toEqual([15, 160, 96, 400, 144]);
+    expect(summary(SHEETS.houseFace)).toEqual([16, 160, 96, 416, 144]);
     expect(summary(SHEETS.houseWindow)).toEqual([1, 204, 100, 244, 124]);
     expect(KITCHEN_WINDOW).toEqual({ x: 204, y: 100, w: 40, h: 24 });
     // The shed: its iron roof, its weatherboarded face along the lawn (y 208..256).
@@ -271,6 +272,7 @@ describe('walls', () => {
     const last = (sheet: Sheet) => runs.map((r) => r.sheet).lastIndexOf(sheet);
     expect(last(SHEETS.houseRoof)).toBeLessThan(first(SHEETS.houseFace));
     expect(last(SHEETS.houseFace)).toBeLessThan(first(SHEETS.houseWindow));
+    expect(last(SHEETS.houseFace)).toBeLessThan(first(SHEETS.houseCapV));
     expect(last(SHEETS.shedRoof)).toBeLessThan(first(SHEETS.shedFace));
     expect(last(SHEETS.greenhouseRoof)).toBeLessThan(first(SHEETS.greenhouseCap));
     expect(last(SHEETS.greenhouseCapV)).toBeLessThan(first(SHEETS.greenhouseFace));
@@ -486,7 +488,7 @@ describe('walls', () => {
     expect(furniture(SHED_ROOM)).toEqual([['spr_shelf', 208, 67, 24, 20]]);
     // The garden's eleven pieces, cut into their tiles but the one-frame kitchen window.
     expect(GARDEN_ROOM.furniture).toHaveLength(11);
-    expect(furniture(GARDEN_ROOM)).toHaveLength(234 + 9 + 15 + 1 + 70 + 10 + 70 + 10 + 8 + 10);
+    expect(furniture(GARDEN_ROOM)).toHaveLength(234 + 16 + 9 + 1 + 70 + 10 + 70 + 10 + 8 + 10);
   });
 
   it("bakes the garden's buildings with no shadow, each Inked door standing in its face on the footprint's edge", () => {
