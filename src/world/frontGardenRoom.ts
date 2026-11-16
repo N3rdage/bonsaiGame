@@ -9,7 +9,10 @@
  * at the drive and the path, which stay solid: the road is never walked), and
  * along the south edge the garage's front face with its roller door (closed,
  * no prop: it leads nowhere yet), the house's front face with the front door
- * and four windows, and the passage's fence with the side gate.
+ * and four windows, and the passage's fence with the side gate. The faces are
+ * 2.4 m (48 px) tall, standing on the south band's bottom edge, so they rise
+ * over the lawn's southern 32 px, which the player still walks, drawn in front
+ * of them.
  *
  * The canvas is taller than `bounds`: the road, x −3.5..14.5 m and y
  * −7..−4 m, fills the 96 px above the fence, and the roofs of the garage and
@@ -19,6 +22,7 @@
  */
 
 import { SHEETS } from './assets';
+import { BACK_WALL_FACE, WALL_CAP } from './roomArt';
 import {
   SHED_ROOM,
   WALL_BAND,
@@ -69,7 +73,11 @@ export const PATH: Rect = {
   h: FACE_Y - FRONT_GARDEN_BOUNDS.y,
 };
 
-/** The garage's front face, x −3.5..0 m, the house's, x 0..13 m, and the passage's fence, x 13..14.5 m. */
+/**
+ * The garage's front face, x −3.5..0 m, the house's, x 0..13 m, and the
+ * passage's fence, x 13..14.5 m: their footprints in the south band. The
+ * faces are drawn 2.4 m tall standing on the band's bottom edge (`face`).
+ */
 export const GARAGE_FACE: Rect = { x: 0, y: FACE_Y, w: siteX(0), h: WALL_BAND };
 export const HOUSE_FACE: Rect = { x: siteX(0), y: FACE_Y, w: 13 * METRE, h: WALL_BAND };
 export const PASSAGE_FENCE: Rect = {
@@ -79,43 +87,71 @@ export const PASSAGE_FENCE: Rect = {
   h: WALL_BAND,
 };
 
+/** The faces' foot, the south band's bottom edge, where the doors and the roller door stand. */
+const FACE_FOOT = FACE_Y + WALL_BAND;
+
 /**
- * The garage's roller door, 2.4 m centred on x −1.75 m (room x 56): its sheet
- * is 154 prototype px, 77 logical px, the nearest whole prototype pixel.
+ * The garage's closed roller door, 2.4 m centred on x −1.75 m (room x 56),
+ * standing on the face's foot: its sheet is 77 logical px wide, 2.4 m at 32
+ * px a metre (76.8) rounded to a whole px, and 40 tall, the scale rule's
+ * front-on door.
  */
 export const ROLLER_DOOR: Rect = {
-  x: siteX(-1.75) - SHEETS.rollerDoor.frameWidth / 4,
-  y: FACE_Y,
-  w: SHEETS.rollerDoor.frameWidth / 2,
-  h: WALL_BAND,
+  x: siteX(-1.75) - SHEETS.rollerDoor.frameWidth / 8,
+  y: FACE_FOOT - SHEETS.rollerDoor.frameHeight / 4,
+  w: SHEETS.rollerDoor.frameWidth / 4,
+  h: SHEETS.rollerDoor.frameHeight / 4,
 };
 
 /** A run of `sheet` tiled over `r`, not solid: the ring's bands are the room's collision. */
 const run = (sheet: Furniture['sheet'], r: Rect): Furniture => ({ sheet, ...r, solid: false });
 
-/** A 32 px window of two panes in the house's front face, from room x `x`. */
-const houseWindow = (x: number): Furniture =>
-  run(SHEETS.window, { x, y: FACE_Y, w: 32, h: WALL_BAND });
+/** A face BACK_WALL_FACE (2.4 m) tall standing on the footprint `r`'s bottom edge, as the back garden's (gardenRoom.ts). */
+const face = (sheet: Furniture['sheet'], r: Rect): Furniture =>
+  run(sheet, { x: r.x, y: r.y + r.h - BACK_WALL_FACE, w: r.w, h: BACK_WALL_FACE });
+
+/**
+ * A window in the house's front face, 40 x 24 centred on room x `cx`, its
+ * sill 20 px (0.94 m) above the face's foot as the kitchen window's.
+ */
+const houseWindow = (cx: number): Furniture =>
+  run(SHEETS.houseWindow, { x: cx - 20, y: FACE_FOOT - 20 - 24, w: 40, h: 24 });
 
 /** The beds along the fence's inside, one tile deep, on the tile grid: one between the drive and the path, one east of the path. */
 const BED_Y = FRONT_GARDEN_BOUNDS.y + WALL_BAND;
 
+/**
+ * Drawn in Inked (art/inked/frontGarden.mjs and the back garden's
+ * garden.mjs): the road, the drive and the path (both over the fence's band,
+ * its gaps), the beds, then the garage's and the house's rendered faces, 48
+ * px tall on the south band's bottom edge so they rise 32 px over the lawn's
+ * southern edge, the roller door and the windows in them, the passage's
+ * fence, the clay-tiled roofs below, and the house's edge-on east wall's cap.
+ */
 export const FRONT_GARDEN_FURNITURE: readonly Furniture[] = [
   run(SHEETS.road, ROAD),
   run(SHEETS.drive, DRIVE),
-  run(SHEETS.floorGreenhouse, PATH),
+  run(SHEETS.path, PATH),
   run(SHEETS.bed, { x: 128, y: BED_Y, w: 176, h: WALL_BAND }),
   run(SHEETS.bed, { x: 368, y: BED_Y, w: 176, h: WALL_BAND }),
-  run(SHEETS.wallHallway, GARAGE_FACE),
+  face(SHEETS.houseFace, GARAGE_FACE),
   run(SHEETS.rollerDoor, ROLLER_DOOR),
-  run(SHEETS.wallHallway, HOUSE_FACE),
+  face(SHEETS.houseFace, HOUSE_FACE),
   // The lounge's two windows (x 0..5.5 m) and the study's two (x 8.5..13 m) either side of the hallway's front door.
-  houseWindow(152),
-  houseWindow(216),
-  houseWindow(408),
-  houseWindow(472),
+  houseWindow(168),
+  houseWindow(232),
+  houseWindow(424),
+  houseWindow(488),
   run(SHEETS.fence, PASSAGE_FENCE),
-  run(SHEETS.roof, { x: 0, y: ROOF_Y, w: PASSAGE_FENCE.x, h: HEIGHT - ROOF_Y }),
+  run(SHEETS.houseRoof, { x: 0, y: ROOF_Y, w: PASSAGE_FENCE.x, h: HEIGHT - ROOF_Y }),
+  // The house's east wall beside the passage, edge-on: its 8 px cap down the face's and the roof's
+  // east end, as the back garden draws it.
+  run(SHEETS.houseCapV, {
+    x: PASSAGE_FENCE.x - WALL_CAP,
+    y: FACE_FOOT - BACK_WALL_FACE,
+    w: WALL_CAP,
+    h: HEIGHT - (FACE_FOOT - BACK_WALL_FACE),
+  }),
 ];
 
 /** A 16 px door or gate centred on room x `x` in the south band. */
@@ -135,10 +171,12 @@ export const FRONT_GARDEN_ROOM: Room = {
   walls: ringWalls(FRONT_GARDEN_BOUNDS),
   furniture: FRONT_GARDEN_FURNITURE,
   props: [
-    // B3 row 10: the front door in the house's front face at x 7 m, to the hallway's front door.
+    // B3 row 10: the front door in the house's front face at x 7 m, to the hallway's front door;
+    // its solid panelled leaf front-on, standing on the face's foot.
     {
       ...southDoor('door_house', 'Door', 'To Hallway', siteX(7)),
       target: { room: 'hallway', door: 'door_front' },
+      sheet: SHEETS.frontDoor,
     },
     // B3 row 11: the side gate in the passage's fence, to the back garden's gate. At x 13.5 m,
     // in line with the back garden's side of it (gardenRoom.ts), so the player lands clear of the

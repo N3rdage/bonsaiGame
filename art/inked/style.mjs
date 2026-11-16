@@ -39,6 +39,8 @@ export const WASHES = {
   render: [214, 198, 176],
   tile: [184, 116, 92],
   paint: [204, 208, 200],
+  // The road the front garden looks onto.
+  asphalt: [108, 108, 110],
   // The 3D viewer's textures are tinted by each species' colours, so their washes are near neutral.
   bark: [170, 160, 148],
   leaf: [188, 190, 178],

@@ -78,19 +78,20 @@ describe('sprite sheets', () => {
       ['spr_watering_can', 64, 48, 1],
       ['spr_pot_stack', 48, 80, 1],
       ['spr_sack', 64, 80, 1],
-      ['spr_roof', 32, 32, 1],
-      ['spr_road', 64, 192, 1],
-      ['spr_fence_low', 32, 32, 1],
-      ['spr_drive', 32, 32, 1],
-      ['spr_bed', 32, 32, 1],
-      ['spr_roller_door', 154, 32, 1],
+      ['spr_road', 128, 384, 3],
+      ['spr_fence_low', 64, 64, 3],
+      ['spr_drive', 64, 64, 3],
+      ['spr_path', 64, 64, 3],
+      ['spr_bed', 64, 64, 3],
+      ['spr_front_door', 96, 160, 1],
+      ['spr_roller_door', 308, 160, 1],
       ['spr_pedestal', 32, 32, 1],
       ['spr_floor_shelf', 64, 32, 1],
       ['spr_paper', 256, 256, 1],
     ]);
   });
 
-  it('gives every sheet a kind, the player, the paper, the shed and the back garden the Inked sheets', () => {
+  it('gives every sheet a kind, the player, the paper, the shed and the gardens the Inked sheets', () => {
     for (const s of ALL_SHEETS) expect(['pixel', 'inked']).toContain(s.art);
     expect(ALL_SHEETS.filter((s) => s.art === 'inked')).toEqual([
       SHEETS.player,
@@ -127,6 +128,13 @@ describe('sprite sheets', () => {
       SHEETS.wateringCan,
       SHEETS.potStack,
       SHEETS.sack,
+      SHEETS.road,
+      SHEETS.fenceLow,
+      SHEETS.drive,
+      SHEETS.path,
+      SHEETS.bed,
+      SHEETS.frontDoor,
+      SHEETS.rollerDoor,
       SHEETS.paper,
     ]);
   });
@@ -280,7 +288,40 @@ describe('sprite sheets', () => {
     expect(SHEETS.sourcePlant.frames).toBe(3);
   });
 
-  it("loads the house rooms' and the greenhouse's generated tiles and furniture and the buildings' roof with the rest", () => {
+  it("draws the front garden's own sheets in Inked at the scale rule's logical sizes", () => {
+    const logical = (s: (typeof ALL_SHEETS)[number]) => [
+      s.frameWidth / sheetPxPerLogical(s),
+      s.frameHeight / sheetPxPerLogical(s),
+    ];
+    expect(
+      [
+        SHEETS.road,
+        SHEETS.fenceLow,
+        SHEETS.drive,
+        SHEETS.path,
+        SHEETS.bed,
+        SHEETS.frontDoor,
+        SHEETS.rollerDoor,
+      ].map(logical),
+    ).toEqual([
+      // A slice of the 3 m road, 18 of them across the room's 576 px.
+      [32, 96],
+      // The low fence, the drive's blocks, the path's flags, a bed.
+      [16, 16],
+      [16, 16],
+      [16, 16],
+      [16, 16],
+      // A 0.8 x 2.0 m door front-on; the 2.4 m roller door, 76.8 px rounded to a whole 77.
+      [24, 40],
+      [77, 40],
+    ]);
+    expect(576 % (SHEETS.road.frameWidth / sheetPxPerLogical(SHEETS.road))).toBe(0);
+    for (const s of [SHEETS.road, SHEETS.fenceLow, SHEETS.drive, SHEETS.path, SHEETS.bed]) {
+      expect(s.frames, s.key).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("loads the house rooms' and the greenhouse's generated tiles and furniture with the rest", () => {
     for (const s of [
       SHEETS.floorLounge,
       SHEETS.wallLounge,
@@ -297,7 +338,6 @@ describe('sprite sheets', () => {
       SHEETS.bookshelf,
       SHEETS.runner,
       SHEETS.hallTable,
-      SHEETS.roof,
     ]) {
       expect(ALL_SHEETS).toContain(s);
     }
