@@ -9,12 +9,8 @@
 // spr_bed.png: a flower bed, dark soil with two round shrubs and a few flowers.
 // spr_roller_door.png (154x32, the garage's 2.4 m door): grey slats under a
 // housing, between two dark guides, a handle at the foot.
-// spr_gate.png: the side gate, a ledged and braced board gate between two
-// posts, a brass latch; drawn over the passage's fence on both sides.
 
 import {
-  BRASS,
-  BRASS_DARK,
   MOSS,
   MOSS_DARK,
   STONE,
@@ -22,7 +18,6 @@ import {
   STONE_LIGHT,
   WHITEWASH,
   WHITEWASH_DARK,
-  WOOD_DARK,
   WOOD_LIGHT,
   WOOD_MID,
 } from './palette.mjs';
@@ -162,33 +157,6 @@ function rollerDoor(png) {
   fill(png, hx - 4, SIZE - 4, hx + 3, SIZE - 3, STONE_DARK);
 }
 
-/**
- * Two posts on the outer columns, vertical boards between them with dark
- * seams, two ledges across at rows 7..9 and 24..26 and a brace climbing
- * between them, and a brass latch by the right post. The top row is left
- * transparent, so the fence behind shows above the gate.
- */
-function gate(png) {
-  for (let y = 1; y < SIZE; y += 1) {
-    for (let x = 0; x < SIZE; x += 1) {
-      let c = (x - 4) % 6 === 5 ? WOOD_DARK : WOOD_MID;
-      if (x < 4 || x >= SIZE - 4) c = x === 0 || x === SIZE - 1 ? WOOD_DARK : WOOD_LIGHT;
-      setPixel(png, x, y, c);
-    }
-  }
-  for (const y of [7, 24]) {
-    fill(png, 4, y, SIZE - 5, y, WOOD_LIGHT);
-    fill(png, 4, y + 1, SIZE - 5, y + 2, WOOD_MID);
-    fill(png, 4, y + 2, SIZE - 5, y + 2, WOOD_DARK);
-  }
-  for (let y = 10; y < 24; y += 1) {
-    const x = 4 + Math.floor(((24 - y) * (SIZE - 9)) / 14);
-    fill(png, x, y, Math.min(x + 2, SIZE - 5), y, WOOD_LIGHT);
-  }
-  fill(png, SIZE - 7, 14, SIZE - 5, 15, BRASS);
-  setPixel(png, SIZE - 7, 16, BRASS_DARK);
-}
-
 export const ROAD = { name: 'spr_road', width: ROAD_W, height: ROAD_H, draw: road };
 export const FENCE_LOW = { name: 'spr_fence_low', width: SIZE, height: SIZE, draw: lowFence };
 export const DRIVE = { name: 'spr_drive', width: SIZE, height: SIZE, draw: drive };
@@ -199,4 +167,3 @@ export const ROLLER_DOOR = {
   height: SIZE,
   draw: rollerDoor,
 };
-export const GATE = { name: 'spr_gate', width: SIZE, height: SIZE, draw: gate };

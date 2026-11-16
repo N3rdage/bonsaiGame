@@ -20,15 +20,7 @@ const SPRITES = join(ROOT, 'archive', 'gamemaker', 'sprites');
 const OUT = join(ROOT, 'public', 'assets');
 
 /** The prototype sprites the rooms and props draw (src/world/assets.ts). */
-const NAMES = [
-  'spr_floor_garden',
-  'spr_source_plant',
-  'spr_wall',
-  'spr_fence',
-  'spr_fence_v',
-  'spr_door',
-  'spr_pedestal',
-];
+const NAMES = ['spr_door', 'spr_pedestal'];
 
 /** GameMaker's .yy is JSON with trailing commas. */
 function readYy(path) {

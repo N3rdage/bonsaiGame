@@ -1,7 +1,7 @@
-// The buildings' roofs, seen from the garden.
+// The roofs the front garden sees, below its south faces.
 //
 // spr_roof.png (32x32): slate shingles in staggered 8x4 courses, seamless,
-// which the garden tiles over the house's and the shed's footprints.
+// which the front garden tiles over the garage and the house.
 
 import { SIZE, seeded, setPixel } from './png.mjs';
 

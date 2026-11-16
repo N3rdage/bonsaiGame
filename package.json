@@ -28,7 +28,8 @@
     "art:viewer": "node art/inked/viewer.mjs",
     "art:paper": "node art/inked/paperSheet.mjs",
     "art:player": "node art/inked/player.mjs",
-    "art:shed": "node art/inked/shed.mjs"
+    "art:shed": "node art/inked/shed.mjs",
+    "art:garden": "node art/inked/garden.mjs"
   },
   "dependencies": {
     "@fontsource/vt323": "^5.3.0",
