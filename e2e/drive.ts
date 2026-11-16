@@ -179,6 +179,8 @@ const ARROWS = { ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39 } as 
 type Goal =
   /** Until `y` reaches `row`. */
   | { until: 'row'; row: number; down: boolean }
+  /** Until `x` reaches `column`. */
+  | { until: 'column'; column: number; right: boolean }
   /** Until `near` is `key`. */
   | { until: 'near'; key: string };
 
@@ -256,7 +258,11 @@ async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<
                 ? a.goal.down
                   ? pos.y >= a.goal.row
                   : pos.y <= a.goal.row
-                : pos.near === a.goal.key;
+                : a.goal.until === 'column'
+                  ? a.goal.right
+                    ? pos.x >= a.goal.column
+                    : pos.x <= a.goal.column
+                  : pos.near === a.goal.key;
             if (pos.x === before.x && pos.y === before.y) {
               sameFrames += 1;
             } else {
@@ -368,6 +374,21 @@ export async function walkToRow(page: Page, y: number): Promise<void> {
   });
   if (!reached) {
     throw new Error(`walkToRow(${String(y)}): stopped at (${String(stop.x)}, ${String(stop.y)})`);
+  }
+}
+
+/** Walks straight left or right to column `x`, stopping at most 6.25 px past it (see `leg`), facing the way it walked. */
+export async function walkToColumn(page: Page, x: number): Promise<void> {
+  const right = (await hook(page)).player.x < x;
+  const { reached, stop } = await leg(page, right ? 'ArrowRight' : 'ArrowLeft', {
+    until: 'column',
+    column: x,
+    right,
+  });
+  if (!reached) {
+    throw new Error(
+      `walkToColumn(${String(x)}): stopped at (${String(stop.x)}, ${String(stop.y)})`,
+    );
   }
 }
 
