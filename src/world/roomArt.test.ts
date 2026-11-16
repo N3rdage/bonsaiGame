@@ -122,19 +122,18 @@ describe('floor', () => {
 });
 
 describe('bake', () => {
-  it('lays no paper, and bakes the Inked shed and gardens at 4 px per logical px and every other room at the prototype 2', () => {
+  it('lays paper in the shed only, and bakes the Inked shed and gardens at 4 px per logical px and every other room at the prototype 2', () => {
     const inked = [SHED_ROOM, GARDEN_ROOM, FRONT_GARDEN_ROOM];
     for (const room of Object.values(ROOMS)) {
-      expect(ROOM_STYLES[room.key].paper).toBe(false);
-      expect(paperTiles(room)).toEqual([]);
+      expect(ROOM_STYLES[room.key].paper, room.key).toBe(room === SHED_ROOM);
+      if (room !== SHED_ROOM) expect(paperTiles(room)).toEqual([]);
       expect(bakeScale(room), room.key).toBe(inked.includes(room) ? 4 : 2);
     }
   });
 
-  it('lays the paper over the whole room from (0, 0) in 64 px steps and bakes at 4 when it is on', () => {
-    const style = { ...ROOM_STYLES.shed, paper: true };
-    expect(bakeScale(SHED_ROOM, style)).toBe(4);
-    const tiles = paperTiles(SHED_ROOM, style);
+  it("lays the shed's paper over the whole room from (0, 0) in 64 px steps; paper alone bakes at 4", () => {
+    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, paper: true })).toBe(4);
+    const tiles = paperTiles(SHED_ROOM);
     // The shed's 480x270 canvas: 8 columns (8 * 64 = 512 >= 480), 5 rows (5 * 64 = 320 >= 270).
     expect(tiles).toHaveLength(8 * 5);
     expect(tiles.every((t) => t.sheet === SHEETS.paper)).toBe(true);
