@@ -8,7 +8,14 @@
  * prototype's numbers are in prototype px and halved here.
  */
 
-import { SHEETS, SPRITE_SCALE, floorFrame, sheetPxPerLogical, sourcePlantFrame } from './assets';
+import {
+  PLAYER_FEET,
+  SHEETS,
+  SPRITE_SCALE,
+  floorFrame,
+  sheetPxPerLogical,
+  sourcePlantFrame,
+} from './assets';
 import { PROTOTYPE_SCALE } from './prototype';
 import type { Season } from '../sim/seasons';
 import type { Sheet } from './assets';
@@ -469,9 +476,12 @@ function decorShadows(furniture: readonly Furniture[]): Shadow[] {
     });
 }
 
-/** obj_player_2d's drop shadow round its centre origin. */
+/**
+ * obj_player_2d's drop shadow, 16 x 4.5 logical px, centred under the figure's
+ * feet at y + PLAYER_FEET (the box is in prototype px, halved by `ellipse`).
+ */
 export function playerShadow(x: number, y: number): Shadow {
-  return ellipse(x, y, [-16, 9, 16, 18], 0.25);
+  return ellipse(x, y, [-16, 2 * PLAYER_FEET - 4.5, 16, 2 * PLAYER_FEET + 4.5], 0.25);
 }
 
 /** obj_tree_sprite's drop shadow round the sprite's centre, at the tree's scale (logical px per prototype px). */

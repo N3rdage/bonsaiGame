@@ -59,7 +59,6 @@ archive sprite changes.
 
 | File | Px size | Frames | Made from |
 |------|---------|--------|-----------|
-| `spr_player.png` | 512×32 | 16 | `archive/gamemaker/sprites/spr_player` |
 | `spr_floor_shed.png` | 96×32 | 3 | `spr_floor_shed` |
 | `spr_floor_garden.png` | 96×32 | 3 | `spr_floor_garden` |
 | `spr_source_plant.png` | 144×48 | 3 | `spr_source_plant` |
@@ -115,4 +114,4 @@ python3 preview.py        # rebuilds _preview.png
 
 ## Inked generator
 
-Inked is the game's art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (the scale rule, knobs, palette, what to call and how to keep the wobble varied). A sheet generator imports `createPage`, `finish` and `finishCutOut` from `inked/index.mjs` and `writePng` from `inked/canvas.mjs`; `inked/viewer.mjs` (`npm run art:viewer`) is one, drawing the 3D viewer's foliage and bark textures.
+Inked is the game's art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (the scale rule, knobs, palette, what to call and how to keep the wobble varied). A sheet generator imports `createPage`, `finish` and `finishCutOut` from `inked/index.mjs` and `writePng` from `inked/canvas.mjs`; `inked/viewer.mjs` (`npm run art:viewer`) is one, drawing the 3D viewer's foliage and bark textures. The web build's `spr_player.png` is Inked too, drawn by `inked/player.mjs` (`npm run art:player`) rather than packed from the prototype's frames: 16 frames of 16 x 32 logical px (64 x 128 sheet px) in the frame order above.

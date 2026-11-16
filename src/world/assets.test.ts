@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   ALL_SHEETS,
   INKED_PER_LOGICAL,
+  PLAYER_FEET,
   PLAYER_SCALE,
   SHEETS,
   SPRITE_SCALE,
@@ -23,7 +24,7 @@ function pngSize(key: string): { width: number; height: number } {
 describe('sprite sheets', () => {
   it('lists the prototype sprites the rooms draw, with their frame sizes and counts', () => {
     expect(ALL_SHEETS.map((s) => [s.key, s.frameWidth, s.frameHeight, s.frames])).toEqual([
-      ['spr_player', 32, 32, 16],
+      ['spr_player', 64, 128, 16],
       ['spr_floor_shed', 32, 32, 3],
       ['spr_floor_garden', 32, 32, 3],
       ['spr_source_plant', 48, 48, 3],
@@ -71,9 +72,9 @@ describe('sprite sheets', () => {
     ]);
   });
 
-  it('gives every sheet a kind, the paper the one Inked sheet', () => {
+  it('gives every sheet a kind, the player and the paper the Inked sheets', () => {
     for (const s of ALL_SHEETS) expect(['pixel', 'inked']).toContain(s.art);
-    expect(ALL_SHEETS.filter((s) => s.art === 'inked')).toEqual([SHEETS.paper]);
+    expect(ALL_SHEETS.filter((s) => s.art === 'inked')).toEqual([SHEETS.player, SHEETS.paper]);
   });
 
   it('draws a pixel sheet at 2 px per logical px nearest, an Inked one at 4 linear', () => {
@@ -158,10 +159,25 @@ describe('sprite sheets', () => {
     expect(sheetUrl('/game/', SHEETS.door)).toBe('/game/assets/spr_door.png');
   });
 
-  it('halves prototype px, and draws the player at the prototype 1.5x', () => {
+  it('halves prototype px', () => {
     expect(SPRITE_SCALE).toBe(0.5);
-    expect(PLAYER_SCALE).toBe(0.75);
-    expect(SHEETS.player.frameHeight * PLAYER_SCALE).toBe(24);
+  });
+
+  it('draws the Inked player at 16 x 32 logical px, its feet 12 below its position', () => {
+    expect(SHEETS.player).toEqual({
+      key: 'spr_player',
+      frameWidth: 64,
+      frameHeight: 128,
+      frames: 16,
+      art: 'inked',
+    });
+    expect(sheetFilter(SHEETS.player)).toBe('linear');
+    expect(PLAYER_SCALE).toBe(0.25);
+    expect([
+      SHEETS.player.frameWidth * PLAYER_SCALE,
+      SHEETS.player.frameHeight * PLAYER_SCALE,
+    ]).toEqual([16, 32]);
+    expect(PLAYER_FEET).toBe(12);
   });
 });
 

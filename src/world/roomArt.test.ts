@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
-import { PLAYER_SCALE, SHEETS } from './assets';
+import { PLAYER_FEET, SHEETS } from './assets';
 import { FRONT_GARDEN_ROOM } from './frontGardenRoom';
 import { GARDEN_ROOM, ROOMS } from './gardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
@@ -627,7 +627,7 @@ describe('shadows', () => {
       alpha: 0.25,
     });
     expect(propShadow(propByKey(SHED_ROOM.props, 'workbench'))).toBeUndefined();
-    expect(playerShadow(240, 135)).toEqual({ x: 240, y: 141.75, w: 16, h: 4.5, alpha: 0.25 });
+    expect(playerShadow(240, 135)).toEqual({ x: 240, y: 147, w: 16, h: 4.5, alpha: 0.25 });
     expect(treeShadow(100, 100, 1)).toEqual({ x: 100, y: 118.5, w: 32, h: 5, alpha: 0.25 });
   });
 
@@ -665,8 +665,8 @@ describe('shadows', () => {
       expect(furnitureSprites(room)).toEqual([]);
       expect(furnitureRuns(room)).toHaveLength(room.furniture.length);
     }
-    // drawPlayer: the player's depth is its centre y + PLAYER_H / 2, spr_player's 32 px at 1.5x halved = 24.
-    const playerDepth = (y: number) => y + (SHEETS.player.frameHeight * PLAYER_SCALE) / 2;
+    // drawPlayer: the player's depth is at its feet, y + PLAYER_FEET.
+    const playerDepth = (y: number) => y + PLAYER_FEET;
     expect(playerDepth(0)).toBe(12);
     const sack = furnitureSprites(SHED_ROOM).find((s) => s.sheet === SHEETS.sack);
     expect(sack && playerDepth(175) < sack.depth).toBe(true);
