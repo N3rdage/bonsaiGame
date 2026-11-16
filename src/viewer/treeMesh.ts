@@ -247,12 +247,21 @@ function buildTrunk(list: TriangleList, tree: BonsaiTree, bark: Rgb): void {
   });
 }
 
-function buildBranchBark(list: TriangleList, tree: BonsaiTree, branch: Branch, bark: Rgb): void {
+/**
+ * Branch bark radius at `t` (0 at the base, 1 at the tip) in display units:
+ * the girth (mm) as the base radius, tapering to `BRANCH_TIP_FRACTION` of it
+ * at the tip, never under `BRANCH_MIN_RADIUS`.
+ */
+export function branchRadiusAt(branch: Branch, t: number): number {
   const r0 = (branch.girth / 1000) * DISPLAY_SCALE;
+  return Math.max(lerp(r0, r0 * BRANCH_TIP_FRACTION, t), BRANCH_MIN_RADIUS);
+}
+
+function buildBranchBark(list: TriangleList, tree: BonsaiTree, branch: Branch, bark: Rgb): void {
   const tube = new Tube(list, bark);
   for (let i = 0; i <= BRANCH_SEGMENTS; i++) {
     const t = i / BRANCH_SEGMENTS;
-    const r = Math.max(lerp(r0, r0 * BRANCH_TIP_FRACTION, t), BRANCH_MIN_RADIUS);
+    const r = branchRadiusAt(branch, t);
     // Flat rings (the prototype's shape), shaded radial to the branch's tangent.
     const { pos, tangent } = branchFrameAt(tree, branch, t);
     const ring = buildRing(pos, r, BRANCH_RING_SEGMENTS);
@@ -265,6 +274,15 @@ export function wireRadius(branch: Branch): number {
   const branchRBase = (branch.girth / 1000) * DISPLAY_SCALE;
   const bendFactor = clamp(Math.abs(branch.bend) / WIRE_FULL_BEND_DEG, 0, 1);
   return Math.max(WIRE_MIN_RADIUS, branchRBase * lerp(WIRE_GAUGE_MIN, WIRE_GAUGE_MAX, bendFactor));
+}
+
+/**
+ * Distance of the coil's centre line from the branch's centre line at `s`
+ * (0 at the base, 1 at the tip): the floored bark radius plus the wire
+ * radius, so the wire lies on the bark and never enters it.
+ */
+export function wireCoilOffset(branch: Branch, s: number): number {
+  return branchRadiusAt(branch, s) + wireRadius(branch);
 }
 
 /** Coil turns along a branch: its length over the pitch, at least one. */
@@ -354,12 +372,13 @@ export function addWireAnchor(
 
 /**
  * Wire helix around a wired branch, following its curve through
- * `branchFrameAt` and riding on its tapering surface, then the trunk anchor.
+ * `branchFrameAt` and riding on its bark at `wireCoilOffset` (the floored
+ * bark radius plus the wire radius, so the wire never enters the bark), then
+ * the trunk anchor.
  * Rings are perpendicular to the helix tangent, not the branch axis, so the
  * tight pitch does not skew them.
  */
 export function addWireCoil(list: TriangleList, tree: BonsaiTree, branch: Branch): void {
-  const branchRBase = (branch.girth / 1000) * DISPLAY_SCALE;
   const wireR = wireRadius(branch);
   const lengthWorld = (branch.length / 100) * DISPLAY_SCALE;
   const turns = wireCoilTurns(branch);
@@ -369,7 +388,7 @@ export function addWireCoil(list: TriangleList, tree: BonsaiTree, branch: Branch
   const tube = new Tube(list, WIRE_RGB);
   for (let i = 0; i <= segs; i++) {
     const s = i / segs;
-    const offset = lerp(branchRBase, branchRBase * BRANCH_TIP_FRACTION, s) + wireR;
+    const offset = wireCoilOffset(branch, s);
     const { centre, tangent } = helixSample(
       branchFrameAt(tree, branch, s),
       s * turns * 360,
