@@ -54,6 +54,7 @@ describe('doors', () => {
       // The player's footprint, x ± half the sprite's width and y ± PLAYER_FEET, overlaps no wall.
       // (The head, rising above y - PLAYER_FEET, may draw over a north wall's face, as a figure in
       // front of a wall does in the three-quarter view.)
+      // landing clears PLAYER_HALF (12) on every side; this box is the drawn figure's footprint, narrower in x, so the check is the tighter visual one.
       for (const w of room.walls) {
         const grown = {
           x: w.x - SPRITE_W / 2,

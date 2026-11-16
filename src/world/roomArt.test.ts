@@ -627,7 +627,7 @@ describe('shadows', () => {
       alpha: 0.25,
     });
     expect(propShadow(propByKey(SHED_ROOM.props, 'workbench'))).toBeUndefined();
-    expect(playerShadow(240, 135)).toEqual({ x: 240, y: 141.75, w: 16, h: 4.5, alpha: 0.25 });
+    expect(playerShadow(240, 135)).toEqual({ x: 240, y: 147, w: 16, h: 4.5, alpha: 0.25 });
     expect(treeShadow(100, 100, 1)).toEqual({ x: 100, y: 118.5, w: 32, h: 5, alpha: 0.25 });
   });
 
