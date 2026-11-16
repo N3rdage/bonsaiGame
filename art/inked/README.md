@@ -19,6 +19,7 @@ Hand-drawn ink over watercolour washes on paper. Authored at 4 art px per logica
 | `canvas.mjs` | `writePng`, which writes a finished canvas to a PNG with `pngjs`                                             |
 | `viewer.mjs` | the 3D viewer's `src/viewer/foliage.png` (cut out) and `bark.png`, `npm run art:viewer`; ink drawn heavier because the viewer shows them five or six times smaller |
 | `paperSheet.mjs` | the rooms' paper, `public/assets/spr_paper.png`, `npm run art:paper`: a blank page 64 logical px (256 art px, one grain period) square, so it tiles without a seam |
+| `player.mjs` | the player, `public/assets/spr_player.png`, `npm run art:player`: 16 frames of 16 x 32 logical px in one strip, rows of four facing down, up, left, right, each a walk cycle; cut out, no ground shadow (the world lays it live) |
 
 ## The knobs
 

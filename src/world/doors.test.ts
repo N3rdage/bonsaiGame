@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { LANDING_MARGIN, PLAYER_HALF, landing, wallDoor, type WallDoor } from './doors';
-import { SHEETS } from './assets';
+import { PLAYER_FEET, PLAYER_SCALE, SHEETS } from './assets';
 import { GARDEN_ROOM, GREENHOUSE, HOUSE, ROOMS, SHED } from './gardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
@@ -10,6 +10,9 @@ import { SHED_ROOM, type Rect, type Room, type Wall } from './shedRoom';
 import { STUDY_ROOM } from './studyRoom';
 
 const INWARD: Record<Wall, Facing> = { N: 'down', S: 'up', E: 'left', W: 'right' };
+
+/** The player sprite's drawn width, logical px. */
+const SPRITE_W = SHEETS.player.frameWidth * PLAYER_SCALE;
 
 const doors = Object.values(ROOMS).flatMap((room) =>
   room.props.flatMap((p) => (p.target ? [{ room, door: wallDoor(room, p.key) }] : [])),
@@ -48,13 +51,17 @@ describe('doors', () => {
       const b = room.bounds;
       expect(at.x > b.x && at.x < b.x + b.w && at.y > b.y && at.y < b.y + b.h, name).toBe(true);
       expect(inward(door, at), name).toBe(true);
-      // The player's sprite, PLAYER_HALF round its centre, overlaps no wall.
+      // The player's footprint, x ± half the sprite's width and y ± PLAYER_FEET, overlaps no wall.
+      // (The head, rising above y - PLAYER_FEET, may draw over a north wall's face, as a figure in
+      // front of a wall does in the three-quarter view.)
+      // `landing` itself clears PLAYER_HALF (12) on every side; this box is the drawn figure's
+      // footprint, narrower in x: it checks what is seen, not the landing's margin.
       for (const w of room.walls) {
         const grown = {
-          x: w.x - PLAYER_HALF,
-          y: w.y - PLAYER_HALF,
-          w: w.w + 2 * PLAYER_HALF,
-          h: w.h + 2 * PLAYER_HALF,
+          x: w.x - SPRITE_W / 2,
+          y: w.y - PLAYER_FEET,
+          w: w.w + SPRITE_W,
+          h: w.h + 2 * PLAYER_FEET,
         };
         expect(touches(grown, at.x, at.y), `${name} ${JSON.stringify(w)}`).toBe(false);
       }
