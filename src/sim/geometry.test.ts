@@ -4,10 +4,12 @@ import {
   BRANCH_BEND_PER_CLICK,
   DISPLAY_SCALE,
   TRUNK_BEND_PER_EVENT,
+  TRUNK_MIN_RADIUS,
   branchFrameAt,
   branchPoint,
   trunkFrameAt,
   trunkFrames,
+  trunkRadiusAt,
 } from './geometry';
 import { darccos, dcos, dsin, vec3Length } from './vec3';
 
@@ -66,6 +68,28 @@ describe('constants', () => {
     expect(DISPLAY_SCALE).toBe(4);
     expect(TRUNK_BEND_PER_EVENT).toBe(20);
     expect(BRANCH_BEND_PER_CLICK).toBe(15);
+    expect(TRUNK_MIN_RADIUS).toBe(0.001);
+  });
+});
+
+describe('trunkRadiusAt', () => {
+  it('is the girth halved, in metres at display scale 4, at the base', () => {
+    const tree = makeTree({ girthMm: 10, taper: 0.5 });
+    expect(trunkRadiusAt(tree.trunk, 0)).toBeCloseTo((10 / 1000 / 2) * 4, 12);
+  });
+
+  it('tapers linearly to (1 - taper) of the base at the apex', () => {
+    const tree = makeTree({ girthMm: 10, taper: 0.5 });
+    expect(trunkRadiusAt(tree.trunk, 0.5)).toBeCloseTo(0.02 * 0.75, 12);
+    expect(trunkRadiusAt(tree.trunk, 1)).toBeCloseTo(0.01, 12);
+  });
+
+  it('floors a fully tapered apex at TRUNK_MIN_RADIUS, not 0', () => {
+    const tree = makeTree({ girthMm: 10, taper: 1 });
+    expect(trunkRadiusAt(tree.trunk, 1)).toBe(TRUNK_MIN_RADIUS);
+    // Base 0.02 meets the 0.001 floor at t = 0.95.
+    expect(trunkRadiusAt(tree.trunk, 0.99)).toBe(TRUNK_MIN_RADIUS);
+    expect(trunkRadiusAt(tree.trunk, 0.9)).toBeCloseTo(0.002, 12);
   });
 });
 
@@ -212,6 +236,14 @@ describe('branchPoint', () => {
     expect(p.x).toBeCloseTo(trunkR * dcos(30), 12);
     expect(p.y).toBeCloseTo(trunkR * dsin(30), 12);
     expect(p.z).toBeCloseTo((10 / 100) * 4, 12);
+  });
+
+  it('starts on the floored bark at a fully tapered tip: TRUNK_MIN_RADIUS from the tip frame', () => {
+    const branch = makeBranch({ originY: 20, angle: 75 });
+    const tree = makeTree({ heightCm: 20, girthMm: 10, taper: 1 }, [branch]);
+    const p = branchPoint(tree, branch, 0);
+    const tip = trunkFrameAt(tree, 1).pos;
+    expect(Math.hypot(p.x - tip.x, p.y - tip.y, p.z - tip.z)).toBeCloseTo(TRUNK_MIN_RADIUS, 12);
   });
 
   it('with bend=0 ends length/100*4 along the attachment direction plus 0.25 lift', () => {
