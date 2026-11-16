@@ -26,7 +26,8 @@
     "art:music": "node art/music.mjs",
     "art:site-plan": "node art/sitePlan.mjs",
     "art:viewer": "node art/inked/viewer.mjs",
-    "art:paper": "node art/inked/paperSheet.mjs"
+    "art:paper": "node art/inked/paperSheet.mjs",
+    "art:player": "node art/inked/player.mjs"
   },
   "dependencies": {
     "@fontsource/vt323": "^5.3.0",
