@@ -30,6 +30,7 @@ import {
   buildOrientedRing,
   buildRing,
   buildRingWithBasis,
+  branchRadiusAt,
   buildTreeMesh,
   ringNormals,
   ringU,
@@ -37,6 +38,7 @@ import {
   stitchRings,
   trunkBaseRadius,
   tubeNormals,
+  wireCoilOffset,
   wireCoilSegments,
   wireCoilTurns,
   wireRadius,
@@ -576,16 +578,76 @@ describe('wire (scr_bonsai_mesh add_wire_coil / add_wire_anchor)', () => {
     return { tree, branch, points: list.points };
   }
 
-  it('rides the coil on the tapering branch surface: centres at offset(s) from branchPoint', () => {
+  it('floors the branch radius at 0.005: the fixture branch from s = 0.7765, a thin one throughout', () => {
+    const { branch } = wired();
+    // Base radius 3.3 mm / 1000 x 4 = 0.0132; the taper 0.0132 - 0.01056 t meets
+    // the 0.005 floor at t = 0.0082 / 0.01056 = 0.7765 and would end at 0.00264.
+    expect(branchRadiusAt(branch, 0)).toBeCloseTo(0.0132, 12);
+    expect(branchRadiusAt(branch, 0.5)).toBeCloseTo(0.0132 - 0.00528, 12);
+    const tFloor = 0.0082 / 0.01056;
+    expect(tFloor).toBeCloseTo(0.7765, 4);
+    expect(branchRadiusAt(branch, tFloor)).toBeCloseTo(0.005, 12);
+    expect(branchRadiusAt(branch, tFloor - 0.01)).toBeGreaterThan(0.005);
+    expect(branchRadiusAt(branch, 0.9)).toBe(BRANCH_MIN_RADIUS);
+    expect(branchRadiusAt(branch, 1)).toBe(BRANCH_MIN_RADIUS);
+
+    // A 1 mm branch (base radius 0.004) is under the floor from base to tip.
+    const thin = { ...branch, girth: 1 };
+    expect(branchRadiusAt(thin, 0)).toBe(BRANCH_MIN_RADIUS);
+    expect(branchRadiusAt(thin, 0.5)).toBe(BRANCH_MIN_RADIUS);
+    expect(branchRadiusAt(thin, 1)).toBe(BRANCH_MIN_RADIUS);
+  });
+
+  it("leaves the wired fixture's branch bark on the prototype's floored flat rings", () => {
+    const { tree, branch } = wired();
+    const mesh = buildTreeMesh(tree);
+    const start = 1200 + 216;
+    const r0 = 0.0132;
+    for (let k = 0; k < 216; k++) {
+      const { ring, point } = tubeVertex(k, BRANCH_RING_SEGMENTS);
+      const t = ring / BRANCH_SEGMENTS;
+      const r = Math.max(r0 + (r0 * BRANCH_TIP_FRACTION - r0) * t, BRANCH_MIN_RADIUS);
+      const centre = branchPoint(tree, branch, t);
+      const p = buildRing(centre, r, BRANCH_RING_SEGMENTS)[point] ?? centre;
+      expect(positionAt(mesh, start + k)).toEqual({
+        x: Math.fround(p.x),
+        y: Math.fround(p.y),
+        z: Math.fround(p.z),
+      });
+    }
+  });
+
+  it('offsets the coil by the floored bark radius plus the wire radius', () => {
+    const { branch } = wired();
+    expect(wireCoilOffset(branch, 0)).toBeCloseTo(0.0132 + 0.0033, 12);
+    expect(wireCoilOffset(branch, 0.5)).toBeCloseTo(0.0132 - 0.00528 + 0.0033, 12);
+    // At the tip 0.005 + 0.0033 = 0.0083. The unfloored taper would put the coil's
+    // centre at 0.00264 + 0.0033 = 0.00594, its inner edge at 0.00264, 0.00236 inside
+    // the 0.005 bark: over a third of the wire's 0.0066 diameter buried.
+    expect(wireCoilOffset(branch, 1)).toBeCloseTo(0.0083, 12);
+    for (let i = 0; i <= 100; i++) {
+      const s = i / 100;
+      expect(wireCoilOffset(branch, s)).toBeCloseTo(
+        branchRadiusAt(branch, s) + wireRadius(branch),
+        15,
+      );
+    }
+    const thin = { ...branch, girth: 0.5, bend: 0 };
+    expect(wireCoilOffset(thin, 1)).toBeCloseTo(0.005 + 0.002, 12);
+  });
+
+  it('rides the coil on the floored bark: centres at wireCoilOffset(s) from branchPoint', () => {
     const { tree, branch, points } = wirePoints();
-    const rBase = 0.0132;
+    const wireR = 0.0033;
     for (let i = 0; i <= COIL_SEGS; i++) {
       const s = i / COIL_SEGS;
       const ring = wireRing(points, 0, COIL_SEGS, i);
       const centre = centroid(ring);
-      const offset = rBase + (rBase * 0.2 - rBase) * s + 0.0033;
-      expect(Math.abs(dist(centre, branchPoint(tree, branch, s)) - offset)).toBeLessThan(1e-9);
-      for (const p of ring) expect(dist(p, centre)).toBeCloseTo(0.0033, 12);
+      const d = dist(centre, branchPoint(tree, branch, s));
+      expect(Math.abs(d - wireCoilOffset(branch, s))).toBeLessThan(1e-9);
+      // The wire never enters the bark: every ring centre is a wire radius outside it.
+      expect(d).toBeGreaterThanOrEqual(branchRadiusAt(branch, s) + wireR - 1e-9);
+      for (const p of ring) expect(dist(p, centre)).toBeCloseTo(wireR, 12);
     }
   });
 
