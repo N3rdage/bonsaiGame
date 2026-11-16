@@ -2,10 +2,11 @@
  * How a room is drawn, as pure data in logical px: the floor tiles
  * (obj_game_controller Draw_0), the wall and fence runs (Other_4's ring,
  * obj_wall Draw_0), or a back wall's face and the other walls' caps, the
- * rooms' windows and furniture (the shed's decor), the garden's mitred fence
- * corners (Draw_73), the shed's rug, each prop's sprite and the drop shadows
- * (the props' Draw events), with each room's sheets and extras in one table,
- * ROOM_STYLES. The prototype's numbers are in prototype px and halved here.
+ * rooms' windows and furniture (the shed's decor, the garden's buildings),
+ * the shed's rug, each prop's sprite, the drop shadows (the props' Draw
+ * events) and the gardens' season wash, with each room's sheets and extras in
+ * one table, ROOM_STYLES. The prototype's numbers are in prototype px and
+ * halved here.
  */
 
 import {
@@ -16,6 +17,7 @@ import {
   sheetPxPerLogical,
   sourcePlantFrame,
 } from './assets';
+import { PALETTE } from './palette';
 import { PROTOTYPE_SCALE } from './prototype';
 import type { Season } from '../sim/seasons';
 import type { Sheet } from './assets';
@@ -84,8 +86,8 @@ export interface RoomStyle {
   readonly window: WindowStyle;
   /** An inset room's floor fills only the inside of its ring; an outdoor one fills the canvas. */
   readonly inset: boolean;
-  /** The ring's four corner tiles are left out for the mitred fence corners (fenceCorners). */
-  readonly fenced: boolean;
+  /** The ring's four corner tiles drawn as this sheet's frames NW, NE, SW, SE (a fence's corner posts); none for corners of the row's sheet. */
+  readonly corner?: Sheet;
   /** A sheet laid over its rect on the floor, under the shadows and furniture. */
   readonly rug?: WallRun;
   /** The Inked paper (spr_paper) laid over the whole room first, under the floor (paperTiles). */
@@ -107,17 +109,18 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     face: { sheet: SHEETS.shedWall, height: BACK_WALL_FACE, cap: WALL_CAP },
     window: { sheet: SHEETS.shedWindow, top: 44 },
     inset: true,
-    fenced: false,
     rug: { sheet: SHEETS.shedRug, ...SHED_RUG },
     paper: false,
   },
+  // The back garden in Inked: its lawn, its fence ring with corner posts, its buildings in
+  // EXTERIORS. No paper: the lawn fills the canvas, so nothing would show it.
   garden: {
     floor: SHEETS.floorGarden,
     wallRow: SHEETS.fence,
     wallColumn: SHEETS.fenceV,
     window: BAND_WINDOW,
     inset: false,
-    fenced: true,
+    corner: SHEETS.fenceCorner,
     paper: false,
   },
   // The front garden fills its canvas with lawn like the back garden; its north row is the low
@@ -128,7 +131,6 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallColumn: SHEETS.fenceV,
     window: BAND_WINDOW,
     inset: false,
-    fenced: false,
     paper: false,
   },
   lounge: {
@@ -137,7 +139,6 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallColumn: SHEETS.wallLounge,
     window: BAND_WINDOW,
     inset: true,
-    fenced: false,
     paper: false,
   },
   hallway: {
@@ -146,7 +147,6 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallColumn: SHEETS.wallHallway,
     window: BAND_WINDOW,
     inset: true,
-    fenced: false,
     paper: false,
   },
   study: {
@@ -155,7 +155,6 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallColumn: SHEETS.wallStudy,
     window: BAND_WINDOW,
     inset: true,
-    fenced: false,
     paper: false,
   },
   // The greenhouse is drawn as a house room: its glass on all four sides round a paved floor.
@@ -165,7 +164,6 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallColumn: SHEETS.wallGlass,
     window: BAND_WINDOW,
     inset: true,
-    fenced: false,
     paper: false,
   },
 };
@@ -262,26 +260,43 @@ export function wallRuns(room: Room): WallRun[] {
 
 /**
  * The ring as 32 px tiles: the top and bottom rows across the bounds, then the
- * left and right columns between them. Each house room's tiles are all its
- * own wall sheet; the garden's rows are `spr_fence`, its columns
- * `spr_fence_v`, and its four corner tiles are left out (obj_wall Draw_0) for
- * the mitred corners.
+ * left and right columns between them (runsOver: a sheet with variants
+ * scatters them tile by tile). Each house room's tiles are all its own wall
+ * sheet; the garden's rows are `spr_fence`, its columns `spr_fence_v`, and,
+ * with a `corner` sheet, its four corner tiles are left out of the rows
+ * (obj_wall Draw_0) and drawn last as that sheet's frames, NW, NE, SW, SE.
  */
-function bandRuns(room: Room, { wallRow: row, wallColumn: column, fenced }: RoomStyle): WallRun[] {
+function bandRuns(room: Room, { wallRow: row, wallColumn: column, corner }: RoomStyle): WallRun[] {
   const { x, y, w, h } = room.bounds;
   const bottom = y + h - TILE;
   const right = x + w - TILE;
-  const rowFrom = fenced ? x + TILE : x;
-  const rowW = w - (fenced ? 2 * TILE : 0);
+  const rowFrom = corner ? x + TILE : x;
+  const rowW = w - (corner ? 2 * TILE : 0);
   const top = y + TILE;
   // Other_4: for (_wy = _y0 + 32; _wy < _y1; _wy += 32), so the last tile starts before the bottom row.
   const columnEnd = top + TILE * Math.ceil((bottom - top) / TILE);
+  const corners = corner
+    ? (
+        [
+          [x, y],
+          [right, y],
+          [x, bottom],
+          [right, bottom],
+        ] as const
+      ).map(([cx, cy], frame) => ({ sheet: corner, frame, x: cx, y: cy, w: TILE, h: TILE }))
+    : [];
   return [
-    { sheet: row, x: rowFrom, y, w: rowW, h: TILE },
-    { sheet: row, x: rowFrom, y: bottom, w: rowW, h: TILE },
-    { sheet: column, x, y: top, w: TILE, h: columnEnd - top },
-    { sheet: column, x: right, y: top, w: TILE, h: columnEnd - top },
+    ...runsOver(row, { x: rowFrom, y, w: rowW, h: TILE }),
+    ...runsOver(row, { x: rowFrom, y: bottom, w: rowW, h: TILE }),
+    ...runsOver(column, { x, y: top, w: TILE, h: columnEnd - top }),
+    ...runsOver(column, { x: right, y: top, w: TILE, h: columnEnd - top }),
+    ...corners,
   ];
+}
+
+/** A one-frame sheet as one run repeated over the rect; a sheet of variants cut into its tiles, each frame hashed from where it lands (tileRuns). */
+function runsOver(sheet: Sheet, area: Rect): WallRun[] {
+  return sheet.frames > 1 ? tileRuns(sheet, area) : [{ sheet, ...area }];
 }
 
 /**
@@ -321,11 +336,16 @@ function tileRuns(sheet: Sheet, area: Rect): WallRun[] {
   ).flat();
 }
 
-/** Each baked piece of the room's furniture as a run of its sheet over its rect, in the room's order; the sorted pieces are sprites (furnitureSprites). */
+/**
+ * Each baked piece of the room's furniture as runs of its sheet over its rect,
+ * in the room's order (runsOver: one run for a one-frame sheet, a run per
+ * tile for a sheet of variants, so the garden's faces and roofs scatter
+ * theirs); the sorted pieces are sprites (furnitureSprites).
+ */
 export function furnitureRuns(room: Room): WallRun[] {
   return room.furniture
     .filter((f) => !f.sorted)
-    .map(({ sheet, x, y, w, h }) => ({ sheet, x, y, w, h }));
+    .flatMap(({ sheet, x, y, w, h }) => runsOver(sheet, { x, y, w, h }));
 }
 
 /**
@@ -341,85 +361,6 @@ export function windowRuns(room: Room): WallRun[] {
   return room.windows.map(({ x, w }) => ({ sheet, x, y, w, h }));
 }
 
-export interface ColourRect extends Rect {
-  readonly colour: number;
-}
-
-/** Draw_73's wood tones: the art palette's wood_mid, dark and light. */
-const WOOD_MID = 0x785537;
-const WOOD_DARK = 0x462d19;
-const WOOD_LIGHT = 0xa06e46;
-/** spr_fence's rails sit at rows 13 and 22, spr_fence_v's at columns 12 and 18, 3 px wide. */
-const RAIL_ROWS = [13, 22] as const;
-const RAIL_COLUMNS = [12, 18] as const;
-const RAIL = 3;
-const TILE_PX = 32;
-
-/**
- * Draw_73: each garden corner tile mitres the two rails of the runs it joins
- * into two nested L's, each leg a 3 px rail (mid, a light first pixel, a dark
- * last one). A corner under a baked piece of furniture (the garden's house
- * roof, where no fences meet) is left out. Rects in logical px, in draw
- * order; none for the indoor rooms.
- */
-export function fenceCorners(room: Room): ColourRect[] {
-  if (!ROOM_STYLES[room.key].fenced) return [];
-  const w = room.width * 2;
-  const h = room.height * 2;
-  const covered = (tx: number, ty: number): boolean => {
-    const [x, y] = [fromPrototype(tx), fromPrototype(ty)];
-    return furnitureRuns(room).some(
-      (r) => x >= r.x && y >= r.y && x + TILE <= r.x + r.w && y + TILE <= r.y + r.h,
-    );
-  };
-  const corners = (
-    [
-      [0, 0, true, true],
-      [w - TILE_PX, 0, false, true],
-      [0, h - TILE_PX, true, false],
-      [w - TILE_PX, h - TILE_PX, false, false],
-    ] as const
-  ).filter(([tx, ty]) => !covered(tx, ty));
-  const rects: ColourRect[] = [];
-  const rail = (x0: number, y0: number, x1: number, y1: number, vertical: boolean): void => {
-    // Prototype px [x0, x1) x [y0, y1); the light pixel on the top or left edge, the dark on the other.
-    const lo = vertical ? { x1: x0 + 1 } : { y1: y0 + 1 };
-    const hi = vertical ? { x0: x0 + 2 } : { y0: y0 + 2 };
-    for (const [colour, r] of [
-      [WOOD_MID, {}],
-      [WOOD_LIGHT, lo],
-      [WOOD_DARK, hi],
-    ] as const) {
-      const b = { x0, y0, x1, y1, ...r };
-      rects.push({
-        colour,
-        x: fromPrototype(b.x0),
-        y: fromPrototype(b.y0),
-        w: fromPrototype(b.x1 - b.x0),
-        h: fromPrototype(b.y1 - b.y0),
-      });
-    }
-  };
-  for (const [tx, ty, left, top] of corners) {
-    const outerRow = top ? RAIL_ROWS[0] : RAIL_ROWS[1];
-    const innerRow = top ? RAIL_ROWS[1] : RAIL_ROWS[0];
-    const outerColumn = left ? RAIL_COLUMNS[0] : RAIL_COLUMNS[1];
-    const innerColumn = left ? RAIL_COLUMNS[1] : RAIL_COLUMNS[0];
-    for (const [ry, rx] of [
-      [outerRow, outerColumn],
-      [innerRow, innerColumn],
-    ] as const) {
-      const hx0 = left ? rx : 0;
-      const hx1 = left ? TILE_PX : rx + RAIL;
-      rail(tx + hx0, ty + ry, tx + hx1, ty + ry + RAIL, false);
-      const vy0 = top ? ry : 0;
-      const vy1 = top ? TILE_PX : ry + RAIL;
-      rail(tx + rx, ty + vy0, tx + rx + RAIL, ty + vy1, true);
-    }
-  }
-  return rects;
-}
-
 /** A translucent colour laid over a room's whole baked art. */
 export interface Wash {
   readonly colour: number;
@@ -430,16 +371,17 @@ export interface Wash {
  * The gardens' per-season wash (new content, #113): a touch fresher in
  * spring, today's look in summer, browning in autumn, pale and frosted in
  * winter. A wash rather than a multiply tint, since a multiply only darkens
- * and the green grass can neither turn brown nor pale under one.
+ * and the green grass can neither turn brown nor pale under one. The colours
+ * are Inked palette entries (palette.ts); the alphas suit the Inked lawn.
  */
 const GARDEN_SEASON_WASHES: Readonly<Record<Season, Wash | undefined>> = {
-  spring: { colour: 0xc8f0a0, alpha: 0.12 },
+  spring: { colour: PALETTE.lawnSpring, alpha: 0.15 },
   summer: undefined,
-  autumn: { colour: 0xbe6e28, alpha: 0.5 },
-  winter: { colour: 0xe6eef6, alpha: 0.5 },
+  autumn: { colour: PALETTE.lawnAutumn, alpha: 0.35 },
+  winter: { colour: PALETTE.frost, alpha: 0.45 },
 };
 
-/** The wash over the room's static art (floor, fence, corners, furniture) in this season, or none; the gardens have it, the indoor rooms none. */
+/** The wash over the room's static art (floor, fence, furniture) in this season, or none; the gardens have it, the indoor rooms none. */
 export function seasonWash(room: Room, season: Season): Wash | undefined {
   return isIndoor(room) ? undefined : GARDEN_SEASON_WASHES[season];
 }
@@ -489,10 +431,11 @@ const PROP_SHEETS: Record<string, Sheet> = {
  * The prop's sprite on its rect (onFootprint): the shed's Inked workbench,
  * planting table and kiosk standing on their footprints' bottom edges, a door
  * (any prop in a wall, the side gate too) in its own `sheet` if it has one
- * (the study's glazed double door is 64x32, the shed's Inked doors stand on
- * their rects' bottom edges), else spr_door at 1x on the centre of its rect
- * (spr_door's origin is its top-left; each door's rect is that 32 px square,
- * halved), a source plant's species frame at 1x, and none for a display spot,
+ * (the study's glazed double door is 64x32; the Inked doors, the shed's, the
+ * garden's and the side gate, stand on their rects' bottom edges), else
+ * spr_door at 1x on the centre of its rect (spr_door's origin is its
+ * top-left; each door's rect is that 32 px square, halved), a source plant's
+ * Inked species frame standing on its rect's bottom edge, and none for a display spot,
  * which is drawn by the furniture it is on (obj_pedestal's 1.5x pedestal is
  * gone). A prop sorts against the player at its bottom edge; a door sits in
  * its wall or fence, so it sorts at its top edge, behind the player as the

@@ -7,10 +7,12 @@
  *
  * Every prototype distance, px-per-step speed, amplitude and size is halved
  * for the 480x270 canvas (`fromPrototype`); counts, alphas, colours and the
- * angular speeds (sway, spin, glow phase in degrees per step) are verbatim.
+ * angular speeds (sway, spin, glow phase in degrees per step) are verbatim,
+ * the colours named as Inked palette entries (palette.ts).
  */
 
 import type { Season } from '../sim/seasons';
+import { PALETTE } from './palette';
 import { WALL_BAND, fromPrototype, type Room } from './shedRoom';
 
 export type WeatherKind = 'motes' | 'petals' | 'fireflies' | 'leaves' | 'snow';
@@ -56,7 +58,7 @@ const MOTES: WeatherProfile = {
   hover: true,
   glow: true,
   alpha: 0.28,
-  colours: [0xe8e2c8],
+  colours: [PALETTE.mote],
 };
 
 const SEASONAL: Readonly<Record<Season, WeatherProfile>> = {
@@ -72,7 +74,7 @@ const SEASONAL: Readonly<Record<Season, WeatherProfile>> = {
     hover: false,
     glow: false,
     alpha: 0.85,
-    colours: [0xffd6e0, 0xffbed4, 0xfae2e9],
+    colours: [PALETTE.petal, PALETTE.petalDeep, PALETTE.petalPale],
   },
   summer: {
     kind: 'fireflies',
@@ -86,7 +88,7 @@ const SEASONAL: Readonly<Record<Season, WeatherProfile>> = {
     hover: true,
     glow: true,
     alpha: 0.9,
-    colours: [0xd6f08c, 0xe8f6a5],
+    colours: [PALETTE.firefly, PALETTE.fireflyPale],
   },
   autumn: {
     kind: 'leaves',
@@ -100,7 +102,7 @@ const SEASONAL: Readonly<Record<Season, WeatherProfile>> = {
     hover: false,
     glow: false,
     alpha: 0.92,
-    colours: [0xd25a28, 0xe68c28, 0xb2441e, 0xa0702a],
+    colours: [PALETTE.leafRed, PALETTE.leafOrange, PALETTE.leafRust, PALETTE.leafOchre],
   },
   winter: {
     kind: 'snow',
@@ -114,7 +116,7 @@ const SEASONAL: Readonly<Record<Season, WeatherProfile>> = {
     hover: false,
     glow: false,
     alpha: 0.88,
-    colours: [0xffffff, 0xe2ecf6],
+    colours: [PALETTE.snow, PALETTE.snowShade],
   },
 };
 

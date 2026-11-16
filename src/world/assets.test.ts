@@ -26,11 +26,23 @@ describe('sprite sheets', () => {
     expect(ALL_SHEETS.map((s) => [s.key, s.frameWidth, s.frameHeight, s.frames])).toEqual([
       ['spr_player', 64, 128, 16],
       ['spr_floor_shed', 64, 64, 3],
-      ['spr_floor_garden', 32, 32, 3],
-      ['spr_source_plant', 48, 48, 3],
-      ['spr_wall', 32, 32, 1],
-      ['spr_fence', 32, 32, 1],
-      ['spr_fence_v', 32, 32, 1],
+      ['spr_floor_garden', 64, 64, 3],
+      ['spr_fence', 64, 64, 3],
+      ['spr_fence_v', 64, 64, 3],
+      ['spr_fence_corner', 64, 64, 4],
+      ['spr_gate', 64, 64, 1],
+      ['spr_source_plant', 96, 128, 3],
+      ['spr_shed_face', 64, 192, 3],
+      ['spr_shed_roof', 64, 64, 3],
+      ['spr_house_face', 64, 192, 3],
+      ['spr_house_roof', 64, 64, 3],
+      ['spr_house_cap_v', 32, 64, 3],
+      ['spr_house_window', 160, 96, 1],
+      ['spr_greenhouse_roof', 64, 64, 3],
+      ['spr_greenhouse_face', 64, 192, 3],
+      ['spr_greenhouse_cap', 64, 32, 3],
+      ['spr_greenhouse_cap_v', 32, 64, 3],
+      ['spr_door_glazed', 96, 160, 1],
       ['spr_door', 32, 32, 1],
       ['spr_shed_wall', 64, 192, 3],
       ['spr_shed_cap', 64, 32, 3],
@@ -72,18 +84,34 @@ describe('sprite sheets', () => {
       ['spr_drive', 32, 32, 1],
       ['spr_bed', 32, 32, 1],
       ['spr_roller_door', 154, 32, 1],
-      ['spr_gate', 32, 32, 1],
       ['spr_pedestal', 32, 32, 1],
       ['spr_floor_shelf', 64, 32, 1],
       ['spr_paper', 256, 256, 1],
     ]);
   });
 
-  it('gives every sheet a kind, the player, the paper and the shed the Inked sheets', () => {
+  it('gives every sheet a kind, the player, the paper, the shed and the back garden the Inked sheets', () => {
     for (const s of ALL_SHEETS) expect(['pixel', 'inked']).toContain(s.art);
     expect(ALL_SHEETS.filter((s) => s.art === 'inked')).toEqual([
       SHEETS.player,
       SHEETS.floorShed,
+      SHEETS.floorGarden,
+      SHEETS.fence,
+      SHEETS.fenceV,
+      SHEETS.fenceCorner,
+      SHEETS.gate,
+      SHEETS.sourcePlant,
+      SHEETS.shedFace,
+      SHEETS.shedRoof,
+      SHEETS.houseFace,
+      SHEETS.houseRoof,
+      SHEETS.houseCapV,
+      SHEETS.houseWindow,
+      SHEETS.greenhouseRoof,
+      SHEETS.greenhouseFace,
+      SHEETS.greenhouseCap,
+      SHEETS.greenhouseCapV,
+      SHEETS.doorGlazed,
       SHEETS.shedWall,
       SHEETS.shedCap,
       SHEETS.shedCapV,
@@ -105,9 +133,9 @@ describe('sprite sheets', () => {
 
   it('draws a pixel sheet at 2 px per logical px nearest, an Inked one at 4 linear', () => {
     expect(INKED_PER_LOGICAL).toBe(4);
-    expect(SHEETS.floorGarden.art).toBe('pixel');
-    expect(sheetPxPerLogical(SHEETS.floorGarden)).toBe(2);
-    expect(sheetFilter(SHEETS.floorGarden)).toBe('nearest');
+    expect(SHEETS.door.art).toBe('pixel');
+    expect(sheetPxPerLogical(SHEETS.door)).toBe(2);
+    expect(sheetFilter(SHEETS.door)).toBe('nearest');
     expect(sheetPxPerLogical(SHEETS.paper)).toBe(4);
     expect(sheetFilter(SHEETS.paper)).toBe('linear');
   });
@@ -182,6 +210,74 @@ describe('sprite sheets', () => {
       [12, 20],
       [16, 20],
     ]);
+  });
+
+  it("draws the back garden in Inked at the scale rule's logical sizes", () => {
+    const logical = (s: (typeof ALL_SHEETS)[number]) => [
+      s.frameWidth / sheetPxPerLogical(s),
+      s.frameHeight / sheetPxPerLogical(s),
+    ];
+    expect(
+      [
+        SHEETS.floorGarden,
+        SHEETS.fence,
+        SHEETS.fenceV,
+        SHEETS.fenceCorner,
+        SHEETS.gate,
+        SHEETS.sourcePlant,
+        SHEETS.shedFace,
+        SHEETS.houseFace,
+        SHEETS.greenhouseFace,
+        SHEETS.shedRoof,
+        SHEETS.houseRoof,
+        SHEETS.greenhouseRoof,
+        SHEETS.houseCapV,
+        SHEETS.greenhouseCapV,
+        SHEETS.greenhouseCap,
+        SHEETS.houseWindow,
+        SHEETS.doorGlazed,
+      ].map(logical),
+    ).toEqual([
+      // The lawn, the 0.75 m fence's face, the fence seen down the band, its corners, the gate.
+      [16, 16],
+      [16, 16],
+      [16, 16],
+      [16, 16],
+      [16, 16],
+      // A source plant standing on its foot.
+      [24, 32],
+      // The faces, 2.4 m; the roofs' tiles; the 8 px caps; the kitchen window; a 0.8 x 2.0 m glazed leaf.
+      [16, 48],
+      [16, 48],
+      [16, 48],
+      [16, 16],
+      [16, 16],
+      [16, 16],
+      [8, 16],
+      [8, 16],
+      [16, 8],
+      [40, 24],
+      [24, 40],
+    ]);
+    // Every repeated tile has at least three variants; the corners one per corner.
+    for (const s of [
+      SHEETS.floorGarden,
+      SHEETS.fence,
+      SHEETS.fenceV,
+      SHEETS.shedFace,
+      SHEETS.houseFace,
+      SHEETS.greenhouseFace,
+      SHEETS.shedRoof,
+      SHEETS.houseRoof,
+      SHEETS.greenhouseRoof,
+      SHEETS.houseCapV,
+      SHEETS.greenhouseCapV,
+      SHEETS.greenhouseCap,
+    ]) {
+      expect(s.frames, s.key).toBeGreaterThanOrEqual(3);
+    }
+    expect(SHEETS.fenceCorner.frames).toBe(4);
+    expect(SHEETS.sourcePlant.frames).toBe(3);
   });
 
   it("loads the house rooms' and the greenhouse's generated tiles and furniture and the buildings' roof with the rest", () => {

@@ -1,7 +1,7 @@
 // Draws the house rooms' placeholder tiles (no prototype art exists for
 // interiors), the glazed doors and window, the house and greenhouse
-// furniture, the buildings' roofs seen from the garden, and the front
-// garden's road, fence, paving, beds, roller door and side gate.
+// furniture, the roof the front garden sees, and the front garden's road,
+// fence, paving, beds and roller door.
 //
 // Each sheet is drawn by a module under art/interiors/ (lounge, hallway,
 // study, greenhouse, doors, roof, frontGarden), which describes its sheets at the
@@ -50,7 +50,6 @@ for (const sheet of [
   frontGarden.DRIVE,
   frontGarden.BED,
   frontGarden.ROLLER_DOOR,
-  frontGarden.GATE,
 ]) {
   write(sheet);
 }

@@ -35,9 +35,34 @@ export const WASHES = {
   rug: [190, 120, 110],
   outside: [150, 184, 118],
   shadow: [110, 94, 80],
+  // The buildings seen from the garden: the house's render and roof tiles, the greenhouse's white frame.
+  render: [214, 198, 176],
+  tile: [184, 116, 92],
+  paint: [204, 208, 200],
   // The 3D viewer's textures are tinted by each species' colours, so their washes are near neutral.
   bark: [170, 160, 148],
   leaf: [188, 190, 178],
+  // The gardens' season washes, laid over the whole baked garden at runtime
+  // (src/world/palette.ts mirrors these): spring's fresh green, autumn's
+  // browning, winter's frost. Summer has none.
+  lawnSpring: [200, 226, 150],
+  lawnAutumn: [200, 140, 80],
+  frost: [236, 240, 244],
+  // The weather's particles, drawn live (src/world/weather.ts by way of
+  // palette.ts), the prototype's colours: spring petals, summer fireflies,
+  // autumn leaves, winter snow, and the indoor rooms' dust motes.
+  petal: [255, 214, 224],
+  petalDeep: [255, 190, 212],
+  petalPale: [250, 226, 233],
+  firefly: [214, 240, 140],
+  fireflyPale: [232, 246, 165],
+  leafRed: [210, 90, 40],
+  leafOrange: [230, 140, 40],
+  leafRust: [178, 68, 30],
+  leafOchre: [160, 112, 42],
+  snow: [255, 255, 255],
+  snowShade: [226, 236, 246],
+  mote: [232, 226, 200],
 };
 /**
  * How far from paper a finished pixel may be and still count as paper when a

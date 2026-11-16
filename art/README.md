@@ -59,11 +59,6 @@ archive sprite changes.
 
 | File | Px size | Frames | Made from |
 |------|---------|--------|-----------|
-| `spr_floor_garden.png` | 96×32 | 3 | `spr_floor_garden` |
-| `spr_source_plant.png` | 144×48 | 3 | `spr_source_plant` |
-| `spr_wall.png` | 32×32 | 1 | `spr_wall` |
-| `spr_fence.png` | 32×32 | 1 | `spr_fence` |
-| `spr_fence_v.png` | 32×32 | 1 | `spr_fence_v` |
 | `spr_door.png` | 32×32 | 1 | `spr_door` |
 | `spr_pedestal.png` | 32×32 | 1 | `spr_pedestal` |
 
@@ -87,11 +82,12 @@ room or subject (`lounge.mjs`, `hallway.mjs`, `study.mjs`, `greenhouse.mjs`,
 | `spr_wall_hallway.png` | 32×32 | 1 | `interiors.mjs`: plaster over a dado rail and a wooden skirting board |
 | `spr_floor_study.png` | 96×32 | 3 | `interiors.mjs`: deep-red herringbone parquet repeating every 16 px (seamless), grain per frame |
 | `spr_wall_study.png` | 32×32 | 1 | `interiors.mjs`: dark wooden panelling, two raised panels, over a skirting board |
-| `spr_roof.png` | 32×32 | 1 | `interiors.mjs`: slate shingles in staggered 8×4 courses (seamless), a few mossy pixels; the garden tiles it over the house's and the shed's footprints |
+| `spr_roof.png` | 32×32 | 1 | `interiors.mjs`: slate shingles in staggered 8×4 courses (seamless), a few mossy pixels; the front garden tiles it over the garage and the house |
 
 The shed's sheets (its floor, workbench, planting table, kiosk and
-`make_decor.py`'s decor: shelf, tools, watering can, pot stack, sack) are
-not packed: the web build draws the shed in Inked (see below). The
+`make_decor.py`'s decor: shelf, tools, watering can, pot stack, sack) and
+the garden's (its grass, wall, fences and source plants) are not packed:
+the web build draws the shed and the back garden in Inked (see below). The
 prototype's 56 px `spr_window` is not packed either; the web build's
 `spr_window` is the one `interiors.mjs` draws. `spr_foliage` is the 3D viewer's
 (`src/viewer/foliage.png`), and the room's trees are drawn in code as the
@@ -109,4 +105,4 @@ python3 preview.py        # rebuilds _preview.png
 
 ## Inked generator
 
-Inked is the game's art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (the scale rule, knobs, palette, what to call and how to keep the wobble varied). A sheet generator imports `createPage`, `finish` and `finishCutOut` from `inked/index.mjs` and `writePng` from `inked/canvas.mjs`; `inked/viewer.mjs` (`npm run art:viewer`) is one, drawing the 3D viewer's foliage and bark textures. The web build's `spr_player.png` is Inked too, drawn by `inked/player.mjs` (`npm run art:player`) rather than packed from the prototype's frames: 16 frames of 16 x 32 logical px (64 x 128 sheet px) in the frame order above. So is every sheet the shed draws, by `inked/shed.mjs` (`npm run art:shed`): `spr_floor_shed` (3 variants of a 16 x 16 floorboard tile), the back wall's face `spr_shed_wall` (3 variants, 16 x 48), the 8 px caps `spr_shed_cap` (south, 16 x 8) and `spr_shed_cap_v` (sides, 8 x 16, 3 variants each), `spr_shed_window` (32 x 24), the lounge door front-on `spr_shed_door` (24 x 40), the garden door's opening in the south cap `spr_shed_door_s` (24 x 16), `spr_workbench` (48 x 40), `spr_planting_table` (32 x 40), `spr_shop_kiosk` (24 x 56), the decor `spr_shelf` (24 x 20), `spr_tools` (12 x 32), `spr_watering_can` (16 x 12), `spr_pot_stack` (12 x 20) and `spr_sack` (16 x 20), and the rug `spr_shed_rug` (120 x 70), all in logical px at 4 sheet px each.
+Inked is the game's art direction, and `inked/` is its generator; `inked/README.md` is the style spec every room generator follows (the scale rule, knobs, palette, what to call and how to keep the wobble varied). A sheet generator imports `createPage`, `finish` and `finishCutOut` from `inked/index.mjs` and `writePng` from `inked/canvas.mjs`; `inked/viewer.mjs` (`npm run art:viewer`) is one, drawing the 3D viewer's foliage and bark textures. The web build's `spr_player.png` is Inked too, drawn by `inked/player.mjs` (`npm run art:player`) rather than packed from the prototype's frames: 16 frames of 16 x 32 logical px (64 x 128 sheet px) in the frame order above. So is every sheet the shed draws, by `inked/shed.mjs` (`npm run art:shed`): `spr_floor_shed` (3 variants of a 16 x 16 floorboard tile), the back wall's face `spr_shed_wall` (3 variants, 16 x 48), the 8 px caps `spr_shed_cap` (south, 16 x 8) and `spr_shed_cap_v` (sides, 8 x 16, 3 variants each), `spr_shed_window` (32 x 24), the lounge door front-on `spr_shed_door` (24 x 40), the garden door's opening in the south cap `spr_shed_door_s` (24 x 16), `spr_workbench` (48 x 40), `spr_planting_table` (32 x 40), `spr_shop_kiosk` (24 x 56), the decor `spr_shelf` (24 x 20), `spr_tools` (12 x 32), `spr_watering_can` (16 x 12), `spr_pot_stack` (12 x 20) and `spr_sack` (16 x 20), and the rug `spr_shed_rug` (120 x 70), all in logical px at 4 sheet px each. So is every sheet the back garden draws, by `inked/garden.mjs` (`npm run art:garden`), the lawn, fences and gate shared with the front garden: `spr_floor_garden` (3 variants of a 16 x 16 lawn tile), the fence's face front-on `spr_fence` and a north-south fence in three-quarter view `spr_fence_v` (3 variants each, 16 x 16), the ring's corners `spr_fence_corner` (16 x 16, frames NW, NE, SW, SE), and, cut out, the side gate `spr_gate` (16 x 16) and the source plants `spr_source_plant` (24 x 32, frames juniper, maple, pine); and the buildings seen from it, 3 variants each: the faces `spr_shed_face`, `spr_house_face` and `spr_greenhouse_face` (16 x 48), the roofs `spr_shed_roof`, `spr_house_roof` and `spr_greenhouse_roof` (16 x 16), the caps `spr_house_cap_v` and `spr_greenhouse_cap_v` (8 x 16) and `spr_greenhouse_cap` (16 x 8), and, cut out, the kitchen window `spr_house_window` (40 x 24) and one glazed leaf `spr_door_glazed` (24 x 40).
