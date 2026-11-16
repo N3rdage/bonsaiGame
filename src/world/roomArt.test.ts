@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { SEASONS } from '../sim/seasons';
-import { PLAYER_FEET, SHEETS } from './assets';
+import { PLAYER_FEET, SHEETS, sheetPxPerLogical } from './assets';
 import { FRONT_GARDEN_ROOM } from './frontGardenRoom';
 import { GARDEN_ROOM, ROOMS } from './gardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
 import {
+  BACK_WALL_FACE,
   PEDESTAL_LABEL_DY,
   ROOM_STYLES,
-  SHED_FLOOR_DIM,
   SHED_RUG,
   TILE,
+  WALL_CAP,
   bakeScale,
   fenceCorners,
   floorTiles,
@@ -80,28 +81,42 @@ describe('floor', () => {
     }
   });
 
-  it('dims and rugs the shed floor only', () => {
-    expect(ROOM_STYLES.shed).toMatchObject({ floorDim: SHED_FLOOR_DIM, rug: SHED_RUG });
-    expect(SHED_FLOOR_DIM).toBe(0.12);
-    for (const key of ['garden', 'lounge', 'hallway', 'study', 'greenhouse'] as const) {
-      expect(ROOM_STYLES[key].floorDim).toBe(0);
-      expect(ROOM_STYLES[key].rug).toBeUndefined();
-    }
+  it('draws the shed floor as its 16 px Inked boards, three variants', () => {
+    expect(SHEETS.floorShed).toEqual({
+      key: 'spr_floor_shed',
+      frameWidth: 64,
+      frameHeight: 64,
+      frames: 3,
+      art: 'inked',
+    });
+    const shed = floorTiles(SHED_ROOM);
+    expect(shed.sheet.frameWidth / 4).toBe(TILE);
   });
 
-  it('has the shed rug at the prototype (360, 220)..(600, 360), halved', () => {
-    expect([SHED_RUG.x, SHED_RUG.y, SHED_RUG.w, SHED_RUG.h, SHED_RUG.inset]).toEqual([
-      180, 110, 120, 70, 3.5,
-    ]);
+  it("lays the shed's Inked rug over the prototype's (360, 220)..(600, 360), halved, and no other room's", () => {
+    expect([SHED_RUG.x, SHED_RUG.y, SHED_RUG.w, SHED_RUG.h]).toEqual([180, 110, 120, 70]);
+    expect(ROOM_STYLES.shed.rug).toEqual({ sheet: SHEETS.shedRug, ...SHED_RUG });
+    // The sheet is the rect at 4 sheet px per logical px.
+    expect([SHEETS.shedRug.frameWidth / 4, SHEETS.shedRug.frameHeight / 4]).toEqual([120, 70]);
+    for (const key of [
+      'garden',
+      'frontGarden',
+      'lounge',
+      'hallway',
+      'study',
+      'greenhouse',
+    ] as const) {
+      expect(ROOM_STYLES[key].rug).toBeUndefined();
+    }
   });
 });
 
 describe('bake', () => {
-  it('lays no paper and bakes every room today at the prototype 2 px per logical px', () => {
+  it('lays no paper, and bakes the Inked shed at 4 px per logical px and every other room at the prototype 2', () => {
     for (const room of Object.values(ROOMS)) {
       expect(ROOM_STYLES[room.key].paper).toBe(false);
       expect(paperTiles(room)).toEqual([]);
-      expect(bakeScale(room)).toBe(2);
+      expect(bakeScale(room)).toBe(room === SHED_ROOM ? 4 : 2);
     }
   });
 
@@ -131,25 +146,62 @@ describe('bake', () => {
   });
 
   it('bakes at 4 when any sheet it draws is Inked, paper or not', () => {
-    expect(bakeScale(SHED_ROOM, { ...ROOM_STYLES.shed, floor: SHEETS.paper })).toBe(4);
-    expect(bakeScale(SHED_ROOM, { ...ROOM_STYLES.shed, wallColumn: SHEETS.paper })).toBe(4);
+    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, floor: SHEETS.paper })).toBe(4);
+    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, wallColumn: SHEETS.paper })).toBe(4);
+    const face = { sheet: SHEETS.paper, height: BACK_WALL_FACE, cap: WALL_CAP };
+    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, face })).toBe(4);
+    const rug = { sheet: SHEETS.paper, x: 0, y: 0, w: 64, h: 64 };
+    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, rug })).toBe(4);
   });
 });
 
 describe('walls', () => {
-  it('rings the inset shed with spr_wall, corners included, over its collision bands', () => {
-    const runs = wallRuns(SHED_ROOM)
-      .slice(0, 4)
-      .map((r) => [r.sheet.key, r.x, r.y, r.w, r.h]);
-    expect(runs).toEqual([
-      ['spr_wall', 80, 48, 320, 16],
-      ['spr_wall', 80, 208, 320, 16],
-      ['spr_wall', 80, 64, 16, 144],
-      ['spr_wall', 384, 64, 16, 144],
+  it("draws the shed's back wall as a 48 px face standing on the floor line and its other walls as 8 px caps against the floor", () => {
+    expect([BACK_WALL_FACE, WALL_CAP]).toEqual([48, 8]);
+    expect(ROOM_STYLES.shed.face).toEqual({ sheet: SHEETS.shedWall, height: 48, cap: 8 });
+    expect([ROOM_STYLES.shed.wallRow, ROOM_STYLES.shed.wallColumn]).toEqual([
+      SHEETS.shedCap,
+      SHEETS.shedCapV,
     ]);
-    // Every drawn wall tile collides.
-    for (const [, x, y, w, h] of runs as [string, number, number, number, number][]) {
-      expect(hitsWall(SHED_ROOM, x, y) && hitsWall(SHED_ROOM, x + w - 0.1, y + h - 0.1)).toBe(true);
+    const runs = wallRuns(SHED_ROOM);
+    const of = (sheet: (typeof runs)[number]['sheet'], x?: number) =>
+      runs.filter((r) => r.sheet === sheet && (x === undefined || r.x === x));
+    const extent = (list: typeof runs) => [
+      Math.min(...list.map((r) => r.x)),
+      Math.min(...list.map((r) => r.y)),
+      Math.max(...list.map((r) => r.x + r.w)),
+      Math.max(...list.map((r) => r.y + r.h)),
+    ];
+    const floor = insideWalls(SHED_ROOM);
+    // The face: 18 tiles of 16 x 48 across the top band between the side walls, x 96..384,
+    // its bottom on the floor line (y 64), rising 32 px above the ring's top (y 48) to y 16.
+    const face = of(SHEETS.shedWall);
+    expect(face).toHaveLength(18);
+    expect(face.every((r) => r.w === 16 && r.h === 48)).toBe(true);
+    expect(extent(face)).toEqual([96, 16, 384, 64]);
+    expect(floor.y).toBe(64);
+    // The side caps, 8 px on the bands' inner edges (x 88..96, 384..392), from the face's top to the south band.
+    expect(extent(of(SHEETS.shedCapV, 88))).toEqual([88, 16, 96, 208]);
+    expect(extent(of(SHEETS.shedCapV, 384))).toEqual([384, 16, 392, 208]);
+    expect(of(SHEETS.shedCapV)).toHaveLength(24);
+    // The south cap on its band's inner edge (y 208..216), across both side caps.
+    const south = of(SHEETS.shedCap);
+    expect(south).toHaveLength(19);
+    expect(extent(south)).toEqual([88, 208, 392, 216]);
+    // Each cap abuts the floor.
+    expect([floor.x, floor.x + floor.w, floor.y + floor.h]).toEqual([96, 384, 208]);
+    // The ring's runs come first (61 tiles), then the window and the shelf.
+    expect(runs).toHaveLength(61 + 1 + 1);
+    // Every cap tile in the ring's bounds lies on a collision band; collision is still the whole ring.
+    for (const r of [...of(SHEETS.shedCapV), ...south].filter((t) => t.y >= SHED_ROOM.bounds.y)) {
+      expect(
+        hitsWall(SHED_ROOM, r.x, r.y) && hitsWall(SHED_ROOM, r.x + r.w - 0.1, r.y + r.h - 0.1),
+      ).toBe(true);
+    }
+    // Each tile's frame is hashed from where it lands, so neighbours along a run differ.
+    expect(face.map((r) => r.frame).slice(0, 4)).toEqual([1, 2, 0, 1]);
+    for (const list of [face, of(SHEETS.shedCapV, 88), south]) {
+      for (let i = 1; i < list.length; i += 1) expect(list[i]?.frame).not.toBe(list[i - 1]?.frame);
     }
   });
 
@@ -272,17 +324,21 @@ describe('walls', () => {
       { x: 304, w: 32 },
     ]);
     expect(STUDY_ROOM.windows).toEqual([{ x: 224, w: 32 }]);
+    // The shed's is its own Inked window on the back wall's face: 32 x 24, its top 44 px above
+    // the floor line (y 64), its sill 20 px (0.94 m) above it, inside the face (y 16..64).
     expect(windowRuns(SHED_ROOM).map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual([
-      ['spr_window', 264, 48, 32, 16],
+      ['spr_shed_window', 264, 20, 32, 24],
     ]);
+    expect(ROOM_STYLES.shed.window).toEqual({ sheet: SHEETS.shedWindow, top: 44 });
+    expect(wallRuns(SHED_ROOM).at(-2)).toEqual(windowRuns(SHED_ROOM)[0]);
     for (const room of [HALLWAY_ROOM, GARDEN_ROOM, GREENHOUSE_ROOM]) {
       expect(room.windows).toEqual([]);
       expect(windowRuns(room)).toEqual([]);
     }
   });
 
-  it('draws each window as spr_window over the top wall band, after the walls, inside the corners', () => {
-    for (const room of [LOUNGE_ROOM, STUDY_ROOM, SHED_ROOM]) {
+  it('draws each house window as spr_window over the top wall band, after the walls, inside the corners', () => {
+    for (const room of [LOUNGE_ROOM, STUDY_ROOM]) {
       const runs = windowRuns(room);
       expect(runs.map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual(
         room.windows.map(({ x, w }) => ['spr_window', x, room.bounds.y, w, TILE]),
@@ -291,8 +347,8 @@ describe('walls', () => {
       expect(wallRuns(room).slice(4, 4 + runs.length)).toEqual(runs);
       const top = wallRuns(room)[0];
       for (const r of runs) {
-        // Whole panes; the house windows on the tile grid, the shed's centred where the prototype drew it.
-        if (room !== SHED_ROOM) expect(r.x % TILE).toBe(0);
+        // Whole panes on the tile grid.
+        expect(r.x % TILE).toBe(0);
         expect(r.w % TILE).toBe(0);
         // Clear of the corner tiles, and over the top wall, which still collides under it.
         expect(r.x).toBeGreaterThanOrEqual(room.bounds.x + TILE);
@@ -324,12 +380,13 @@ describe('walls', () => {
       const runs = furnitureRuns(room);
       expect(wallRuns(room).slice(wallRuns(room).length - runs.length)).toEqual(runs);
       for (const r of runs) {
-        // A one-frame piece is its sheet's size, halved; a run is whole tiles of it, a row
+        // A one-frame piece is its sheet's logical size; a run is whole tiles of it, a row
         // indoors, rows and columns outdoors.
         const outdoor = room === GARDEN_ROOM || room === FRONT_GARDEN_ROOM;
-        expect((r.w * 2) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
-        if (outdoor) expect((r.h * 2) % r.sheet.frameHeight).toBe(0);
-        else expect(r.h * 2).toBe(r.sheet.frameHeight);
+        const px = sheetPxPerLogical(r.sheet);
+        expect((r.w * px) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
+        if (outdoor) expect((r.h * px) % r.sheet.frameHeight).toBe(0);
+        else expect(r.h * px).toBe(r.sheet.frameHeight);
         // Indoors, on the floor clear of the walls' bands; in the garden, over a building's solid
         // footprint; in the front garden, anywhere on its canvas (the road and roofs outside bounds).
         const f = insideWalls(room);
@@ -345,8 +402,8 @@ describe('walls', () => {
         expect(placed, `${room.key} ${r.sheet.key}`).toBe(true);
       }
     }
-    // The shed's floor clutter is sorted against the player (furnitureSprites); only the wall-mounted shelf is baked.
-    expect(furniture(SHED_ROOM)).toEqual([['spr_shelf', 206, 65, 28, 22]]);
+    // The shed's floor clutter is sorted against the player (furnitureSprites); only the shelf is baked.
+    expect(furniture(SHED_ROOM)).toEqual([['spr_shelf', 208, 67, 24, 20]]);
     expect(furniture(GARDEN_ROOM)).toHaveLength(6);
   });
 
@@ -409,15 +466,40 @@ describe('walls', () => {
 });
 
 describe('props', () => {
-  it('draws the shed props from their sprites, centred', () => {
+  it("stands the shed's Inked props bottom-centre on their footprints' bottom edges at 0.25", () => {
     const at = (key: string) => {
       const s = propSprite(propByKey(SHED_ROOM.props, key));
-      return s && [s.sheet.key, s.frame, s.x, s.y, s.scale];
+      return s && [s.sheet.key, s.frame, s.x, s.y, s.originY, s.scale];
     };
-    expect(at('workbench')).toEqual(['spr_workbench', 0, 125, 90, 0.5]);
-    expect(at('planting_table')).toEqual(['spr_planting_table', 0, 165, 90, 0.5]);
-    expect(at('shop_kiosk')).toEqual(['spr_shop_kiosk', 0, 125, 145, 0.5]);
-    expect(at('door')).toEqual(['spr_door', 0, 240, 216, 0.5]);
+    // The workbench's 40 x 20 footprint centred on (125, 90): its bottom edge y 100.
+    expect(at('workbench')).toEqual(['spr_workbench', 0, 125, 100, 1, 0.25]);
+    expect(at('planting_table')).toEqual(['spr_planting_table', 0, 165, 100, 1, 0.25]);
+    expect(at('shop_kiosk')).toEqual(['spr_shop_kiosk', 0, 125, 157, 1, 0.25]);
+    expect(at('door')).toEqual(['spr_shed_door_s', 0, 240, 224, 1, 0.25]);
+    expect(at('door_lounge')).toEqual(['spr_shed_door', 0, 240, 64, 1, 0.25]);
+    // Drawn at the scale rule's sizes: the workbench 48 x 40, the planting table 32 x 40, the kiosk
+    // 24 x 56, the lounge door 24 x 40 front-on, the garden door's opening 24 x 16.
+    const size = (key: string) => {
+      const s = propSprite(propByKey(SHED_ROOM.props, key));
+      return s && [s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale];
+    };
+    expect(['workbench', 'planting_table', 'shop_kiosk', 'door_lounge', 'door'].map(size)).toEqual([
+      [48, 40],
+      [32, 40],
+      [24, 56],
+      [24, 40],
+      [24, 16],
+    ]);
+  });
+
+  it("centres a pixel prop's sprite on its rect at 0.5, as the prototype drew it", () => {
+    const at = (props: readonly Prop[], key: string) => {
+      const s = propSprite(propByKey(props, key));
+      return s && [s.sheet.art, s.x, s.y, s.originY, s.scale];
+    };
+    expect(at(GARDEN_ROOM.props, 'source_juniper')).toEqual(['pixel', 80, 472, 0.5, 0.5]);
+    expect(at(GARDEN_ROOM.props, 'door')).toEqual(['pixel', 80, 248, 0.5, 0.5]);
+    expect(at(LOUNGE_ROOM.props, 'door')).toEqual(['pixel', 240, 216, 0.5, 0.5]);
   });
 
   it('sorts a prop at its bottom edge and a door, in its wall, at its top edge', () => {
@@ -427,13 +509,24 @@ describe('props', () => {
     expect(depth(GARDEN_ROOM.props, 'door')).toBe(240);
   });
 
-  it("draws the shed door on the bottom wall: inst_52E224DC's 32 px square at top-left (464, 416)", () => {
-    const door = propSprite(propByKey(SHED_ROOM.props, 'door'));
-    expect(door && [door.x - 8, door.y - 8]).toEqual([232, 208]);
-    const bottomWall = wallRuns(SHED_ROOM)[1];
-    expect(door && [door.y - 8, door.y + 8]).toEqual(
-      bottomWall && [bottomWall.y, bottomWall.y + bottomWall.h],
+  it("draws the shed door in the bottom wall: inst_52E224DC's 32 px square at top-left (464, 416), its opening over the band", () => {
+    const p = propByKey(SHED_ROOM.props, 'door');
+    expect([p.x - 8, p.y - 8, p.w, p.h]).toEqual([232, 208, 16, 16]);
+    const door = propSprite(p);
+    // The 24 x 16 opening stands on the band's bottom edge, so it covers the band (y 208..224),
+    // the south cap's 8 px (y 208..216) its top half, centred on the door.
+    const band = SHED_ROOM.walls[1];
+    expect(door && [door.x - 12, door.y - 16, door.y]).toEqual(
+      band && [228, band.y, band.y + band.h],
     );
+  });
+
+  it("draws the shed's lounge door front-on in the back wall's face, its bottom on the floor line", () => {
+    const door = propSprite(propByKey(SHED_ROOM.props, 'door_lounge'));
+    const face = wallRuns(SHED_ROOM).filter((r) => r.sheet === SHEETS.shedWall);
+    // x 228..252, y 24..64: inside the face (y 16..64), clear of the window (x 264..296).
+    expect(door && [door.x - 12, door.y - 40, door.x + 12, door.y]).toEqual([228, 24, 252, 64]);
+    expect(face.some((r) => r.y <= 24 && r.y + r.h === 64 && r.x <= 228)).toBe(true);
   });
 
   it("draws each source plant's species frame, the garden door in the shed's south face and the side gate", () => {
@@ -475,14 +568,19 @@ describe('props', () => {
     }
   });
 
-  it("draws the lounge's door on the bottom wall, the shed's lounge door on the top", () => {
+  it("draws the lounge's door on the bottom wall, the shed's lounge door on the top, each sorted at its top edge", () => {
     const at = (props: readonly Prop[], key: string) => {
       const s = propSprite(propByKey(props, key));
       return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
     };
     expect(at(LOUNGE_ROOM.props, 'door')).toEqual(['spr_door', 240, 216, 0.5, 208]);
-    const topWall = wallRuns(SHED_ROOM)[0];
-    expect(at(SHED_ROOM.props, 'door_lounge')).toEqual(['spr_door', 240, 56, 0.5, topWall?.y]);
+    expect(at(SHED_ROOM.props, 'door_lounge')).toEqual([
+      'spr_shed_door',
+      240,
+      64,
+      0.25,
+      SHED_ROOM.bounds.y,
+    ]);
   });
 
   it('draws the doors on the row y 190 in the side walls seen from the side, the E walls mirroring the W, sorted at their top edge', () => {
@@ -588,9 +686,11 @@ describe('props', () => {
         .map((p) => `${r.key}.${p.key}`),
     );
     expect(doors).toHaveLength(16);
-    // Besides the glazed doors: the side gate's two sides, board gates (spr_gate),
-    // and the house's four side-on doors between rooms.
+    // Besides the glazed doors: the shed's two Inked doors, the side gate's two sides,
+    // board gates (spr_gate), and the house's four side-on doors between rooms.
     expect(ownSheet).toEqual([
+      'shed.door',
+      'shed.door_lounge',
       'garden.door_study',
       'garden.door_greenhouse',
       'garden.gate',
@@ -632,16 +732,17 @@ describe('shadows', () => {
   });
 
   it("puts Draw_0's faint ellipse, (dx - w/3, dy - 4)..(dx + w/3, dy + 2), under each piece of the shed's decor", () => {
-    // Centre, width x 3 (the shadow is 2w/3 prototype px wide, halved, so x 3 gives w), height, alpha:
-    // spr_shelf's foot at prototype (440, 174) gives x 440 +- 56/3, y 170..176, halved.
+    // Centre, width x 3 (the shadow is 2w/3 prototype px wide, halved, so x 3 gives w in prototype
+    // px), height, alpha: the shelf, 24 logical px wide (48 prototype px), on its foot at prototype
+    // (440, 174) gives x 440 +- 48/3, y 170..176, halved.
     const shadows = (list: readonly Shadow[]) =>
       list.map((s) => [s.x, s.y, Math.round(s.w * 3), s.h, s.alpha]);
     // The bake has the shelf's; the sorted pieces' are drawn live, the same ellipses.
-    expect(shadows(furnitureShadows(SHED_ROOM))).toEqual([[220, 86.5, 56, 3, 0.18]]);
+    expect(shadows(furnitureShadows(SHED_ROOM))).toEqual([[220, 86.5, 48, 3, 0.18]]);
     expect(shadows(sortedFurnitureShadows(SHED_ROOM))).toEqual([
-      [106, 175.5, 36, 3, 0.18],
+      [106, 175.5, 24, 3, 0.18],
       [353, 127.5, 32, 3, 0.18],
-      [353, 193.5, 40, 3, 0.18],
+      [353, 193.5, 24, 3, 0.18],
       [150, 191.5, 32, 3, 0.18],
     ]);
     // The house furniture has none.
@@ -652,13 +753,22 @@ describe('shadows', () => {
   });
 
   it("draws the shed's floor clutter as sprites sorted at their bottom edge, the player behind above it and in front below", () => {
+    // Inked: each stands bottom-centre on its prototype foot point at 0.25.
     expect(
-      furnitureSprites(SHED_ROOM).map((s) => [s.sheet.key, s.frame, s.x, s.y, s.scale, s.depth]),
+      furnitureSprites(SHED_ROOM).map((s) => [
+        s.sheet.key,
+        s.frame,
+        s.x,
+        s.y,
+        s.originY,
+        s.scale,
+        s.depth,
+      ]),
     ).toEqual([
-      ['spr_tools', 0, 106, 163, 0.5, 176],
-      ['spr_watering_can', 0, 353, 120.5, 0.5, 128],
-      ['spr_pot_stack', 0, 353, 184, 0.5, 194],
-      ['spr_sack', 0, 150, 183.5, 0.5, 192],
+      ['spr_tools', 0, 106, 176, 1, 0.25, 176],
+      ['spr_watering_can', 0, 353, 128, 1, 0.25, 128],
+      ['spr_pot_stack', 0, 353, 194, 1, 0.25, 194],
+      ['spr_sack', 0, 150, 192, 1, 0.25, 192],
     ]);
     // No house room or the garden sorts any furniture; their runs are all of it.
     for (const room of [LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM, GARDEN_ROOM]) {

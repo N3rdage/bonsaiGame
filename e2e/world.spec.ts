@@ -48,7 +48,7 @@ test.describe('world', () => {
     expect(h.player.facing).toBe('left');
   });
 
-  // The sack (x 142..158, y 175..192) is sprite-sorted at its bottom edge, depth
+  // The sack (x 142..158, y 172..192) is sprite-sorted at its bottom edge, depth
   // 192; the player's depth is its y + 12. Pinned in src/world/roomArt.test.ts.
   test('walks behind the sack and then in front of it', async ({ page }) => {
     await bootWorld(page);

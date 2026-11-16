@@ -1,11 +1,11 @@
 /**
  * How a room is drawn, as pure data in logical px: the floor tiles
  * (obj_game_controller Draw_0), the wall and fence runs (Other_4's ring,
- * obj_wall Draw_0), the rooms' windows and furniture (the shed's decor), the
- * garden's mitred fence corners (Draw_73), the shed's
- * floor dim and rug, each prop's sprite and the drop shadows (the props' Draw
- * events), with each room's sheets and extras in one table, ROOM_STYLES. The
- * prototype's numbers are in prototype px and halved here.
+ * obj_wall Draw_0), or a back wall's face and the other walls' caps, the
+ * rooms' windows and furniture (the shed's decor), the garden's mitred fence
+ * corners (Draw_73), the shed's rug, each prop's sprite and the drop shadows
+ * (the props' Draw events), with each room's sheets and extras in one table,
+ * ROOM_STYLES. The prototype's numbers are in prototype px and halved here.
  */
 
 import {
@@ -40,57 +40,84 @@ export interface FloorTiles {
   readonly frames: readonly (readonly number[])[];
 }
 
-/** Draw_0: the shed floor dimmed by black at 0.12 alpha. */
-export const SHED_FLOOR_DIM = 0.12;
-
-/** Draw_0's central rug: prototype (360, 220)..(600, 360), its outline and the border inset 7 px. */
-export const SHED_RUG = {
+/** Draw_0's central rug: prototype (360, 220)..(600, 360), halved, where the shed lays spr_shed_rug. */
+export const SHED_RUG: Rect = {
   x: fromPrototype(360),
   y: fromPrototype(220),
   w: fromPrototype(600 - 360),
   h: fromPrototype(360 - 220),
-  inset: fromPrototype(7),
-  fill: 0x784842,
-  outline: 0x55322e,
-  border: 0x9b6e5f,
-} as const;
+};
+
+/** The scale rule's back wall, 2.4 m high: a 48 px face (art/inked/README.md). */
+export const BACK_WALL_FACE = 48;
+/** The scale rule's 0.25 m wall cap: an 8 px band. */
+export const WALL_CAP = 8;
+
+/**
+ * A room whose back wall is drawn as its face: `sheet`, TILE wide and
+ * `height` tall, repeated along the top of the ring with its bottom edge on
+ * the floor line (the top band's bottom edge), so it rises `height - TILE`
+ * above the ring; its frames scatter as the floor's. The side and south walls
+ * are drawn as caps `cap` deep (the style's wallColumn and wallRow) on their
+ * collision bands' inner edges, against the floor.
+ */
+export interface WallFace {
+  readonly sheet: Sheet;
+  readonly height: number;
+  readonly cap: number;
+}
+
+/** The sheet a room's windows are drawn with, and its top's height above the floor line in logical px. */
+export interface WindowStyle {
+  readonly sheet: Sheet;
+  readonly top: number;
+}
 
 /** How a room's static art is drawn: its sheets, and what lies on and around its floor. */
 export interface RoomStyle {
   readonly floor: Sheet;
-  /** The ring's top and bottom rows, and its left and right columns. */
+  /** The ring's top and bottom rows, and its left and right columns; with a `face`, the south and side caps. */
   readonly wallRow: Sheet;
   readonly wallColumn: Sheet;
+  /** The back wall drawn as a face standing on the floor line, the other walls as caps; none for a ring of whole bands. */
+  readonly face?: WallFace;
+  readonly window: WindowStyle;
   /** An inset room's floor fills only the inside of its ring; an outdoor one fills the canvas. */
   readonly inset: boolean;
   /** The ring's four corner tiles are left out for the mitred fence corners (fenceCorners). */
   readonly fenced: boolean;
-  /** Black over the floor at this alpha, 0 for none. */
-  readonly floorDim: number;
-  readonly rug?: typeof SHED_RUG;
+  /** A sheet laid over its rect on the floor, under the shadows and furniture. */
+  readonly rug?: WallRun;
   /** The Inked paper (spr_paper) laid over the whole room first, under the floor (paperTiles). */
   readonly paper: boolean;
 }
 
-/** The house rooms (new content: lounge, hallway, study) are drawn as the shed is, each with its own floor and walls and no dim or rug. */
+/** The house rooms' window, spr_window, over the top wall band: its top is a band above the floor line. */
+const BAND_WINDOW: WindowStyle = { sheet: SHEETS.window, top: TILE };
+
+/** The house rooms (new content: lounge, hallway, study) are inset as the shed is, each with its own floor and a ring of its own wall sheet, and no rug. */
 export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
+  // The shed in Inked: its back wall's face, its caps, its window on the face (its sill 20 px,
+  // 0.94 m, above the floor) and its rug. No paper: its sheets cover the whole ring opaquely, and
+  // the surround outside the walls stays the room's dark colour, which the HUD's pale text reads on.
   shed: {
     floor: SHEETS.floorShed,
-    wallRow: SHEETS.wall,
-    wallColumn: SHEETS.wall,
+    wallRow: SHEETS.shedCap,
+    wallColumn: SHEETS.shedCapV,
+    face: { sheet: SHEETS.shedWall, height: BACK_WALL_FACE, cap: WALL_CAP },
+    window: { sheet: SHEETS.shedWindow, top: 44 },
     inset: true,
     fenced: false,
-    floorDim: SHED_FLOOR_DIM,
-    rug: SHED_RUG,
+    rug: { sheet: SHEETS.shedRug, ...SHED_RUG },
     paper: false,
   },
   garden: {
     floor: SHEETS.floorGarden,
     wallRow: SHEETS.fence,
     wallColumn: SHEETS.fenceV,
+    window: BAND_WINDOW,
     inset: false,
     fenced: true,
-    floorDim: 0,
     paper: false,
   },
   // The front garden fills its canvas with lawn like the back garden; its north row is the low
@@ -99,36 +126,36 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     floor: SHEETS.floorGarden,
     wallRow: SHEETS.fenceLow,
     wallColumn: SHEETS.fenceV,
+    window: BAND_WINDOW,
     inset: false,
     fenced: false,
-    floorDim: 0,
     paper: false,
   },
   lounge: {
     floor: SHEETS.floorLounge,
     wallRow: SHEETS.wallLounge,
     wallColumn: SHEETS.wallLounge,
+    window: BAND_WINDOW,
     inset: true,
     fenced: false,
-    floorDim: 0,
     paper: false,
   },
   hallway: {
     floor: SHEETS.floorHallway,
     wallRow: SHEETS.wallHallway,
     wallColumn: SHEETS.wallHallway,
+    window: BAND_WINDOW,
     inset: true,
     fenced: false,
-    floorDim: 0,
     paper: false,
   },
   study: {
     floor: SHEETS.floorStudy,
     wallRow: SHEETS.wallStudy,
     wallColumn: SHEETS.wallStudy,
+    window: BAND_WINDOW,
     inset: true,
     fenced: false,
-    floorDim: 0,
     paper: false,
   },
   // The greenhouse is drawn as a house room: its glass on all four sides round a paved floor.
@@ -136,9 +163,9 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     floor: SHEETS.floorGreenhouse,
     wallRow: SHEETS.wallGlass,
     wallColumn: SHEETS.wallGlass,
+    window: BAND_WINDOW,
     inset: true,
     fenced: false,
-    floorDim: 0,
     paper: false,
   },
 };
@@ -164,9 +191,10 @@ export function floorTiles(room: Room): FloorTiles {
   return { sheet, area, frames };
 }
 
-/** A run of one wall sprite repeated from its top-left over the rect. */
+/** A run of one wall sprite's frame (0 unless given) repeated from its top-left over the rect. */
 export interface WallRun extends Rect {
   readonly sheet: Sheet;
+  readonly frame?: number;
 }
 
 /** One paper tile's top-left in logical px. */
@@ -196,16 +224,18 @@ export function paperTiles(room: Room, style: RoomStyle = ROOM_STYLES[room.key])
 
 /**
  * The baked room texture's px per logical px: the finest of PROTOTYPE_SCALE
- * and every sheet the bake draws (its floor, wall and window runs, baked
- * furniture and, when laid, the paper), so no sheet is drawn below its own
- * resolution. Pixel sheets only give PROTOTYPE_SCALE; any Inked sheet gives
- * INKED_PER_LOGICAL.
+ * and every sheet the bake draws (its floor, rug, wall, face and window runs,
+ * baked furniture and, when laid, the paper), so no sheet is drawn below its
+ * own resolution. Pixel sheets only give PROTOTYPE_SCALE; any Inked sheet
+ * gives INKED_PER_LOGICAL.
  */
 export function bakeScale(room: Room, style: RoomStyle = ROOM_STYLES[room.key]): number {
   const sheets = [
     style.floor,
     style.wallRow,
     style.wallColumn,
+    ...(style.face ? [style.face.sheet] : []),
+    ...(style.rug ? [style.rug.sheet] : []),
     ...windowRuns(room).map((r) => r.sheet),
     ...furnitureRuns(room).map((r) => r.sheet),
     ...paperTiles(room, style).map((t) => t.sheet),
@@ -214,18 +244,30 @@ export function bakeScale(room: Room, style: RoomStyle = ROOM_STYLES[room.key]):
 }
 
 /**
- * Other_4's ring of 32 px tiles round the room's bounds: the top and bottom
- * rows across it, then the left and right columns between them. The shed's
- * ring, SHED_X0..SHED_Y1, and the garden's are whole tiles. The shed's
- * tiles are all `spr_wall` and each house room's all its own wall sheet; the
- * garden's rows are `spr_fence`, its columns `spr_fence_v`, and its four
- * corner tiles are left out (obj_wall Draw_0) for the mitred corners. The
- * room's windows follow (windowRuns), so the bake draws them over the top
- * row, and its furniture comes last (furnitureRuns), over the floor and walls:
- * the garden's buildings cover the ring where the plan has no fence.
+ * Other_4's ring round the room's bounds, then the room's windows
+ * (windowRuns), so the bake draws them over the wall, and last its furniture
+ * (furnitureRuns), over the floor and walls: the garden's buildings cover the
+ * ring where the plan has no fence. A room with a `face` (the shed) draws its
+ * ring as the face and caps (faceRuns); every other room as bands of whole
+ * tiles (bandRuns).
  */
 export function wallRuns(room: Room): WallRun[] {
-  const { wallRow: row, wallColumn: column, fenced } = ROOM_STYLES[room.key];
+  const style = ROOM_STYLES[room.key];
+  return [
+    ...(style.face ? faceRuns(room, style.face, style) : bandRuns(room, style)),
+    ...windowRuns(room),
+    ...furnitureRuns(room),
+  ];
+}
+
+/**
+ * The ring as 32 px tiles: the top and bottom rows across the bounds, then the
+ * left and right columns between them. Each house room's tiles are all its
+ * own wall sheet; the garden's rows are `spr_fence`, its columns
+ * `spr_fence_v`, and its four corner tiles are left out (obj_wall Draw_0) for
+ * the mitred corners.
+ */
+function bandRuns(room: Room, { wallRow: row, wallColumn: column, fenced }: RoomStyle): WallRun[] {
   const { x, y, w, h } = room.bounds;
   const bottom = y + h - TILE;
   const right = x + w - TILE;
@@ -239,9 +281,44 @@ export function wallRuns(room: Room): WallRun[] {
     { sheet: row, x: rowFrom, y: bottom, w: rowW, h: TILE },
     { sheet: column, x, y: top, w: TILE, h: columnEnd - top },
     { sheet: column, x: right, y: top, w: TILE, h: columnEnd - top },
-    ...windowRuns(room),
-    ...furnitureRuns(room),
   ];
+}
+
+/**
+ * The ring as a back wall's face and caps: the face's tiles across the top
+ * band between the side walls, standing on the floor line; the side walls'
+ * caps on their bands' inner edges from the face's top down to the south
+ * band; the south wall's cap on its band's inner edge across both side caps.
+ * The bands' outer parts show the paper. Each tile is its own run, its frame
+ * hashed from its column and row as the floor's (floorFrame), so neighbours
+ * differ. Collision is still the whole ring (ringWalls).
+ */
+function faceRuns(room: Room, face: WallFace, { wallRow, wallColumn }: RoomStyle): WallRun[] {
+  const { x, y, w, h } = room.bounds;
+  const faceTop = y + TILE - face.height;
+  const left = x + TILE - face.cap;
+  const right = x + w - TILE;
+  const south = y + h - TILE;
+  return [
+    ...tileRuns(face.sheet, { x: x + TILE, y: faceTop, w: right - x - TILE, h: face.height }),
+    ...tileRuns(wallColumn, { x: left, y: faceTop, w: face.cap, h: south - faceTop }),
+    ...tileRuns(wallColumn, { x: right, y: faceTop, w: face.cap, h: south - faceTop }),
+    ...tileRuns(wallRow, { x: left, y: south, w: right + face.cap - left, h: face.cap }),
+  ];
+}
+
+/** The rect cut into the sheet's frames at their logical size, rows top to bottom, each frame hashed from where it lands. */
+function tileRuns(sheet: Sheet, area: Rect): WallRun[] {
+  const tw = sheet.frameWidth / sheetPxPerLogical(sheet);
+  const th = sheet.frameHeight / sheetPxPerLogical(sheet);
+  return Array.from({ length: Math.ceil(area.h / th) }, (_, row) =>
+    Array.from({ length: Math.ceil(area.w / tw) }, (_, column) => {
+      const x = area.x + column * tw;
+      const y = area.y + row * th;
+      const frame = floorFrame(Math.floor(x / TILE), Math.floor(y / TILE), sheet.frames);
+      return { sheet, frame, x, y, w: tw, h: th };
+    }),
+  ).flat();
 }
 
 /** Each baked piece of the room's furniture as a run of its sheet over its rect, in the room's order; the sorted pieces are sprites (furnitureSprites). */
@@ -251,10 +328,17 @@ export function furnitureRuns(room: Room): WallRun[] {
     .map(({ sheet, x, y, w, h }) => ({ sheet, x, y, w, h }));
 }
 
-/** Each of the room's windows as a run of `spr_window` along its top wall band, one 16 px pane a tile. */
+/**
+ * Each of the room's windows as a run of its style's window sheet, its top
+ * `top` above the floor line and its sheet's height tall: in the house rooms
+ * `spr_window` along the top wall band, one 16 px pane a tile; in the shed
+ * one `spr_shed_window` on the back wall's face.
+ */
 export function windowRuns(room: Room): WallRun[] {
-  const { y } = room.bounds;
-  return room.windows.map(({ x, w }) => ({ sheet: SHEETS.window, x, y, w, h: TILE }));
+  const { sheet, top } = ROOM_STYLES[room.key].window;
+  const y = room.bounds.y + TILE - top;
+  const h = sheet.frameHeight / sheetPxPerLogical(sheet);
+  return room.windows.map(({ x, w }) => ({ sheet, x, y, w, h }));
 }
 
 export interface ColourRect extends Rect {
@@ -360,14 +444,39 @@ export function seasonWash(room: Room, season: Season): Wash | undefined {
   return isIndoor(room) ? undefined : GARDEN_SEASON_WASHES[season];
 }
 
-/** A prop's sprite: sheet and frame, centred on (x, y) at `scale`, drawn at `depth`. */
+/**
+ * A prop's sprite: sheet and frame, its origin (x centre, `originY` down the
+ * frame: 0.5 its centre, 1 its bottom edge) at (x, y), drawn at `scale` and
+ * `depth`.
+ */
 export interface PropSprite {
   readonly sheet: Sheet;
   readonly frame: number;
   readonly x: number;
   readonly y: number;
+  readonly originY: number;
   readonly scale: number;
   readonly depth: number;
+}
+
+/**
+ * A sheet's sprite on the footprint centred on (x, y), `h` deep, at one
+ * logical px per sheetPxPerLogical sheet px: an Inked sheet stands
+ * bottom-centre on the footprint's bottom edge, so its drawn height rises
+ * above the footprint (the scale rule); a pixel sheet is centred on it at
+ * SPRITE_SCALE, as the prototype drew it.
+ */
+function onFootprint(
+  sheet: Sheet,
+  frame: number,
+  x: number,
+  y: number,
+  h: number,
+  depth: number,
+): PropSprite {
+  const scale = 1 / sheetPxPerLogical(sheet);
+  if (sheet.art === 'inked') return { sheet, frame, x, y: y + h / 2, originY: 1, scale, depth };
+  return { sheet, frame, x, y, originY: 0.5, scale, depth };
 }
 
 const PROP_SHEETS: Record<string, Sheet> = {
@@ -377,40 +486,34 @@ const PROP_SHEETS: Record<string, Sheet> = {
 };
 
 /**
- * The prop's sprite, centred on the prop: the workbench, planting table and
- * kiosk at 1x, a door (any prop in a wall, the side gate too) at
- * 1x on the centre of its rect (spr_door's origin is
- * its top-left; each door's rect is that 32 px square, halved), in its own
- * `sheet` if it has one (the study's glazed double door is 64x32), a source
- * plant's species frame at 1x, and none for a display spot, which is drawn
- * by the furniture it is on (obj_pedestal's 1.5x pedestal is gone). A prop sorts
- * against the player at its bottom edge; a door sits in its wall or fence, so
- * it sorts at its top edge, behind the player as the walls are (obj_player_2d
- * Step_0 draws the player in front of walls and doors).
+ * The prop's sprite on its rect (onFootprint): the shed's Inked workbench,
+ * planting table and kiosk standing on their footprints' bottom edges, a door
+ * (any prop in a wall, the side gate too) in its own `sheet` if it has one
+ * (the study's glazed double door is 64x32, the shed's Inked doors stand on
+ * their rects' bottom edges), else spr_door at 1x on the centre of its rect
+ * (spr_door's origin is its top-left; each door's rect is that 32 px square,
+ * halved), a source plant's species frame at 1x, and none for a display spot,
+ * which is drawn by the furniture it is on (obj_pedestal's 1.5x pedestal is
+ * gone). A prop sorts against the player at its bottom edge; a door sits in
+ * its wall or fence, so it sorts at its top edge, behind the player as the
+ * walls are (obj_player_2d Step_0 draws the player in front of walls and doors).
  */
 export function propSprite(prop: Prop): PropSprite | undefined {
-  const at = { x: prop.x, y: prop.y, frame: 0, scale: SPRITE_SCALE, depth: prop.y + prop.h / 2 };
+  const { x, y, h } = prop;
   if (prop.speciesKey) {
-    return { ...at, sheet: SHEETS.sourcePlant, frame: sourcePlantFrame(prop.speciesKey) };
+    return onFootprint(SHEETS.sourcePlant, sourcePlantFrame(prop.speciesKey), x, y, h, y + h / 2);
   }
   if (prop.pedestalKey !== undefined) return undefined;
-  if (prop.wall) return { ...at, sheet: prop.sheet ?? SHEETS.door, depth: prop.y - prop.h / 2 };
+  if (prop.wall) return onFootprint(prop.sheet ?? SHEETS.door, 0, x, y, h, y - h / 2);
   const sheet = PROP_SHEETS[prop.key];
-  return sheet && { ...at, sheet };
+  return sheet && onFootprint(sheet, 0, x, y, h, y + h / 2);
 }
 
-/** Each sorted piece of furniture's sprite, frame 0 centred on its rect, sorting against the player at its bottom edge as a prop does. */
+/** Each sorted piece of furniture's sprite, frame 0 on its rect (onFootprint), sorting against the player at its bottom edge as a prop does. */
 export function furnitureSprites(room: Room): PropSprite[] {
   return room.furniture
     .filter((f) => f.sorted)
-    .map(({ sheet, x, y, w, h }) => ({
-      sheet,
-      frame: 0,
-      x: x + w / 2,
-      y: y + h / 2,
-      scale: SPRITE_SCALE,
-      depth: y + h,
-    }));
+    .map(({ sheet, x, y, w, h }) => onFootprint(sheet, 0, x + w / 2, y + h / 2, h, y + h));
 }
 
 /** obj_pedestal Draw_0: the label's top, below the pedestal's centre; `(empty)` in grey, else the tree's label in white. */
@@ -454,7 +557,7 @@ export function propShadow(prop: Prop): Shadow | undefined {
 /**
  * Draw_0's ground shadow under each piece of the shed's decor, black at 0.18
  * alpha: `draw_ellipse(dx - w/3, dy - 4, dx + w/3, dy + 2)` round the
- * sprite's bottom-centre origin, `w` its prototype width. The bake draws the
+ * sprite's bottom-centre origin, `w` the piece's width in prototype px. The bake draws the
  * baked pieces' on the floor, under the furniture as the prototype drew each
  * before its sprite; the sorted pieces' are drawn live (sortedFurnitureShadows).
  */
@@ -471,7 +574,7 @@ function decorShadows(furniture: readonly Furniture[]): Shadow[] {
   return furniture
     .filter((f) => f.shadow)
     .map(({ x, y, w, h }) => {
-      const third = w / SPRITE_SCALE / 3;
+      const third = (w * PROTOTYPE_SCALE) / 3;
       return ellipse(x + w / 2, y + h, [-third, -4, third, 2], 0.18);
     });
 }

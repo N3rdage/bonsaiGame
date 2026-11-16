@@ -13,7 +13,7 @@
  */
 
 import type { SpeciesKey } from '../sim/types';
-import { SHEETS, type Sheet } from './assets';
+import { SHEETS, sheetPxPerLogical, type Sheet } from './assets';
 import { fromPrototype } from './prototype';
 
 export { PROTOTYPE_SCALE, fromPrototype } from './prototype';
@@ -64,7 +64,7 @@ export interface Prop {
   readonly target?: DoorTarget;
   /** Doors only: the wall the door sits in. */
   readonly wall?: Wall;
-  /** Doors only: the door's sprite when it is not the prototype's `spr_door` (the study's glazed doors and the garden's to them, the side gate's two sides, the house's side-on doors between rooms). */
+  /** Doors only: the door's sprite when it is not the prototype's `spr_door` (the study's glazed doors and the garden's to them, the side gate's two sides, the house's side-on doors between rooms, the shed's Inked doors). */
   readonly sheet?: Sheet;
   /** Garden source plants only (obj_source_plant's `species_key`): what a cutting is of. */
   readonly speciesKey?: SpeciesKey;
@@ -213,21 +213,23 @@ export function prop(
 }
 
 /**
- * obj_game_controller Draw_0's decor: `sheet`'s one frame at 1x, its
- * bottom-centre origin (each sprite's `.yy`) at prototype (px, py), so the
- * rect is the frame halved, standing on that point. Not solid: the
- * prototype's decor was draw-only, with no collision, and a solid shelf
- * against the top wall would block the walk up from the left half of the
- * shed along y 66. A piece standing on the floor is `sorted` against the
- * player; the wall-mounted shelf stays in the bake.
+ * obj_game_controller Draw_0's decor: `sheet`'s one frame, its bottom-centre
+ * origin (each sprite's `.yy`) at prototype (px, py), so the rect is the
+ * frame at its logical size (sheetPxPerLogical) standing on that foot point.
+ * Not solid: the prototype's decor was draw-only, with no collision, and a
+ * solid shelf against the top wall would block the walk up from the left half
+ * of the shed along y 66. A piece standing on the floor is `sorted` against
+ * the player; the shelf stays in the bake.
  */
 function decor(sheet: Sheet, px: number, py: number, sorted: boolean): Furniture {
+  const w = sheet.frameWidth / sheetPxPerLogical(sheet);
+  const h = sheet.frameHeight / sheetPxPerLogical(sheet);
   return {
     sheet,
-    x: fromPrototype(px - sheet.frameWidth / 2),
-    y: fromPrototype(py - sheet.frameHeight),
-    w: fromPrototype(sheet.frameWidth),
-    h: fromPrototype(sheet.frameHeight),
+    x: fromPrototype(px) - w / 2,
+    y: fromPrototype(py) - h,
+    w,
+    h,
     solid: false,
     shadow: true,
     sorted,
@@ -240,7 +242,7 @@ export const SHED_ROOM: Room = {
   height: HEIGHT,
   bounds: SHED_BOUNDS,
   // Draw_73's spr_window, 56 px wide, centred at prototype x 560 in the top
-  // wall band: drawn as the house rooms' window, two 16 px panes centred on 280.
+  // wall: 32 px centred on 280, drawn on the back wall's face (roomArt's windowRuns).
   windows: [{ x: 264, w: 32 }],
   // Step_0: clamp(x, 8, room_width - 8), against the room's bounds.
   edgeMargin: fromPrototype(8),
@@ -263,17 +265,21 @@ export const SHED_ROOM: Room = {
     // saves before version 4 migrate their trees there (save.ts).
     // inst_52E224DC: a 32x32 door with its origin top-left at (464, 416), on the
     // bottom wall; its creation code: target_room = rm_garden_back (the landing is derived, doors.ts).
+    // Drawn as the opening in the south wall's cap.
     {
       ...prop('door', 'Door', 'To Garden', 464 + 16, 416 + 16, 16, 16),
       wall: 'S',
       target: { room: 'garden', door: 'door' },
+      sheet: SHEETS.shedDoorS,
     },
     // New content (the prototype had no interiors): the lounge door, the same
-    // 32 px square in the top wall, to the lounge's door back to the shed.
+    // 32 px square in the top wall, to the lounge's door back to the shed,
+    // drawn front-on in the back wall's face.
     {
       ...prop('door_lounge', 'Door', 'To Lounge', 464 + 16, 96 + 16, 16, 16),
       wall: 'N',
       target: { room: 'lounge', door: 'door' },
+      sheet: SHEETS.shedDoor,
     },
   ],
   // rm_shed's background colour 4279770660 is ABGR 0xff181e24.

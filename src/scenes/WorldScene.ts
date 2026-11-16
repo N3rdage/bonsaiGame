@@ -158,7 +158,6 @@ import {
   PLAYER_FEET,
   PLAYER_SCALE,
   SHEETS,
-  SPRITE_SCALE,
   playerFrame,
   sheetPxPerLogical,
   type Sheet,
@@ -207,7 +206,7 @@ const TOAST_MS = 2000;
 const PLAYER_H = SHEETS.player.frameHeight * PLAYER_SCALE;
 /** The sprite's origin: its x centre, and `PLAYER_FEET` above its bottom edge, so the feet land at y + PLAYER_FEET. */
 const PLAYER_ORIGIN_Y = (PLAYER_H - PLAYER_FEET) / PLAYER_H;
-/** The baked room (floor, dim, rug, walls) under everything, then the drop shadows; props and the player sort by y above 0. */
+/** The baked room (floor, rug, walls) under everything, then the drop shadows; props and the player sort by y above 0. */
 const FLOOR_DEPTH = -2;
 const SHADOW_DEPTH = -1;
 /**
@@ -228,8 +227,6 @@ void main () { gl_FragColor = texture2D(uMainSampler, outTexCoord); }`,
     setUniform('uMainSampler', 0);
   },
 };
-/** The rug's corner radius: draw_roundrect takes none, so this approximates GameMaker's own. */
-const RUG_RADIUS = 3;
 const HUD_DEPTH = 10_000;
 /** Modal panels and their dimmer sit above the HUD, so a press on the HUD under them hits the dimmer. */
 const MODAL_DEPTH = 10_001;
@@ -1422,6 +1419,7 @@ export class WorldScene extends Phaser.Scene {
         return [
           this.add
             .sprite(art.x, art.y, art.sheet.key, art.frame)
+            .setOrigin(0.5, art.originY)
             .setScale(art.scale)
             .setDepth(art.depth),
         ];
@@ -1429,6 +1427,7 @@ export class WorldScene extends Phaser.Scene {
       ...furnitureSprites(this.liveRoom()).map((art) =>
         this.add
           .sprite(art.x, art.y, art.sheet.key, art.frame)
+          .setOrigin(0.5, art.originY)
           .setScale(art.scale)
           .setDepth(art.depth),
       ),
@@ -1440,8 +1439,8 @@ export class WorldScene extends Phaser.Scene {
    * (bakeScale: prototype px for pixel sheets, Inked px once any sheet it
    * draws is Inked), so each tile keeps its pixels and a frame draws it as one
    * quad: the room's colour (the prototype's background layer), the paper
-   * when its style lays it, the floor tiles, the room style's dim and rug (the
-   * shed's), the decor's ground shadows, the wall or fence runs with the
+   * when its style lays it, the floor tiles, the room style's rug (the
+   * shed's), the decor's ground shadows, the wall, face or fence runs with the
    * windows and furniture, then the garden's mitred corners, and last the
    * season's wash over all of it (the gardens'). A sheet coarser than the bake
    * scale is scaled up to it; a bake finer than prototype px is
@@ -1477,32 +1476,26 @@ export class WorldScene extends Phaser.Scene {
         stampAt(floor.sheet, frame, area.x + x * tileW, area.y + y * tileH);
       });
     });
+    const { rug } = ROOM_STYLES[room.key];
+    if (rug) stampAt(rug.sheet, 0, rug.x, rug.y);
     // roomArt's rects are in logical px; the Graphics scales them up to the texture's px.
-    const rug = this.make.graphics({}, false).setScale(s);
-    const { floorDim, rug: r } = ROOM_STYLES[room.key];
-    if (floorDim > 0) rug.fillStyle(0x000000, floorDim).fillRect(area.x, area.y, area.w, area.h);
-    if (r) {
-      const line = SPRITE_SCALE;
-      rug.fillStyle(r.fill).fillRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
-      rug.lineStyle(line, r.outline).strokeRoundedRect(r.x, r.y, r.w, r.h, RUG_RADIUS);
-      rug
-        .lineStyle(line, r.border)
-        .strokeRoundedRect(r.x + r.inset, r.y + r.inset, r.w - 2 * r.inset, r.h - 2 * r.inset, 1);
-    }
+    const shadows = this.make.graphics({}, false).setScale(s);
     for (const d of furnitureShadows(room))
-      rug.fillStyle(0x000000, d.alpha).fillEllipse(d.x, d.y, d.w, d.h);
-    texture.draw(rug);
+      shadows.fillStyle(0x000000, d.alpha).fillEllipse(d.x, d.y, d.w, d.h);
+    texture.draw(shadows);
     // A run repeats its sheet's frame over its rect; a TileSprite `scale` of f draws each sheet px
     // as f bake px, so the repeated area is the rect's bake px over f and the last tile still crops.
     for (const w of wallRuns(room)) {
       const f = s / sheetPxPerLogical(w.sheet);
-      texture.repeat(w.sheet.key, 0, w.x * s, w.y * s, (w.w * s) / f, (w.h * s) / f, { scale: f });
+      texture.repeat(w.sheet.key, w.frame ?? 0, w.x * s, w.y * s, (w.w * s) / f, (w.h * s) / f, {
+        scale: f,
+      });
     }
     const corners = this.make.graphics({}, false).setScale(s);
     for (const c of fenceCorners(room)) corners.fillStyle(c.colour).fillRect(c.x, c.y, c.w, c.h);
     if (wash) corners.fillStyle(wash.colour, wash.alpha).fillRect(0, 0, room.width, room.height);
     texture.draw(corners).render();
-    rug.destroy();
+    shadows.destroy();
     corners.destroy();
     return texture;
   }

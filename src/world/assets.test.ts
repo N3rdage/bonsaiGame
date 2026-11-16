@@ -25,16 +25,23 @@ describe('sprite sheets', () => {
   it('lists the prototype sprites the rooms draw, with their frame sizes and counts', () => {
     expect(ALL_SHEETS.map((s) => [s.key, s.frameWidth, s.frameHeight, s.frames])).toEqual([
       ['spr_player', 64, 128, 16],
-      ['spr_floor_shed', 32, 32, 3],
+      ['spr_floor_shed', 64, 64, 3],
       ['spr_floor_garden', 32, 32, 3],
       ['spr_source_plant', 48, 48, 3],
       ['spr_wall', 32, 32, 1],
       ['spr_fence', 32, 32, 1],
       ['spr_fence_v', 32, 32, 1],
       ['spr_door', 32, 32, 1],
-      ['spr_workbench', 32, 32, 1],
-      ['spr_planting_table', 32, 32, 1],
-      ['spr_shop_kiosk', 32, 32, 1],
+      ['spr_shed_wall', 64, 192, 3],
+      ['spr_shed_cap', 64, 32, 3],
+      ['spr_shed_cap_v', 32, 64, 3],
+      ['spr_shed_window', 128, 96, 1],
+      ['spr_shed_door', 96, 160, 1],
+      ['spr_shed_door_s', 96, 64, 1],
+      ['spr_workbench', 192, 160, 1],
+      ['spr_planting_table', 128, 160, 1],
+      ['spr_shop_kiosk', 96, 224, 1],
+      ['spr_shed_rug', 480, 280, 1],
       ['spr_floor_lounge', 32, 32, 3],
       ['spr_wall_lounge', 32, 32, 1],
       ['spr_floor_hallway', 32, 32, 3],
@@ -54,11 +61,11 @@ describe('sprite sheets', () => {
       ['spr_bookshelf', 32, 32, 1],
       ['spr_runner', 416, 48, 1],
       ['spr_hall_table', 32, 24, 1],
-      ['spr_shelf', 56, 44, 1],
-      ['spr_tools', 36, 52, 1],
-      ['spr_watering_can', 32, 30, 1],
-      ['spr_pot_stack', 40, 40, 1],
-      ['spr_sack', 32, 34, 1],
+      ['spr_shelf', 96, 80, 1],
+      ['spr_tools', 48, 128, 1],
+      ['spr_watering_can', 64, 48, 1],
+      ['spr_pot_stack', 48, 80, 1],
+      ['spr_sack', 64, 80, 1],
       ['spr_roof', 32, 32, 1],
       ['spr_road', 64, 192, 1],
       ['spr_fence_low', 32, 32, 1],
@@ -72,16 +79,35 @@ describe('sprite sheets', () => {
     ]);
   });
 
-  it('gives every sheet a kind, the player and the paper the Inked sheets', () => {
+  it('gives every sheet a kind, the player, the paper and the shed the Inked sheets', () => {
     for (const s of ALL_SHEETS) expect(['pixel', 'inked']).toContain(s.art);
-    expect(ALL_SHEETS.filter((s) => s.art === 'inked')).toEqual([SHEETS.player, SHEETS.paper]);
+    expect(ALL_SHEETS.filter((s) => s.art === 'inked')).toEqual([
+      SHEETS.player,
+      SHEETS.floorShed,
+      SHEETS.shedWall,
+      SHEETS.shedCap,
+      SHEETS.shedCapV,
+      SHEETS.shedWindow,
+      SHEETS.shedDoor,
+      SHEETS.shedDoorS,
+      SHEETS.workbench,
+      SHEETS.plantingTable,
+      SHEETS.shopKiosk,
+      SHEETS.shedRug,
+      SHEETS.shelf,
+      SHEETS.tools,
+      SHEETS.wateringCan,
+      SHEETS.potStack,
+      SHEETS.sack,
+      SHEETS.paper,
+    ]);
   });
 
   it('draws a pixel sheet at 2 px per logical px nearest, an Inked one at 4 linear', () => {
     expect(INKED_PER_LOGICAL).toBe(4);
-    expect(SHEETS.floorShed.art).toBe('pixel');
-    expect(sheetPxPerLogical(SHEETS.floorShed)).toBe(2);
-    expect(sheetFilter(SHEETS.floorShed)).toBe('nearest');
+    expect(SHEETS.floorGarden.art).toBe('pixel');
+    expect(sheetPxPerLogical(SHEETS.floorGarden)).toBe(2);
+    expect(sheetFilter(SHEETS.floorGarden)).toBe('nearest');
     expect(sheetPxPerLogical(SHEETS.paper)).toBe(4);
     expect(sheetFilter(SHEETS.paper)).toBe('linear');
   });
@@ -110,16 +136,52 @@ describe('sprite sheets', () => {
     ]).toEqual([32, 16]);
   });
 
-  it("loads the shed's decor, packed from the prototype at its sprites' sizes", () => {
-    for (const s of [
-      SHEETS.shelf,
-      SHEETS.tools,
-      SHEETS.wateringCan,
-      SHEETS.potStack,
-      SHEETS.sack,
-    ]) {
-      expect(ALL_SHEETS).toContain(s);
-    }
+  it("draws the shed in Inked at the scale rule's logical sizes", () => {
+    const logical = (s: (typeof ALL_SHEETS)[number]) => [
+      s.frameWidth / sheetPxPerLogical(s),
+      s.frameHeight / sheetPxPerLogical(s),
+    ];
+    expect(
+      [
+        SHEETS.floorShed,
+        SHEETS.shedWall,
+        SHEETS.shedCap,
+        SHEETS.shedCapV,
+        SHEETS.shedWindow,
+        SHEETS.shedDoor,
+        SHEETS.shedDoorS,
+        SHEETS.workbench,
+        SHEETS.plantingTable,
+        SHEETS.shopKiosk,
+        SHEETS.shedRug,
+        SHEETS.shelf,
+        SHEETS.tools,
+        SHEETS.wateringCan,
+        SHEETS.potStack,
+        SHEETS.sack,
+      ].map(logical),
+    ).toEqual([
+      // The floorboard tile; the back wall's 2.4 m face; the 8 px caps, south and side.
+      [16, 16],
+      [16, 48],
+      [16, 8],
+      [8, 16],
+      // The window; the 0.8 x 2.0 m door front-on; the garden door's opening in the south cap.
+      [32, 24],
+      [24, 40],
+      [24, 16],
+      // The 1.5 x 0.6 x 0.9 m workbench, the planting table, the kiosk, the rug.
+      [48, 40],
+      [32, 40],
+      [24, 56],
+      [120, 70],
+      // The decor.
+      [24, 20],
+      [12, 32],
+      [16, 12],
+      [12, 20],
+      [16, 20],
+    ]);
   });
 
   it("loads the house rooms' and the greenhouse's generated tiles and furniture and the buildings' roof with the rest", () => {
