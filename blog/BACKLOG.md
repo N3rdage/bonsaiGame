@@ -6,7 +6,6 @@ Current published posts: see `blog/` (or the "Posts so far" list in the project 
 
 ## General candidates
 
-- **Three PRs for one feature** — splitting wire-removal across PRs #14 (core + the foliage hotfix), #16 (safety + UI), #17 (bookkeeping). The "small PR" discipline isn't about diff size — it's about keeping a feedback window open for surprise work to land.
 - **The roadmap you didn't write before** — PR #13, the playability re-order moment. Mid-session pivot from feature work to planning. From "what next?" to "here's the path." How writing the list down changed what got prioritised.
 - **How memory works** — the `.claude-memory/` system. How feedback rules accrete across sessions, how project memory differs from feedback memory, what doesn't get saved and why. Audience: people curious about AI-assisted dev mechanics specifically.
 - **The partner who sleeps** — meta on async collaboration. Drew goes to bed; Claude doesn't. Sessions resume cold. The shape of feedback loops vs. real-time human pair programming.
