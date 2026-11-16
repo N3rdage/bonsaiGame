@@ -5,13 +5,16 @@
  * facing into the room. Pure; WorldScene's `enterRoom` uses it.
  */
 
-import { PLAYER_SCALE, SHEETS } from './assets';
+import { PLAYER_FEET } from './assets';
 import { INTERACT_RANGE } from './interactables';
 import type { Facing } from './player';
 import { WALL_BAND, furnitureWalls, type Prop, type Rect, type Room, type Wall } from './shedRoom';
 
-/** The player sprite's half height, logical px: spr_player's 32 px frame at `PLAYER_SCALE` (0.75), halved, 12. */
-export const PLAYER_HALF = (SHEETS.player.frameHeight * PLAYER_SCALE) / 2;
+/**
+ * The player's half extent a landing clears, logical px: the distance from its
+ * position to its feet, `PLAYER_FEET`, 12, taken on every side.
+ */
+export const PLAYER_HALF = PLAYER_FEET;
 
 /** Room between the landing and anything it must clear: the wall, the door's footprint and its reach. */
 export const LANDING_MARGIN = 6;

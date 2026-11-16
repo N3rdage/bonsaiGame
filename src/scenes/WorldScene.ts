@@ -155,6 +155,7 @@ import {
   type WeatherProfile,
 } from '../world/weather';
 import {
+  PLAYER_FEET,
   PLAYER_SCALE,
   SHEETS,
   SPRITE_SCALE,
@@ -202,8 +203,10 @@ import type { TitleSceneData, WorldSceneData } from './sceneData';
 import { FONT_FAMILY, bodyStyle, fontLoaded, labelStyle } from './textStyle';
 
 const TOAST_MS = 2000;
-/** The player sprite's drawn height, round its centre: spr_player's 32 px at 1.5x, halved. */
+/** The player sprite's drawn height, logical px: a 128 px frame at 0.25, 32. */
 const PLAYER_H = SHEETS.player.frameHeight * PLAYER_SCALE;
+/** The sprite's origin: its x centre, and `PLAYER_FEET` above its bottom edge, so the feet land at y + PLAYER_FEET. */
+const PLAYER_ORIGIN_Y = (PLAYER_H - PLAYER_FEET) / PLAYER_H;
 /** The baked room (floor, dim, rug, walls) under everything, then the drop shadows; props and the player sort by y above 0. */
 const FLOOR_DEPTH = -2;
 const SHADOW_DEPTH = -1;
@@ -474,9 +477,12 @@ export class WorldScene extends Phaser.Scene {
     this.playerShadow = this.inWorld(
       this.add.ellipse(0, 0, shadow.w, shadow.h, 0x000000, shadow.alpha).setDepth(SHADOW_DEPTH),
     );
-    // obj_player_2d draws spr_player round its centre origin at (x, y), as here.
+    // The feet stand PLAYER_FEET below (x, y), where the prototype's centred sprite put them; the head rises above.
     this.playerSprite = this.inWorld(
-      this.add.sprite(0, 0, SHEETS.player.key, 0).setScale(PLAYER_SCALE),
+      this.add
+        .sprite(0, 0, SHEETS.player.key, 0)
+        .setScale(PLAYER_SCALE)
+        .setOrigin(0.5, PLAYER_ORIGIN_Y),
     );
     this.promptText = this.inWorld(
       this.text(0, 0, '', { ...labelStyle(this.worldUi), color: '#ffffff' })
@@ -1907,17 +1913,18 @@ export class WorldScene extends Phaser.Scene {
 
   private drawPlayer(): void {
     const { x, y, facing, walkAnim } = this.player;
-    // Sorted at the feet (the sprite is centred on y), as the props are at their bottom edges.
+    // Sorted at the feet (y + PLAYER_FEET, the sprite's bottom edge), as the props are at their bottom edges.
     this.playerSprite
       .setPosition(x, y)
       .setFrame(playerFrame(facing, walkAnim))
-      .setDepth(y + PLAYER_H / 2);
+      .setDepth(y + PLAYER_FEET);
     const shadow = playerShadow(x, y);
     this.playerShadow.setPosition(shadow.x, shadow.y);
     // Placing suppresses the props and trees: E puts the ghost's kind down instead.
     this.near = this.placing ? undefined : nearestInteractable(this.player, this.targets);
     this.drawGhost();
-    this.promptText.setText(this.prompt()).setPosition(x, y - PLAYER_H / 2 - 2);
+    // Just above the head, the sprite's top edge.
+    this.promptText.setText(this.prompt()).setPosition(x, y + PLAYER_FEET - PLAYER_H - 2);
     this.follow();
   }
 

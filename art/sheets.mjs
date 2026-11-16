@@ -19,9 +19,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SPRITES = join(ROOT, 'archive', 'gamemaker', 'sprites');
 const OUT = join(ROOT, 'public', 'assets');
 
-/** The prototype sprites the rooms, props and player draw (src/world/assets.ts). */
+/** The prototype sprites the rooms and props draw (src/world/assets.ts). */
 const NAMES = [
-  'spr_player',
   'spr_floor_shed',
   'spr_floor_garden',
   'spr_source_plant',

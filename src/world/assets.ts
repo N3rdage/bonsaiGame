@@ -1,6 +1,6 @@
 /**
  * The sprite sheets the world draws, as pure data shared by the boot scene
- * (which loads them), the world scene and the tests. Each sheet is one
+ * (which loads them), the world scene and the tests. Each pixel sheet is one
  * prototype sprite, packed by `npm run art:sheets` (art/sheets.mjs) from
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
  * horizontal strip in the order of the sprite's `.yy` frames. The house
@@ -9,7 +9,9 @@
  * the buildings' roofs seen from the garden and the front garden's sheets.
  * The shed's window is the house rooms' window, not the prototype's
  * `spr_window`, which shares its name. `npm run art:paper`
- * (art/inked/paperSheet.mjs) draws the Inked rooms' paper, `spr_paper`.
+ * (art/inked/paperSheet.mjs) draws the Inked rooms' paper, `spr_paper`, and
+ * `npm run art:player` (art/inked/player.mjs) the Inked player, `spr_player`,
+ * in the prototype's frame order.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -71,7 +73,8 @@ export function sheetFilter(s: Sheet): 'nearest' | 'linear' {
 }
 
 export const SHEETS = {
-  player: sheet('spr_player', 16),
+  // The player, drawn by art/inked/player.mjs: 16 frames of 16 x 32 logical px, a 1.7 m gardener.
+  player: inked('spr_player', 16, 16, 32),
   floorShed: sheet('spr_floor_shed', 3),
   floorGarden: sheet('spr_floor_garden', 3),
   sourcePlant: sheet('spr_source_plant', 3, 48),
@@ -139,8 +142,14 @@ export function sheetUrl(base: string, s: Sheet): string {
 
 /** Logical px per prototype px: a sprite drawn at 1x in the prototype is drawn at this scale. */
 export const SPRITE_SCALE = 1 / PROTOTYPE_SCALE;
-/** obj_player_2d draws its sprite at 1.5x. */
-export const PLAYER_SCALE = 1.5 * SPRITE_SCALE;
+/** The player sheet's draw scale: one logical px per INKED_PER_LOGICAL sheet px, 0.25, so a frame is 16 x 32 logical px. */
+export const PLAYER_SCALE = 1 / sheetPxPerLogical(SHEETS.player);
+/**
+ * Logical px from the player's position (PlayerState's x, y) down to its feet,
+ * the frame's bottom edge: the prototype's sprite, 24 px drawn, centred on the
+ * position, halved, 12. The frame's extra height rises above the position.
+ */
+export const PLAYER_FEET = 12;
 
 /** obj_player_2d Draw_0: the sheet's rows of four, down, up, left, right. */
 const FACING_ROW: Record<Facing, number> = { down: 0, up: 1, left: 2, right: 3 };
