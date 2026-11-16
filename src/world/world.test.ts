@@ -134,16 +134,28 @@ describe('shed room', () => {
     expect(door(SHED_ROOM).y - y).toBeGreaterThan(INTERACT_RANGE);
   });
 
-  it("stands Draw_0's five decor sprites on their bottom-centre origins, halved, none of them solid", () => {
+  it("stands Draw_0's five decor pieces on their prototype foot points, halved, at their Inked frames' sizes, none of them solid", () => {
     expect(SHED_ROOM.furniture.map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual([
-      // spr_shelf 56x44 at (440, 174), spr_tools 36x52 at (212, 352), spr_watering_can
-      // 32x30 at (706, 256), spr_pot_stack 40x40 at (706, 388), spr_sack 32x34 at (300, 384).
-      ['spr_shelf', 206, 65, 28, 22],
-      ['spr_tools', 97, 150, 18, 26],
-      ['spr_watering_can', 345, 113, 16, 15],
-      ['spr_pot_stack', 343, 174, 20, 20],
-      ['spr_sack', 142, 175, 16, 17],
+      // Feet at prototype (440, 174), (212, 352), (706, 256), (706, 388) and (300, 384), halved:
+      // (220, 87), (106, 176), (353, 128), (353, 194), (150, 192). The Inked frames: the shelf
+      // 24 x 20, the tools 12 x 32, the watering can 16 x 12, the pot stack 12 x 20, the sack 16 x 20.
+      ['spr_shelf', 208, 67, 24, 20],
+      ['spr_tools', 100, 144, 12, 32],
+      ['spr_watering_can', 345, 116, 16, 12],
+      ['spr_pot_stack', 347, 174, 12, 20],
+      ['spr_sack', 142, 172, 16, 20],
     ]);
+    // Each rect's bottom-centre is its prototype foot point, halved.
+    expect(SHED_ROOM.furniture.map(({ x, y, w, h }) => [x + w / 2, y + h])).toEqual([
+      [fromPrototype(440), fromPrototype(174)],
+      [fromPrototype(212), fromPrototype(352)],
+      [fromPrototype(706), fromPrototype(256)],
+      [fromPrototype(706), fromPrototype(388)],
+      [fromPrototype(300), fromPrototype(384)],
+    ]);
+    for (const f of SHED_ROOM.furniture) {
+      expect([f.w, f.h]).toEqual([f.sheet.frameWidth / 4, f.sheet.frameHeight / 4]);
+    }
     expect(SHED_ROOM.furniture.every((f) => !f.solid && f.shadow === true)).toBe(true);
     // The floor clutter sorts against the player; the wall-mounted shelf and every other room's furniture are baked.
     expect(SHED_ROOM.furniture.map((f) => f.sorted)).toEqual([false, true, true, true, true]);
@@ -177,7 +189,7 @@ describe('shed room', () => {
         const art = propSprite(p);
         const drawn = art && {
           x: art.x - (art.sheet.frameWidth * art.scale) / 2,
-          y: art.y - (art.sheet.frameHeight * art.scale) / 2,
+          y: art.y - art.sheet.frameHeight * art.scale * art.originY,
           w: art.sheet.frameWidth * art.scale,
           h: art.sheet.frameHeight * art.scale,
         };
