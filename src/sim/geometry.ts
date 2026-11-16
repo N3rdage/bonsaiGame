@@ -1,6 +1,6 @@
 /**
- * Trunk and branch curve geometry, in display units (sim cm scaled by
- * DISPLAY_SCALE). This is the single source of truth for tree shape: the
+ * Trunk and branch curve geometry, in display units (sim lengths converted to
+ * metres, then scaled by DISPLAY_SCALE). This is the single source of truth for tree shape: the
  * renderer, the trunk hotspot UI and the trunk-shape style scorers all read
  * from here, so what the player sees is what they are scored on. Don't write a
  * parallel curve derivation; call these.
@@ -10,11 +10,16 @@
  * branch_frame_at. The vertex-buffer mesh builder itself is not ported here.
  */
 
-import type { BonsaiTree, Branch, Frame, TrunkMovement, Vec3 } from './types';
+import type { BonsaiTree, Branch, Frame, Trunk, TrunkMovement, Vec3 } from './types';
 import { clamp, dcos, dsin, vec3, vec3Normalize, vec3Rotate } from './vec3';
 
-/** 1 sim cm renders as 4 viewer units. */
+/**
+ * Display units per metre: every call site converts sim lengths to metres
+ * first (cm / 100, mm / 1000), so 1 m renders as 4 viewer units.
+ */
 export const DISPLAY_SCALE = 4;
+/** Smallest trunk radius in display units, so a fully tapered apex keeps a drawn tip. */
+export const TRUNK_MIN_RADIUS = 0.001;
 /** Degrees of tangent deflection per trunk-wire click. */
 export const TRUNK_BEND_PER_EVENT = 20;
 /** Degrees of bend added per branch-wire click. */
@@ -22,6 +27,17 @@ export const BRANCH_BEND_PER_CLICK = 15;
 
 function lerp(a: number, b: number, f: number): number {
   return a + (b - a) * f;
+}
+
+/**
+ * Trunk radius in display units at fraction `t` of its height: the girth (a
+ * diameter in mm) halved at the base, tapering linearly to `1 - taper` of that
+ * at the apex, never under `TRUNK_MIN_RADIUS`. The trunk's bark rings, branch
+ * bases and wire anchors all read it, so they meet on the same surface.
+ */
+export function trunkRadiusAt(trunk: Trunk, t: number): number {
+  const base = (trunk.girthMm / 1000 / 2) * DISPLAY_SCALE;
+  return Math.max(lerp(base, base * (1 - trunk.taper), t), TRUNK_MIN_RADIUS);
 }
 
 /**
@@ -157,8 +173,7 @@ export function branchPoint(tree: BonsaiTree, branch: Branch, tAlong: number): V
   const ot = clamp(branch.originY / trunk.heightCm, 0, 1);
 
   const tf = trunkFrameAt(tree, ot);
-  const baseR = (trunk.girthMm / 1000 / 2) * DISPLAY_SCALE;
-  const trunkR = lerp(baseR, baseR * (1 - trunk.taper), ot);
+  const trunkR = trunkRadiusAt(trunk, ot);
 
   // Branch attaches to the trunk surface in a direction expressed in the
   // trunk's LOCAL basis: cos(angle) along normal, sin(angle) along binormal.

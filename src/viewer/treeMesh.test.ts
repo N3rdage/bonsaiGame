@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { branchFrameAt, branchPoint, trunkFrameAt, trunkFrames } from '../sim/geometry';
+import {
+  TRUNK_MIN_RADIUS,
+  branchFrameAt,
+  branchPoint,
+  trunkFrameAt,
+  trunkFrames,
+  trunkRadiusAt,
+} from '../sim/geometry';
 import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { BonsaiTree, Branch, Vec3 } from '../sim/types';
@@ -15,7 +22,6 @@ import {
   BRANCH_RING_SEGMENTS,
   BRANCH_SEGMENTS,
   BRANCH_TIP_FRACTION,
-  TRUNK_MIN_RADIUS,
   TRUNK_RING_SEGMENTS,
   WIRE_FULL_BEND_DEG,
   WIRE_GAUGE_MAX,
@@ -36,7 +42,6 @@ import {
   ringU,
   speciesBark,
   stitchRings,
-  trunkBaseRadius,
   tubeNormals,
   wireCoilOffset,
   wireCoilSegments,
@@ -175,7 +180,7 @@ describe('tree mesh constants (scr_bonsai_mesh build_trunk / build_branch)', () 
   });
 
   it('derives the trunk base radius from girth in mm, as a diameter, at display scale 4', () => {
-    expect(trunkBaseRadius(starterTree())).toBeCloseTo(0.036, 12);
+    expect(trunkRadiusAt(starterTree().trunk, 0)).toBeCloseTo(0.036, 12);
   });
 });
 
@@ -674,5 +679,23 @@ describe('wire (scr_bonsai_mesh add_wire_coil / add_wire_anchor)', () => {
     const b = d.x * f.binormal.x + d.y * f.binormal.y + d.z * f.binormal.z;
     expect(n / offset).toBeCloseTo(dcos(branch.angle), 9);
     expect(b / offset).toBeCloseTo(dsin(branch.angle), 9);
+  });
+
+  it('wraps the anchor on the floored trunk radius at a fully tapered tip', () => {
+    const { tree, branch } = wired();
+    tree.trunk.taper = 1;
+    branch.originY = tree.trunk.heightCm;
+    const list = new RecordingList();
+    addWireCoil(list, tree, branch);
+    const wireR = wireRadius(branch);
+    const offset = TRUNK_MIN_RADIUS + wireR;
+    const anchorH = ANCHOR_TURNS * WIRE_PITCH_DIAMETERS * (2 * wireR);
+    const f = trunkFrameAt(tree, 1);
+    for (let i = 0; i <= ANCHOR_SEGMENTS; i++) {
+      const s = i / ANCHOR_SEGMENTS;
+      const centre = centroid(wireRing(list.points, COIL_SEGS * 36, ANCHOR_SEGMENTS, i));
+      const axial = (s - 0.5) * anchorH;
+      expect(Math.abs(dist(centre, f.pos) - Math.hypot(offset, axial))).toBeLessThan(1e-9);
+    }
   });
 });

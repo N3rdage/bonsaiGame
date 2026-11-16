@@ -15,7 +15,13 @@
  */
 
 import type { BonsaiTree, Branch, Frame, SpeciesKey, Vec3 } from '../sim/types';
-import { DISPLAY_SCALE, branchFrameAt, trunkFrameAt, trunkFrames } from '../sim/geometry';
+import {
+  DISPLAY_SCALE,
+  branchFrameAt,
+  trunkFrameAt,
+  trunkFrames,
+  trunkRadiusAt,
+} from '../sim/geometry';
 import { getSpecies } from '../sim/species';
 import { clamp, dcos, dsin } from '../sim/vec3';
 import { hexToRgb } from './foliageMesh';
@@ -23,7 +29,6 @@ import { TriangleList, unit, type MeshArrays } from './meshArrays';
 import type { Rgb } from './potPalette';
 
 export const TRUNK_RING_SEGMENTS = 10;
-export const TRUNK_MIN_RADIUS = 0.001;
 
 /** Rings along a branch, base to tip, minus one. */
 export const BRANCH_SEGMENTS = 6;
@@ -62,11 +67,6 @@ export function speciesBark(key: SpeciesKey): Bark {
 
 function lerp(a: number, b: number, f: number): number {
   return a + (b - a) * f;
-}
-
-/** Trunk radius at the soil line in display units (girth is a diameter in mm). */
-export function trunkBaseRadius(tree: BonsaiTree): number {
-  return (tree.trunk.girthMm / 1000 / 2) * DISPLAY_SCALE;
 }
 
 /** `segments` points around `centre` in the plane spanned by the unit vectors u and v. */
@@ -236,13 +236,12 @@ function dist(a: Vec3, b: Vec3): number {
 }
 
 function buildTrunk(list: TriangleList, tree: BonsaiTree, bark: Rgb): void {
-  const base = trunkBaseRadius(tree);
   const frames = trunkFrames(tree);
   const n = frames.length;
   const tube = new Tube(list, bark);
   frames.forEach((f, i) => {
     const t = n > 1 ? i / (n - 1) : 0;
-    const r = Math.max(lerp(base, base * (1 - tree.trunk.taper), t), TRUNK_MIN_RADIUS);
+    const r = trunkRadiusAt(tree.trunk, t);
     tube.ring(f.pos, buildRingWithBasis(f.pos, r, TRUNK_RING_SEGMENTS, f.normal, f.binormal));
   });
 }
@@ -345,8 +344,7 @@ export function addWireAnchor(
 ): void {
   const trunk = tree.trunk;
   const t = clamp(branch.originY / trunk.heightCm, 0, 1);
-  const baseR = trunkBaseRadius(tree);
-  const trunkR = lerp(baseR, baseR * (1 - trunk.taper), t);
+  const trunkR = trunkRadiusAt(trunk, t);
   const f = trunkFrameAt(tree, t);
 
   const anchorH = ANCHOR_TURNS * WIRE_PITCH_DIAMETERS * (2 * wireR);
