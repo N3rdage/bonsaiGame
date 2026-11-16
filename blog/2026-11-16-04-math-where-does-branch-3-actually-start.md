@@ -11,7 +11,7 @@ slug: math-where-does-branch-3-actually-start
 tags: [math, 3d, geometry, typescript]
 ---
 
-_The next post in the math sub-series, and a debt paid. Both the branch-curvature post and the 3D-viewer walking tour ended by promising this one, and both skipped over the same three lines of code to get to the more exciting bits. Same audience as before: you know what `cos` and `sin` do to an angle, and I'll explain everything else as it comes up._
+_The next post in the math sub-series, and a debt paid. Both the [branch-curvature post](./2026-05-09-01-math-how-a-branch-learns-to-curve.md) and the [3D-viewer walking tour](./2026-06-09-01-math-the-3d-viewer-is-mostly-arithmetic.md) ended by promising this one, and both skipped over the same three lines of code to get to the more exciting bits. Same audience as before: you know what `cos` and `sin` do to an angle, and I'll explain everything else as it comes up._
 
 ## The three lines I kept skipping
 
@@ -39,7 +39,7 @@ Each piece of it is something an earlier post already built. The new part is how
 
 ## A circle, again
 
-The first post in this series drew a circle. A point on a circle of radius `r` around a centre `(cx, cy)`, at angle `a`, is:
+The first post in this series [drew a circle](./2026-05-01-02-math-drawing-a-circle.md). A point on a circle of radius `r` around a centre `(cx, cy)`, at angle `a`, is:
 
 ```
 x = cx + cos(a) × r
@@ -87,7 +87,7 @@ with `z = 0.4` because the trunk's centre line rises 0.4 units (10 cm) to reach 
 
 But trunks in this game bend. The player wires them, each wire click tips the trunk 20 degrees from that height upward, and a cascade style can carry the trunk over the horizontal and down. Once the trunk leans, "the horizontal plane through the centre line" is the wrong circle. A slice straight across a leaning tube is not horizontal; it is tilted to stay square to the tube.
 
-This is where the trunk-bending post pays out. To draw the trunk's own rings, the trunk already carries a **frame** at every height: three unit-length arrows, each at right angles to the other two (an "orthonormal" set):
+This is where the [trunk-bending post](./2026-05-08-01-math-how-to-bend-a-trunk.md) pays out. To draw the trunk's own rings, the trunk already carries a **frame** at every height: three unit-length arrows, each at right angles to the other two (an "orthonormal" set):
 
 - the **tangent**, the direction the trunk is growing at that height;
 - the **normal** and the **binormal**, two directions at right angles to the tangent, and so lying flat in the slice across the trunk.
