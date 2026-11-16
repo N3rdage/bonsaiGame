@@ -3,7 +3,15 @@ import { createRequire } from 'node:module';
 import { inflateSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { DESKTOP_UI, PHONE_UI } from '../world/uiScale';
-import { FONT_FAMILY, FONT_KEY, bodyStyle, labelStyle } from './textStyle';
+import {
+  FONT_FAMILY,
+  FONT_KEY,
+  TEXT_BACKING,
+  bodyStyle,
+  hudStyle,
+  labelStyle,
+  worldLabelStyle,
+} from './textStyle';
 
 /** The browser `monospace` default (DejaVu Sans Mono, Liberation Mono, Courier New, Menlo): 0.6 em an advance. */
 const MONOSPACE_ADVANCE_EM = 0.6;
@@ -63,6 +71,23 @@ describe('the pixel font', () => {
     expect(labelStyle(PHONE_UI)).toEqual(style('10px'));
     expect(bodyStyle(PHONE_UI)).toEqual(style('10px'));
     expect(labelStyle({ hit: 44, label: 14, body: 14 }).fontSize).toBe('14px');
+  });
+
+  it('backs the HUD rows and the world labels with Inked ink at 0.6 alpha, 2 px across and 1 px down', () => {
+    // INK in art/inked/style.mjs.
+    expect(TEXT_BACKING).toEqual({
+      backgroundColor: 'rgba(50, 42, 38, 0.6)',
+      padding: { x: 2, y: 1 },
+    });
+    for (const ui of [DESKTOP_UI, PHONE_UI]) {
+      expect(hudStyle(ui)).toEqual({ ...bodyStyle(ui), ...TEXT_BACKING });
+      expect(worldLabelStyle(ui)).toEqual({ ...labelStyle(ui), ...TEXT_BACKING });
+      // Panel copy, buttons and the title sit on their own panels: no plate.
+      expect(labelStyle(ui)).not.toHaveProperty('backgroundColor');
+      expect(bodyStyle(ui)).not.toHaveProperty('backgroundColor');
+      expect(labelStyle(ui)).not.toHaveProperty('padding');
+      expect(bodyStyle(ui)).not.toHaveProperty('padding');
+    }
   });
 
   it('is monospace at 0.4 em an advance (zero-width marks aside), narrower than monospace', () => {

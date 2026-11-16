@@ -100,8 +100,8 @@ const BAND_WINDOW: WindowStyle = { sheet: SHEETS.window, top: TILE };
 /** The house rooms (new content: lounge, hallway, study) are inset as the shed is, each with its own floor and a ring of its own wall sheet, and no rug. */
 export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
   // The shed in Inked: its back wall's face, its caps, its window on the face (its sill 20 px,
-  // 0.94 m, above the floor) and its rug. No paper: its sheets cover the whole ring opaquely, and
-  // the surround outside the walls stays the room's dark colour, which the HUD's pale text reads on.
+  // 0.94 m, above the floor) and its rug, on paper: the surround outside the walls and the bands'
+  // outer halves show spr_paper, and the HUD reads on it through its ink plate (TEXT_BACKING).
   shed: {
     floor: SHEETS.floorShed,
     wallRow: SHEETS.shedCap,
@@ -110,7 +110,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     window: { sheet: SHEETS.shedWindow, top: 44 },
     inset: true,
     rug: { sheet: SHEETS.shedRug, ...SHED_RUG },
-    paper: false,
+    paper: true,
   },
   // The back garden in Inked: its lawn, its fence ring with corner posts, its buildings in
   // EXTERIORS. No paper: the lawn fills the canvas, so nothing would show it.

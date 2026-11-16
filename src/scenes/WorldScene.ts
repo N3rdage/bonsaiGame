@@ -198,7 +198,14 @@ import {
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
-import { FONT_FAMILY, bodyStyle, fontLoaded, labelStyle } from './textStyle';
+import {
+  FONT_FAMILY,
+  bodyStyle,
+  fontLoaded,
+  hudStyle,
+  labelStyle,
+  worldLabelStyle,
+} from './textStyle';
 
 const TOAST_MS = 2000;
 /** The player sprite's drawn height, logical px: a 128 px frame at 0.25, 32. */
@@ -481,18 +488,19 @@ export class WorldScene extends Phaser.Scene {
         .setOrigin(0.5, PLAYER_ORIGIN_Y),
     );
     this.promptText = this.inWorld(
-      this.text(0, 0, '', { ...labelStyle(this.worldUi), color: '#ffffff' })
+      this.text(0, 0, '', { ...worldLabelStyle(this.worldUi), color: '#ffffff' })
         .setOrigin(0.5, 1)
         .setDepth(HUD_DEPTH),
     );
 
+    const hud = hudStyle(this.ui);
     this.hud = this.text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), {
-      ...bodyStyle(this.ui),
+      ...hud,
       color: '#ffffff',
     })
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
-    this.carryText = this.text(CARRY_TEXT.right, CARRY_TEXT.top, '', bodyStyle(this.ui))
+    this.carryText = this.text(CARRY_TEXT.right, CARRY_TEXT.top, '', hud)
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
     this.treeParts = [];
@@ -507,6 +515,7 @@ export class WorldScene extends Phaser.Scene {
       },
       0,
       1,
+      hud,
     );
     this.notebookButton = this.hudButton(
       NOTEBOOK_BUTTON.left,
@@ -517,12 +526,21 @@ export class WorldScene extends Phaser.Scene {
       },
       0,
       1,
+      hud,
     );
-    this.menuButton = this.hudButton(MENU_BUTTON.left, MENU_BUTTON.top, 'Menu', () => {
-      if (this.panel?.modal) return;
-      if (this.panel) this.closePanel();
-      else this.openMenu();
-    });
+    this.menuButton = this.hudButton(
+      MENU_BUTTON.left,
+      MENU_BUTTON.top,
+      'Menu',
+      () => {
+        if (this.panel?.modal) return;
+        if (this.panel) this.closePanel();
+        else this.openMenu();
+      },
+      0,
+      0,
+      hud,
+    );
     this.interactButton = this.hudButton(
       INTERACT_BUTTON.right,
       INTERACT_BUTTON.bottom,
@@ -532,10 +550,9 @@ export class WorldScene extends Phaser.Scene {
       },
       1,
       1,
+      hud,
     );
-    this.toast = this.text(TOAST_X, 2, '', { ...bodyStyle(this.ui), color: '#ffffff' }).setDepth(
-      HUD_DEPTH,
-    );
+    this.toast = this.text(TOAST_X, 2, '', { ...hud, color: '#ffffff' }).setDepth(HUD_DEPTH);
 
     const keyboard = this.input.keyboard;
     if (!keyboard) throw new Error('WorldScene needs the keyboard plugin');
@@ -713,9 +730,10 @@ export class WorldScene extends Phaser.Scene {
   }
 
   /**
-   * A text button at the body size, anchored at (`x`, `y`) by its origin,
-   * tappable over `hitRect` of its bounds (setHitArea) at least `ui.hit` square.
-   * A tap clicks unless its action played its own sound (SoundPlayer.tap).
+   * A text button in `style` (the body style; the HUD's own buttons over the
+   * room pass `hudStyle`), anchored at (`x`, `y`) by its origin, tappable over
+   * `hitRect` of its bounds (setHitArea) at least `ui.hit` square. A tap
+   * clicks unless its action played its own sound (SoundPlayer.tap).
    */
   private hudButton(
     x: number,
@@ -724,10 +742,9 @@ export class WorldScene extends Phaser.Scene {
     onTap: () => void,
     originX = 0,
     originY = originX,
+    style: Phaser.Types.GameObjects.Text.TextStyle = bodyStyle(this.ui),
   ): Phaser.GameObjects.Text {
-    const button = this.text(x, y, label, bodyStyle(this.ui))
-      .setOrigin(originX, originY)
-      .setDepth(HUD_DEPTH);
+    const button = this.text(x, y, label, style).setOrigin(originX, originY).setDepth(HUD_DEPTH);
     setHitArea(button, this.ui.hit).on('pointerup', () => {
       this.sfx.tap(onTap);
     });
@@ -1706,7 +1723,7 @@ export class WorldScene extends Phaser.Scene {
       if (s.pedestalKey !== undefined) return [g];
       return [
         g,
-        this.text(s.x, art.labelY, s.label, labelStyle(this.worldUi))
+        this.text(s.x, art.labelY, s.label, worldLabelStyle(this.worldUi))
           .setOrigin(0.5, 1)
           .setDepth(s.depth),
       ];
@@ -1716,11 +1733,11 @@ export class WorldScene extends Phaser.Scene {
       const tree = treeOnPedestal(state, p.pedestalKey);
       const label = tree
         ? this.text(p.x, p.y + PEDESTAL_LABEL_DY, treeLabel(tree), {
-            ...labelStyle(this.worldUi),
+            ...worldLabelStyle(this.worldUi),
             color: '#ffffff',
           })
         : this.text(p.x, p.y + PEDESTAL_LABEL_DY, PEDESTAL_EMPTY_LABEL, {
-            ...labelStyle(this.worldUi),
+            ...worldLabelStyle(this.worldUi),
             color: PEDESTAL_EMPTY_COLOUR,
           });
       this.treeParts.push(label.setOrigin(0.5, 0).setDepth(p.y + p.h / 2));
@@ -1808,7 +1825,9 @@ export class WorldScene extends Phaser.Scene {
     const showInteract =
       (this.near !== undefined || this.placing !== undefined) && !viewerOpen && !modal;
     this.hud.setVisible(!viewerOpen);
-    this.carryText.setVisible(!viewerOpen);
+    // An empty line would still draw its plate.
+    this.carryText.setVisible(!viewerOpen && this.carryText.text !== '');
+    this.toast.setVisible(this.toast.text !== '');
     this.menuButton.setVisible(!viewerOpen && !modal);
     this.notebookButton.setVisible(!viewerOpen && !modal);
     this.promptText.setVisible(showInteract);
