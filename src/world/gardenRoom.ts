@@ -20,6 +20,7 @@ import { FRONT_GARDEN_ROOM } from './frontGardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { LOUNGE_ROOM } from './loungeRoom';
+import { BACK_WALL_FACE, WALL_CAP } from './roomArt';
 import {
   SHED_ROOM,
   WALL_BAND,
@@ -59,33 +60,54 @@ const run = (sheet: Furniture['sheet'], r: Rect, solid = false): Furniture => ({
   solid,
 });
 
+/** A face the garden sees, BACK_WALL_FACE (2.4 m) tall, standing on the footprint's south edge from x `x0` to `x1`. */
+const face = (sheet: Furniture['sheet'], r: Rect, x0: number, x1: number): Furniture =>
+  run(sheet, { x: x0, y: r.y + r.h - BACK_WALL_FACE, w: x1 - x0, h: BACK_WALL_FACE });
+
 /**
- * The buildings seen from the garden, at placeholder quality: each roof is
- * `spr_roof` over its footprint and each face the garden sees is one band
- * deep along its edge, the house's in its own plaster (`spr_wall_hallway`)
- * along the notch and down the passage, the shed's in `spr_wall`'s planks
- * along the lawn; the greenhouse is `spr_wall_glass` all over. The house's
- * and the shed's walls are their footprints (GARDEN_ROOM.walls); the glass
- * box is solid furniture. The garage, west of the shed, is out of sight.
+ * The kitchen window in the house's back face (B3 row W): 1.2 m wide centred
+ * on x 7 m, drawn 40 x 24, its sill 20 px (0.94 m) above the face's foot.
+ */
+export const KITCHEN_WINDOW: Rect = { x: 7 * METRE - 20, y: HOUSE.h - 20 - 24, w: 40, h: 24 };
+
+/**
+ * The buildings seen from the garden, in Inked at the scale rule's heights
+ * (art/inked/garden.mjs): each roof over its whole footprint, drawn first;
+ * each face the garden sees 2.4 m (48 px) tall, standing on its footprint's
+ * south edge over the roof's lower 32 px: the house's along the notch
+ * (x 160..400) with the kitchen window in it, the shed's along the lawn, the
+ * greenhouse's in the lawn. The house's east wall, along the passage, is
+ * edge-on in the three-quarter view, so it shows only its 8 px cap on the
+ * footprint's east edge; the greenhouse's north, east and west walls show
+ * their frame rails on its edges. The house's and the shed's walls are their
+ * footprints (GARDEN_ROOM.walls); the glass box is solid through its roof
+ * run. The garage, west of the shed, is out of sight.
  */
 export const EXTERIORS: readonly Furniture[] = [
-  run(SHEETS.roof, { x: 0, y: 0, w: HOUSE.w - WALL_BAND, h: HOUSE.h }),
-  run(SHEETS.wallHallway, {
-    x: SHED.w,
-    y: HOUSE.h - WALL_BAND,
-    w: HOUSE.w - WALL_BAND - SHED.w,
-    h: WALL_BAND,
-  }),
-  run(SHEETS.wallHallway, { x: HOUSE.w - WALL_BAND, y: 0, w: WALL_BAND, h: HOUSE.h }),
-  run(SHEETS.roof, { x: 0, y: SHED.y, w: SHED.w, h: SHED.h - WALL_BAND }),
-  run(SHEETS.wall, { x: 0, y: SHED.y + SHED.h - WALL_BAND, w: SHED.w, h: WALL_BAND }),
-  run(SHEETS.wallGlass, GREENHOUSE, true),
+  run(SHEETS.houseRoof, HOUSE),
+  run(SHEETS.houseCapV, { x: HOUSE.w - WALL_CAP, y: 0, w: WALL_CAP, h: HOUSE.h }),
+  face(SHEETS.houseFace, HOUSE, SHED.w, HOUSE.w - WALL_BAND),
+  run(SHEETS.houseWindow, KITCHEN_WINDOW),
+  run(SHEETS.shedRoof, SHED),
+  face(SHEETS.shedFace, SHED, 0, SHED.w),
+  run(SHEETS.greenhouseRoof, GREENHOUSE, true),
+  run(SHEETS.greenhouseCap, { x: GREENHOUSE.x, y: GREENHOUSE.y, w: GREENHOUSE.w, h: WALL_CAP }),
+  ...[GREENHOUSE.x, GREENHOUSE.x + GREENHOUSE.w - WALL_CAP].map((x) =>
+    run(SHEETS.greenhouseCapV, {
+      x,
+      y: GREENHOUSE.y,
+      w: WALL_CAP,
+      h: GREENHOUSE.h - BACK_WALL_FACE,
+    }),
+  ),
+  face(SHEETS.greenhouseFace, GREENHOUSE, GREENHOUSE.x, GREENHOUSE.x + GREENHOUSE.w),
 ];
 
 /**
- * obj_source_plant: 48 px sprite, centred at (x, y) logical px; prompt `Take
- * Cutting`, labelled with the species. WorldScene shows `sourcePlantPrompt`
- * instead (Take Seeds in autumn).
+ * obj_source_plant: its 48 px sprite's square, halved, centred at (x, y)
+ * logical px, where the Inked plant (24 x 32) stands on its bottom edge;
+ * prompt `Take Cutting`, labelled with the species. WorldScene shows
+ * `sourcePlantPrompt` instead (Take Seeds in autumn).
  */
 function sourcePlant(speciesKey: SpeciesKey, x: number, y: number): Prop {
   return {
@@ -130,16 +152,18 @@ export const GARDEN_ROOM: Room = {
     sourcePlant('juniper', 2.5 * METRE, BED_Y),
     sourcePlant('maple', 3.5 * METRE, BED_Y),
     sourcePlant('pine', 4.5 * METRE, BED_Y),
-    // B3 row 13: in the shed's south face at x 2.5 m, back to just above the shed's door.
+    // B3 row 13: in the shed's south face at x 2.5 m, back to just above the shed's door; the
+    // shed's plank door front-on, seen from outside.
     door('door', 'Back to Shed', 2.5 * METRE, SHED.y + SHED.h - WALL_BAND / 2, {
       wall: 'N',
       target: { room: 'shed', door: 'door' },
+      sheet: SHEETS.shedDoor,
     }),
     // B3 row 14: the study's glazed door in the house's back face on the notch's north edge, x 10.75 m.
     door('door_study', 'To Study', 10.75 * METRE, HOUSE.h - WALL_BAND / 2, {
       wall: 'N',
       target: { room: 'study', door: 'door_garden' },
-      sheet: SHEETS.doorGlassSingle,
+      sheet: SHEETS.doorGlazed,
     }),
     // B3 row 15: in the greenhouse's south face, standing in the lawn at x 10.5 m.
     door(
@@ -150,7 +174,7 @@ export const GARDEN_ROOM: Room = {
       {
         wall: 'N',
         target: { room: 'greenhouse', door: 'door_garden' },
-        sheet: SHEETS.doorGlassSingle,
+        sheet: SHEETS.doorGlazed,
       },
     ),
     // B3 row 12: the side gate in the passage's north fence, to the front garden's gate. The east
