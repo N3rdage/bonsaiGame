@@ -101,12 +101,27 @@ export function buildRing(centre: Vec3, radius: number, segments: number): Vec3[
   return ring;
 }
 
+/** A ring's in-plane basis: unit `u` (point 0's direction) and `v = n × u`. */
+export interface RingBasis {
+  readonly u: Vec3;
+  readonly v: Vec3;
+}
+
+function crossN(n: Vec3, u: Vec3): Vec3 {
+  return {
+    x: n.y * u.z - n.z * u.y,
+    y: n.z * u.x - n.x * u.z,
+    z: n.x * u.y - n.y * u.x,
+  };
+}
+
 /**
- * `segments` points around `centre` in the plane perpendicular to the unit
- * vector `n`. The reference axis is world +z, or +x when `n` is nearly
- * vertical so the cross product cannot collapse.
+ * The basis of a ring perpendicular to the unit vector `n`, from a fixed
+ * reference axis: world +z, or +x when `n` is nearly vertical so the cross
+ * product cannot collapse. Good for a single ring; along a tube the reference
+ * flip turns consecutive rings against each other (see `transportBasis`).
  */
-export function buildOrientedRing(centre: Vec3, radius: number, segments: number, n: Vec3): Vec3[] {
+export function referenceBasis(n: Vec3): RingBasis {
   const ref = Math.abs(n.z) < 0.95 ? { x: 0, y: 0, z: 1 } : { x: 1, y: 0, z: 0 };
   const ux = ref.y * n.z - ref.z * n.y;
   const uy = ref.z * n.x - ref.x * n.z;
@@ -114,11 +129,36 @@ export function buildOrientedRing(centre: Vec3, radius: number, segments: number
   let ulen = Math.sqrt(ux * ux + uy * uy + uz * uz);
   if (ulen < 0.0001) ulen = 1;
   const u = { x: ux / ulen, y: uy / ulen, z: uz / ulen };
-  const v = {
-    x: n.y * u.z - n.z * u.y,
-    y: n.z * u.x - n.x * u.z,
-    z: n.x * u.y - n.y * u.x,
-  };
+  return { u, v: crossN(n, u) };
+}
+
+/**
+ * The basis of the next ring along a tube whose unit tangent there is `n`,
+ * carried from the previous ring's `prevU` by parallel transport: `prevU` less
+ * its component along `n`, normalised, and `v = n × u`. Stitching joins point
+ * i to point i, so a basis rebuilt from a fixed reference at every ring would
+ * twist the tube where the reference flips (the prototype's warning on
+ * `build_ring_with_basis`); a carried basis turns only as the tangent does.
+ * Falls back to `referenceBasis` if `n` is parallel to `prevU`.
+ */
+export function transportBasis(prevU: Vec3, n: Vec3): RingBasis {
+  const k = prevU.x * n.x + prevU.y * n.y + prevU.z * n.z;
+  const ux = prevU.x - k * n.x;
+  const uy = prevU.y - k * n.y;
+  const uz = prevU.z - k * n.z;
+  const ulen = Math.sqrt(ux * ux + uy * uy + uz * uz);
+  if (ulen < 1e-6) return referenceBasis(n);
+  const u = { x: ux / ulen, y: uy / ulen, z: uz / ulen };
+  return { u, v: crossN(n, u) };
+}
+
+/**
+ * `segments` points around `centre` in the plane perpendicular to the unit
+ * vector `n`, on its `referenceBasis`. For a lone ring; a tube carries its
+ * basis with `transportBasis` instead.
+ */
+export function buildOrientedRing(centre: Vec3, radius: number, segments: number, n: Vec3): Vec3[] {
+  const { u, v } = referenceBasis(n);
   return buildRingWithBasis(centre, radius, segments, u, v);
 }
 
@@ -333,7 +373,8 @@ function helixSample(
 /**
  * Trunk-side anchor: a short helix wrapped around the trunk at the branch's
  * base, along the trunk's local tangent, ending on the side the branch leaves
- * from so it reads as feeding into the coil.
+ * from so it reads as feeding into the coil. Its rings carry their basis
+ * along the helix (`transportBasis`), as the coil's do.
  */
 export function addWireAnchor(
   list: TriangleList,
@@ -354,6 +395,7 @@ export function addWireAnchor(
   const radialSpeed = ANCHOR_TURNS * 2 * Math.PI;
 
   const tube = new Tube(list, col);
+  let basis: RingBasis | undefined;
   for (let i = 0; i <= ANCHOR_SEGMENTS; i++) {
     const s = i / ANCHOR_SEGMENTS;
     const { centre, tangent } = helixSample(
@@ -364,7 +406,8 @@ export function addWireAnchor(
       anchorH,
       radialSpeed,
     );
-    tube.ring(centre, buildOrientedRing(centre, wireR, WIRE_RING_SEGMENTS, tangent));
+    basis = basis ? transportBasis(basis.u, tangent) : referenceBasis(tangent);
+    tube.ring(centre, buildRingWithBasis(centre, wireR, WIRE_RING_SEGMENTS, basis.u, basis.v));
   }
 }
 
@@ -374,7 +417,8 @@ export function addWireAnchor(
  * bark radius plus the wire radius, so the wire never enters the bark), then
  * the trunk anchor.
  * Rings are perpendicular to the helix tangent, not the branch axis, so the
- * tight pitch does not skew them.
+ * tight pitch does not skew them, and each carries the last one's basis
+ * (`transportBasis`) so the tube never twists or pinches between rings.
  */
 export function addWireCoil(list: TriangleList, tree: BonsaiTree, branch: Branch): void {
   const wireR = wireRadius(branch);
@@ -384,6 +428,7 @@ export function addWireCoil(list: TriangleList, tree: BonsaiTree, branch: Branch
   const radialSpeed = turns * 2 * Math.PI;
 
   const tube = new Tube(list, WIRE_RGB);
+  let basis: RingBasis | undefined;
   for (let i = 0; i <= segs; i++) {
     const s = i / segs;
     const offset = wireCoilOffset(branch, s);
@@ -395,7 +440,8 @@ export function addWireCoil(list: TriangleList, tree: BonsaiTree, branch: Branch
       lengthWorld,
       radialSpeed,
     );
-    tube.ring(centre, buildOrientedRing(centre, wireR, WIRE_RING_SEGMENTS, tangent));
+    basis = basis ? transportBasis(basis.u, tangent) : referenceBasis(tangent);
+    tube.ring(centre, buildRingWithBasis(centre, wireR, WIRE_RING_SEGMENTS, basis.u, basis.v));
   }
 
   addWireAnchor(list, tree, branch, wireR, WIRE_RGB);
