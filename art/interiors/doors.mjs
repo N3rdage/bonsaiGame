@@ -1,7 +1,5 @@
-// The glazed openings: the window and the study's glass doors.
+// The house's doors: the study's glass doors and the side-on doors between rooms.
 //
-// spr_window.png: one 32x32 frame, a four-pane window with a sill, transparent
-// round it so it can be drawn over any room's top wall.
 // spr_door_glass.png: the study's glazed double door, 64x32, two leaves of
 // four panes each in a wooden frame, a brass handle on each meeting stile.
 // spr_door_glass_single.png: one such leaf, 32x32, the garden's door back to
@@ -22,45 +20,7 @@ import {
   WOOD_LIGHT,
   WOOD_MID,
 } from './palette.mjs';
-import { SIZE, fill, seeded, setPixel } from './png.mjs';
-
-/**
- * The window, drawn over a top wall tile: transparent round it, so the room's
- * own wall (and its skirting board) shows at the edges. A dark-edged wooden
- * frame, four panes of glass split by a mullion and a transom, lighter towards
- * the top with a diagonal glint, and a sill across the bottom.
- */
-function windowPane(png) {
-  for (let y = 2; y <= 21; y += 1) {
-    for (let x = 3; x <= 28; x += 1) {
-      let c = WOOD_MID;
-      if (x === 3 || x === 28 || y === 2) c = WOOD_DARK;
-      else if (
-        x >= 6 &&
-        x <= 25 &&
-        y >= 5 &&
-        y <= 21 &&
-        x !== 15 &&
-        x !== 16 &&
-        y !== 12 &&
-        y !== 13
-      ) {
-        c = y < 9 ? GLASS_LIGHT : GLASS;
-        if ((x + y) % 11 === 0 || (x + y) % 11 === 1) c = GLASS_LIGHT;
-        if (y >= 19) c = GLASS_DARK;
-      }
-      setPixel(png, x, y, c);
-    }
-  }
-  const rng = seeded(1000);
-  for (let i = 0; i < 6; i += 1) {
-    setPixel(png, 6 + Math.floor(rng() * 9), 14 + Math.floor(rng() * 5), GLASS_LIGHT);
-  }
-  for (let x = 2; x <= 29; x += 1) {
-    setPixel(png, x, 22, WOOD_LIGHT);
-    setPixel(png, x, 23, WOOD_DARK);
-  }
-}
+import { SIZE, fill, setPixel } from './png.mjs';
 
 /**
  * One glazed door leaf, 32x32 from column `ox`: a dark outline round a wooden
@@ -136,8 +96,6 @@ function sideDoor(png, mirror) {
   put(27, 20, BRASS);
   put(27, 21, BRASS_DARK);
 }
-
-export const WINDOW = { name: 'spr_window', width: SIZE, height: SIZE, draw: windowPane };
 
 export const DOUBLE_DOOR = {
   name: 'spr_door_glass',
