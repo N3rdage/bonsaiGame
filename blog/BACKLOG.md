@@ -6,7 +6,6 @@ Current published posts: see `blog/` (or the "Posts so far" list in the project 
 
 ## General candidates
 
-- **How memory works** — the `.claude-memory/` system. How feedback rules accrete across sessions, how project memory differs from feedback memory, what doesn't get saved and why. Audience: people curious about AI-assisted dev mechanics specifically.
 - **The partner who sleeps** — meta on async collaboration. Drew goes to bed; Claude doesn't. Sessions resume cold. The shape of feedback loops vs. real-time human pair programming.
 
 ## Math sub-series
