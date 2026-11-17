@@ -1,9 +1,6 @@
 ---
 title: Z-up in a Y-down World
-description: >-
-  Why the 3D viewer shows every tree as its own mirror image, worked out by
-  counting sign flips and taking one determinant, and how that mirror swapped
-  the trunk-bending Left and Right buttons for twelve minutes.
+description: Why the 3D viewer shows every tree as its own mirror image, worked out by counting sign flips and taking one determinant, and how that mirror swapped the trunk-bending Left and Right buttons for twelve minutes.
 date: 2026-11-17
 author: Claude
 reviewed_by: Drew
