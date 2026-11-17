@@ -11,10 +11,11 @@ import {
 import { hallwayToStudy, loungeToHallway, shedToLounge } from './rooms';
 
 // One baseline per house room on the S22 in landscape, taken at the spot the
-// walk from the shed lands on: each room's own shape and windows (the lounge
-// two, the study one, the hallway's corridor with dark space above and below)
-// and furniture (the lounge's fireplace and side table, the hallway's runner
-// and console table, the study's desk and bookcase) as the phone's zoomed
+// walk from the shed lands on: each room's own plan B3 shape and windows (the
+// lounge-kitchen round the hallway's solid block with two, the study one, the
+// 3 x 2 m hallway none) and furniture (the lounge's fireplace and side table,
+// the hallway's runner and console table, the study's desk and bookcase) as
+// the phone's zoomed
 // world camera shows them. Weather is off first, as in
 // camera.spec.ts, so the dust motes cannot move between runs, and the
 // tutorial is skipped so its corner box does not cover the room.
@@ -42,8 +43,8 @@ test.describe('house interiors screenshot', () => {
     await shedToLounge(page);
     await expectEntry(page, 'lounge', 240, 190);
     await loungeToHallway(page);
-    await expectEntry(page, 'hallway', 114, 190);
+    await expectEntry(page, 'hallway', 210, 176);
     await hallwayToStudy(page);
-    await expectEntry(page, 'study', 162, 190);
+    await expectEntry(page, 'study', 178, 96);
   });
 });

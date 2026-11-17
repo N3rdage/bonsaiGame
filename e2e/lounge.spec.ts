@@ -55,14 +55,14 @@ test.describe('the lounge', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await shedToLounge(page);
-    // Hold Up until the fireplace's front edge (y 136) stops the player, then 60 frames more.
+    // Hold Up until the fireplace's front edge (y 88) stops the player, then 60 frames more.
     await page.keyboard.down('ArrowUp');
-    await page.waitForFunction(() => window.__bonsai?.player.y === 136.25);
+    await page.waitForFunction(() => window.__bonsai?.player.y === 88.75);
     const frames = (await hook(page)).frames;
     await page.waitForFunction((n) => (window.__bonsai?.frames ?? 0) >= n + 60, frames);
     await page.keyboard.up('ArrowUp');
     const h = await hook(page);
-    expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['lounge', 240, 136.25, 'pedestal_1']);
+    expect([h.room, h.player.x, h.player.y, h.near]).toEqual(['lounge', 240, 88.75, 'pedestal_1']);
     expect(errors).toEqual([]);
   });
 
