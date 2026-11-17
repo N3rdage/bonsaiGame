@@ -83,7 +83,8 @@ export interface RoomStyle {
   readonly wallColumn: Sheet;
   /** The back wall drawn as a face standing on the floor line, the other walls as caps; none for a ring of whole bands. */
   readonly face?: WallFace;
-  readonly window: WindowStyle;
+  /** The sheet the room's windows are drawn with; none for a room with no windows. */
+  readonly window?: WindowStyle;
   /** An inset room's floor fills only the inside of its ring; an outdoor one fills the canvas. */
   readonly inset: boolean;
   /** The ring's four corner tiles drawn as this sheet's frames NW, NE, SW, SE (a fence's corner posts); none for corners of the row's sheet. */
@@ -94,10 +95,16 @@ export interface RoomStyle {
   readonly paper: boolean;
 }
 
-/** The house rooms' window, spr_window, over the top wall band: its top is a band above the floor line. */
-const BAND_WINDOW: WindowStyle = { sheet: SHEETS.window, top: TILE };
-
-/** The house rooms (new content: lounge, hallway, study) are inset as the shed is, each with its own floor and a ring of its own wall sheet, and no rug. */
+/**
+ * The house rooms (new content: lounge, hallway, study) are inset as the
+ * shed is, and drawn in Inked as the shed is: each its own floor, its back
+ * wall's face, its own caps and, but the hallway, its own window on the face,
+ * its sill 20 px above the floor line as the shed's, on paper, with no rug.
+ * The lounge's hallway block is solid furniture drawn as the paper (the house
+ * beyond the room, as the surround is) with the lounge's caps on its two open
+ * edges, each a non-solid run of a cap sheet (loungeRoom.ts's HALLWAY_BLOCK
+ * and HALLWAY_BLOCK_CAPS); collision is still the whole block.
+ */
 export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
   // The shed in Inked: its back wall's face, its caps, its window on the face (its sill 20 px,
   // 0.94 m, above the floor) and its rug, on paper: the surround outside the walls and the bands'
@@ -118,7 +125,6 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     floor: SHEETS.floorGarden,
     wallRow: SHEETS.fence,
     wallColumn: SHEETS.fenceV,
-    window: BAND_WINDOW,
     inset: false,
     corner: SHEETS.fenceCorner,
     paper: false,
@@ -133,40 +139,40 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     floor: SHEETS.floorGarden,
     wallRow: SHEETS.fenceLow,
     wallColumn: SHEETS.fenceV,
-    window: BAND_WINDOW,
     inset: false,
     paper: false,
   },
   lounge: {
     floor: SHEETS.floorLounge,
-    wallRow: SHEETS.wallLounge,
-    wallColumn: SHEETS.wallLounge,
-    window: BAND_WINDOW,
+    wallRow: SHEETS.loungeCap,
+    wallColumn: SHEETS.loungeCapV,
+    face: { sheet: SHEETS.wallLounge, height: BACK_WALL_FACE, cap: WALL_CAP },
+    window: { sheet: SHEETS.loungeWindow, top: 44 },
     inset: true,
-    paper: false,
+    paper: true,
   },
   hallway: {
     floor: SHEETS.floorHallway,
-    wallRow: SHEETS.wallHallway,
-    wallColumn: SHEETS.wallHallway,
-    window: BAND_WINDOW,
+    wallRow: SHEETS.hallwayCap,
+    wallColumn: SHEETS.hallwayCapV,
+    face: { sheet: SHEETS.wallHallway, height: BACK_WALL_FACE, cap: WALL_CAP },
     inset: true,
-    paper: false,
+    paper: true,
   },
   study: {
     floor: SHEETS.floorStudy,
-    wallRow: SHEETS.wallStudy,
-    wallColumn: SHEETS.wallStudy,
-    window: BAND_WINDOW,
+    wallRow: SHEETS.studyCap,
+    wallColumn: SHEETS.studyCapV,
+    face: { sheet: SHEETS.wallStudy, height: BACK_WALL_FACE, cap: WALL_CAP },
+    window: { sheet: SHEETS.studyWindow, top: 44 },
     inset: true,
-    paper: false,
+    paper: true,
   },
   // The greenhouse is drawn as a house room: its glass on all four sides round a paved floor.
   greenhouse: {
     floor: SHEETS.floorGreenhouse,
     wallRow: SHEETS.wallGlass,
     wallColumn: SHEETS.wallGlass,
-    window: BAND_WINDOW,
     inset: true,
     paper: false,
   },
@@ -249,9 +255,9 @@ export function bakeScale(room: Room, style: RoomStyle = ROOM_STYLES[room.key]):
  * Other_4's ring round the room's bounds, then the room's windows
  * (windowRuns), so the bake draws them over the wall, and last its furniture
  * (furnitureRuns), over the floor and walls: the garden's buildings cover the
- * ring where the plan has no fence. A room with a `face` (the shed) draws its
- * ring as the face and caps (faceRuns); every other room as bands of whole
- * tiles (bandRuns).
+ * ring where the plan has no fence. A room with a `face` (the shed, the house
+ * rooms) draws its ring as the face and caps (faceRuns);
+ * every other room as bands of whole tiles (bandRuns).
  */
 export function wallRuns(room: Room): WallRun[] {
   const style = ROOM_STYLES[room.key];
@@ -265,7 +271,7 @@ export function wallRuns(room: Room): WallRun[] {
 /**
  * The ring as 32 px tiles: the top and bottom rows across the bounds, then the
  * left and right columns between them (runsOver: a sheet with variants
- * scatters them tile by tile). Each house room's tiles are all its own wall
+ * scatters them tile by tile). The greenhouse's tiles are all its glass wall
  * sheet; the garden's rows are `spr_fence`, its columns `spr_fence_v`, and,
  * with a `corner` sheet, its four corner tiles are left out of the rows
  * (obj_wall Draw_0) and drawn last as that sheet's frames, NW, NE, SW, SE.
@@ -353,13 +359,15 @@ export function furnitureRuns(room: Room): WallRun[] {
 }
 
 /**
- * Each of the room's windows as a run of its style's window sheet, its top
- * `top` above the floor line and its sheet's height tall: in the house rooms
- * `spr_window` along the top wall band, one 16 px pane a tile; in the shed
- * one `spr_shed_window` on the back wall's face.
+ * Each of the room's windows as a run of its style's window sheet on the back
+ * wall's face, its top `top` above the floor line and its sheet's height
+ * tall: the shed's `spr_shed_window`, the lounge's `spr_lounge_window`, the
+ * study's `spr_study_window`; none where the style has no window.
  */
 export function windowRuns(room: Room): WallRun[] {
-  const { sheet, top } = ROOM_STYLES[room.key].window;
+  const style = ROOM_STYLES[room.key].window;
+  if (!style) return [];
+  const { sheet, top } = style;
   const y = room.bounds.y + TILE - top;
   const h = sheet.frameHeight / sheetPxPerLogical(sheet);
   return room.windows.map(({ x, w }) => ({ sheet, x, y, w, h }));

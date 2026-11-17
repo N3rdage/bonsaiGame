@@ -14,6 +14,7 @@ import {
   sheetUrl,
   sourcePlantFrame,
 } from './assets';
+import { BACK_WALL_FACE, WALL_CAP } from './roomArt';
 
 /** Width and height from a PNG's IHDR chunk. */
 function pngSize(key: string): { width: number; height: number } {
@@ -54,25 +55,35 @@ describe('sprite sheets', () => {
       ['spr_planting_table', 128, 160, 1],
       ['spr_shop_kiosk', 96, 224, 1],
       ['spr_shed_rug', 480, 280, 1],
-      ['spr_floor_lounge', 32, 32, 3],
-      ['spr_wall_lounge', 32, 32, 1],
-      ['spr_floor_hallway', 32, 32, 3],
-      ['spr_wall_hallway', 32, 32, 1],
-      ['spr_floor_study', 32, 32, 3],
-      ['spr_wall_study', 32, 32, 1],
+      ['spr_floor_lounge', 64, 64, 3],
+      ['spr_floor_kitchen', 64, 64, 3],
+      ['spr_wall_lounge', 64, 192, 3],
+      ['spr_lounge_cap', 64, 32, 3],
+      ['spr_lounge_cap_v', 32, 64, 3],
+      ['spr_lounge_window', 128, 96, 1],
+      ['spr_fireplace', 128, 176, 1],
+      ['spr_side_table', 64, 96, 1],
+      ['spr_counter', 384, 160, 1],
+      ['spr_counter_v', 80, 320, 1],
+      ['spr_floor_hallway', 64, 64, 3],
+      ['spr_wall_hallway', 64, 192, 3],
+      ['spr_hallway_cap', 64, 32, 3],
+      ['spr_hallway_cap_v', 32, 64, 3],
+      ['spr_runner', 240, 96, 1],
+      ['spr_hall_table', 64, 112, 1],
+      ['spr_floor_study', 64, 64, 3],
+      ['spr_wall_study', 64, 192, 3],
+      ['spr_study_cap', 64, 32, 3],
+      ['spr_study_cap_v', 32, 64, 3],
+      ['spr_study_window', 128, 96, 1],
+      ['spr_desk', 128, 128, 1],
+      ['spr_bookshelf', 192, 112, 1],
       ['spr_floor_greenhouse', 32, 32, 3],
       ['spr_wall_glass', 32, 32, 1],
-      ['spr_window', 32, 32, 1],
       ['spr_door_glass', 64, 32, 1],
       ['spr_door_glass_single', 32, 32, 1],
       ['spr_door_side_w', 32, 32, 1],
       ['spr_door_side_e', 32, 32, 1],
-      ['spr_fireplace', 64, 48, 1],
-      ['spr_side_table', 32, 32, 1],
-      ['spr_desk', 64, 32, 1],
-      ['spr_bookshelf', 32, 32, 1],
-      ['spr_runner', 416, 48, 1],
-      ['spr_hall_table', 32, 24, 1],
       ['spr_shelf', 96, 80, 1],
       ['spr_tools', 48, 128, 1],
       ['spr_watering_can', 64, 48, 1],
@@ -123,6 +134,29 @@ describe('sprite sheets', () => {
       SHEETS.plantingTable,
       SHEETS.shopKiosk,
       SHEETS.shedRug,
+      SHEETS.floorLounge,
+      SHEETS.floorKitchen,
+      SHEETS.wallLounge,
+      SHEETS.loungeCap,
+      SHEETS.loungeCapV,
+      SHEETS.loungeWindow,
+      SHEETS.fireplace,
+      SHEETS.sideTable,
+      SHEETS.counter,
+      SHEETS.counterV,
+      SHEETS.floorHallway,
+      SHEETS.wallHallway,
+      SHEETS.hallwayCap,
+      SHEETS.hallwayCapV,
+      SHEETS.runner,
+      SHEETS.hallTable,
+      SHEETS.floorStudy,
+      SHEETS.wallStudy,
+      SHEETS.studyCap,
+      SHEETS.studyCapV,
+      SHEETS.studyWindow,
+      SHEETS.desk,
+      SHEETS.bookshelf,
       SHEETS.shelf,
       SHEETS.tools,
       SHEETS.wateringCan,
@@ -321,26 +355,50 @@ describe('sprite sheets', () => {
     }
   });
 
-  it("loads the house rooms' and the greenhouse's generated tiles and furniture with the rest", () => {
-    for (const s of [
-      SHEETS.floorLounge,
-      SHEETS.wallLounge,
-      SHEETS.floorHallway,
-      SHEETS.wallHallway,
-      SHEETS.floorStudy,
-      SHEETS.wallStudy,
-      SHEETS.floorGreenhouse,
-      SHEETS.wallGlass,
-      SHEETS.window,
-      SHEETS.fireplace,
-      SHEETS.sideTable,
-      SHEETS.desk,
-      SHEETS.bookshelf,
-      SHEETS.runner,
-      SHEETS.hallTable,
-    ]) {
-      expect(ALL_SHEETS).toContain(s);
-    }
+  it("draws the house rooms in Inked at the scale rule's logical sizes", () => {
+    const logical = (s: (typeof ALL_SHEETS)[number]) => [
+      s.frameWidth / sheetPxPerLogical(s),
+      s.frameHeight / sheetPxPerLogical(s),
+    ];
+    const tiles = [SHEETS.floorLounge, SHEETS.floorKitchen, SHEETS.floorHallway, SHEETS.floorStudy];
+    const faces = [SHEETS.wallLounge, SHEETS.wallHallway, SHEETS.wallStudy];
+    const caps = [SHEETS.loungeCap, SHEETS.hallwayCap, SHEETS.studyCap];
+    const capsV = [SHEETS.loungeCapV, SHEETS.hallwayCapV, SHEETS.studyCapV];
+    for (const s of tiles) expect(logical(s), s.key).toEqual([16, 16]);
+    for (const s of faces) expect(logical(s), s.key).toEqual([16, BACK_WALL_FACE]);
+    for (const s of caps) expect(logical(s), s.key).toEqual([16, WALL_CAP]);
+    for (const s of capsV) expect(logical(s), s.key).toEqual([WALL_CAP, 16]);
+    for (const s of [...tiles, ...faces, ...caps, ...capsV]) expect(s.frames, s.key).toBe(3);
+    expect(
+      [
+        SHEETS.loungeWindow,
+        SHEETS.studyWindow,
+        SHEETS.fireplace,
+        SHEETS.sideTable,
+        SHEETS.counter,
+        SHEETS.counterV,
+        SHEETS.runner,
+        SHEETS.hallTable,
+        SHEETS.desk,
+        SHEETS.bookshelf,
+      ].map(logical),
+    ).toEqual([
+      // The windows on the face, as the shed's.
+      [32, 24],
+      [32, 24],
+      // Each piece its front face (height x 21.33 px/m) over its footprint's depth, to 4 px: the
+      // 0.9 m fireplace on 24, the 0.4 m side table on 16, the 0.9 m counter on 20 (its east run's
+      // 60 px along the wall), the flat runner, the 0.75 m console table on 12 and desk on 16, the
+      // 0.6 m low bookcase on 16.
+      [32, 44],
+      [16, 24],
+      [96, 40],
+      [20, 80],
+      [60, 24],
+      [16, 28],
+      [32, 32],
+      [48, 28],
+    ]);
   });
 
   it('has a committed strip for every sheet, its frames side by side', () => {

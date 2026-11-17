@@ -22,11 +22,7 @@ import {
 /** The 96x64 floor (3 x 2 m), x 192..288 and y 144..208, grown by the 16 px wall band. */
 export const HALLWAY_BOUNDS: Rect = { x: 176, y: 128, w: 128, h: 96 };
 
-/**
- * spr_runner (416x48 prototype px, 208x24 logical) along the bottom wall,
- * x 200..260: a run crops its one frame to the rect rather than stretching
- * it, so it shows the runner's west end and its pattern, cut at x 260.
- */
+/** The runner, 1.9 x 0.75 m, flat on the boards along the bottom wall, x 200..260: its sheet is its rect. */
 export const RUNNER: Furniture = {
   sheet: SHEETS.runner,
   x: 200,
@@ -36,7 +32,11 @@ export const RUNNER: Furniture = {
   solid: false,
 };
 
-/** spr_hall_table's 32x24 prototype px, halved: against the bottom wall east of the runner. */
+/**
+ * The console table, 0.5 x 0.375 m and 0.75 m high, against the bottom wall
+ * east of the runner, its sprite standing on its footprint's bottom edge and
+ * sorted against the player.
+ */
 export const HALL_TABLE: Furniture = {
   sheet: SHEETS.hallTable,
   x: 266,
@@ -44,6 +44,7 @@ export const HALL_TABLE: Furniture = {
   w: 16,
   h: 12,
   solid: false,
+  sorted: true,
 };
 
 /** A door's 16 px square centred at (x, y) logical px. */
