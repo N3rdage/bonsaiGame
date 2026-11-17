@@ -4,6 +4,7 @@ import { PLAYER_FEET, PLAYER_SCALE, SHEETS } from './assets';
 import { GARDEN_ROOM, GREENHOUSE, HOUSE, ROOMS, SHED } from './gardenRoom';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
+import { HALLWAY_BLOCK, LOUNGE_ROOM } from './loungeRoom';
 import { INTERACT_RANGE } from './interactables';
 import type { Facing } from './player';
 import { SHED_ROOM, type Rect, type Room, type Wall } from './shedRoom';
@@ -105,24 +106,36 @@ describe('doors', () => {
       y: 174,
       facing: 'up',
     });
-    // S, 32 wide: the study's glass doors (320, 216).
+    // S, 48 wide: the study's glass doors (232, 216).
     expect(landing(STUDY_ROOM, wallDoor(STUDY_ROOM, 'door_garden'))).toEqual({
-      x: 320,
+      x: 232,
       y: 190,
       facing: 'up',
     });
-    // E: the hallway's study door (392, 190).
+    // E: the hallway's study door (296, 176).
     expect(landing(HALLWAY_ROOM, wallDoor(HALLWAY_ROOM, 'door_study'))).toEqual({
-      x: 366,
-      y: 190,
+      x: 270,
+      y: 176,
       facing: 'left',
     });
-    // W: the hallway's lounge door (88, 190).
+    // W: the hallway's lounge door (184, 176).
     expect(landing(HALLWAY_ROOM, wallDoor(HALLWAY_ROOM, 'door_lounge'))).toEqual({
-      x: 114,
-      y: 190,
+      x: 210,
+      y: 176,
       facing: 'right',
     });
+  });
+
+  it("steps the lounge's hallway door out from the hallway block's west face, not the ring's east band", () => {
+    // Plan B3 row 4: the door (344, 96) is held by the block (x 336..432, y 64..128), the only solid
+    // holding its centre, so it lands 26 px west of it on the floor, clear of the block, facing it.
+    const d = wallDoor(LOUNGE_ROOM, 'door_hallway');
+    expect([d.x, d.y, d.wall]).toEqual([344, 96, 'E']);
+    expect(touches(HALLWAY_BLOCK, d.x, d.y)).toBe(true);
+    expect(d.x - HALLWAY_BLOCK.x).toBe(8);
+    const at = landing(LOUNGE_ROOM, d);
+    expect(at).toEqual({ x: 318, y: 96, facing: 'left' });
+    expect(at.x + PLAYER_HALF).toBeLessThan(HALLWAY_BLOCK.x);
   });
 
   it("steps a door in a building's face inside the garden out from that face, not the fence ring", () => {
@@ -186,7 +199,7 @@ describe('doors', () => {
 
   it('lands each way through the front door and the side gate (plan B3 rows 6, 10, 11, 12)', () => {
     const front = ROOMS.frontGarden;
-    // Row 6, the hallway's front door (240, 168) in its top band: into the front garden just
+    // Row 6, the hallway's front door (240, 136) in its top band: into the front garden just
     // inside its south edge, 26 px above its door to the hallway (336, 216), facing up.
     expect(landing(front, wallDoor(front, 'door_house'))).toEqual({
       x: 336,
@@ -196,7 +209,7 @@ describe('doors', () => {
     // Row 10, the front garden's door to the hallway: into the hallway just below its front door, facing down.
     expect(landing(HALLWAY_ROOM, wallDoor(HALLWAY_ROOM, 'door_front'))).toEqual({
       x: 240,
-      y: 194,
+      y: 162,
       facing: 'down',
     });
     // Row 11, the front garden's gate (544, 216): into the passage just below its gate (432, 8), facing down.

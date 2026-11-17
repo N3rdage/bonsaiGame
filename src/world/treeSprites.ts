@@ -33,7 +33,7 @@ export const FLOOR_LAP_DEPTH = 0.01;
 
 /**
  * The grid's rows that lie on the room's floor: both in every room but the
- * hallway, whose corridor floor (y 176..208) holds only the second.
+ * greenhouse, whose floor (y 80..192) holds only the first.
  */
 export function floorRows(room: Room): number[] {
   const floor = insideWalls(room);
@@ -42,17 +42,31 @@ export function floorRows(room: Room): number[] {
   );
 }
 
-/** The i-th floor tree's spot and draw depth in the room, wrapping round the grid's rows on its floor. */
+/**
+ * The grid's columns that lie on the room's floor: all five in every room but
+ * the hallway, whose floor (x 192..288) holds the middle three.
+ */
+export function floorColumns(room: Room): number[] {
+  const floor = insideWalls(room);
+  return Array.from(
+    { length: FLOOR_GRID.perRow },
+    (_, c) => FLOOR_GRID.x + c * FLOOR_GRID.dx,
+  ).filter((x) => x > floor.x && x < floor.x + floor.w);
+}
+
+/** The i-th floor tree's spot and draw depth in the room, wrapping round the grid's spots on its floor. */
 export function floorSpot(
   i: number,
   room: Room = SHED_ROOM,
 ): { x: number; y: number; depth: number } {
-  const { x, dx, perRow } = FLOOR_GRID;
   const rows = floorRows(room);
+  const columns = floorColumns(room);
+  const perRow = columns.length;
   const spot = i % (perRow * rows.length);
   const lap = Math.floor(i / (perRow * rows.length));
   const sy = rows[Math.floor(spot / perRow)] ?? FLOOR_GRID.y;
-  return { x: x + (spot % perRow) * dx, y: sy, depth: sy - lap * FLOOR_LAP_DEPTH };
+  const sx = columns[spot % perRow] ?? FLOOR_GRID.x;
+  return { x: sx, y: sy, depth: sy - lap * FLOOR_LAP_DEPTH };
 }
 
 /**

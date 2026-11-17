@@ -5,11 +5,12 @@ import type { BonsaiTree, GameState } from '../sim/types';
 import { nearestInteractable } from './interactables';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { FIREPLACE, LOUNGE_ROOM, SIDE_TABLE } from './loungeRoom';
-import { SHED_ROOM, insideWalls, type Room } from './shedRoom';
+import { SHED_ROOM, hitsWall, insideWalls, type Room } from './shedRoom';
 import { BOOKSHELF, DESK, STUDY_ROOM } from './studyRoom';
 import {
   FLOOR_GRID,
   FLOOR_LAP_DEPTH,
+  floorColumns,
   floorRows,
   floorSpot,
   SPRITE_MAX_PX,
@@ -89,18 +90,18 @@ describe('tree sprites', () => {
     // The mantel's shelf, the table top, the desk top and the bookcase's top board, each spot's
     // rect top; each piece's front edge plus 0.5 for the depth.
     expect(at(LOUNGE_ROOM)).toEqual([
-      [1, 'lounge_mantel', 240, 114, 136.5],
-      [0, 'lounge_side_table', 408, 116, 128.5],
+      [1, 'lounge_mantel', 240, 66, 88.5],
+      [0, 'lounge_side_table', 168, 68, 80.5],
     ]);
     expect(at(STUDY_ROOM)).toEqual([
-      [2, 'study_desk', 160, 118, 128.5],
-      [3, 'study_bookshelf', 328, 113, 128.5],
+      [2, 'study_desk', 176, 70, 80.5],
+      [3, 'study_bookshelf', 296, 65, 80.5],
     ]);
     for (const [room, piece, top] of [
-      [LOUNGE_ROOM, FIREPLACE, 114],
-      [LOUNGE_ROOM, SIDE_TABLE, 116],
-      [STUDY_ROOM, DESK, 118],
-      [STUDY_ROOM, BOOKSHELF, 113],
+      [LOUNGE_ROOM, FIREPLACE, 66],
+      [LOUNGE_ROOM, SIDE_TABLE, 68],
+      [STUDY_ROOM, DESK, 70],
+      [STUDY_ROOM, BOOKSHELF, 65],
     ] as const) {
       const s = treeSprites(state, room).find((t) => t.y === top);
       // On the piece: inside its rect, in its upper half.
@@ -110,24 +111,40 @@ describe('tree sprites', () => {
     }
   });
 
-  it("keeps only the grid's second row in the hallway, whose corridor floor is too low for the first", () => {
-    expect(floorRows(SHED_ROOM)).toEqual([160, 200]);
-    expect(floorRows(LOUNGE_ROOM)).toEqual([160, 200]);
-    expect(floorRows(STUDY_ROOM)).toEqual([160, 200]);
-    expect(floorRows(HALLWAY_ROOM)).toEqual([200]);
+  it("keeps both of the grid's rows in every house room and only its middle three columns in the hallway, whose floor is 3 m wide", () => {
+    for (const room of [SHED_ROOM, LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM]) {
+      expect(floorRows(room), room.key).toEqual([160, 200]);
+    }
+    for (const room of [SHED_ROOM, LOUNGE_ROOM, STUDY_ROOM]) {
+      expect(floorColumns(room), room.key).toEqual([170, 202, 234, 266, 298]);
+    }
+    expect(floorColumns(HALLWAY_ROOM)).toEqual([202, 234, 266]);
     const sprites = treeSprites(
-      stateWith(...Array.from({ length: 6 }, () => 'hallway')),
+      stateWith(...Array.from({ length: 7 }, () => 'hallway')),
       HALLWAY_ROOM,
     );
     expect(sprites.map(at)).toEqual([
-      [170, 200],
+      [202, 160],
+      [234, 160],
+      [266, 160],
       [202, 200],
       [234, 200],
       [266, 200],
-      [298, 200],
-      [170, 200],
+      [202, 160],
     ]);
-    expect(sprites[5]?.depth).toBeLessThan(sprites[0]?.depth ?? 0);
+    expect(sprites[6]?.depth).toBeLessThan(sprites[0]?.depth ?? 0);
+    // Every spot in every house room is on its floor, clear of the walls and the solid furniture.
+    for (const room of [LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM]) {
+      const floor = insideWalls(room);
+      const spots = floorRows(room).length * floorColumns(room).length;
+      for (let i = 0; i < spots; i += 1) {
+        const { x, y } = floorSpot(i, room);
+        expect(x > floor.x && x < floor.x + floor.w && y > floor.y && y <= floor.y + floor.h).toBe(
+          true,
+        );
+        expect(hitsWall(room, x, y - 1), `${room.key} ${String(i)}`).toBe(false);
+      }
+    }
   });
 
   it('draws no displayed tree in the shed, which has no display spots', () => {
