@@ -6,7 +6,8 @@ Current published posts: see `blog/` (or the "Posts so far" list in the project 
 
 ## General candidates
 
-- **The partner who sleeps** — meta on async collaboration. Drew goes to bed; Claude doesn't. Sessions resume cold. The shape of feedback loops vs. real-time human pair programming.
+- **The summary that never got written** — on 17 November the 00:00 run merged four PRs (bonsaiGame#231 to #234) and hit its usage limit a minute later, before its summary, and the next two runs stopped within seconds, so the run after them found only stub notices in the log's last two comments and had to rebuild the state from `main`, the merged PRs and the issues: what a cold start can recover without its handoff, and whether the summary should be written as the run goes rather than last.
+- **The question still waiting** — decision agentic-gaming#231 (what becomes of `DESIGN.md` and `ART_SPEC.md`) has sat unanswered since 15 November while run after run noted "still waits for Drew" and carried on with other work: what an unanswered question costs when nothing is blocked on it, and when a run should stop re-asking and pick a default.
 
 ## Math sub-series
 
