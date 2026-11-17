@@ -38,10 +38,12 @@ import {
   buildRingWithBasis,
   branchRadiusAt,
   buildTreeMesh,
+  referenceBasis,
   ringNormals,
   ringU,
   speciesBark,
   stitchRings,
+  transportBasis,
   tubeNormals,
   wireCoilOffset,
   wireCoilSegments,
@@ -232,6 +234,28 @@ describe('ring helpers', () => {
         expect((p.x - c.x) * n.x + (p.y - c.y) * n.y + (p.z - c.z) * n.z).toBeCloseTo(0, 12);
       }
     }
+  });
+
+  it('transportBasis keeps u closest to the previous u across the reference flip', () => {
+    // Either side of |n.z| = 0.95 the reference basis jumps; the carried one does not.
+    const before = { x: 0, y: Math.sqrt(1 - 0.94 * 0.94), z: 0.94 };
+    const after = { x: 0.05, y: Math.sqrt(1 - 0.96 * 0.96 - 0.0025), z: 0.96 };
+    const start = referenceBasis(before);
+    const { u, v } = transportBasis(start.u, after);
+    expect(u.x * after.x + u.y * after.y + u.z * after.z).toBeCloseTo(0, 12);
+    expect(Math.hypot(u.x, u.y, u.z)).toBeCloseTo(1, 12);
+    expect(Math.hypot(v.x, v.y, v.z)).toBeCloseTo(1, 12);
+    expect(u.x * v.x + u.y * v.y + u.z * v.z).toBeCloseTo(0, 12);
+    const carried = u.x * start.u.x + u.y * start.u.y + u.z * start.u.z;
+    const ref = referenceBasis(after).u;
+    const rebuilt = ref.x * start.u.x + ref.y * start.u.y + ref.z * start.u.z;
+    expect(carried).toBeGreaterThan(0.99);
+    expect(rebuilt).toBeLessThan(0.5);
+  });
+
+  it('transportBasis falls back to the reference basis when n runs along the previous u', () => {
+    const n = { x: 1, y: 0, z: 0 };
+    expect(transportBasis({ x: 1, y: 0, z: 0 }, n)).toEqual(referenceBasis(n));
   });
 
   it('stitchRings emits (a1, b1, a2), (a2, b1, b2) per segment and wraps around', () => {
@@ -679,6 +703,50 @@ describe('wire (scr_bonsai_mesh add_wire_coil / add_wire_anchor)', () => {
     const b = d.x * f.binormal.x + d.y * f.binormal.y + d.z * f.binormal.z;
     expect(n / offset).toBeCloseTo(dcos(branch.angle), 9);
     expect(b / offset).toBeCloseTo(dsin(branch.angle), 9);
+  });
+
+  /**
+   * Largest twist, in degrees, between consecutive rings of a run of bands:
+   * the angle about the later ring's own axis between each ring's point 0
+   * (as an offset from its centre), after projecting both into that ring's plane.
+   */
+  function maxTwist(points: Vec3[], first: number, bands: number): number {
+    const sub = (a: Vec3, b: Vec3): Vec3 => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
+    const dot = (a: Vec3, b: Vec3): number => a.x * b.x + a.y * b.y + a.z * b.z;
+    const cross = (a: Vec3, b: Vec3): Vec3 => ({
+      x: a.y * b.z - a.z * b.y,
+      y: a.z * b.x - a.x * b.z,
+      z: a.x * b.y - a.y * b.x,
+    });
+    const flat = (d: Vec3, n: Vec3): Vec3 => {
+      const k = dot(d, n);
+      return { x: d.x - k * n.x, y: d.y - k * n.y, z: d.z - k * n.z };
+    };
+    let worst = 0;
+    for (let i = 1; i <= bands; i++) {
+      const a = wireRing(points, first, bands, i - 1);
+      const b = wireRing(points, first, bands, i);
+      const ca = centroid(a);
+      const cb = centroid(b);
+      const b0 = sub(b[0] ?? missing, cb);
+      // The ring's axis: the normal of the plane through its centre and points 0 and 1.
+      const axis = cross(b0, sub(b[1] ?? missing, cb));
+      const len = Math.hypot(axis.x, axis.y, axis.z);
+      const n = { x: axis.x / len, y: axis.y / len, z: axis.z / len };
+      const pa = flat(sub(a[0] ?? missing, ca), n);
+      const pb = flat(b0, n);
+      const deg = (Math.atan2(dot(cross(pa, pb), n), dot(pa, pb)) * 180) / Math.PI;
+      worst = Math.max(worst, Math.abs(deg));
+    }
+    return worst;
+  }
+
+  it('carries the ring basis along the coil and the anchor: no ring twists 15 degrees from the last', () => {
+    const { points } = wirePoints();
+    // A fixed reference axis twists consecutive rings by up to ~143 degrees where
+    // it flips, pinching the tube; a transported basis turns only with the helix.
+    expect(maxTwist(points, 0, COIL_SEGS)).toBeLessThan(15);
+    expect(maxTwist(points, COIL_SEGS * 36, ANCHOR_SEGMENTS)).toBeLessThan(15);
   });
 
   it('wraps the anchor on the floored trunk radius at a fully tapered tip', () => {
