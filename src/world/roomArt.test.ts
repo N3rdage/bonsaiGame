@@ -74,9 +74,9 @@ describe('floor', () => {
 
   it("tiles only the inside of each house room's own ring with its own floor, hashed as the shed's", () => {
     for (const [room, sheet, area, rows, columns] of [
-      [LOUNGE_ROOM, SHEETS.floorLounge, { x: 64, y: 112, w: 352, h: 96 }, 6, 22],
-      [HALLWAY_ROOM, SHEETS.floorHallway, { x: 96, y: 176, w: 288, h: 32 }, 2, 18],
-      [STUDY_ROOM, SHEETS.floorStudy, { x: 144, y: 112, w: 192, h: 96 }, 6, 12],
+      [LOUNGE_ROOM, SHEETS.floorLounge, { x: 160, y: 64, w: 272, h: 144 }, 9, 17],
+      [HALLWAY_ROOM, SHEETS.floorHallway, { x: 192, y: 144, w: 96, h: 64 }, 4, 6],
+      [STUDY_ROOM, SHEETS.floorStudy, { x: 160, y: 64, w: 144, h: 144 }, 9, 9],
       [GREENHOUSE_ROOM, SHEETS.floorGreenhouse, { x: 160, y: 80, w: 160, h: 112 }, 7, 10],
     ] as const) {
       const tiles = floorTiles(room);
@@ -341,30 +341,30 @@ describe('walls', () => {
         LOUNGE_ROOM,
         SHEETS.wallLounge,
         [
-          [48, 96, 384, 16],
-          [48, 208, 384, 16],
-          [48, 112, 16, 96],
-          [416, 112, 16, 96],
+          [144, 48, 304, 16],
+          [144, 208, 304, 16],
+          [144, 64, 16, 144],
+          [432, 64, 16, 144],
         ],
       ],
       [
         HALLWAY_ROOM,
         SHEETS.wallHallway,
         [
-          [80, 160, 320, 16],
-          [80, 208, 320, 16],
-          [80, 176, 16, 32],
-          [384, 176, 16, 32],
+          [176, 128, 128, 16],
+          [176, 208, 128, 16],
+          [176, 144, 16, 64],
+          [288, 144, 16, 64],
         ],
       ],
       [
         STUDY_ROOM,
         SHEETS.wallStudy,
         [
-          [128, 96, 224, 16],
-          [128, 208, 224, 16],
-          [128, 112, 16, 96],
-          [336, 112, 16, 96],
+          [144, 48, 176, 16],
+          [144, 208, 176, 16],
+          [144, 64, 16, 144],
+          [304, 64, 16, 144],
         ],
       ],
       [
@@ -400,11 +400,13 @@ describe('walls', () => {
 
   it('has two windows in the lounge, one in the study and the shed, none in the hallway, the garden or the glass greenhouse', () => {
     expect(SHEETS.window).toMatchObject({ key: 'spr_window', frames: 1 });
+    // The lounge's both west of the hallway block (x 336), either side of the fireplace (x 224..256).
     expect(LOUNGE_ROOM.windows).toEqual([
-      { x: 144, w: 32 },
-      { x: 304, w: 32 },
+      { x: 176, w: 32 },
+      { x: 288, w: 32 },
     ]);
-    expect(STUDY_ROOM.windows).toEqual([{ x: 224, w: 32 }]);
+    // The study's between the desk (x 160..192) and the bookcase (x 256..304).
+    expect(STUDY_ROOM.windows).toEqual([{ x: 208, w: 32 }]);
     // The shed's is its own Inked window on the back wall's face: 32 x 24, its top 44 px above
     // the floor line (y 64), its sill 20 px (0.94 m) above it, inside the face (y 16..64).
     expect(windowRuns(SHED_ROOM).map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual([
@@ -446,27 +448,31 @@ describe('walls', () => {
     const furniture = (room: Room) =>
       furnitureRuns(room).map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h]);
     expect(furniture(LOUNGE_ROOM)).toEqual([
-      ['spr_fireplace', 224, 112, 32, 24],
-      ['spr_side_table', 400, 112, 16, 16],
+      ['spr_wall_lounge', 336, 64, 96, 64],
+      ['spr_fireplace', 224, 64, 32, 24],
+      ['spr_side_table', 160, 64, 16, 16],
     ]);
     expect(furniture(STUDY_ROOM)).toEqual([
-      ['spr_desk', 144, 112, 32, 16],
-      ['spr_bookshelf', 288, 112, 48, 16],
+      ['spr_desk', 160, 64, 32, 16],
+      ['spr_bookshelf', 256, 64, 48, 16],
     ]);
     expect(furniture(HALLWAY_ROOM)).toEqual([
-      ['spr_runner', 128, 180, 208, 24],
-      ['spr_hall_table', 344, 176, 16, 12],
+      ['spr_runner', 200, 184, 60, 24],
+      ['spr_hall_table', 266, 196, 16, 12],
     ]);
     for (const room of Object.values(ROOMS)) {
       const runs = furnitureRuns(room);
       expect(wallRuns(room).slice(wallRuns(room).length - runs.length)).toEqual(runs);
       for (const r of runs) {
         // A one-frame piece is its sheet's logical size; a run is whole tiles of it, a row
-        // indoors, rows and columns outdoors.
+        // indoors, rows and columns outdoors and in a block of the room's own wall (the lounge's
+        // hallway block). The hallway's runner, 208 px long, is cropped to the 3 m hall's 60 px.
         const outdoor = room === GARDEN_ROOM || room === FRONT_GARDEN_ROOM;
+        const block = r.sheet === ROOM_STYLES[room.key].wallRow;
         const px = sheetPxPerLogical(r.sheet);
-        expect((r.w * px) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
-        if (outdoor) expect((r.h * px) % r.sheet.frameHeight).toBe(0);
+        if (r.sheet === SHEETS.runner) expect(r.w * px).toBeLessThan(r.sheet.frameWidth);
+        else expect((r.w * px) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
+        if (outdoor || block) expect((r.h * px) % r.sheet.frameHeight).toBe(0);
         else expect(r.h * px).toBe(r.sheet.frameHeight);
         // Indoors, on the floor clear of the walls' bands; in the garden, over a building's solid
         // footprint; in the front garden, anywhere on its canvas (the road and roofs outside bounds).
@@ -552,7 +558,7 @@ describe('props', () => {
       return s && [s.sheet.art, s.x, s.y, s.originY, s.scale];
     };
     expect(at(LOUNGE_ROOM.props, 'door')).toEqual(['pixel', 240, 216, 0.5, 0.5]);
-    expect(at(STUDY_ROOM.props, 'door_garden')).toEqual(['pixel', 320, 216, 0.5, 0.5]);
+    expect(at(STUDY_ROOM.props, 'door_garden')).toEqual(['pixel', 232, 216, 0.5, 0.5]);
   });
 
   it('sorts a prop at its bottom edge and a door, in its wall, at its top edge', () => {
@@ -657,7 +663,7 @@ describe('props', () => {
     ]);
   });
 
-  it('draws the doors on the row y 190 in the side walls seen from the side, the E walls mirroring the W, sorted at their top edge', () => {
+  it('draws the doors in the side walls seen from the side, the E walls mirroring the W, sorted at their top edge', () => {
     const at = (props: readonly Prop[], key: string) => {
       const p = propByKey(props, key);
       const s = propSprite(p);
@@ -668,41 +674,42 @@ describe('props', () => {
       ]);
       return s && [p.wall, s.sheet.key, s.x, s.y, s.scale, s.depth];
     };
+    // The lounge's in the hallway block's west face.
     expect(at(LOUNGE_ROOM.props, 'door_hallway')).toEqual([
       'E',
       'spr_door_side_e',
-      424,
-      190,
+      344,
+      96,
       0.5,
-      182,
+      88,
     ]);
     expect(at(HALLWAY_ROOM.props, 'door_lounge')).toEqual([
       'W',
       'spr_door_side_w',
-      88,
-      190,
+      184,
+      176,
       0.5,
-      182,
+      168,
     ]);
     expect(at(HALLWAY_ROOM.props, 'door_study')).toEqual([
       'E',
       'spr_door_side_e',
-      392,
-      190,
+      296,
+      176,
       0.5,
-      182,
+      168,
     ]);
     expect(at(STUDY_ROOM.props, 'door_hallway')).toEqual([
       'W',
       'spr_door_side_w',
-      136,
-      190,
+      152,
+      96,
       0.5,
-      182,
+      88,
     ]);
   });
 
-  it("draws the study's glazed double door over its 32x16 rect and the greenhouse's glazed leaf over its own, the garden's Inked leaves standing in their faces, sorted at their top edge", () => {
+  it("draws the study's glazed double door centred in its 48x16 opening and the greenhouse's glazed leaf over its own rect, the garden's Inked leaves standing in their faces, sorted at their top edge", () => {
     expect(SHEETS.doorGlass).toEqual({
       key: 'spr_door_glass',
       frameWidth: 64,
@@ -727,7 +734,21 @@ describe('props', () => {
       ]);
       return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
     };
-    expect(at(STUDY_ROOM.props, 'door_garden')).toEqual(['spr_door_glass', 320, 216, 0.5, 208]);
+    // The study's doors: the 1.5 m (48 px) opening is wider than the 32 px sprite, drawn at its
+    // own size centred in it, the opening's band showing 8 px either side.
+    const glass = propByKey(STUDY_ROOM.props, 'door_garden');
+    const leaves = propSprite(glass);
+    expect([glass.w, glass.h]).toEqual([48, 16]);
+    expect(
+      leaves && [leaves.sheet.frameWidth * leaves.scale, leaves.sheet.frameHeight * leaves.scale],
+    ).toEqual([32, 16]);
+    expect(leaves && [leaves.sheet.key, leaves.x, leaves.y, leaves.scale, leaves.depth]).toEqual([
+      'spr_door_glass',
+      232,
+      216,
+      0.5,
+      208,
+    ]);
     // The garden's sides of both are one Inked glazed leaf, 24 x 40, standing on the rect's bottom edge.
     const inked = (key: string) => {
       const s = propSprite(propByKey(GARDEN_ROOM.props, key));

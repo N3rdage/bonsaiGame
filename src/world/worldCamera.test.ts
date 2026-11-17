@@ -98,27 +98,28 @@ describe('worldView', () => {
   });
 
   it('shows each house room and the greenhouse whole on a phone, the view still wherever the player is', () => {
-    // Lounge (48, 96) 384x128: exactly the view's width, so x is held at 48; y centred, 96 + (128 - 216) / 2.
-    // Study (128, 96) 224x128 and greenhouse (144, 64) 192x144: centred both ways.
-    // Hallway (80, 160) 320x64: centred across; centred down it would start at y 84, past the
+    // Lounge (144, 48) 304x176: centred across it would start at x 104, past the canvas's last
+    // start 480 - 384 = 96, so it stops there; y centred, 48 + (176 - 216) / 2.
+    // Study (144, 48) 176x176 and greenhouse (144, 64) 192x144: centred both ways.
+    // Hallway (176, 128) 128x96: centred across; centred down it would start at y 68, past the
     // canvas's last start 270 - 216 = 54, so it stops there.
     for (const [bounds, scrollX, scrollY, spots] of [
       [
         LOUNGE_ROOM.bounds,
-        48,
-        52,
+        96,
+        28,
         [
-          { x: 64, y: 112.5 },
-          { x: 420, y: 207.5 },
+          { x: 160.5, y: 64.5 },
+          { x: 431.25, y: 207.5 },
         ],
       ],
       [
         STUDY_ROOM.bounds,
-        48,
-        52,
+        40,
+        28,
         [
-          { x: 144.5, y: 112.5 },
-          { x: 320, y: 190 },
+          { x: 160.5, y: 81 },
+          { x: 232, y: 190 },
         ],
       ],
       [
@@ -126,8 +127,8 @@ describe('worldView', () => {
         48,
         54,
         [
-          { x: 114, y: 176.25 },
-          { x: 366, y: 207.5 },
+          { x: 210, y: 144.75 },
+          { x: 270, y: 207.25 },
         ],
       ],
       [
@@ -149,7 +150,7 @@ describe('worldView', () => {
         expect(view.scrollY + 216).toBeGreaterThanOrEqual(bounds.y + bounds.h);
       }
     }
-    expect(worldView({ x: 114, y: 190 }, HALLWAY_ROOM.bounds, 1)).toEqual({
+    expect(worldView({ x: 210, y: 176 }, HALLWAY_ROOM.bounds, 1)).toEqual({
       zoom: 1,
       scrollX: 0,
       scrollY: 0,

@@ -1,12 +1,16 @@
 /**
- * The lounge, as pure data: new content (the prototype had no interiors), an
- * indoor display room through the shed's top door. It reuses the shed's
- * conventions (the same canvas, an inset ring of solid walls framed by the
- * dark background) in a shape of its own, wider and lower than the shed, with
- * two windows in its top wall, a door drawn on the bottom wall back to the
- * shed, one in the right wall on to the hallway, and a fireplace and a side
- * table carrying the two display spots that were the shed's pedestals (saves
- * from before version 4 move the shed's displayed trees onto them).
+ * The lounge-kitchen, as pure data: new content (the prototype had no
+ * interiors), plan B3's lounge with its open-plan kitchen as one walkable room
+ * (docs/site-plan/README.md), an indoor display room through the shed's top
+ * door. It reuses the shed's conventions (the same canvas, an inset ring of
+ * solid walls framed by the dark background): 8.5 x 4.5 m at 1 m to 32 px,
+ * the hallway's 3 x 2 m block solid in its north-east corner as the back
+ * garden's house and shed footprints are, the kitchen open below that block.
+ * Two windows in the lounge's top wall, a door drawn on the bottom wall back
+ * to the shed, one in the block's west face on to the hallway, and a
+ * fireplace and a side table against the top wall carrying the two display
+ * spots that were the shed's pedestals (saves from before version 4 move the
+ * shed's displayed trees onto them).
  */
 
 import { SHEETS } from './assets';
@@ -23,33 +27,48 @@ import {
 } from './shedRoom';
 
 /**
- * 384x128, x 48..432 and y 96..224: its bottom wall is the shed's row, so the
- * shed door's square stays at x 240, and it fits a phone's zoomed view
- * (384x216), which shows the whole room.
+ * The 272x144 floor (8.5 x 4.5 m), x 160..432 and y 64..208, grown by the
+ * 16 px wall band: x 144..448 and y 48..224. Its bottom wall is the shed's
+ * top row, so the shed door's square stays at x 240, and it fits a phone's
+ * zoomed view (384x216).
  */
-export const LOUNGE_BOUNDS: Rect = { x: 48, y: 96, w: 384, h: 128 };
+export const LOUNGE_BOUNDS: Rect = { x: 144, y: 48, w: 304, h: 176 };
+
+/**
+ * The hallway's 3 x 2 m (96x64) in the floor's north-east corner, x 336..432
+ * and y 64..128: a solid block of the lounge's wall, the hallway door in its
+ * west face. The kitchen is the floor below it, x 336..432 and y 128..208.
+ */
+export const HALLWAY_BLOCK: Furniture = {
+  sheet: SHEETS.wallLounge,
+  x: 336,
+  y: 64,
+  w: 96,
+  h: 64,
+  solid: true,
+};
 
 /** spr_fireplace's 64x48 prototype px, halved: against the top wall, centred between the windows on x 240. */
 export const FIREPLACE: Furniture = {
   sheet: SHEETS.fireplace,
   x: 224,
-  y: 112,
+  y: 64,
   w: 32,
   h: 24,
   solid: true,
 };
 
-/** spr_side_table's 32x32 prototype px, halved: in the top-right corner, against both walls. */
+/** spr_side_table's 32x32 prototype px, halved: in the top-left corner, against both walls. */
 export const SIDE_TABLE: Furniture = {
   sheet: SHEETS.sideTable,
-  x: 400,
-  y: 112,
+  x: 160,
+  y: 64,
   w: 16,
   h: 16,
   solid: true,
 };
 
-const FURNITURE = [FIREPLACE, SIDE_TABLE];
+const FURNITURE = [HALLWAY_BLOCK, FIREPLACE, SIDE_TABLE];
 
 export const LOUNGE_ROOM: Room = {
   key: 'lounge',
@@ -57,8 +76,8 @@ export const LOUNGE_ROOM: Room = {
   height: fromPrototype(540),
   bounds: LOUNGE_BOUNDS,
   windows: [
-    { x: 144, w: 32 },
-    { x: 304, w: 32 },
+    { x: 176, w: 32 },
+    { x: 288, w: 32 },
   ],
   edgeMargin: SHED_ROOM.edgeMargin,
   // Where the shed's lounge door lands, 26 px above this room's door.
@@ -67,24 +86,32 @@ export const LOUNGE_ROOM: Room = {
   furniture: FURNITURE,
   props: [
     // On the mantel, whose shelf's top face is the sprite's prototype rows
-    // 0..3: a walk straight up from the door's landing stops against the
-    // fireplace at y 136.25 on the 1.25 px step grid, 11.25 px below the
-    // spot's centre (240, 125).
-    displaySpot('pedestal_1', 'lounge_mantel', FIREPLACE, 114),
-    // On the table top, prototype rows 2..11: a walk into the right wall and
-    // then up stops against the table at (415, 128.75) or (415.5, 128.75),
-    // within 10 px of the spot's centre (408, 122).
-    displaySpot('pedestal_2', 'lounge_side_table', SIDE_TABLE, 116),
-    // The shed garden door's square in the bottom wall, back to below the shed's lounge door.
+    // 0..3: a walk straight up from the shed door's landing stops against the
+    // fireplace at y 88.75 on the 1.25 px step grid, 11.75 px below the
+    // spot's centre (240, 77).
+    displaySpot('pedestal_1', 'lounge_mantel', FIREPLACE, 66),
+    // On the table top, prototype rows 2..11: a walk into the left wall and
+    // then up stops against the table at (160, 80) from the shed door's
+    // landing, (160.5, 81) from the hallway door's, on the 1.25 px step
+    // grid, each within 10.3 px of the spot's centre (168, 74).
+    displaySpot('pedestal_2', 'lounge_side_table', SIDE_TABLE, 68),
+    // Plan B3 row 3: the shed garden door's square in the bottom wall, 2.5 m along, back to
+    // below the shed's lounge door.
     {
       ...prop('door', 'Door', 'Back to Shed', 464 + 16, 416 + 16, 16, 16),
       wall: 'S',
       target: { room: 'shed', door: 'door_lounge' },
     },
-    // In the right wall (prototype top-left (832, 364)) on the row y 190, seen from the side,
-    // to beside the hallway's lounge door.
+    // Plan B3 row 4: in the hallway block's west face, 1 m from its north end, seen from the
+    // side, to beside the hallway's lounge door. It lands west of the block, facing it.
     {
-      ...prop('door_hallway', 'Door', 'To Hallway', 832 + 16, 364 + 16, 16, 16),
+      key: 'door_hallway',
+      label: 'Door',
+      prompt: 'To Hallway',
+      x: 344,
+      y: 96,
+      w: 16,
+      h: 16,
       wall: 'E',
       target: { room: 'hallway', door: 'door_lounge' },
       sheet: SHEETS.doorSideE,

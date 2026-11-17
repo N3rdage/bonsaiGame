@@ -69,7 +69,7 @@ test.describe('the front garden', () => {
 
     await frontToHallway(page);
     // Just below the front door in the hallway's top wall, facing down.
-    await expectAt(page, 'hallway', 240, 194, 'down');
+    await expectAt(page, 'hallway', 240, 162, 'down');
     expect(errors).toEqual([]);
   });
 });
