@@ -390,8 +390,9 @@ describe('sprite sheets', () => {
       [32, 24],
       // Each piece its front face (height x 21.33 px/m) over its footprint's depth, to 4 px: the
       // 0.9 m fireplace on 24, the 0.4 m side table on 16, the 0.9 m counter on 20 (its east run
-      // its 60 px worktop alone, its south end joined to the south run with no front of its own), the flat runner, the 0.75 m console table on 12 and desk on 16, the
-      // 0.6 m low bookcase on 16.
+      // its 60 px worktop alone, its south end joined to the south run with no front of its own),
+      // the flat runner, the 0.75 m console table on 12 and desk on 16, the 0.6 m low bookcase
+      // on 16.
       [32, 44],
       [16, 24],
       [96, 40],
