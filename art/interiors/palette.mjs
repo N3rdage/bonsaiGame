@@ -1,5 +1,5 @@
 // Every colour the interiors draw with, as [r, g, b], in the family of
-// art/pixel.py's wood tones (ART_SPEC.md's palette table).
+// art/pixel.py's wood tones (archive/gamemaker/ART_SPEC.md's palette table).
 
 // Wood: door frames and leaves, the floor shelf.
 export const WOOD_MID = [120, 85, 55];

@@ -1,5 +1,5 @@
 """
-pixel.py — tiny hard-edged pixel-art toolkit + the ART_SPEC palette.
+pixel.py — tiny hard-edged pixel-art toolkit + the archive/gamemaker/ART_SPEC.md palette.
 
 Everything draws directly into an HxWx4 uint8 RGBA numpy array, so there is
 NO anti-aliasing anywhere: every edge is a hard pixel boundary, backgrounds
@@ -9,7 +9,7 @@ stay fully transparent, and output dimensions are exact. Authored at 1:1
 import numpy as np
 from PIL import Image
 
-# ---- Palette (RGB straight from ART_SPEC.md) -------------------------------
+# ---- Palette (RGB straight from archive/gamemaker/ART_SPEC.md) -------------
 PAL = {
     "wood_mid":      (120, 85, 55),
     "wood_dark":     (70, 45, 25),

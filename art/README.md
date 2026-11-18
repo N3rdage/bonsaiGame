@@ -1,6 +1,10 @@
 # Generated assets — import & wiring reference
 
-12 PNGs covering every in-scope slot in `ART_SPEC.md`. All authored at 1:1,
+The sprite spec is the GameMaker prototype's and lives in the archive,
+[`archive/gamemaker/ART_SPEC.md`](../archive/gamemaker/ART_SPEC.md);
+`sheets.mjs` packs the sprite sizes it describes into the web build's sheets.
+
+12 PNGs covering every in-scope slot in that spec. All authored at 1:1,
 RGBA, transparent background, hard pixel edges (no anti-aliasing), palette
 locked to the spec table. Multi-frame sprites are **horizontal strips** — use
 GM's *Import Strip* and set the frame width below.
