@@ -1,10 +1,12 @@
 /**
  * The greenhouse, as pure data: new content (the prototype had none), a glass
- * house off the garden, 5 x 3.5 m. An inset ring of glass walls on the shed's
- * canvas round its 10x7-tile paved floor (`GREENHOUSE_FLOOR`, shared with the
- * save's version 6 migration), no windows (the walls are the glass), no
- * furniture of its own, and one door in the bottom wall's centre back out to
- * the garden.
+ * house off the garden, 5 x 3.5 m. An inset ring on the shed's canvas round
+ * its 10x7-tile paved floor (`GREENHOUSE_FLOOR`, shared with the save's
+ * version 6 migration), drawn in Inked as the house rooms are (roomArt's
+ * ROOM_STYLES): its back wall's glass face and its frame rails as caps. No
+ * windows (the walls are the glass), no furniture of its own (the player
+ * places pedestals and floor shelves, placement.ts), and one door in the
+ * bottom wall's centre back out to the garden, the garden's glazed leaf.
  */
 
 import { GREENHOUSE_FLOOR } from '../sim/greenhouseFloor';

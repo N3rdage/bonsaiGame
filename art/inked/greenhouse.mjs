@@ -77,7 +77,8 @@ function pavingTile(i) {
       1,
     );
   }
-  for (const [mx, my] of v.moss) k.blob(mx, my, 1.4, 0.7, 'foliage', { bump: 0.3, lobes: 4, width: 1 });
+  for (const [mx, my] of v.moss)
+    k.blob(mx, my, 1.4, 0.7, 'foliage', { bump: 0.3, lobes: 4, width: 1 });
   return finish(page);
 }
 

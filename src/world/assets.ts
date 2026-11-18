@@ -3,9 +3,8 @@
  * (which loads them), the world scene and the tests. Each pixel sheet is one
  * prototype sprite, packed by `npm run art:sheets` (art/sheets.mjs) from
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
- * horizontal strip in the order of the sprite's `.yy` frames. The
- * greenhouse's tiles and the floor shelf have no prototype sprite; `npm run
- * art:interiors` (art/interiors.mjs) draws them. `npm run art:paper` (art/inked/paperSheet.mjs)
+ * horizontal strip in the order of the sprite's `.yy` frames: spr_door. Every
+ * other sheet is Inked. `npm run art:paper` (art/inked/paperSheet.mjs)
  * draws the Inked rooms' paper, `spr_paper`, `npm run art:player`
  * (art/inked/player.mjs) the Inked player, `spr_player`, in the prototype's
  * frame order, `npm run art:shed` (art/inked/shed.mjs) every sheet the shed
@@ -21,7 +20,11 @@
  * hallway.mjs and study.mjs) every sheet each house room draws: its floor
  * (and the kitchen's), wall face and caps, window and furniture, and `npm
  * run art:doors` (art/inked/doors.mjs) the house's own doors: the study's
- * glazed double door and the side-on doors between rooms.
+ * glazed double door and the side-on doors between rooms, and `npm run
+ * art:greenhouse` (art/inked/greenhouse.mjs) the greenhouse's paving and its
+ * back wall's face (its caps are the garden's frame rails), and `npm run
+ * art:placeables` (art/inked/placeables.mjs) the furniture the player
+ * places: the pedestal and the floor shelf.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -167,9 +170,11 @@ export const SHEETS = {
   doorGlass: inked('spr_door_glass', 1, 48, 40),
   doorSideW: inked('spr_door_side_w', 1, 8, 40),
   doorSideE: inked('spr_door_side_e', 1, 8, 40),
-  // The greenhouse's paving and its glass walls, drawn by art/interiors.mjs.
-  floorGreenhouse: sheet('spr_floor_greenhouse', 3),
-  wallGlass: sheet('spr_wall_glass'),
+  // The greenhouse, drawn by art/inked/greenhouse.mjs: 3 variants each of its stone paving (16 px)
+  // and its back wall's 2.4 m face from inside (16 x 48), glass over a brick dwarf wall with the
+  // garden green through the lower panes; its caps are the garden's greenhouseCap and greenhouseCapV.
+  floorGreenhouse: inked('spr_floor_greenhouse', 3, 16),
+  greenhouseWall: inked('spr_greenhouse_wall', 3, 16, 48),
   // The shed's decor (obj_game_controller Draw_0), drawn by art/inked/shed.mjs at the scale rule's heights.
   shelf: inked('spr_shelf', 1, 24, 20),
   tools: inked('spr_tools', 1, 12, 32),
@@ -187,9 +192,10 @@ export const SHEETS = {
   bed: inked('spr_bed', 3, 16),
   frontDoor: inked('spr_front_door', 1, 24, 40),
   rollerDoor: inked('spr_roller_door', 1, 77, 40),
-  // The placed furniture: the prototype's pedestal, packed, and the floor shelf, drawn by art/interiors.mjs.
-  pedestal: sheet('spr_pedestal'),
-  floorShelf: sheet('spr_floor_shelf', 1, 64, 32),
+  // The placed furniture, drawn by art/inked/placeables.mjs at the scale rule's heights, cut out:
+  // the 0.6 m pedestal on its 16 x 16 footprint and the 0.4 m floor shelf on its 32 x 16 one.
+  pedestal: inked('spr_pedestal', 1, 16, 28),
+  floorShelf: inked('spr_floor_shelf', 1, 32, 24),
   // The Inked rooms' paper, drawn by art/inked/paperSheet.mjs: one 64 px grain period, so it tiles seamlessly.
   paper: inked('spr_paper', 1, 64),
 } as const satisfies Record<string, Sheet>;

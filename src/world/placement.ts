@@ -27,7 +27,7 @@ export const PLACEABLES: Readonly<
   floor_shelf: { label: 'Floor shelf', ...PLACEABLE_SIZES.floor_shelf, spots: 2 },
 };
 
-/** Each kind's sprite, its frame the footprint at half scale. */
+/** Each kind's Inked sprite, standing on its footprint's bottom edge with its top face rising above it. */
 export const PLACEABLE_SHEETS: Readonly<Record<PlaceableKind, Sheet>> = {
   pedestal: SHEETS.pedestal,
   floor_shelf: SHEETS.floorShelf,
