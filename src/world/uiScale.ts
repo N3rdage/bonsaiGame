@@ -88,12 +88,22 @@ export function hitRect(
  * label of them, `Menu` (0.466 em a character; the others 0.35 to 0.37).
  */
 export const ESTIMATED_ADVANCE_EM = 0.47;
-/** A Text's height in em as Phaser measures Caveat: the ink of `|MÉqs`, 0.87 up and 0.23 down. */
-export const TEXT_LINE_EM = 1.1;
+/**
+ * A Text's height as Phaser measures Caveat: the ink of `|MÉqs`, 0.87 em up
+ * and 0.23 down, each side a whole px as Chromium measures it at a small size
+ * (12 px at 10 px: a button's hook height on the phone).
+ */
+export const TEXT_ASCENT_EM = 0.87;
+export const TEXT_DESCENT_EM = 0.23;
+
+/** The height in logical px of one line of `px` px text. */
+export function textHeight(px: number): number {
+  return Math.ceil(TEXT_ASCENT_EM * px) + Math.ceil(TEXT_DESCENT_EM * px);
+}
 
 /**
  * A button's text box estimated without drawing it, for the pure layouts and
- * their tests: ESTIMATED_ADVANCE_EM a glyph and TEXT_LINE_EM tall at
+ * their tests: ESTIMATED_ADVANCE_EM a glyph and `textHeight` tall at
  * `ui.body`, anchored at (`x`, `y`) by its origin as Phaser places a Text.
  */
 export function estimatedBox(
@@ -105,7 +115,28 @@ export function estimatedBox(
   ui: UiMetrics,
 ): UiRect {
   const w = Math.ceil(text.length * ESTIMATED_ADVANCE_EM * ui.body);
-  const h = Math.ceil(TEXT_LINE_EM * ui.body);
+  const h = textHeight(ui.body);
+  return { x: x - originX * w, y: y - originY * h, w, h };
+}
+
+/** The plate's padding round a HUD text, in logical px a side (`TEXT_BACKING` in src/scenes/textStyle.ts). */
+export const PLATE_PADDING = { x: 2, y: 1 } as const;
+
+/**
+ * A HUD button's box estimated without drawing it: `estimatedBox` grown by
+ * the plate it sits on (PLATE_PADDING), anchored at (`x`, `y`) by its origin.
+ */
+export function estimatedHudBox(
+  text: string,
+  x: number,
+  y: number,
+  originX: number,
+  originY: number,
+  ui: UiMetrics,
+): UiRect {
+  const inner = estimatedBox(text, 0, 0, 0, 0, ui);
+  const w = inner.w + 2 * PLATE_PADDING.x;
+  const h = inner.h + 2 * PLATE_PADDING.y;
   return { x: x - originX * w, y: y - originY * h, w, h };
 }
 

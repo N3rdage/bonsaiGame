@@ -9,7 +9,7 @@
 import { TUTORIAL_DONE, tutorialStepBody, tutorialStepLabel } from '../sim/tutorial';
 import { INTERACT_BUTTON } from './menu';
 import { PANEL_INSET, panelClose, rowY, wrapLines, type PanelModel } from './panels';
-import { estimatedBox, hitRect, type UiMetrics } from './uiScale';
+import { estimatedBox, estimatedHudBox, hitRect, type UiMetrics } from './uiScale';
 
 /**
  * The corner box's left edge, bottom and width; its height follows the body,
@@ -52,11 +52,13 @@ export function tutorialWrap(ui: UiMetrics): number {
  */
 function boxBottom(ui: UiMetrics): number {
   const interact = hitRect(
-    estimatedBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
+    estimatedHudBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
     ui.hit,
   );
-  // Skip's text sits SKIP_LINE_H + GAP above the bottom; its target reaches half a target below its centre.
-  const below = ui.body / 2 + Math.max(ui.hit, ui.body) / 2;
+  // Skip's text sits SKIP_LINE_H + GAP above the bottom, as tall as `estimatedBox`
+  // gives (`textHeight`); its target reaches half a target below its centre.
+  const skipH = estimatedBox('Skip', 0, 0, 0, 0, ui).h;
+  const below = skipH / 2 + Math.max(ui.hit, skipH) / 2;
   const skipY = Math.floor(interact.y - below);
   return Math.min(TUTORIAL_BOX.bottom, skipY + SKIP_LINE_H + GAP);
 }

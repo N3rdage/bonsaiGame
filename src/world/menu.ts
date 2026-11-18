@@ -6,7 +6,7 @@
  * canvas. Pure data; WorldScene draws it.
  */
 
-import { estimatedBox, hitRect, type UiMetrics } from './uiScale';
+import { estimatedHudBox, hitRect, type UiMetrics } from './uiScale';
 
 /** Top-right anchor of the HUD badge (text origin 1, 0). */
 export const HUD_BADGE = { right: 472, top: 2 } as const;
@@ -92,14 +92,14 @@ export function menuRowPitch(ui: UiMetrics): number {
 
 /** The bottom of the `Menu` button's tap target, from its estimated text box. */
 function menuButtonHitBottom(ui: UiMetrics): number {
-  const r = hitRect(estimatedBox('Menu', MENU_BUTTON.left, MENU_BUTTON.top, 0, 0, ui), ui.hit);
+  const r = hitRect(estimatedHudBox('Menu', MENU_BUTTON.left, MENU_BUTTON.top, 0, 0, ui), ui.hit);
   return r.y + r.h;
 }
 
 /** The top of the `View tree (V)` button's tap target, which the panel's rows stay above. */
 function viewButtonHitTop(ui: UiMetrics): number {
   return hitRect(
-    estimatedBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, ui),
+    estimatedHudBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, ui),
     ui.hit,
   ).y;
 }

@@ -40,13 +40,14 @@ import {
   DESKTOP_UI,
   PHONE_UI,
   estimatedBox,
+  estimatedHudBox,
   hitRect,
   rectsOverlap,
   type UiMetrics,
   type UiRect,
 } from './uiScale';
 
-// At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 1.1 em tall): 6 px a glyph and a 12 px line. Generous upper bounds.
+// At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 12 px tall): 6 px a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_10 = 6;
 const LINE_10 = 12;
 /** The first day of winter. */
@@ -145,10 +146,10 @@ describe('tutorial corner panel', () => {
       const m = tutorialPanel(step, false, ui, tip);
       if (!m) throw new Error('no panel');
       const boxes = [
-        estimatedBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, ui),
-        estimatedBox('Notebook (J)', NOTEBOOK_BUTTON.left, NOTEBOOK_BUTTON.bottom, 0, 1, ui),
-        estimatedBox('Menu', MENU_BUTTON.left, MENU_BUTTON.top, 0, 0, ui),
-        estimatedBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
+        estimatedHudBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, ui),
+        estimatedHudBox('Notebook (J)', NOTEBOOK_BUTTON.left, NOTEBOOK_BUTTON.bottom, 0, 1, ui),
+        estimatedHudBox('Menu', MENU_BUTTON.left, MENU_BUTTON.top, 0, 0, ui),
+        estimatedHudBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
         estimatedBox(m.button.label, m.button.x, m.button.y, 1, 0, ui),
         ...menuItems(menu, ui).map((item) => estimatedBox(item.label, item.x, item.y, 0, 0.5, ui)),
       ];

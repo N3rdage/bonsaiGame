@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { DESKTOP_UI, ESTIMATED_ADVANCE_EM, PHONE_UI, TEXT_LINE_EM } from '../world/uiScale';
+import {
+  DESKTOP_UI,
+  ESTIMATED_ADVANCE_EM,
+  PHONE_UI,
+  TEXT_ASCENT_EM,
+  TEXT_DESCENT_EM,
+  textHeight,
+} from '../world/uiScale';
 import { caveatMetrics, textWidthEm } from './caveatMetrics';
 import {
   FONT_FAMILY,
@@ -115,7 +122,7 @@ describe('the UI font', () => {
     }
   });
 
-  it('stands 1.1 em tall in Phaser (the ink of |MÉqs) inside a 1.26 em line box', () => {
+  it('stands 12 px tall at 10 px in Phaser (the ink of |MÉqs) inside a 1.26 em line box', () => {
     expect(face.lineEm).toBe(1.26);
     // Phaser's MeasureText sizes a Text by `measureText('|MÉqs')`'s ink, which
     // Chromium gives as 0.87 em up (É's accent, outside the ASCII the table
@@ -123,8 +130,10 @@ describe('the UI font', () => {
     const ink = chars('|Mqs').map((c) => face.glyphs.get(c));
     expect(round(Math.max(...ink.map((g) => g?.yMax ?? 0)))).toBe(0.764);
     expect(round(-Math.min(...ink.map((g) => g?.yMin ?? 0)))).toBe(0.228);
-    expect(TEXT_LINE_EM).toBe(1.1);
-    expect(TEXT_LINE_EM).toBeLessThan(LAYOUT_LINE_EM);
+    expect([TEXT_ASCENT_EM, TEXT_DESCENT_EM]).toEqual([0.87, 0.23]);
+    // Whole px a side: 9 and 12 px tall at 8 and 10 px, inside the layouts' 1.2 em line.
+    expect([8, 10, 14].map(textHeight)).toEqual([9, 12, 17]);
+    for (const px of [8, 10]) expect(textHeight(px)).toBeLessThanOrEqual(LAYOUT_LINE_EM * px);
   });
 
   it('has a 0.4 em x-height and 0.61 em capitals', () => {

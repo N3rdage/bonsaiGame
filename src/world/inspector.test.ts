@@ -32,7 +32,7 @@ import {
 import {
   DESKTOP_UI,
   PHONE_UI,
-  TEXT_LINE_EM,
+  textHeight,
   estimatedBox,
   hitRect,
   rectsOverlap,
@@ -410,14 +410,14 @@ describe('inspector layout', () => {
       for (const m of models) {
         for (const b of m.buttons) {
           const r = buttonHit(b);
-          expect(r.h).toBe(Math.max(ui.hit, Math.ceil(TEXT_LINE_EM * ui.body)));
+          expect(r.h).toBe(Math.max(ui.hit, textHeight(ui.body)));
           expect(r.x).toBeGreaterThanOrEqual(x);
           expect(r.y).toBeGreaterThanOrEqual(y);
           expect(r.x + r.w).toBeLessThanOrEqual(x + w);
           expect(r.y + r.h).toBeLessThanOrEqual(y + h);
         }
       }
-      expect(closeHit.h).toBe(Math.max(ui.hit, Math.ceil(TEXT_LINE_EM * ui.body)));
+      expect(closeHit.h).toBe(Math.max(ui.hit, textHeight(ui.body)));
       expect(closeHit.y).toBeGreaterThanOrEqual(0);
       expect(closeHit.x + closeHit.w).toBeLessThanOrEqual(x + w);
     });

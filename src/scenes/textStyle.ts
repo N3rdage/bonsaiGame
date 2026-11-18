@@ -6,7 +6,7 @@
  * Caveat is proportional (its metrics are pinned in textStyle.test.ts): 0.36
  * em an advance across the lowercase letters, 0.45 for every digit and `$`,
  * 0.72 at the widest (`M`, `W`), and Phaser's line box (the ink of `|MÉqs`)
- * is 1.1 em. Layout widths counted in characters keep their bound of 0.6 em a
+ * is 0.87 em up and 0.23 down, 12 px at 10 px. Layout widths counted in characters keep their bound of 0.6 em a
  * character, which the game's strings stay well inside. `sans-serif` stands
  * behind it: proportional like Caveat, about 0.49 em across the lowercase in
  * Chromium's Linux default, so the rare string drawn in it still fits that
@@ -18,7 +18,7 @@
  * from the screen's UI metrics (src/world/uiScale.ts).
  */
 
-import type { UiMetrics } from '../world/uiScale';
+import { PLATE_PADDING, type UiMetrics } from '../world/uiScale';
 
 /** The family name the font is registered under in `document.fonts`. */
 export const FONT_KEY = 'Caveat';
@@ -65,7 +65,7 @@ export function bodyStyle(ui: UiMetrics) {
  */
 export const TEXT_BACKING = {
   backgroundColor: 'rgba(50, 42, 38, 0.6)',
-  padding: { x: 2, y: 1 },
+  padding: PLATE_PADDING,
 } as const;
 
 /** `px` px text in the default colour on the plate, its right side grown by the ink overhang too. */
