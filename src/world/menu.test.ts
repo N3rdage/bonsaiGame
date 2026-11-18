@@ -15,9 +15,9 @@ import {
   menuRowPitch,
   type MenuOptions,
 } from './menu';
-import { DESKTOP_UI, PHONE_UI, estimatedBox, hitRect } from './uiScale';
+import { DESKTOP_UI, PHONE_UI, estimatedBox, estimatedHudBox, hitRect } from './uiScale';
 
-// 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph and a 12 px line. Generous upper bounds.
+// At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 12 px tall): 6 px a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
 const LINE_H = 12;
 
@@ -179,7 +179,7 @@ describe('world HUD menu layout', () => {
 
   it('lays 8, 9 and 10 rows out column by column on the phone, clear of View tree', () => {
     const viewTop = hitRect(
-      estimatedBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, PHONE_UI),
+      estimatedHudBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, PHONE_UI),
       PHONE_UI.hit,
     ).y;
     const cases: [MenuOptions, number, number][] = [

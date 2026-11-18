@@ -7,7 +7,10 @@ import {
   holdUntilAtMost,
   hook,
   interact,
+  openInspector,
+  openNotebook,
   openSettingsFromMenu,
+  skipTutorial,
   tapControl,
   test,
   walkTo,
@@ -181,19 +184,46 @@ test.describe('world camera on a desktop', () => {
   });
 });
 
+/**
+ * Boots a new game in the shed with the weather off: the shed's dust motes
+ * land somewhere new every run, more changed pixels than the screenshot cap
+ * (playwright.config.ts) allows.
+ */
+async function bootStill(page: Page): Promise<void> {
+  await bootWorld(page);
+  await openSettingsFromMenu(page);
+  await tapControl(page, 'panel-weather');
+  await page.waitForFunction(() => window.__bonsai?.settings.weather === false);
+  await tapControl(page, 'panel-close');
+  await page.waitForFunction(() => window.__bonsai?.panel === '');
+  expect((await hook(page)).weather).toBeUndefined();
+}
+
 test.describe('world camera screenshot', () => {
   test('a new game in the shed with the tutorial box open', async ({ page }) => {
-    await bootWorld(page);
-    // The shed's dust motes land somewhere new every run, more changed pixels
-    // than the screenshot cap (playwright.config.ts) allows, so the capture
-    // turns weather off in Settings first.
-    await openSettingsFromMenu(page);
-    await tapControl(page, 'panel-weather');
-    await page.waitForFunction(() => window.__bonsai?.settings.weather === false);
-    await tapControl(page, 'panel-close');
-    await page.waitForFunction(() => window.__bonsai?.panel === '');
-    expect((await hook(page)).weather).toBeUndefined();
+    await bootStill(page);
     await page.waitForFunction(() => window.__bonsai?.tutorialLabel !== '');
     await expect(page).toHaveScreenshot('shed-start.png');
+  });
+});
+
+// The panels' text on the phone, for reviewing the UI font: the starter's
+// inspector and Granny's notebook at the shed's start, the tutorial skipped.
+test.describe('shed-start panel screenshots', () => {
+  test("the starter tree's inspector", async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape baseline only');
+    await bootStill(page);
+    await skipTutorial(page, true);
+    await walkTo(page, 160, 'left', 'tree:0');
+    await openInspector(page);
+    await expect(page).toHaveScreenshot('shed-start-tree-panel.png');
+  });
+
+  test("Granny's notebook", async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape baseline only');
+    await bootStill(page);
+    await skipTutorial(page, true);
+    await openNotebook(page);
+    await expect(page).toHaveScreenshot('shed-start-notebook.png');
   });
 });

@@ -47,7 +47,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // woff2: the self-hosted pixel font (src/scenes/textStyle.ts), so text draws in it offline.
+        // woff2: the self-hosted UI font (src/scenes/textStyle.ts), so text draws in it offline.
         // wav: the sound effects (public/assets/audio), so the game sounds the same offline.
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2,wav}'],
         // Phaser alone is over a megabyte; the default 2 MB cap would silently skip it.

@@ -15,7 +15,7 @@ import {
 import { SHED_ROOM } from './shedRoom';
 import { DESKTOP_UI, PHONE_UI, type UiMetrics } from './uiScale';
 
-// 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): generous upper bounds of a glyph's width and a line's height.
+// At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 12 px tall): generous upper bounds of a glyph's width and a line's height.
 const GLYPH_W = 6;
 const LINE_H = 12;
 
