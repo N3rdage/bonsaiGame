@@ -104,8 +104,10 @@ export const SIDE_TABLE: Furniture = {
 /**
  * The kitchen counter, 0.6 m deep (20 px) and 0.9 m high: its run along the
  * kitchen's south wall and its run up the east wall from there to the block,
- * the east run seen from above, its front behind the south run's top. Solid:
- * no floor-tree spot and no walk in the lounge reaches east of x 336.
+ * the east run its worktop alone (20 x 60), its south end joined to the south
+ * run, so it starts at the block's south cap, y 128, the south run's worktop
+ * over its last 20 px. Solid: no floor-tree spot and no walk in the lounge
+ * reaches east of x 336.
  */
 export const KITCHEN_COUNTER: readonly Furniture[] = [
   { sheet: SHEETS.counter, x: 336, y: 188, w: 96, h: 20, solid: true, sorted: true },
