@@ -8,9 +8,10 @@
 //   kit.mjs     the drawing vocabulary: shape, box, blob, line, shadows, wear
 //   style.mjs   the palette and the knobs (STYLE)
 //   canvas.mjs  the PNG writer
+//   seeded.mjs  the seeded random generator
 
-import { seeded } from '../interiors/png.mjs';
 import { kit } from './kit.mjs';
+import { seeded } from './seeded.mjs';
 import { createInk, toCanvas } from './stroke.mjs';
 import { CUT_OUT_TOLERANCE, INK, PAPER, PER_LOGICAL, STYLE, SUPERSAMPLE } from './style.mjs';
 

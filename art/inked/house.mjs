@@ -1,6 +1,7 @@
 /* eslint-disable no-console -- reports each sheet a house generator writes. */
 // Drawing the house's generators share, the three rooms' (lounge.mjs,
-// hallway.mjs, study.mjs) and the doors' (doors.mjs): the ink widths, a face
+// hallway.mjs, study.mjs) and the doors' (doors.mjs), and the greenhouse's
+// (greenhouse.mjs) and its placeables' (placeables.mjs): the ink widths, a face
 // tile's cornice and skirting, the 8 px cap of a plastered wall, a window on
 // the face with daylight washed into its panes, and the loop that writes a
 // generator's sheets. Each generator's own drawing stays in its file; this

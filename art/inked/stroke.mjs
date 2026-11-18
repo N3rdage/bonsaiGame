@@ -17,8 +17,8 @@
 // style's grunge. So turning a grunge knob changes the grunge and nothing
 // else: the lines underneath keep their wobble.
 
-import { seeded } from '../interiors/png.mjs';
 import { applyGrain, hash } from './paper.mjs';
+import { seeded } from './seeded.mjs';
 
 /**
  * A page of `width` x `height` logical px filled with `paper`. `style` is an
