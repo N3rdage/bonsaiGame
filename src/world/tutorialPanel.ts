@@ -22,7 +22,7 @@ import { estimatedBox, hitRect, type UiMetrics } from './uiScale';
 export const TUTORIAL_BOX = { x: 282, bottom: 248, w: 190 } as const;
 /** Left inset of the texts. */
 export const TUTORIAL_INSET = 6;
-/** Characters per body line at 8 px: the inner width in the monospace fallback (about 4.8 px a glyph; VT323 is 3.2). */
+/** Characters per body line at 8 px: the inner width at the layouts' 0.6 em a character, 4.8 px (Caveat's prose averages about 2.9). */
 export const TUTORIAL_WRAP = 36;
 /** Height of the hint and Skip line (Skip is a 10 px button). */
 const SKIP_LINE_H = 12;
@@ -157,7 +157,7 @@ export function tutorialPanel(
 
 /** The confirmation's box, centred: two wrapped lines above Cancel, Close and Skip. */
 export const SKIP_CONFIRM_PANEL = { x: 90, y: 80, w: 300, h: 110, rowSpacing: 14 } as const;
-/** Width of a 10 px glyph in the monospace fallback, an upper bound (VT323 is 4 px). */
+/** Width of a 10 px glyph at the layouts' 0.6 em a character, an upper bound (Caveat's `Skip` is 3.5 px a character). */
 const GLYPH_W = 6;
 /** Characters per line inside SKIP_CONFIRM_PANEL at 10 px. */
 const CONFIRM_WRAP = 46;

@@ -46,7 +46,7 @@ import {
   type UiRect,
 } from './uiScale';
 
-// 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph (6 px) and a 12 px line. Generous upper bounds.
+// At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 1.1 em tall): 6 px a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_10 = 6;
 const LINE_10 = 12;
 /** The first day of winter. */
@@ -88,7 +88,7 @@ describe('tutorial corner panel', () => {
     const right = TUTORIAL_BOX.x + TUTORIAL_BOX.w;
     expect(right).toBeLessThanOrEqual(480 - 8);
     for (const ui of [DESKTOP_UI, PHONE_UI]) {
-      // 0.6 em a glyph in the monospace fallback: 4.8 px at 8 px, 6 at 10.
+      // The layouts' 0.6 em a glyph: 4.8 px at 8 px, 6 at 10.
       const glyph = ui.label * 0.6 + 0.1;
       for (const step of tutorialAllSteps()) {
         const m = tutorialPanel(step, false, ui);

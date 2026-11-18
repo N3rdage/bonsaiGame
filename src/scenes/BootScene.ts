@@ -1,4 +1,4 @@
-import fontUrl from '@fontsource/vt323/files/vt323-latin-400-normal.woff2?url';
+import fontUrl from '@fontsource/caveat/files/caveat-latin-400-normal.woff2?url';
 import Phaser from 'phaser';
 import { MUSIC_KEYS, SOUND_KEYS, audioUrl } from '../platform/audio';
 import { LocalStorageSaveStorage } from '../platform/localStorageSaveStorage';
@@ -22,7 +22,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   /**
-   * The pixel font (src/scenes/textStyle.ts), so no text is drawn in the
+   * The UI font (src/scenes/textStyle.ts), so no text is drawn in the
    * fallback first, and the room, prop and player sprite sheets
    * (src/world/assets.ts) and the sound effects and music loops (src/platform/audio.ts), from
    * public/assets under the app's base path.

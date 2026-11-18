@@ -26,11 +26,11 @@ export const HINT_COLOR = '#969696';
 const TEXT_COLOR = '#ffffff';
 /** The Select column, near the box's right edge as the prototype's button was. */
 const SELECT_X = TALL_PANEL.x + TALL_PANEL.w - 80;
-/** The hint's left edge beside Plant Cutting: past the button's 13 characters at 6 px, and a gap. */
+/** The hint's left edge beside Plant Cutting: past the button's 13 characters at the layouts' 6 px a character (4.6 em, 46 px, in Caveat), and a gap. */
 const HINT_BESIDE_X = TALL_PANEL.x + PANEL_INSET + 'Plant Cutting'.length * 6 + 12;
 /** The seeds' column beside the cuttings, and the akadama count's where the rows need a taller pitch: the box's right half. */
 const SEED_COLUMN_X = TALL_PANEL.x + TALL_PANEL.w / 2;
-/** A column's Select, past `Japanese Maple  x999` (20 characters at 6 px) and a gap. */
+/** A column's Select, past `Japanese Maple  x999` (20 characters at the layouts' 6 px; 7.4 em, 74 px, in Caveat) and a gap. */
 const COLUMN_SELECT_DX = 130;
 
 /** The panel's scene state, never saved: what is chosen (a cutting or a seed of a species) and the two flags. */

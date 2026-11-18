@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS } from '../platform/settings';
 import { PANEL, PANEL_INSET, panelClose, panelTitleY } from './panels';
 import { settingsPanel } from './settingsPanel';
 
-// 10 px monospace, the fallback and the widest face text can draw in (VT323 is 0.4 em): about 0.6 em a glyph and a 12 px line. Generous upper bounds.
+// At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 1.1 em tall): 6 px a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
 const LINE_H = 12;
 

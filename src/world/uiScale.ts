@@ -84,9 +84,17 @@ export function hitRect(
 }
 
 /**
+ * A HUD button's glyph advance in em for `estimatedBox`: Caveat's widest
+ * label of them, `Menu` (0.466 em a character; the others 0.35 to 0.37).
+ */
+export const ESTIMATED_ADVANCE_EM = 0.47;
+/** A Text's height in em as Phaser measures Caveat: the ink of `|MÉqs`, 0.87 up and 0.23 down. */
+export const TEXT_LINE_EM = 1.1;
+
+/**
  * A button's text box estimated without drawing it, for the pure layouts and
- * their tests: 4 px a glyph (VT323's advance at 10 px) and `ui.body` tall,
- * anchored at (`x`, `y`) by its origin as Phaser places a Text.
+ * their tests: ESTIMATED_ADVANCE_EM a glyph and TEXT_LINE_EM tall at
+ * `ui.body`, anchored at (`x`, `y`) by its origin as Phaser places a Text.
  */
 export function estimatedBox(
   text: string,
@@ -96,8 +104,9 @@ export function estimatedBox(
   originY: number,
   ui: UiMetrics,
 ): UiRect {
-  const w = text.length * 4;
-  return { x: x - originX * w, y: y - originY * ui.body, w, h: ui.body };
+  const w = Math.ceil(text.length * ESTIMATED_ADVANCE_EM * ui.body);
+  const h = Math.ceil(TEXT_LINE_EM * ui.body);
+  return { x: x - originX * w, y: y - originY * h, w, h };
 }
 
 /** Whether two rects share any area (touching edges do not). */

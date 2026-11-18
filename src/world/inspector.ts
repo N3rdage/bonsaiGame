@@ -39,7 +39,12 @@ export const INSPECTOR_PANEL = { x: 20, y: 4, w: 440, h: 262 } as const;
 export const INSPECTOR_TITLE_H = 22;
 /** Left and right inset of the content. */
 export const INSPECTOR_INSET = 10;
-/** Upper bounds of a glyph's width in the monospace fallback at the desktop sizes (VT323 is 0.4 em, 3.2 and 4 px): 8 px text (stats, notes, score, bars, footer) and 10 px (title, buttons). */
+/**
+ * Upper bounds of a glyph's width at the desktop sizes, 0.625 and 0.6 em, for
+ * 8 px text (stats, notes, score, bars, footer) and 10 px (title, buttons):
+ * Caveat's lines average 0.35 to 0.37 em a character and its digits 0.45,
+ * the sans-serif fallback's lowercase 0.49 (src/scenes/textStyle.test.ts).
+ */
 export const SMALL_GLYPH_W = 5;
 export const GLYPH_W = 6;
 
@@ -177,7 +182,7 @@ export function inspectorPanel(tree: BonsaiTree, state: GameState, ui: UiMetrics
     `Age: ${String(tree.ageDays)} days  |  Origin: ${tree.origin}`,
     `Trunk: ${tree.trunk.heightCm.toFixed(1)} cm tall, ${tree.trunk.girthMm.toFixed(1)} mm thick`,
     `Branches: ${String(tree.branches.length)}  |  Style: ${style?.displayName ?? '(none)'}`,
-    // In two columns the full line (63 glyphs, 252 px at 10 px) is wider than the left one's 200.
+    // In two columns the full line (63 glyphs, 21.3 em in Caveat: 213 px at 10 px) is wider than the left one's 200.
     ...(columns ? [`Pot: ${pot}`, `Soil: ${soil}`] : [`Pot: ${pot}  |  Soil: ${soil}`]),
   ];
   const barsTop = row(stats.length + NOTE_ROWS) + LOWER_GAP;

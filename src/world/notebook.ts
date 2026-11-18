@@ -36,7 +36,11 @@ export const NOTEBOOK_KEY = 'notebook';
 
 /** The notebook's box, centred on the canvas. */
 export const NOTEBOOK_PANEL = { x: 20, y: 25, w: 440, h: 220, rowSpacing: 14 } as const;
-/** Characters per line at 10 px (about 6 px a glyph) inside the box; the quick prompt is indented. */
+/**
+ * Characters per line at 10 px inside the box at the layouts' 6 px a
+ * character (Caveat's prose averages about 3.6, the sans-serif fallback's
+ * about 4.9); the quick prompt is indented.
+ */
 export const NOTEBOOK_WRAP = 68;
 const PROMPT_INDENT = 12;
 const PROMPT_WRAP = 66;

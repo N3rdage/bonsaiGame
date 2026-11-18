@@ -6,6 +6,7 @@ import {
   MIN_TEXT_CSS,
   PHONE_UI,
   cssPerLogical,
+  estimatedBox,
   hitRect,
   rectsOverlap,
   uiMetrics,
@@ -35,6 +36,30 @@ describe('UI scale rule', () => {
         expect(ui.body).toBeGreaterThanOrEqual(Math.max(ui.label, 10));
       }
     }
+  });
+});
+
+describe('estimatedBox', () => {
+  it('counts 0.47 em a character and 1.1 em of height at the body size, anchored by its origin', () => {
+    // Menu at 10 px: 4 x 4.7 = 18.8, so 19 across; 11 tall.
+    expect(estimatedBox('Menu', 100, 50, 0, 0, DESKTOP_UI)).toEqual({
+      x: 100,
+      y: 50,
+      w: 19,
+      h: 11,
+    });
+    expect(estimatedBox('Interact (E)', 470, 260, 1, 1, PHONE_UI)).toEqual({
+      x: 413,
+      y: 249,
+      w: 57,
+      h: 11,
+    });
+    expect(estimatedBox('Skip', 0, 0, 0, 0, { hit: 44, label: 14, body: 14 })).toEqual({
+      x: 0,
+      y: 0,
+      w: 27,
+      h: 16,
+    });
   });
 });
 

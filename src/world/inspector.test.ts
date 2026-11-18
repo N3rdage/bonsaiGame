@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs';
+import { textWidthEm } from '../scenes/caveatMetrics';
+import { inkPadding } from '../scenes/textStyle';
 import { describe, expect, it } from 'vitest';
 import { deserializeSave } from '../sim/save';
 import { createNewGameState } from '../sim/state';
@@ -30,6 +32,7 @@ import {
 import {
   DESKTOP_UI,
   PHONE_UI,
+  TEXT_LINE_EM,
   estimatedBox,
   hitRect,
   rectsOverlap,
@@ -276,17 +279,22 @@ function layoutModels(ui: UiMetrics): InspectorModel[] {
 }
 
 /**
- * The glyph width of the label-sized lines each layout is checked at. At the
- * desktop metrics, the monospace fallback's upper bound; at the phone's
- * 10 px, VT323's own 4 px advance (as `estimatedBox`), which BootScene loads
- * before any text draws: the fallback's 6 px would not fit the two columns.
+ * The width of a label-sized line each layout is checked at. At the desktop
+ * metrics, SMALL_GLYPH_W a character, the layouts' upper bound; at the
+ * phone's 10 px, the line measured in Caveat (src/scenes/caveatMetrics.ts)
+ * with its ink overhang, which BootScene loads before any text draws: the
+ * bound's 6 px a character would not fit the two columns.
  */
 const METRICS = [
-  { name: 'desktop', ui: DESKTOP_UI, small: SMALL_GLYPH_W },
-  { name: 'phone', ui: PHONE_UI, small: PHONE_UI.label * 0.4 },
+  { name: 'desktop', ui: DESKTOP_UI, small: (t: string) => t.length * SMALL_GLYPH_W },
+  {
+    name: 'phone',
+    ui: PHONE_UI,
+    small: (t: string) => textWidthEm(t) * PHONE_UI.label + inkPadding(PHONE_UI.label),
+  },
 ] as const;
 
-const rightOf = (l: InspectorText, glyph: number): number => l.x + l.text.length * glyph;
+const rightOf = (l: InspectorText, width: (t: string) => number): number => l.x + width(l.text);
 
 describe('inspector layout', () => {
   const { x, y, w, h } = INSPECTOR_PANEL;
@@ -377,7 +385,7 @@ describe('inspector layout', () => {
     const lineBox = (l: InspectorText): UiRect => ({
       x: l.x,
       y: l.y - ui.label / 2,
-      w: l.text.length * small,
+      w: small(l.text),
       h: ui.label,
     });
     const buttonHit = (b: { label: string; x: number; y: number }): UiRect =>
@@ -402,14 +410,14 @@ describe('inspector layout', () => {
       for (const m of models) {
         for (const b of m.buttons) {
           const r = buttonHit(b);
-          expect(r.h).toBe(Math.max(ui.hit, ui.body));
+          expect(r.h).toBe(Math.max(ui.hit, Math.ceil(TEXT_LINE_EM * ui.body)));
           expect(r.x).toBeGreaterThanOrEqual(x);
           expect(r.y).toBeGreaterThanOrEqual(y);
           expect(r.x + r.w).toBeLessThanOrEqual(x + w);
           expect(r.y + r.h).toBeLessThanOrEqual(y + h);
         }
       }
-      expect(closeHit.h).toBe(Math.max(ui.hit, ui.body));
+      expect(closeHit.h).toBe(Math.max(ui.hit, Math.ceil(TEXT_LINE_EM * ui.body)));
       expect(closeHit.y).toBeGreaterThanOrEqual(0);
       expect(closeHit.x + closeHit.w).toBeLessThanOrEqual(x + w);
     });
@@ -460,7 +468,7 @@ describe('inspector layout', () => {
           expect(rightOf(l, small)).toBeLessThanOrEqual(rightEnd);
         }
         for (const b of m.bars) {
-          expect(b.x + b.label.length * small).toBeLessThan(b.trackX);
+          expect(b.x + small(b.label)).toBeLessThan(b.trackX);
           expect(b.trackX + b.trackW).toBeLessThan(b.textX);
         }
         for (const c of m.breakdown) expect(rightOf(c.label, small)).toBeLessThan(c.value.x);

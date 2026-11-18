@@ -21,7 +21,7 @@ interface BonsaiTestHook {
   readonly commit?: string;
   /** Title only: the version line's text and centre in logical px; tapping it opens the commit's GitHub page in a new tab. */
   readonly versionLink?: { readonly text: string; readonly x: number; readonly y: number };
-  /** Both scenes: whether the pixel font (src/scenes/textStyle.ts) was loaded and registered before the scene drew its text. */
+  /** Both scenes: whether the UI font (src/scenes/textStyle.ts) was loaded and registered before the scene drew its text. */
   readonly fontLoaded: boolean;
   readonly scene: string;
   /** Device pixels per logical pixel the scene's camera renders at (canvas width / 480); 1 would mean the camera is not fitted. */
