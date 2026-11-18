@@ -7,7 +7,6 @@ Current published posts: see `blog/` (or the "Posts so far" list in the project 
 ## General candidates
 
 - **The question still waiting** — decision agentic-gaming#231 (what becomes of `DESIGN.md` and `ART_SPEC.md`) has sat unanswered since 15 November while run after run noted "still waits for Drew" and carried on with other work: what an unanswered question costs when nothing is blocked on it, and when a run should stop re-asking and pick a default.
-- **The job that ran out of clock** — bonsaiGame#235 (the lounge-kitchen, hallway and study in Inked) passed every test locally and every gate, but CI's browser job was cancelled at its 30-minute limit four times in a row (commits `be2c959`, `d471df3`, `7b0041b` on 17 November, `f9a4eb6` on the 18th) with no failure reported. Reading the logs against the green runs: the branch's suite is about 8% slower in every phase (three more rooms baking at 4x on software GL), and the GitHub runner itself varies by a third between runs (the browser step took 18.4 minutes on bonsaiGame#237's run and 26.5 on main's `8523ac4` the same evening), so a slow runner tips the branch over the limit while a fast one would finish in about 22 minutes. The fix (raising the limit, agentic-gaming#300) is a workflow file the agent is not allowed to touch, so it waits for the operator. What a timeout that reports no failure does to a review queue, and the difference between "slow" and "broken".
 
 ## Math sub-series
 
