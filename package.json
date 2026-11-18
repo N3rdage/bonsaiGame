@@ -21,7 +21,6 @@
     "test:e2e:alt": "playwright test --config playwright.alt.config.ts",
     "check": "npm run lint && npm run format:check && npm run typecheck && npm run test && npm run build",
     "art:sheets": "node art/sheets.mjs",
-    "art:interiors": "node art/interiors.mjs",
     "art:sounds": "node art/sounds.mjs",
     "art:music": "node art/music.mjs",
     "art:site-plan": "node art/sitePlan.mjs",
@@ -34,7 +33,9 @@
     "art:doors": "node art/inked/doors.mjs",
     "art:lounge": "node art/inked/lounge.mjs",
     "art:hallway": "node art/inked/hallway.mjs",
-    "art:study": "node art/inked/study.mjs"
+    "art:study": "node art/inked/study.mjs",
+    "art:greenhouse": "node art/inked/greenhouse.mjs",
+    "art:placeables": "node art/inked/placeables.mjs"
   },
   "dependencies": {
     "@fontsource/vt323": "^5.3.0",

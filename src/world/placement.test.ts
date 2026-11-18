@@ -3,12 +3,13 @@ import { createNewGameState } from '../sim/state';
 import { DISPLAYED_PREFIX, pickUpTree, placeTree } from '../sim/tree';
 import type { GameState, PlacedItem } from '../sim/types';
 import { advanceDayAllTrees } from '../sim/world';
-import { SHEETS } from './assets';
+import { SHEETS, type Sheet } from './assets';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import {
   DISPLAY_PROMPT,
   PICK_UP_PROMPT,
   PLACEABLES,
+  PLACEABLE_SHEETS,
   footprint,
   ghostFootprint,
   landingTiles,
@@ -21,6 +22,7 @@ import {
   snapToGrid,
 } from './placement';
 import type { Facing } from './player';
+import { furnitureSprites } from './roomArt';
 import { SHED_ROOM, type Room } from './shedRoom';
 
 /** Clear of everything placed in these tests: the door's landing. */
@@ -322,5 +324,41 @@ describe('placed furniture in the room', () => {
       { x: 288, y: 128, w: 32, h: 16, sheet: SHEETS.floorShelf, solid: false, sorted: true },
     ]);
     expect(placedFurniture(laidOut(), SHED_ROOM)).toEqual([]);
+  });
+
+  it('draws each kind in Inked at the scale rule: its front face over its footprint-deep top face', () => {
+    // The 0.6 m pedestal: 0.6 * 21.33 = 12.8 px of front face over its 16 px top, 28.8, rounded to 28;
+    // the 0.4 m shelf: 8.5 over 16, 24.5, rounded to 24.
+    const logical = (s: Sheet) => [s.frameWidth / 4, s.frameHeight / 4, s.art];
+    expect(logical(PLACEABLE_SHEETS.pedestal)).toEqual([16, 28, 'inked']);
+    expect(logical(PLACEABLE_SHEETS.floor_shelf)).toEqual([32, 24, 'inked']);
+    expect(PLACEABLE_SHEETS).toEqual({ pedestal: SHEETS.pedestal, floor_shelf: SHEETS.floorShelf });
+  });
+
+  it("puts each spot's top edge, where a displayed tree stands, on its furniture's drawn top face", () => {
+    const state = laidOut();
+    const room = { ...GREENHOUSE_ROOM, furniture: placedFurniture(state, GREENHOUSE_ROOM) };
+    const sprites = furnitureSprites(room);
+    const spots = placedProps(state, GREENHOUSE_ROOM, false);
+    const tops: number[] = [];
+    for (const [i, item] of state.placed.filter((p) => p.room === 'greenhouse').entries()) {
+      const sprite = sprites[i];
+      if (!sprite) throw new Error(`no sprite for ${String(item.id)}`);
+      const { w, h } = PLACEABLES[item.kind];
+      // Standing bottom-centre on the footprint's bottom edge.
+      expect([sprite.x, sprite.y, sprite.originY]).toEqual([item.x + w / 2, item.y + h, 1]);
+      const top = sprite.y - sprite.sheet.frameHeight * sprite.scale;
+      tops.push(top);
+      // The top face is the frame's top h px (the footprint's depth); the front face is below it.
+      const frontFace = top + h;
+      for (const spot of spots.filter((p) => p.placedId === item.id)) {
+        const standsAt = spot.y - spot.h / 2;
+        expect(standsAt).toBe(item.y);
+        expect(standsAt).toBeGreaterThan(top);
+        expect(standsAt).toBeLessThan(frontFace);
+      }
+    }
+    // The pedestal's top face y 116..132, its spot's top 128; the shelf's 120..136, its spots' 128.
+    expect(tops).toEqual([116, 120]);
   });
 });

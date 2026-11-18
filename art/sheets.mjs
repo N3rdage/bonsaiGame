@@ -19,8 +19,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SPRITES = join(ROOT, 'archive', 'gamemaker', 'sprites');
 const OUT = join(ROOT, 'public', 'assets');
 
-/** The prototype sprites the rooms and props draw (src/world/assets.ts). */
-const NAMES = ['spr_door', 'spr_pedestal'];
+/**
+ * The prototype sprites the rooms and props draw (src/world/assets.ts): the
+ * door every room without an Inked door of its own draws. Every other sheet is
+ * drawn in Inked (art/inked/).
+ */
+const NAMES = ['spr_door'];
 
 /** GameMaker's .yy is JSON with trailing commas. */
 function readYy(path) {

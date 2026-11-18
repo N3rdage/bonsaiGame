@@ -168,18 +168,21 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     inset: true,
     paper: true,
   },
-  // The greenhouse is drawn as a house room: its glass on all four sides round a paved floor.
+  // The greenhouse in Inked, drawn as the house rooms are: its paved floor, its back wall's face
+  // the glass house seen from inside, and its side and south walls the garden's white frame rails
+  // as caps, on paper. No window: the face is glass.
   greenhouse: {
     floor: SHEETS.floorGreenhouse,
-    wallRow: SHEETS.wallGlass,
-    wallColumn: SHEETS.wallGlass,
+    wallRow: SHEETS.greenhouseCap,
+    wallColumn: SHEETS.greenhouseCapV,
+    face: { sheet: SHEETS.greenhouseWall, height: BACK_WALL_FACE, cap: WALL_CAP },
     inset: true,
-    paper: false,
+    paper: true,
   },
 };
 
 /**
- * Draw_0: an inset room's floor (the shed's, the house rooms') fills only the
+ * Draw_0: an inset room's floor (the shed's, the house rooms', the greenhouse's) fills only the
  * inside of its ring, (SHED_X0 + 32, SHED_Y0 + 32) to (SHED_X1, SHED_Y1), the
  * dark background showing round it; the garden's fills the room. Each tile's
  * frame hashes its column and row in the room, so a tile keeps its frame
@@ -256,8 +259,8 @@ export function bakeScale(room: Room, style: RoomStyle = ROOM_STYLES[room.key]):
  * (windowRuns), so the bake draws them over the wall, and last its furniture
  * (furnitureRuns), over the floor and walls: the garden's buildings cover the
  * ring where the plan has no fence. A room with a `face` (the shed, the house
- * rooms) draws its ring as the face and caps (faceRuns);
- * every other room as bands of whole tiles (bandRuns).
+ * rooms, the greenhouse) draws its ring as the face and caps (faceRuns); the
+ * gardens draw theirs as bands of whole tiles (bandRuns).
  */
 export function wallRuns(room: Room): WallRun[] {
   const style = ROOM_STYLES[room.key];
@@ -271,8 +274,7 @@ export function wallRuns(room: Room): WallRun[] {
 /**
  * The ring as 32 px tiles: the top and bottom rows across the bounds, then the
  * left and right columns between them (runsOver: a sheet with variants
- * scatters them tile by tile). The greenhouse's tiles are all its glass wall
- * sheet; the garden's rows are `spr_fence`, its columns `spr_fence_v`, and,
+ * scatters them tile by tile). The garden's rows are `spr_fence`, its columns `spr_fence_v`, and,
  * with a `corner` sheet, its four corner tiles are left out of the rows
  * (obj_wall Draw_0) and drawn last as that sheet's frames, NW, NE, SW, SE.
  */

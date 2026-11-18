@@ -28,6 +28,7 @@ import {
   treeShadow,
   wallRuns,
   windowRuns,
+  type RoomStyle,
   type Shadow,
 } from './roomArt';
 import { SHED_ROOM, hitsWall, insideWalls, type Prop, type Rect, type Room } from './shedRoom';
@@ -122,17 +123,26 @@ describe('floor', () => {
 });
 
 describe('bake', () => {
-  it('lays paper in the shed and the house rooms only, and bakes the Inked rooms at 4 px per logical px and the greenhouse at the prototype 2', () => {
-    const papered = [SHED_ROOM, LOUNGE_ROOM, HALLWAY_ROOM, STUDY_ROOM];
+  it('lays paper in the shed, the house rooms and the greenhouse, not the gardens, and bakes every room at 4 px per logical px', () => {
+    const papered = [SHED_ROOM, LOUNGE_ROOM, HALLWAY_ROOM, STUDY_ROOM, GREENHOUSE_ROOM];
     for (const room of Object.values(ROOMS)) {
       expect(ROOM_STYLES[room.key].paper, room.key).toBe(papered.includes(room));
       if (!papered.includes(room)) expect(paperTiles(room)).toEqual([]);
-      expect(bakeScale(room), room.key).toBe(room === GREENHOUSE_ROOM ? 2 : 4);
+      expect(bakeScale(room), room.key).toBe(4);
     }
   });
 
   it("lays the shed's paper over the whole room from (0, 0) in 64 px steps; paper alone bakes at 4", () => {
-    expect(bakeScale(GREENHOUSE_ROOM, { ...ROOM_STYLES.greenhouse, paper: true })).toBe(4);
+    const door = SHEETS.door;
+    const pixel: RoomStyle = {
+      floor: door,
+      wallRow: door,
+      wallColumn: door,
+      inset: true,
+      paper: false,
+    };
+    expect(bakeScale(GREENHOUSE_ROOM, pixel)).toBe(2);
+    expect(bakeScale(GREENHOUSE_ROOM, { ...pixel, paper: true })).toBe(4);
     const tiles = paperTiles(SHED_ROOM);
     // The shed's 480x270 canvas: 8 columns (8 * 64 = 512 >= 480), 5 rows (5 * 64 = 320 >= 270).
     expect(tiles).toHaveLength(8 * 5);
@@ -156,13 +166,20 @@ describe('bake', () => {
   });
 
   it('bakes at 4 when any sheet it draws is Inked, paper or not', () => {
-    const glass = ROOM_STYLES.greenhouse;
-    expect(bakeScale(GREENHOUSE_ROOM, { ...glass, floor: SHEETS.paper })).toBe(4);
-    expect(bakeScale(GREENHOUSE_ROOM, { ...glass, wallColumn: SHEETS.paper })).toBe(4);
+    const door = SHEETS.door;
+    const pixel: RoomStyle = {
+      floor: door,
+      wallRow: door,
+      wallColumn: door,
+      inset: true,
+      paper: false,
+    };
+    expect(bakeScale(GREENHOUSE_ROOM, { ...pixel, floor: SHEETS.paper })).toBe(4);
+    expect(bakeScale(GREENHOUSE_ROOM, { ...pixel, wallColumn: SHEETS.paper })).toBe(4);
     const face = { sheet: SHEETS.paper, height: BACK_WALL_FACE, cap: WALL_CAP };
-    expect(bakeScale(GREENHOUSE_ROOM, { ...glass, face })).toBe(4);
+    expect(bakeScale(GREENHOUSE_ROOM, { ...pixel, face })).toBe(4);
     const rug = { sheet: SHEETS.paper, x: 0, y: 0, w: 64, h: 64 };
-    expect(bakeScale(GREENHOUSE_ROOM, { ...glass, rug })).toBe(4);
+    expect(bakeScale(GREENHOUSE_ROOM, { ...pixel, rug })).toBe(4);
   });
 });
 
@@ -288,7 +305,7 @@ describe('walls', () => {
       ...LOUNGE_ROOM,
       furniture: [
         { sheet: SHEETS.houseRoof, x: 32, y: 48, w: 48, h: 16, solid: false },
-        { sheet: SHEETS.wallGlass, x: 32, y: 64, w: 48, h: 16, solid: false },
+        { sheet: SHEETS.door, x: 32, y: 64, w: 48, h: 16, solid: false },
       ],
     };
     expect(furnitureRuns(room).map((r) => [r.sheet.key, r.frame, r.x, r.y, r.w, r.h])).toEqual([
@@ -296,7 +313,7 @@ describe('walls', () => {
       ['spr_house_roof', 2, 32, 48, 16, 16],
       ['spr_house_roof', 0, 48, 48, 16, 16],
       ['spr_house_roof', 1, 64, 48, 16, 16],
-      ['spr_wall_glass', undefined, 32, 64, 48, 16],
+      ['spr_door', undefined, 32, 64, 48, 16],
     ]);
   });
 
@@ -336,20 +353,43 @@ describe('walls', () => {
     }
   });
 
-  it("rings the greenhouse's own bounds with its glass wall sheet, every tile over a collision band", () => {
-    const walls = wallRuns(GREENHOUSE_ROOM);
-    expect(walls).toHaveLength(4);
-    expect(walls.every((r) => r.sheet === SHEETS.wallGlass)).toBe(true);
-    expect(walls.map(({ x, y, w, h }) => [x, y, w, h])).toEqual([
-      [144, 64, 192, 16],
-      [144, 192, 192, 16],
-      [144, 80, 16, 112],
-      [320, 80, 16, 112],
+  it("draws the greenhouse's back wall as its glass face on the floor line between the garden's frame rails as caps", () => {
+    expect(ROOM_STYLES.greenhouse.face).toEqual({
+      sheet: SHEETS.greenhouseWall,
+      height: BACK_WALL_FACE,
+      cap: WALL_CAP,
+    });
+    expect([ROOM_STYLES.greenhouse.wallRow, ROOM_STYLES.greenhouse.wallColumn]).toEqual([
+      SHEETS.greenhouseCap,
+      SHEETS.greenhouseCapV,
     ]);
-    for (const { x, y, w, h } of walls) {
+    const runs = wallRuns(GREENHOUSE_ROOM);
+    const of = (sheet: Sheet, x?: number) =>
+      runs.filter((r) => r.sheet === sheet && (x === undefined || r.x === x));
+    const floor = insideWalls(GREENHOUSE_ROOM);
+    // The face: 10 tiles of 16 x 48 between the side caps, x 160..320, its bottom on the floor
+    // line (y 80), rising 32 px above the ring's top (y 64) to y 32.
+    const face = of(SHEETS.greenhouseWall);
+    expect(face).toHaveLength(10);
+    expect(face.every((r) => r.w === 16 && r.h === BACK_WALL_FACE)).toBe(true);
+    expect(extent(face)).toEqual([160, 32, 320, 80]);
+    expect(floor).toEqual({ x: 160, y: 80, w: 160, h: 112 });
+    // The side rails on the bands' inner edges, from the face's top down to the south band.
+    expect(extent(of(SHEETS.greenhouseCapV, 152))).toEqual([152, 32, 160, 192]);
+    expect(extent(of(SHEETS.greenhouseCapV, 320))).toEqual([320, 32, 328, 192]);
+    expect(of(SHEETS.greenhouseCapV)).toHaveLength(20);
+    // The south rail on its band's inner edge, across both side rails.
+    expect(of(SHEETS.greenhouseCap)).toHaveLength(11);
+    expect(extent(of(SHEETS.greenhouseCap))).toEqual([152, 192, 328, 200]);
+    expect(runs).toHaveLength(41);
+    for (const r of runs.filter((t) => t.sheet !== SHEETS.greenhouseWall && t.y >= 64)) {
       expect(
-        hitsWall(GREENHOUSE_ROOM, x, y) && hitsWall(GREENHOUSE_ROOM, x + w - 0.1, y + h - 0.1),
+        hitsWall(GREENHOUSE_ROOM, r.x, r.y) &&
+          hitsWall(GREENHOUSE_ROOM, r.x + r.w - 0.1, r.y + r.h - 0.1),
       ).toBe(true);
+    }
+    for (const list of [face, of(SHEETS.greenhouseCapV, 152), of(SHEETS.greenhouseCap)]) {
+      for (let i = 1; i < list.length; i += 1) expect(list[i]?.frame).not.toBe(list[i - 1]?.frame);
     }
   });
 

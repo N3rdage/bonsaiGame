@@ -81,8 +81,8 @@ describe('sprite sheets', () => {
       ['spr_door_glass', 192, 160, 1],
       ['spr_door_side_w', 32, 160, 1],
       ['spr_door_side_e', 32, 160, 1],
-      ['spr_floor_greenhouse', 32, 32, 3],
-      ['spr_wall_glass', 32, 32, 1],
+      ['spr_floor_greenhouse', 64, 64, 3],
+      ['spr_greenhouse_wall', 64, 192, 3],
       ['spr_shelf', 96, 80, 1],
       ['spr_tools', 48, 128, 1],
       ['spr_watering_can', 64, 48, 1],
@@ -95,14 +95,15 @@ describe('sprite sheets', () => {
       ['spr_bed', 64, 64, 3],
       ['spr_front_door', 96, 160, 1],
       ['spr_roller_door', 308, 160, 1],
-      ['spr_pedestal', 32, 32, 1],
-      ['spr_floor_shelf', 64, 32, 1],
+      ['spr_pedestal', 64, 112, 1],
+      ['spr_floor_shelf', 128, 96, 1],
       ['spr_paper', 256, 256, 1],
     ]);
   });
 
-  it('gives every sheet a kind, the player, the paper, the shed and the gardens the Inked sheets', () => {
+  it('gives every sheet a kind, every one Inked but the prototype door', () => {
     for (const s of ALL_SHEETS) expect(['pixel', 'inked']).toContain(s.art);
+    expect(ALL_SHEETS.filter((s) => s.art === 'pixel')).toEqual([SHEETS.door]);
     expect(ALL_SHEETS.filter((s) => s.art === 'inked')).toEqual([
       SHEETS.player,
       SHEETS.floorShed,
@@ -159,6 +160,8 @@ describe('sprite sheets', () => {
       SHEETS.doorGlass,
       SHEETS.doorSideW,
       SHEETS.doorSideE,
+      SHEETS.floorGreenhouse,
+      SHEETS.greenhouseWall,
       SHEETS.shelf,
       SHEETS.tools,
       SHEETS.wateringCan,
@@ -171,6 +174,8 @@ describe('sprite sheets', () => {
       SHEETS.bed,
       SHEETS.frontDoor,
       SHEETS.rollerDoor,
+      SHEETS.pedestal,
+      SHEETS.floorShelf,
       SHEETS.paper,
     ]);
   });
@@ -195,17 +200,24 @@ describe('sprite sheets', () => {
     expect(SHEETS.paper.frameWidth / sheetPxPerLogical(SHEETS.paper)).toBe(64);
   });
 
-  it("loads the placed furniture's sprites, each its footprint at half scale", () => {
-    expect(ALL_SHEETS).toContain(SHEETS.pedestal);
-    expect(ALL_SHEETS).toContain(SHEETS.floorShelf);
-    expect([
-      SHEETS.pedestal.frameWidth * SPRITE_SCALE,
-      SHEETS.pedestal.frameHeight * SPRITE_SCALE,
-    ]).toEqual([16, 16]);
-    expect([
-      SHEETS.floorShelf.frameWidth * SPRITE_SCALE,
-      SHEETS.floorShelf.frameHeight * SPRITE_SCALE,
-    ]).toEqual([32, 16]);
+  it("draws the greenhouse and the placed furniture in Inked at the scale rule's logical sizes", () => {
+    const logical = (s: (typeof ALL_SHEETS)[number]) => [
+      s.frameWidth / sheetPxPerLogical(s),
+      s.frameHeight / sheetPxPerLogical(s),
+    ];
+    expect(
+      [SHEETS.floorGreenhouse, SHEETS.greenhouseWall, SHEETS.pedestal, SHEETS.floorShelf].map(
+        logical,
+      ),
+    ).toEqual([
+      // The paving tile; the back wall's 2.4 m face.
+      [16, 16],
+      [16, BACK_WALL_FACE],
+      // The 0.6 m pedestal on its 16 x 16 footprint, the 0.4 m shelf on its 32 x 16 one.
+      [16, 28],
+      [32, 24],
+    ]);
+    for (const s of [SHEETS.floorGreenhouse, SHEETS.greenhouseWall]) expect(s.frames).toBe(3);
   });
 
   it("draws the shed in Inked at the scale rule's logical sizes", () => {
