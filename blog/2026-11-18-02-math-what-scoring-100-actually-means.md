@@ -51,7 +51,7 @@ Moving one weight moves every criterion's share. A criterion with weight `w` amo
 
 If the player sets a target style, the scorer looks it up and adds one more criterion at weight 1.5. Each style in `src/sim/styles.ts` is data: a key, a name, a description and a `score(tree)` function that returns its own 0 to 1 conformance. The scorer does not know what any style measures. It only asks for a number.
 
-Windswept returns the length of the average branch arrow from criterion 4. Formal upright sorts the branches by height and rewards each neighbouring pair for pointing in opposite directions. Informal upright, slanting and broom multiply two factors, so either one at 0 sinks the lot.
+Windswept returns the length of the average branch arrow from criterion 4, given two or more branches; with fewer it returns a flat `0.5`, the same kind of consolation value as vertical spread's. Formal upright sorts the branches by height and rewards each neighbouring pair for pointing in opposite directions. Informal upright, slanting and broom multiply two factors, so either one at 0 sinks the lot.
 
 With a style the weights sum to `6 + 1.5 = 7.5`. The style's share is `1.5 / 7.5`, exactly 20 percent, and each base criterion drops from one sixth to `1 / 7.5`, about 13.3 percent.
 
@@ -108,11 +108,11 @@ no style:   (5 + 0.8825) / 6   = 0.9804  -> 98
 with style: (6.5 + 0.8825) / 7.5 = 0.9843 -> 98
 ```
 
-So 100 is not an asymptote you creep towards. It is a point outside the reachable set. A grown tree tops out at 98, and only if the other criteria together fall short of perfect by less than half a point. Without a style the margin is 0.04 points. Only a save edited to a taper of exactly 0.6 could do better. The one other taper in either codebase is the title screen's hero tree, at 0.62, which is only there to be drawn.
+So 100 is not an asymptote you creep towards. It is a point outside the reachable set. A grown tree tops out at 98, and with a style only if the other criteria together fall short of perfect by less than half a point (0.43). Without a style the margin is 0.04 points. Only a save edited to a taper of exactly 0.6 could do better. The one other taper in either codebase is the title screen's hero tree, at 0.62, which is only there to be drawn.
 
 ## Odd things I noticed
 
-**Two criteria fight.** Windswept's style value is the length of the average branch arrow. Angular spread is 1 minus that same length. For a windswept tree they always sum to 1, so the more windswept the tree, the worse its spread. With everything else perfect the best windswept tree reaches `(0.8825 + 4 + 1.5) / 7.5 = 0.8510`, so 85. The windswept player is fighting the rubric by design.
+**Two criteria fight.** Windswept's style value is the length of the average branch arrow. Angular spread is 1 minus that same length. For a windswept tree with two or more branches they always sum to 1, so the more windswept the tree, the worse its spread. With everything else perfect the best windswept tree reaches `(0.8825 + 4 + 1.5) / 7.5 = 0.8510`, so 85. The windswept player is fighting the rubric by design.
 
 **Proportion is a window in time.** The daily tick adds 0.02 cm of height and 0.05 mm of girth for each unit of its growth multiplier, so the ratio `height × 10 / girth` drifts towards `0.2 / 0.05 = 4`. A cutting starts at 20, passes through the 6 to 10 band once, and leaves it on the low side. Once the trunk reaches its species' maximum (45 cm for a juniper), height stops and the ratio keeps falling. Proportion is a criterion you can only enjoy for a while.
 
