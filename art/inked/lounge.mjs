@@ -17,9 +17,9 @@
 //   spr_side_table      16 x 24 (0.5 x 0.5 x 0.4 m), cut out
 //   spr_counter         the kitchen counter along the south wall, 96 x 40
 //                       (3.0 x 0.6 x 0.9 m), cut out
-//   spr_counter_v       its run up the east wall, 20 x 80 (0.6 x 1.9 x 0.9 m),
-//                       seen from above, its front hidden behind the south
-//                       run's top, cut out
+//   spr_counter_v       its run up the east wall, 20 x 60 (0.6 x 1.9 x 0.9 m),
+//                       its worktop alone, its south end joined to the south
+//                       run, cut out
 // Furniture draws as its front face (real height x 21.33 px/m) over its
 // footprint's depth, each standing on the frame's bottom edge, where the world
 // anchors it on its footprint's bottom edge (src/world/roomArt.ts).
@@ -273,27 +273,25 @@ function counter() {
   return finishCutOut(page);
 }
 
-// The counter's run up the east wall, 0.6 x 1.9 m: seen from above, its
-// worktop (y 0..60) with the hob's four rings and a jar; its front (y
-// 60..80), a cupboard, falls behind the south run's worktop.
+// The counter's run up the east wall, 0.6 x 1.9 m: its worktop seen from
+// above, the footprint's depth (y 0..60), with the hob's four rings and a jar.
+// It has no front face: its south end joins the south run, whose worktop
+// covers the run's last 20 px, so the frame starts at the hallway block's
+// south cap (y 128) rather than rising over it.
 function counterV() {
-  const page = createPage(20, 80, { seed: SEEDS.counterV, origin: [412, 108] });
+  const page = createPage(20, 60, { seed: SEEDS.counterV, origin: [412, 128] });
   const { k } = page;
-  k.box(0.6, 0.6, 18.8, 59.6, 'stone');
-  k.box(3, 16, 14, 18, 'metal', { width: SEAM });
+  k.box(0.6, 0.6, 18.8, 58.8, 'stone');
+  k.box(3, 6, 14, 18, 'metal', { width: SEAM });
   for (const [x, y] of [
-    [6.5, 20.5],
-    [13.5, 20.5],
-    [6.5, 29.5],
-    [13.5, 29.5],
+    [6.5, 10.5],
+    [13.5, 10.5],
+    [6.5, 19.5],
+    [13.5, 19.5],
   ])
     k.blob(x, y, 2.2, 2, 'shadow', { width: MARK });
-  k.blob(10, 46, 2.4, 2.2, 'cream', { width: SEAM });
-  k.box(8.6, 42.6, 2.8, 1.4, 'wood', { width: 1 });
-  k.box(0, 59.6, 20, 2.6, 'stone', { width: SEAM });
-  k.box(0.6, 62.2, 18.8, 17.4, 'paint', { edges: false });
-  cupboards(k, 2, 1, 62.6, 14.6);
-  k.box(0.6, 77.2, 18.8, 2.4, 'shadow', { width: SEAM, hatching: 'shadow', wear: false });
+  k.blob(10, 32, 2.4, 2.2, 'cream', { width: SEAM });
+  k.box(8.6, 28.6, 2.8, 1.4, 'wood', { width: 1 });
   return finishCutOut(page);
 }
 

@@ -142,7 +142,7 @@ export const SHEETS = {
   fireplace: inked('spr_fireplace', 1, 32, 44),
   sideTable: inked('spr_side_table', 1, 16, 24),
   counter: inked('spr_counter', 1, 96, 40),
-  counterV: inked('spr_counter_v', 1, 20, 80),
+  counterV: inked('spr_counter_v', 1, 20, 60),
   // The hallway, drawn by art/inked/hallway.mjs: its floorboards, face and caps, 3 variants each,
   // and, cut out, the runner flat on the floor and the 0.75 m console table.
   floorHallway: inked('spr_floor_hallway', 3, 16),
