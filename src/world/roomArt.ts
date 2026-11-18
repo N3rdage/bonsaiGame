@@ -448,8 +448,8 @@ const PROP_SHEETS: Record<string, Sheet> = {
  * The prop's sprite on its rect (onFootprint): the shed's Inked workbench,
  * planting table and kiosk standing on their footprints' bottom edges, a door
  * (any prop in a wall, the side gate too) in its own `sheet` if it has one
- * (the study's glazed double door is 64x32; the Inked doors, the shed's, the
- * garden's and the side gate, stand on their rects' bottom edges), else
+ * (the Inked doors stand on their rects' bottom edges, a side-on door in a
+ * W or E wall against its band's inner edge, on the cap), else
  * spr_door at 1x on the centre of its rect (spr_door's origin is its
  * top-left; each door's rect is that 32 px square, halved), a source plant's
  * Inked species frame standing on its rect's bottom edge, and none for a display spot,
@@ -467,6 +467,12 @@ export function propSprite(prop: Prop): PropSprite | undefined {
   if (prop.pedestalKey !== undefined) return undefined;
   if (prop.wall) {
     const door = onFootprint(prop.sheet ?? SHEETS.door, 0, x, y, h, y - h / 2);
+    if (prop.wall === 'W' || prop.wall === 'E') {
+      // A side-on door's frame narrower than its band stands on the band's inner edge, where the
+      // wall's cap is (roomArt's faceRuns), not on the band's centre: the room is east of a W wall.
+      const inset = (prop.w - door.sheet.frameWidth * door.scale) / 2;
+      return { ...door, x: x + (prop.wall === 'W' ? inset : -inset) };
+    }
     // The player is only ever north of a south wall's door, and its face is baked under the
     // player, so the door sorts at its drawn top: one taller than the band (the front garden's
     // front door, 40 px on the face's foot) stays behind the player standing at it.

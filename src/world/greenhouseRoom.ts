@@ -46,7 +46,7 @@ export const GREENHOUSE_ROOM: Room = {
       ...prop('door_garden', 'Door', 'To Garden', 464 + 16, 384 + 16, 16, 16),
       wall: 'S',
       target: { room: 'garden', door: 'door_greenhouse' },
-      sheet: SHEETS.doorGlassSingle,
+      sheet: SHEETS.doorGlazed,
     },
   ],
   // A deep moss-grey behind the glass, to suit the grey paving.
