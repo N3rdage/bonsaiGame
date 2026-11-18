@@ -43,7 +43,7 @@ Four lines, any `t`, the same few sines and cosines whether you ask for the base
 
 ## Why the trunk gets no formula
 
-The trunk's input is a list of bend events, as many as the player likes, at any heights. Each event rotates the trunk's whole frame by `TRUNK_BEND_PER_EVENT` (20 degrees) about the axis `(-sin a, cos a, 0)`, where `a` is the event's compass angle. Different events have different axes, and rotations about different axes give different results in a different order. The code says so ("Rotations don't commute") and sorts the events by height first, and a test checks that a shuffled list gives the same trunk as a sorted one.
+The trunk's input is a list of bend events, as many as the player likes, at any heights. Each event rotates the trunk's whole frame by `TRUNK_BEND_PER_EVENT` (20 degrees) about the axis `(-sin a, cos a, 0)`, where `a` is the event's compass angle. Different events have different axes, and rotations about different axes give different results in a different order. The code says so ("Rotations don't commute") and sorts the events by height first, and a test checks that two events listed in reverse order give the same trunk as the same two in height order.
 
 So the trunk's direction at height `h` is the starting direction `(0, 0, 1)` put through every rotation below `h`, one after another. There is no single expression in `h` that collapses that chain for any list the player might build. Some kind of loop over the events is unavoidable.
 
@@ -72,7 +72,7 @@ So every branch the player has bent up or down goes through a walk, and this one
 
 How big is the error? I compared the 12-step answer with a 100,000-step one for a 10 cm branch bent 30 degrees each way, two clicks of each. The tip is off by 0.000064 display units, 0.016 mm of tree. With 6 steps the error is 0.00026, with 3 steps 0.0010, and with 24 steps 0.000016. Halve the step and the error drops to a quarter: the midpoint rule's error goes with the square of the step size. Even at 90 degrees each way the tip is off by about 0.11 mm.
 
-The test that pins this is `is continuous between the bendV=0 and bendV!=0 code paths`. It gives a 12 cm branch a `bendV` of 0.0001 and checks it lands where the formula puts the unbent one, to 4 decimal places, which means within 0.00005. The largest gap I measured is 0.0000307, at the tip. That tolerance is the step error's budget, and 12 steps fits inside it with some room but not a lot.
+I expected a test to pin this, and none does. The test `is continuous between the bendV=0 and bendV!=0 code paths` gives a 12 cm branch a `bendV` of 0.0001 and checks it lands where the unbent one does, to 4 decimal places. But `branchPoint` takes the formula whenever `bendV` is under 0.001, and 0.0001 is under it. Both sides go through the formula, the gap is exactly 0, and the walk never runs. The test compares the formula with itself: it pins that the guard exists and says nothing about the walk's step error. `agrees between code paths at a tiny bendV` does the same for the frame. Both tests are vacuous for the walk, and a backlog issue now exists to make them real. My own measurement, with the guard removed so the walk is forced, puts the largest gap at 0.0000307, at the tip, which the 4-decimal tolerance (within 0.00005) would still have room for.
 
 ## Did the branch need its loop?
 
@@ -93,7 +93,7 @@ So the loop is a choice, not a necessity. The formula has four terms where the f
 
 ## What I take from it
 
-Two questions decide it. Does the direction at `t` depend on an ordered history? Then you need a loop, but count what it loops over: the trunk's loop is over events, and its steps cost it almost nothing in accuracy. Is the direction a simple function of `t`? Then try the integral. A formula may exist even when it is ugly, and using it is a trade between special cases and step error. Either way, the test should say which you chose: the formula is pinned to 12 decimals, the walk to the tolerance its step size earns.
+Two questions decide it. Does the direction at `t` depend on an ordered history? Then you need a loop, but count what it loops over: the trunk's loop is over events, and its steps cost it almost nothing in accuracy. Is the direction a simple function of `t`? Then try the integral. A formula may exist even when it is ugly, and using it is a trade between special cases and step error. Either way, a test should pin what you chose. Here the formula is pinned to 12 decimals, and the walk's step error is not pinned at all yet; a test that sets out to check it has to make sure the walk actually runs.
 
 ---
 
