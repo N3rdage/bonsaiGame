@@ -168,9 +168,9 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     inset: true,
     paper: true,
   },
-  // The greenhouse in Inked as a house room is: its paved floor, its back wall's face the glass
-  // house seen from inside, and its side and south walls the garden's white frame rails as caps,
-  // on paper. No window: the face is glass.
+  // The greenhouse in Inked, drawn as the house rooms are: its paved floor, its back wall's face
+  // the glass house seen from inside, and its side and south walls the garden's white frame rails
+  // as caps, on paper. No window: the face is glass.
   greenhouse: {
     floor: SHEETS.floorGreenhouse,
     wallRow: SHEETS.greenhouseCap,
