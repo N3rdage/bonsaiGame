@@ -3,10 +3,10 @@
  * (which loads them), the world scene and the tests. Each pixel sheet is one
  * prototype sprite, packed by `npm run art:sheets` (art/sheets.mjs) from
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
- * horizontal strip in the order of the sprite's `.yy` frames. The house
- * rooms' tiles (lounge, hallway, study, greenhouse), their window and their furniture have
- * no prototype sprite; `npm run art:interiors` (art/interiors.mjs) draws
- * them. `npm run art:paper` (art/inked/paperSheet.mjs)
+ * horizontal strip in the order of the sprite's `.yy` frames. The
+ * greenhouse's tiles, the house's glazed and side-on doors and the floor
+ * shelf have no prototype sprite; `npm run art:interiors`
+ * (art/interiors.mjs) draws them. `npm run art:paper` (art/inked/paperSheet.mjs)
  * draws the Inked rooms' paper, `spr_paper`, `npm run art:player`
  * (art/inked/player.mjs) the Inked player, `spr_player`, in the prototype's
  * frame order, `npm run art:shed` (art/inked/shed.mjs) every sheet the shed
@@ -17,7 +17,10 @@
  * their faces, roofs, caps, kitchen window and glazed door (the house's
  * face, roof and window shared with the front garden too), and `npm run
  * art:front-garden` (art/inked/frontGarden.mjs) the front garden's own: its
- * road, low fence, drive, path, beds, front door and roller door.
+ * road, low fence, drive, path, beds, front door and roller door, and `npm
+ * run art:lounge`, `art:hallway` and `art:study` (art/inked/lounge.mjs,
+ * hallway.mjs and study.mjs) every sheet each house room draws: its floor
+ * (and the kitchen's), wall face and caps, window and furniture.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -124,30 +127,46 @@ export const SHEETS = {
   plantingTable: inked('spr_planting_table', 1, 32, 40),
   shopKiosk: inked('spr_shop_kiosk', 1, 24, 56),
   shedRug: inked('spr_shed_rug', 1, 120, 70),
-  // The house rooms' placeholder tiles, drawn by art/interiors.mjs (the prototype had no interiors).
-  floorLounge: sheet('spr_floor_lounge', 3),
-  wallLounge: sheet('spr_wall_lounge'),
-  floorHallway: sheet('spr_floor_hallway', 3),
-  wallHallway: sheet('spr_wall_hallway'),
-  floorStudy: sheet('spr_floor_study', 3),
-  wallStudy: sheet('spr_wall_study'),
+  // The lounge-kitchen, drawn by art/inked/lounge.mjs: 3 variants each of its carpet and the
+  // kitchen's quarry tiles (16 px), its back wall's 2.4 m face (16 x 48) and its 8 px caps (16 x 8,
+  // 8 x 16), and, cut out, its window on the face between curtains, the fireplace (1.0 x 0.75 x
+  // 0.9 m), the low side table (0.4 m) and the kitchen counter's two runs (0.9 m).
+  floorLounge: inked('spr_floor_lounge', 3, 16),
+  floorKitchen: inked('spr_floor_kitchen', 3, 16),
+  wallLounge: inked('spr_wall_lounge', 3, 16, 48),
+  loungeCap: inked('spr_lounge_cap', 3, 16, 8),
+  loungeCapV: inked('spr_lounge_cap_v', 3, 8, 16),
+  loungeWindow: inked('spr_lounge_window', 1, 32, 24),
+  fireplace: inked('spr_fireplace', 1, 32, 44),
+  sideTable: inked('spr_side_table', 1, 16, 24),
+  counter: inked('spr_counter', 1, 96, 40),
+  counterV: inked('spr_counter_v', 1, 20, 80),
+  // The hallway, drawn by art/inked/hallway.mjs: its floorboards, face and caps, 3 variants each,
+  // and, cut out, the runner flat on the floor and the 0.75 m console table.
+  floorHallway: inked('spr_floor_hallway', 3, 16),
+  wallHallway: inked('spr_wall_hallway', 3, 16, 48),
+  hallwayCap: inked('spr_hallway_cap', 3, 16, 8),
+  hallwayCapV: inked('spr_hallway_cap_v', 3, 8, 16),
+  runner: inked('spr_runner', 1, 60, 24),
+  hallTable: inked('spr_hall_table', 1, 16, 28),
+  // The study, drawn by art/inked/study.mjs: its parquet, face and caps, 3 variants each, and, cut
+  // out, its window on the face under a blind, the 0.75 m desk and the 0.6 m low bookcase.
+  floorStudy: inked('spr_floor_study', 3, 16),
+  wallStudy: inked('spr_wall_study', 3, 16, 48),
+  studyCap: inked('spr_study_cap', 3, 16, 8),
+  studyCapV: inked('spr_study_cap_v', 3, 8, 16),
+  studyWindow: inked('spr_study_window', 1, 32, 24),
+  desk: inked('spr_desk', 1, 32, 32),
+  bookshelf: inked('spr_bookshelf', 1, 48, 28),
   // The greenhouse's paving and its glass walls, drawn by art/interiors.mjs.
   floorGreenhouse: sheet('spr_floor_greenhouse', 3),
   wallGlass: sheet('spr_wall_glass'),
-  window: sheet('spr_window'),
   // The study's glazed double door (two leaves) and the garden's single glazed leaf back to it.
   doorGlass: sheet('spr_door_glass', 1, 64, 32),
   doorGlassSingle: sheet('spr_door_glass_single'),
   // The house's doors between rooms seen from the side, in a left (W) wall and, mirrored, a right (E) one.
   doorSideW: sheet('spr_door_side_w'),
   doorSideE: sheet('spr_door_side_e'),
-  // The house furniture, one frame at its exact size in prototype px (the bookshelf one bay of its run).
-  fireplace: sheet('spr_fireplace', 1, 64, 48),
-  sideTable: sheet('spr_side_table'),
-  desk: sheet('spr_desk', 1, 64, 32),
-  bookshelf: sheet('spr_bookshelf'),
-  runner: sheet('spr_runner', 1, 416, 48),
-  hallTable: sheet('spr_hall_table', 1, 32, 24),
   // The shed's decor (obj_game_controller Draw_0), drawn by art/inked/shed.mjs at the scale rule's heights.
   shelf: inked('spr_shelf', 1, 24, 20),
   tools: inked('spr_tools', 1, 12, 32),

@@ -34,7 +34,13 @@ import { EXTERIORS, GARDEN_ROOM, GREENHOUSE, HOUSE, ROOMS, SHED } from './garden
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { INTERACT_RANGE, nearestInteractable } from './interactables';
 import { HALLWAY_BOUNDS, HALLWAY_ROOM } from './hallwayRoom';
-import { HALLWAY_BLOCK, LOUNGE_ROOM } from './loungeRoom';
+import {
+  HALLWAY_BLOCK,
+  HALLWAY_BLOCK_CAPS,
+  KITCHEN_COUNTER,
+  KITCHEN_FLOOR,
+  LOUNGE_ROOM,
+} from './loungeRoom';
 import { STUDY_ROOM } from './studyRoom';
 import { propSprite } from './roomArt';
 import { FLOOR_GRID, floorRows, floorSpot } from './treeSprites';
@@ -47,6 +53,7 @@ import {
   hitsWall,
   insideWalls,
   ringWalls,
+  type Furniture,
   type Prop,
   type Rect,
   type Room,
@@ -157,10 +164,15 @@ describe('shed room', () => {
       expect([f.w, f.h]).toEqual([f.sheet.frameWidth / 4, f.sheet.frameHeight / 4]);
     }
     expect(SHED_ROOM.furniture.every((f) => !f.solid && f.shadow === true)).toBe(true);
-    // The floor clutter sorts against the player; the wall-mounted shelf and every other room's furniture are baked.
+    // The floor clutter sorts against the player; the wall-mounted shelf is baked. Of the other
+    // rooms only the house rooms sort theirs, the pieces that stand up off the floor.
     expect(SHED_ROOM.furniture.map((f) => f.sorted)).toEqual([false, true, true, true, true]);
+    const house: readonly Room[] = [LOUNGE_ROOM, HALLWAY_ROOM, STUDY_ROOM];
     for (const room of Object.values(ROOMS).filter((r) => r !== SHED_ROOM)) {
-      expect(room.furniture.some((f) => f.sorted)).toBe(false);
+      expect(
+        room.furniture.some((f) => f.sorted),
+        room.key,
+      ).toBe(house.includes(room));
     }
     // Draw-only, so the walls are still just the ring.
     expect(furnitureWalls(SHED_ROOM.furniture)).toEqual([]);
@@ -426,42 +438,74 @@ describe('lounge room', () => {
       { x: 144, y: 208, w: 304, h: 16 },
       { x: 144, y: 48, w: 16, h: 176 },
       { x: 432, y: 48, w: 16, h: 176 },
-      // The hallway's 3 x 2 m block, the fireplace and the side table.
+      // The hallway's 3 x 2 m block, the fireplace, the side table and the kitchen counter's runs.
       { x: 336, y: 64, w: 96, h: 64 },
       { x: 224, y: 64, w: 32, h: 24 },
       { x: 160, y: 64, w: 16, h: 16 },
+      { x: 336, y: 188, w: 96, h: 20 },
+      { x: 412, y: 128, w: 20, h: 60 },
     ]);
     // 17 x 9 tiles of 16 px, 8.5 x 4.5 m at 50 cm a tile.
     expect(insideWalls(LOUNGE_ROOM)).toEqual({ x: 160, y: 64, w: 272, h: 144 });
-    // The block, 6 x 4 tiles, in the floor's north-east corner, drawn in the lounge's wall sheet.
+    // The block, 6 x 4 tiles, in the floor's north-east corner, drawn as the paper.
     expect(HALLWAY_BLOCK).toEqual({
-      sheet: SHEETS.wallLounge,
+      sheet: SHEETS.paper,
       x: 336,
       y: 64,
       w: 96,
       h: 64,
       solid: true,
     });
-    // The kitchen below the block, x 336..432 and y 128..208, is open floor, joined to the lounge.
+    // The kitchen below the block, x 336..432 and y 128..208, its quarry tiles over it, is open
+    // floor joined to the lounge inside its counter: 0.6 m (20 px) deep along its south wall and
+    // up its east wall to the block.
+    expect(KITCHEN_FLOOR).toMatchObject({ x: 336, y: 128, w: 96, h: 80, solid: false });
+    expect(
+      KITCHEN_COUNTER.map(({ sheet, x, y, w, h, solid, sorted }) => [
+        sheet.key,
+        x,
+        y,
+        w,
+        h,
+        solid,
+        sorted,
+      ]),
+    ).toEqual([
+      ['spr_counter', 336, 188, 96, 20, true, true],
+      ['spr_counter_v', 412, 128, 20, 60, true, true],
+    ]);
     for (const [x, y] of [
       [340, 132],
-      [428, 132],
-      [340, 204],
-      [428, 204],
+      [408, 132],
+      [340, 184],
+      [408, 184],
       [330, 180],
+      [330, 204],
     ] as const) {
       expect(hitsWall(LOUNGE_ROOM, x, y), `${String(x)}, ${String(y)}`).toBe(false);
+    }
+    for (const [x, y] of [
+      [340, 204],
+      [428, 132],
+      [428, 204],
+    ] as const) {
+      expect(hitsWall(LOUNGE_ROOM, x, y), `${String(x)}, ${String(y)}`).toBe(true);
     }
     expect(LOUNGE_ROOM.playerStart).toEqual({ x: 240, y: 190 });
     expect(hitsWall(LOUNGE_ROOM, 240, 190)).toBe(false);
   });
 
-  it('walks from the lounge across into the kitchen and up into the block', () => {
+  it('walks from the lounge across into the kitchen, against its counter, and up into the block', () => {
     let p = createPlayer(LOUNGE_ROOM);
     for (let i = 0; i < 300; i += 1) p = stepPlayer(p, { x: 1, y: 0 }, LOUNGE_ROOM);
-    expect([p.x, p.y]).toEqual([431.25, 190]);
+    // The counter's south run stops a walk along y 190 at the kitchen's edge.
+    expect([p.x, p.y]).toEqual([335, 190]);
+    for (let i = 0; i < 32; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, LOUNGE_ROOM);
+    for (let i = 0; i < 300; i += 1) p = stepPlayer(p, { x: 1, y: 0 }, LOUNGE_ROOM);
+    // Its east run stops a walk along y 150.
+    expect([p.x, p.y]).toEqual([411.25, 150]);
     for (let i = 0; i < 100; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, LOUNGE_ROOM);
-    expect([p.x, p.y]).toEqual([431.25, 128.75]);
+    expect([p.x, p.y]).toEqual([411.25, 128.75]);
   });
 
   it('has two display spots, lounge_mantel and lounge_side_table, on its furniture, a door in the bottom wall and one in the block', () => {
@@ -803,7 +847,7 @@ describe('study room', () => {
     expect(
       STUDY_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
-      ['pedestal_1', 'Pedestal', 'Use Pedestal', 176, 75, 32, 10, 'study_desk'],
+      ['pedestal_1', 'Pedestal', 'Use Pedestal', 176, 70, 32, 20, 'study_desk'],
       ['pedestal_2', 'Pedestal', 'Use Pedestal', 296, 72.5, 16, 15, 'study_bookshelf'],
       ['door_hallway', 'Door', 'To Hallway', 152, 96, 16, 16, undefined],
       ['door_garden', 'Door', 'To Garden', 232, 216, 48, 16, undefined],
@@ -987,20 +1031,28 @@ describe('interior rooms', () => {
     it(`${room.key}: a step into a solid piece of furniture is stopped, a step onto any other is not`, () => {
       expect(room.walls).toEqual([...ringWalls(room.bounds), ...furnitureWalls(room.furniture)]);
       expect(room.furniture.length).toBeGreaterThanOrEqual(2);
-      const floor = insideWalls(room);
-      for (const f of room.furniture) {
-        // Just below the piece's front edge, stepping up into it; a piece standing on the bottom
-        // wall (the hallway's runner and table), just above its back edge, stepping down into it.
-        const up = f.y + f.h < floor.y + floor.h;
-        const from: PlayerState = {
-          ...createPlayer(room),
-          x: f.x + f.w / 2,
-          y: up ? f.y + f.h + 0.5 : f.y - 0.5,
-        };
-        expect(hitsWall(room, from.x, from.y)).toBe(false);
-        const dy = up ? -1 : 1;
-        const p = stepPlayer(from, { x: 0, y: dy }, room);
-        expect(p.y, `${room.key} ${f.sheet.key}`).toBe(f.solid ? from.y : from.y + 1.25 * dy);
+      // The lounge's kitchen tiles and the hallway block's caps are drawn on the floor and on the
+      // block, never stepped into; neither is solid.
+      const overlays: readonly Furniture[] = [KITCHEN_FLOOR, ...HALLWAY_BLOCK_CAPS];
+      for (const f of overlays) expect(f.solid).toBe(false);
+      for (const f of room.furniture.filter((g) => !overlays.includes(g))) {
+        // Just below the piece's front edge, stepping up into it; else (a piece on the bottom wall,
+        // the hallway's runner and table, the kitchen counter's south run) just above its back edge,
+        // stepping down into it; else (the counter's east run, between the block and the south run)
+        // just west of it, stepping east into it.
+        const approaches = [
+          { x: f.x + f.w / 2, y: f.y + f.h + 0.5, dx: 0, dy: -1 },
+          { x: f.x + f.w / 2, y: f.y - 0.5, dx: 0, dy: 1 },
+          { x: f.x - 0.5, y: f.y + f.h / 2, dx: 1, dy: 0 },
+        ];
+        const a = approaches.find((q) => !hitsWall(room, q.x, q.y) && onFloor(room, q, 0));
+        if (!a) throw new Error(`${room.key} ${f.sheet.key}`);
+        const from: PlayerState = { ...createPlayer(room), x: a.x, y: a.y };
+        const p = stepPlayer(from, { x: a.dx, y: a.dy }, room);
+        const moved = [from.x + 1.25 * a.dx, from.y + 1.25 * a.dy];
+        expect([p.x, p.y], `${room.key} ${f.sheet.key}`).toEqual(
+          f.solid ? [from.x, from.y] : moved,
+        );
       }
     });
 

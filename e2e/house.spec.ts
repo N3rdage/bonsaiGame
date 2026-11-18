@@ -28,7 +28,7 @@ import {
 // down it from the lounge door's landing (210, 176) stops at y 144.75 or
 // 207.25 on the 1.25 px step grid. The study's floor is x 160..304,
 // y 64..208; its display spots are on the furniture in its top corners,
-// study_desk (176, 75) on the desk (x 160..192, y 64..80), straight above the
+// study_desk (176, 70) on the desk (x 160..192, y 64..80), straight above the
 // hallway door's landing (178, 96), and study_bookshelf (296, 72.5) on the
 // bookcase (x 256..304, y 64..80).
 

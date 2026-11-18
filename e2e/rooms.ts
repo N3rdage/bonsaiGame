@@ -28,7 +28,7 @@ import {
 // floor is x 160..304, y 64..208: its door_hallway (152, 96) leads back to
 // the hallway at (270, 176); its glass doors, door_garden (232, 216), 48x16 in
 // its bottom wall, to the garden at (344, 162); its spots are study_desk
-// (176, 75) on the desk (x 160..192, y 64..80) straight above the hallway
+// (176, 70) on the desk (x 160..192, y 64..80) straight above the hallway
 // door's landing, and study_bookshelf (296, 72.5) on the bookcase's right-hand
 // bay (x 288..304, y 64..80). The greenhouse's door_garden (240, 200), in the
 // centre of its bottom wall, leads to the garden at (336, 434); the garden's

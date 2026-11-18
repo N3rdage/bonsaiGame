@@ -23,10 +23,24 @@ import {
 /** The 144x144 floor (4.5 x 4.5 m), x 160..304 and y 64..208, grown by the 16 px wall band. */
 export const STUDY_BOUNDS: Rect = { x: 144, y: 48, w: 176, h: 176 };
 
-/** spr_desk's 64x32 prototype px, halved: in the top-left corner, against both walls. */
-export const DESK: Furniture = { sheet: SHEETS.desk, x: 160, y: 64, w: 32, h: 16, solid: true };
+/**
+ * The desk, 1.0 x 0.5 m and 0.75 m high, in the top-left corner against both
+ * walls: its top face is its sprite's y 48..64.
+ */
+export const DESK: Furniture = {
+  sheet: SHEETS.desk,
+  x: 160,
+  y: 64,
+  w: 32,
+  h: 16,
+  solid: true,
+  sorted: true,
+};
 
-/** Three bays of spr_bookshelf (32x32 prototype px, halved) in the top-right corner, against both walls. */
+/**
+ * The low bookcase, three bays 1.5 x 0.5 m and 0.6 m high, in the top-right
+ * corner against both walls: its top face is its sprite's y 52..68.
+ */
 export const BOOKSHELF: Furniture = {
   sheet: SHEETS.bookshelf,
   x: 256,
@@ -34,6 +48,7 @@ export const BOOKSHELF: Furniture = {
   w: 48,
   h: 16,
   solid: true,
+  sorted: true,
 };
 
 const FURNITURE = [DESK, BOOKSHELF];
@@ -51,13 +66,13 @@ export const STUDY_ROOM: Room = {
   walls: [...ringWalls(STUDY_BOUNDS), ...furnitureWalls(FURNITURE)],
   furniture: FURNITURE,
   props: [
-    // On the desk top, prototype rows 0..16 of the sprite: a walk straight up
-    // from the hallway door's landing stops against the desk at (178, 81) on
-    // the 1.25 px step grid, 6.3 px from the spot's centre (176, 75).
-    displaySpot('pedestal_1', 'study_desk', DESK, 70),
-    // On the bookcase's top board, prototype rows 0..3, over its right-hand
-    // bay: a walk into the right wall and up stops against it at (303, 81),
-    // 11 px from the spot's centre (296, 72.5).
+    // On the desk top, y 48..64, near its front edge: a walk straight up from
+    // the hallway door's landing stops against the desk at (178, 81) on the
+    // 1.25 px step grid, 11.2 px from the spot's centre (176, 70).
+    displaySpot('pedestal_1', 'study_desk', DESK, 60),
+    // On the bookcase's top, y 52..68, over its right-hand bay: a walk into
+    // the right wall and up stops against it at (303, 81), 11 px from the
+    // spot's centre (296, 72.5).
     displaySpot('pedestal_2', 'study_bookshelf', BOOKSHELF, 65, 288, 16),
     // Plan B3 row 8: the left wall's band 1 m from its north end, seen from the side, back to
     // beside the hallway's study door.

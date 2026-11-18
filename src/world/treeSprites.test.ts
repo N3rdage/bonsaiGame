@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
+import { sheetPxPerLogical } from './assets';
 import { nearestInteractable } from './interactables';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { FIREPLACE, LOUNGE_ROOM, SIDE_TABLE } from './loungeRoom';
@@ -87,27 +88,30 @@ describe('tree sprites', () => {
     );
     const at = (room: Room) =>
       treeSprites(state, room).map((s) => [s.tree.id, s.pedestalKey, s.x, s.y, s.depth]);
-    // The mantel's shelf, the table top, the desk top and the bookcase's top board, each spot's
-    // rect top; each piece's front edge plus 0.5 for the depth.
+    // The mantel's shelf, the table top, the desk top and the bookcase's top, each spot's rect
+    // top; each piece's front edge plus 0.5 for the depth, so in front of the piece's sprite.
     expect(at(LOUNGE_ROOM)).toEqual([
       [1, 'lounge_mantel', 240, 66, 88.5],
       [0, 'lounge_side_table', 168, 68, 80.5],
     ]);
     expect(at(STUDY_ROOM)).toEqual([
-      [2, 'study_desk', 176, 70, 80.5],
+      [2, 'study_desk', 176, 60, 80.5],
       [3, 'study_bookshelf', 296, 65, 80.5],
     ]);
     for (const [room, piece, top] of [
       [LOUNGE_ROOM, FIREPLACE, 66],
       [LOUNGE_ROOM, SIDE_TABLE, 68],
-      [STUDY_ROOM, DESK, 70],
+      [STUDY_ROOM, DESK, 60],
       [STUDY_ROOM, BOOKSHELF, 65],
     ] as const) {
       const s = treeSprites(state, room).find((t) => t.y === top);
-      // On the piece: inside its rect, in its upper half.
+      // On the piece: across it, and on the top face its Inked sprite draws over its footprint's
+      // depth, the sprite standing on the footprint's bottom edge.
       expect(s && s.x >= piece.x && s.x <= piece.x + piece.w).toBe(true);
-      expect(top).toBeGreaterThan(piece.y);
-      expect(top).toBeLessThan(piece.y + piece.h / 2);
+      const spriteTop =
+        piece.y + piece.h - piece.sheet.frameHeight / sheetPxPerLogical(piece.sheet);
+      expect(top).toBeGreaterThan(spriteTop);
+      expect(top).toBeLessThan(spriteTop + piece.h);
     }
   });
 
