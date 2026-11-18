@@ -272,7 +272,10 @@ describe('branchPoint', () => {
 
   it('is continuous between the bendV=0 and bendV!=0 code paths', () => {
     const flat = makeBranch({ angle: 40, length: 12, bend: 30, bendV: 0 });
-    const tiny = { ...flat, bendV: 1e-4 };
+    // branchPoint takes the closed form while |bendV| < 0.001. 0.002 sits just
+    // above that guard so `tiny` runs the 12-step walk; under it both sides
+    // would take the closed form and the comparison would prove nothing.
+    const tiny = { ...flat, bendV: 0.002 };
     const tree = makeTree({}, [flat]);
     for (const t of [0.25, 0.5, 1]) {
       const a = branchPoint(tree, flat, t);
@@ -318,13 +321,18 @@ describe('branchFrameAt', () => {
 
   it('agrees between code paths at a tiny bendV', () => {
     const flat = makeBranch({ angle: 40, bend: 30, bendV: 0 });
-    const tiny = { ...flat, bendV: 1e-4 };
+    // branchFrameAt takes the closed form while |bendV| < 0.001. 0.002 sits just
+    // above that guard so `tiny` runs the two-rotation path; under it both
+    // sides would take the closed form and the comparison would prove nothing.
+    // The real 0.001 deg tilt at t = 0.5 moves the tangent by ~1.7e-5, so the
+    // tolerance is 4 decimals.
+    const tiny = { ...flat, bendV: 0.002 };
     const a = branchFrameAt(tree, flat, 0.5);
     const b = branchFrameAt(tree, tiny, 0.5);
-    expect(b.tangent.x).toBeCloseTo(a.tangent.x, 5);
-    expect(b.tangent.y).toBeCloseTo(a.tangent.y, 5);
-    expect(b.tangent.z).toBeCloseTo(a.tangent.z, 5);
-    expect(b.normal.x).toBeCloseTo(a.normal.x, 5);
-    expect(b.binormal.z).toBeCloseTo(a.binormal.z, 5);
+    expect(b.tangent.x).toBeCloseTo(a.tangent.x, 4);
+    expect(b.tangent.y).toBeCloseTo(a.tangent.y, 4);
+    expect(b.tangent.z).toBeCloseTo(a.tangent.z, 4);
+    expect(b.normal.x).toBeCloseTo(a.normal.x, 4);
+    expect(b.binormal.z).toBeCloseTo(a.binormal.z, 4);
   });
 });
