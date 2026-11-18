@@ -64,7 +64,7 @@ export interface Prop {
   readonly target?: DoorTarget;
   /** Doors only: the wall the door sits in. */
   readonly wall?: Wall;
-  /** Doors only: the door's sprite when it is not the prototype's `spr_door` (the study's glazed doors and the garden's to them, the side gate's two sides, the house's side-on doors between rooms, the shed's Inked doors). */
+  /** Doors only: the door's sprite when it is not the prototype's `spr_door` (the study's glazed doors and the garden's to them, the greenhouse's glazed leaf and the garden's to it, the side gate's two sides, the house's side-on doors between rooms, the shed's Inked doors). */
   readonly sheet?: Sheet;
   /** Garden source plants only (obj_source_plant's `species_key`): what a cutting is of. */
   readonly speciesKey?: SpeciesKey;

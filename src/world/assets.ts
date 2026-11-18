@@ -4,9 +4,8 @@
  * prototype sprite, packed by `npm run art:sheets` (art/sheets.mjs) from
  * archive/gamemaker/sprites/<key>/ into public/assets/<key>.png as a
  * horizontal strip in the order of the sprite's `.yy` frames. The
- * greenhouse's tiles, the house's glazed and side-on doors and the floor
- * shelf have no prototype sprite; `npm run art:interiors`
- * (art/interiors.mjs) draws them. `npm run art:paper` (art/inked/paperSheet.mjs)
+ * greenhouse's tiles and the floor shelf have no prototype sprite; `npm run
+ * art:interiors` (art/interiors.mjs) draws them. `npm run art:paper` (art/inked/paperSheet.mjs)
  * draws the Inked rooms' paper, `spr_paper`, `npm run art:player`
  * (art/inked/player.mjs) the Inked player, `spr_player`, in the prototype's
  * frame order, `npm run art:shed` (art/inked/shed.mjs) every sheet the shed
@@ -20,7 +19,9 @@
  * road, low fence, drive, path, beds, front door and roller door, and `npm
  * run art:lounge`, `art:hallway` and `art:study` (art/inked/lounge.mjs,
  * hallway.mjs and study.mjs) every sheet each house room draws: its floor
- * (and the kitchen's), wall face and caps, window and furniture.
+ * (and the kitchen's), wall face and caps, window and furniture, and `npm
+ * run art:doors` (art/inked/doors.mjs) the house's own doors: the study's
+ * glazed double door and the side-on doors between rooms.
  */
 
 import type { SpeciesKey } from '../sim/types';
@@ -99,8 +100,9 @@ export const SHEETS = {
   // The buildings seen from the back garden, drawn by art/inked/garden.mjs: each face 2.4 m (16 x
   // 48) over its roof's 16 px tiles, 3 variants each; the house's edge-on east wall as its 8 px
   // cap, the kitchen window, the greenhouse's frame rails on its edges, and one glazed leaf
-  // front-on, the study's garden door and the greenhouse's. The house's face, roof and window are
-  // the front garden's too, for the garage's face and roof as well.
+  // front-on, the garden's doors to the study and the greenhouse and the greenhouse's back to the
+  // garden. The house's face, roof and window are the front garden's too, for the garage's face
+  // and roof as well.
   shedFace: inked('spr_shed_face', 3, 16, 48),
   shedRoof: inked('spr_shed_roof', 3, 16),
   houseFace: inked('spr_house_face', 3, 16, 48),
@@ -158,15 +160,16 @@ export const SHEETS = {
   studyWindow: inked('spr_study_window', 1, 32, 24),
   desk: inked('spr_desk', 1, 32, 32),
   bookshelf: inked('spr_bookshelf', 1, 48, 28),
+  // The house's doors, drawn by art/inked/doors.mjs, cut out: the study's glazed double door
+  // front-on (two leaves, 1.5 x 2.0 m), and the doors between rooms seen side-on, each an 8 x 40
+  // frame on its wall's cap with the leaf ajar into the room, in a left (W) wall and, mirrored, a
+  // right (E) one.
+  doorGlass: inked('spr_door_glass', 1, 48, 40),
+  doorSideW: inked('spr_door_side_w', 1, 8, 40),
+  doorSideE: inked('spr_door_side_e', 1, 8, 40),
   // The greenhouse's paving and its glass walls, drawn by art/interiors.mjs.
   floorGreenhouse: sheet('spr_floor_greenhouse', 3),
   wallGlass: sheet('spr_wall_glass'),
-  // The study's glazed double door (two leaves) and the garden's single glazed leaf back to it.
-  doorGlass: sheet('spr_door_glass', 1, 64, 32),
-  doorGlassSingle: sheet('spr_door_glass_single'),
-  // The house's doors between rooms seen from the side, in a left (W) wall and, mirrored, a right (E) one.
-  doorSideW: sheet('spr_door_side_w'),
-  doorSideE: sheet('spr_door_side_e'),
   // The shed's decor (obj_game_controller Draw_0), drawn by art/inked/shed.mjs at the scale rule's heights.
   shelf: inked('spr_shelf', 1, 24, 20),
   tools: inked('spr_tools', 1, 12, 32),

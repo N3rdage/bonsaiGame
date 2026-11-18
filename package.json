@@ -31,6 +31,7 @@
     "art:shed": "node art/inked/shed.mjs",
     "art:garden": "node art/inked/garden.mjs",
     "art:front-garden": "node art/inked/frontGarden.mjs",
+    "art:doors": "node art/inked/doors.mjs",
     "art:lounge": "node art/inked/lounge.mjs",
     "art:hallway": "node art/inked/hallway.mjs",
     "art:study": "node art/inked/study.mjs"
