@@ -8,6 +8,8 @@ What to read:
 
 - `ARCHITECTURE.md` describes how the GameMaker code was organised and the invariants it kept. Most of those invariants carry over to the rewrite in spirit; see the root `ARCHITECTURE.md` for the current shape.
 - `CLAUDE.md` is the AI-collaboration guide that applied to this code. It is kept so sessions working in this folder during the port get the right context.
+- `DESIGN.md` records the prototype's room scale, 32 px tile grid, primitive-drawing conventions and sprite scale reference.
+- `ART_SPEC.md` is the prototype's sprite spec: every sprite slot's size, origin and frames, the shared palette and the GameMaker import workflow. `art/sheets.mjs` at the repo root still packs those sprites into the web build's sheets.
 - `scripts/` holds the simulation logic (tree model, growth, seasons, scoring, species, styles, save format). This is the half that ports as pure TypeScript.
 - `objects/` and `rooms/` hold the 2D world, UI panels and the 3D viewer. This is the half that is being re-expressed in Phaser and Three.js.
 
