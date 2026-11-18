@@ -27,7 +27,8 @@
 //   spr_greenhouse_cap   3 variants of the frame rail on its north edge, 16 x 8
 //   spr_greenhouse_cap_v 3 variants of the rails on its east and west edges, 8 x 16
 //   spr_door_glazed      one glazed leaf front-on, 24 x 40, cut out: the study's
-//                        garden door and the greenhouse's
+//                        garden door, and the greenhouse's door seen from the
+//                        garden and from inside
 //
 // A repeated tile has three variants, each on its own page and seed, joined
 // into one strip. Every page has its own seed in SEEDS, written out, and its
