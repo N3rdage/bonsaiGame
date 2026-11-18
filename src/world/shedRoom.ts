@@ -74,8 +74,8 @@ export interface Prop {
 
 /**
  * A window in the room's top wall (the house rooms' are new content; the
- * shed's is the prototype's): from `x` for `w` logical px along the wall
- * band, drawn over it and not collision; the wall under it still stops the
+ * shed's is the prototype's): from `x` for `w` logical px along the wall,
+ * drawn on its face and not collision; the wall under it still stops the
  * player.
  */
 export interface RoomWindow {
@@ -97,7 +97,8 @@ export interface Furniture extends Rect {
   /**
    * Left out of the bake and drawn as its own sprite at its bottom edge's
    * depth (roomArt's `furnitureSprites`), so the player walks behind and in
-   * front of it: the shed's floor clutter.
+   * front of it: the shed's floor clutter and the house rooms' furniture, each
+   * an Inked sheet standing on its footprint's bottom edge.
    */
   readonly sorted?: boolean;
 }

@@ -41,6 +41,13 @@ export const WASHES = {
   paint: [204, 208, 200],
   // The road the front garden looks onto.
   asphalt: [108, 108, 110],
+  // The house rooms: the lounge's carpet and wallpaper, the hallway's runner,
+  // the study's paper and parquet.
+  carpet: [196, 164, 140],
+  wallpaper: [178, 192, 160],
+  runner: [128, 152, 132],
+  studyPaper: [162, 176, 190],
+  parquet: [186, 128, 100],
   // The 3D viewer's textures are tinted by each species' colours, so their washes are near neutral.
   bark: [170, 160, 148],
   leaf: [188, 190, 178],
@@ -78,6 +85,7 @@ export const WEAR_BY_WASH = {
   top: 'wood',
   terracotta: 'pot',
   rug: 'cloth',
+  runner: 'cloth',
   cream: 'cloth',
 };
 

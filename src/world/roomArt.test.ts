@@ -6,7 +6,7 @@ import { GARDEN_ROOM, KITCHEN_WINDOW, ROOMS } from './gardenRoom';
 import { PALETTE } from './palette';
 import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { HALLWAY_ROOM } from './hallwayRoom';
-import { LOUNGE_ROOM } from './loungeRoom';
+import { HALLWAY_BLOCK, HALLWAY_BLOCK_CAPS, LOUNGE_ROOM } from './loungeRoom';
 import {
   BACK_WALL_FACE,
   PEDESTAL_LABEL_DY,
@@ -122,17 +122,17 @@ describe('floor', () => {
 });
 
 describe('bake', () => {
-  it('lays paper in the shed only, and bakes the Inked shed and gardens at 4 px per logical px and every other room at the prototype 2', () => {
-    const inked = [SHED_ROOM, GARDEN_ROOM, FRONT_GARDEN_ROOM];
+  it('lays paper in the shed and the house rooms only, and bakes the Inked rooms at 4 px per logical px and the greenhouse at the prototype 2', () => {
+    const papered = [SHED_ROOM, LOUNGE_ROOM, HALLWAY_ROOM, STUDY_ROOM];
     for (const room of Object.values(ROOMS)) {
-      expect(ROOM_STYLES[room.key].paper, room.key).toBe(room === SHED_ROOM);
-      if (room !== SHED_ROOM) expect(paperTiles(room)).toEqual([]);
-      expect(bakeScale(room), room.key).toBe(inked.includes(room) ? 4 : 2);
+      expect(ROOM_STYLES[room.key].paper, room.key).toBe(papered.includes(room));
+      if (!papered.includes(room)) expect(paperTiles(room)).toEqual([]);
+      expect(bakeScale(room), room.key).toBe(room === GREENHOUSE_ROOM ? 2 : 4);
     }
   });
 
   it("lays the shed's paper over the whole room from (0, 0) in 64 px steps; paper alone bakes at 4", () => {
-    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, paper: true })).toBe(4);
+    expect(bakeScale(GREENHOUSE_ROOM, { ...ROOM_STYLES.greenhouse, paper: true })).toBe(4);
     const tiles = paperTiles(SHED_ROOM);
     // The shed's 480x270 canvas: 8 columns (8 * 64 = 512 >= 480), 5 rows (5 * 64 = 320 >= 270).
     expect(tiles).toHaveLength(8 * 5);
@@ -156,12 +156,13 @@ describe('bake', () => {
   });
 
   it('bakes at 4 when any sheet it draws is Inked, paper or not', () => {
-    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, floor: SHEETS.paper })).toBe(4);
-    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, wallColumn: SHEETS.paper })).toBe(4);
+    const glass = ROOM_STYLES.greenhouse;
+    expect(bakeScale(GREENHOUSE_ROOM, { ...glass, floor: SHEETS.paper })).toBe(4);
+    expect(bakeScale(GREENHOUSE_ROOM, { ...glass, wallColumn: SHEETS.paper })).toBe(4);
     const face = { sheet: SHEETS.paper, height: BACK_WALL_FACE, cap: WALL_CAP };
-    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, face })).toBe(4);
+    expect(bakeScale(GREENHOUSE_ROOM, { ...glass, face })).toBe(4);
     const rug = { sheet: SHEETS.paper, x: 0, y: 0, w: 64, h: 64 };
-    expect(bakeScale(LOUNGE_ROOM, { ...ROOM_STYLES.lounge, rug })).toBe(4);
+    expect(bakeScale(GREENHOUSE_ROOM, { ...glass, rug })).toBe(4);
   });
 });
 
@@ -287,7 +288,7 @@ describe('walls', () => {
       ...LOUNGE_ROOM,
       furniture: [
         { sheet: SHEETS.houseRoof, x: 32, y: 48, w: 48, h: 16, solid: false },
-        { sheet: SHEETS.wallLounge, x: 32, y: 64, w: 48, h: 16, solid: false },
+        { sheet: SHEETS.wallGlass, x: 32, y: 64, w: 48, h: 16, solid: false },
       ],
     };
     expect(furnitureRuns(room).map((r) => [r.sheet.key, r.frame, r.x, r.y, r.w, r.h])).toEqual([
@@ -295,7 +296,7 @@ describe('walls', () => {
       ['spr_house_roof', 2, 32, 48, 16, 16],
       ['spr_house_roof', 0, 48, 48, 16, 16],
       ['spr_house_roof', 1, 64, 48, 16, 16],
-      ['spr_wall_lounge', undefined, 32, 64, 48, 16],
+      ['spr_wall_glass', undefined, 32, 64, 48, 16],
     ]);
   });
 
@@ -335,56 +336,114 @@ describe('walls', () => {
     }
   });
 
-  it("rings each house room's own bounds with its own wall sheet, every tile over a collision band", () => {
-    for (const [room, sheet, runs] of [
+  it("rings the greenhouse's own bounds with its glass wall sheet, every tile over a collision band", () => {
+    const walls = wallRuns(GREENHOUSE_ROOM);
+    expect(walls).toHaveLength(4);
+    expect(walls.every((r) => r.sheet === SHEETS.wallGlass)).toBe(true);
+    expect(walls.map(({ x, y, w, h }) => [x, y, w, h])).toEqual([
+      [144, 64, 192, 16],
+      [144, 192, 192, 16],
+      [144, 80, 16, 112],
+      [320, 80, 16, 112],
+    ]);
+    for (const { x, y, w, h } of walls) {
+      expect(
+        hitsWall(GREENHOUSE_ROOM, x, y) && hitsWall(GREENHOUSE_ROOM, x + w - 0.1, y + h - 0.1),
+      ).toBe(true);
+    }
+  });
+
+  it("draws each house room's back wall as its own 48 px face on the floor line and its other walls as its own 8 px caps, as the shed's", () => {
+    for (const [room, face, cap, capV, faceExtent, sides, southExtent] of [
       [
         LOUNGE_ROOM,
         SHEETS.wallLounge,
-        [
-          [144, 48, 304, 16],
-          [144, 208, 304, 16],
-          [144, 64, 16, 144],
-          [432, 64, 16, 144],
-        ],
+        SHEETS.loungeCap,
+        SHEETS.loungeCapV,
+        [160, 16, 432, 64],
+        [152, 432],
+        [152, 208, 440, 216],
       ],
       [
         HALLWAY_ROOM,
         SHEETS.wallHallway,
-        [
-          [176, 128, 128, 16],
-          [176, 208, 128, 16],
-          [176, 144, 16, 64],
-          [288, 144, 16, 64],
-        ],
+        SHEETS.hallwayCap,
+        SHEETS.hallwayCapV,
+        [192, 96, 288, 144],
+        [184, 288],
+        [184, 208, 296, 216],
       ],
       [
         STUDY_ROOM,
         SHEETS.wallStudy,
-        [
-          [144, 48, 176, 16],
-          [144, 208, 176, 16],
-          [144, 64, 16, 144],
-          [304, 64, 16, 144],
-        ],
-      ],
-      [
-        GREENHOUSE_ROOM,
-        SHEETS.wallGlass,
-        [
-          [144, 64, 192, 16],
-          [144, 192, 192, 16],
-          [144, 80, 16, 112],
-          [320, 80, 16, 112],
-        ],
+        SHEETS.studyCap,
+        SHEETS.studyCapV,
+        [160, 16, 304, 64],
+        [152, 304],
+        [152, 208, 312, 216],
       ],
     ] as const) {
-      // The ring's four runs come first, then the windows and the furniture.
-      const walls = wallRuns(room).slice(0, 4);
-      expect(walls.every((r) => r.sheet === sheet)).toBe(true);
-      expect(walls.map(({ x, y, w, h }) => [x, y, w, h])).toEqual(runs);
-      for (const { x, y, w, h } of walls) {
-        expect(hitsWall(room, x, y) && hitsWall(room, x + w - 0.1, y + h - 0.1)).toBe(true);
+      const style = ROOM_STYLES[room.key];
+      expect(style.face, room.key).toEqual({ sheet: face, height: BACK_WALL_FACE, cap: WALL_CAP });
+      expect([style.wallRow, style.wallColumn]).toEqual([cap, capV]);
+      const runs = wallRuns(room);
+      const of = (sheet: Sheet, x?: number) =>
+        runs.filter((r) => r.sheet === sheet && (x === undefined || r.x === x));
+      expect(extent(of(face)), room.key).toEqual(faceExtent);
+      expect(of(face).every((r) => r.w === 16 && r.h === 48)).toBe(true);
+      // The face stands on the floor line, the floor's top edge.
+      expect(faceExtent[3]).toBe(insideWalls(room).y);
+      for (const x of sides) {
+        expect(extent(of(capV, x)), `${room.key} ${String(x)}`).toEqual([
+          x,
+          faceExtent[1],
+          x + WALL_CAP,
+          208,
+        ]);
       }
+      // The south cap across both side caps; the lounge's block draws more of both caps after it.
+      expect(extent(of(cap).filter((r) => r.y === 208))).toEqual(southExtent);
+      // Every cap tile in the ring's bounds lies on a collision band.
+      const ringCaps = [
+        ...sides.flatMap((x) => of(capV, x)),
+        ...of(cap).filter((r) => r.y === 208),
+      ];
+      for (const r of ringCaps.filter((t) => t.y >= room.bounds.y)) {
+        expect(hitsWall(room, r.x, r.y) && hitsWall(room, r.x + r.w - 0.1, r.y + r.h - 0.1)).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  it("draws the lounge's hallway block as paper inside the lounge's caps on its open edges, solid as a whole", () => {
+    expect(HALLWAY_BLOCK).toEqual({
+      sheet: SHEETS.paper,
+      x: 336,
+      y: 64,
+      w: 96,
+      h: 64,
+      solid: true,
+    });
+    const runs = furnitureRuns(LOUNGE_ROOM);
+    const of = (sheet: Sheet) => runs.filter((r) => r.sheet === sheet);
+    expect(of(SHEETS.paper).map(({ x, y, w, h }) => [x, y, w, h])).toEqual([[336, 64, 96, 64]]);
+    // spr_lounge_cap_v down its west edge, spr_lounge_cap along its south edge, tile by tile.
+    expect(extent(of(SHEETS.loungeCapV))).toEqual([336, 64, 344, 128]);
+    expect(of(SHEETS.loungeCapV)).toHaveLength(4);
+    expect(extent(of(SHEETS.loungeCap))).toEqual([336, 120, 432, 128]);
+    expect(of(SHEETS.loungeCap)).toHaveLength(6);
+    for (const list of [of(SHEETS.loungeCapV), of(SHEETS.loungeCap)]) {
+      for (let i = 1; i < list.length; i += 1) expect(list[i]?.frame).not.toBe(list[i - 1]?.frame);
+    }
+    // The caps are drawn, not collision; the block is collision whole.
+    expect(HALLWAY_BLOCK_CAPS.every((f) => !f.solid)).toBe(true);
+    for (const [x, y] of [
+      [336, 64],
+      [431, 127],
+      [380, 100],
+    ] as const) {
+      expect(hitsWall(LOUNGE_ROOM, x, y)).toBe(true);
     }
   });
 
@@ -399,7 +458,6 @@ describe('walls', () => {
   });
 
   it('has two windows in the lounge, one in the study and the shed, none in the hallway, the garden or the glass greenhouse', () => {
-    expect(SHEETS.window).toMatchObject({ key: 'spr_window', frames: 1 });
     // The lounge's both west of the hallway block (x 336), either side of the fireplace (x 224..256).
     expect(LOUNGE_ROOM.windows).toEqual([
       { x: 176, w: 32 },
@@ -414,32 +472,32 @@ describe('walls', () => {
     ]);
     expect(ROOM_STYLES.shed.window).toEqual({ sheet: SHEETS.shedWindow, top: 44 });
     expect(wallRuns(SHED_ROOM).at(-2)).toEqual(windowRuns(SHED_ROOM)[0]);
-    for (const room of [HALLWAY_ROOM, GARDEN_ROOM, GREENHOUSE_ROOM]) {
+    for (const room of [HALLWAY_ROOM, GARDEN_ROOM, FRONT_GARDEN_ROOM, GREENHOUSE_ROOM]) {
       expect(room.windows).toEqual([]);
+      expect(ROOM_STYLES[room.key].window).toBeUndefined();
       expect(windowRuns(room)).toEqual([]);
     }
   });
 
-  it('draws each house window as spr_window over the top wall band, after the walls, inside the corners', () => {
-    for (const room of [LOUNGE_ROOM, STUDY_ROOM]) {
+  it("draws each house window as its room's own Inked window on the face, as the shed's, after the face, inside the side caps", () => {
+    for (const [room, sheet] of [
+      [LOUNGE_ROOM, SHEETS.loungeWindow],
+      [STUDY_ROOM, SHEETS.studyWindow],
+    ] as const) {
+      expect(ROOM_STYLES[room.key].window).toEqual({ sheet, top: 44 });
       const runs = windowRuns(room);
-      expect(runs.map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h])).toEqual(
-        room.windows.map(({ x, w }) => ['spr_window', x, room.bounds.y, w, TILE]),
+      // Each 32 x 24 on the face (y 16..64), its sill 20 px above the floor line, y 64.
+      expect(runs.map(({ sheet: s, x, y, w, h }) => [s.key, x, y, w, h])).toEqual(
+        room.windows.map(({ x, w }) => [sheet.key, x, 20, w, 24]),
       );
-      // After the ring's runs, so drawn over the wall row.
-      expect(wallRuns(room).slice(4, 4 + runs.length)).toEqual(runs);
-      const top = wallRuns(room)[0];
+      const all = wallRuns(room);
+      const lastFace = all
+        .map((r) => r.sheet)
+        .lastIndexOf(ROOM_STYLES[room.key].face?.sheet ?? sheet);
       for (const r of runs) {
-        // Whole panes on the tile grid.
-        expect(r.x % TILE).toBe(0);
-        expect(r.w % TILE).toBe(0);
-        // Clear of the corner tiles, and over the top wall, which still collides under it.
+        expect(all.findIndex((w) => w.sheet === sheet && w.x === r.x)).toBeGreaterThan(lastFace);
         expect(r.x).toBeGreaterThanOrEqual(room.bounds.x + TILE);
         expect(r.x + r.w).toBeLessThanOrEqual(room.bounds.x + room.bounds.w - TILE);
-        expect([r.y, r.h]).toEqual(top && [top.y, top.h]);
-        expect(hitsWall(room, r.x, r.y) && hitsWall(room, r.x + r.w - 0.1, r.y + r.h - 0.1)).toBe(
-          true,
-        );
       }
     }
   });
@@ -447,32 +505,31 @@ describe('walls', () => {
   it("ends each room's runs with its furniture, each sheet over its rect, so the bake draws it over the floor and walls", () => {
     const furniture = (room: Room) =>
       furnitureRuns(room).map(({ sheet, x, y, w, h }) => [sheet.key, x, y, w, h]);
-    expect(furniture(LOUNGE_ROOM)).toEqual([
-      ['spr_wall_lounge', 336, 64, 96, 64],
-      ['spr_fireplace', 224, 64, 32, 24],
-      ['spr_side_table', 160, 64, 16, 16],
-    ]);
-    expect(furniture(STUDY_ROOM)).toEqual([
-      ['spr_desk', 160, 64, 32, 16],
-      ['spr_bookshelf', 256, 64, 48, 16],
-    ]);
-    expect(furniture(HALLWAY_ROOM)).toEqual([
-      ['spr_runner', 200, 184, 60, 24],
-      ['spr_hall_table', 266, 196, 16, 12],
-    ]);
+    // The lounge's baked pieces: the kitchen's tiles (6 x 5), the hallway block's paper and its
+    // caps (4 down its west edge, 6 along its south edge); its furniture is sorted.
+    const lounge = furniture(LOUNGE_ROOM);
+    expect(lounge).toHaveLength(30 + 1 + 4 + 6);
+    expect(extent(furnitureRuns(LOUNGE_ROOM).slice(0, 30))).toEqual([336, 128, 432, 208]);
+    expect(lounge.slice(0, 30).every(([key]) => key === 'spr_floor_kitchen')).toBe(true);
+    expect(lounge[30]).toEqual(['spr_paper', 336, 64, 96, 64]);
+    // The study's desk and bookcase are sorted; the hallway's runner lies flat in the bake.
+    expect(furniture(STUDY_ROOM)).toEqual([]);
+    expect(furniture(HALLWAY_ROOM)).toEqual([['spr_runner', 200, 184, 60, 24]]);
     for (const room of Object.values(ROOMS)) {
       const runs = furnitureRuns(room);
       expect(wallRuns(room).slice(wallRuns(room).length - runs.length)).toEqual(runs);
       for (const r of runs) {
         // A one-frame piece is its sheet's logical size; a run is whole tiles of it, a row
-        // indoors, rows and columns outdoors and in a block of the room's own wall (the lounge's
-        // hallway block). The hallway's runner, 208 px long, is cropped to the 3 m hall's 60 px.
+        // indoors, rows and columns outdoors. The lounge's hallway block is the paper over it,
+        // its grain cropped to the block.
         const outdoor = room === GARDEN_ROOM || room === FRONT_GARDEN_ROOM;
-        const block = r.sheet === ROOM_STYLES[room.key].wallRow;
         const px = sheetPxPerLogical(r.sheet);
-        if (r.sheet === SHEETS.runner) expect(r.w * px).toBeLessThan(r.sheet.frameWidth);
-        else expect((r.w * px) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
-        if (outdoor || block) expect((r.h * px) % r.sheet.frameHeight).toBe(0);
+        if (r.sheet === SHEETS.paper) {
+          expect([r.x, r.y, r.w, r.h]).toEqual([336, 64, 96, 64]);
+          continue;
+        }
+        expect((r.w * px) % r.sheet.frameWidth, `${room.key} ${r.sheet.key}`).toBe(0);
+        if (outdoor) expect((r.h * px) % r.sheet.frameHeight).toBe(0);
         else expect(r.h * px).toBe(r.sheet.frameHeight);
         // Indoors, on the floor clear of the walls' bands; in the garden, over a building's solid
         // footprint; in the front garden, anywhere on its canvas (the road and roofs outside bounds).
@@ -867,20 +924,44 @@ describe('shadows', () => {
       ['spr_pot_stack', 0, 353, 194, 1, 0.25, 194],
       ['spr_sack', 0, 150, 192, 1, 0.25, 192],
     ]);
-    // No house room or the garden sorts any furniture; their runs are all of it, a run a piece
-    // in the house rooms, whose sheets have no variants.
-    for (const room of [LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM, GARDEN_ROOM]) {
-      expect(furnitureSprites(room)).toEqual([]);
-    }
-    for (const room of [LOUNGE_ROOM, STUDY_ROOM, HALLWAY_ROOM]) {
-      expect(furnitureRuns(room)).toHaveLength(room.furniture.length);
-    }
+    // The garden sorts no furniture; its runs are all of it.
+    expect(furnitureSprites(GARDEN_ROOM)).toEqual([]);
     // drawPlayer: the player's depth is at its feet, y + PLAYER_FEET.
     const playerDepth = (y: number) => y + PLAYER_FEET;
     expect(playerDepth(0)).toBe(12);
     const sack = furnitureSprites(SHED_ROOM).find((s) => s.sheet === SHEETS.sack);
     expect(sack && playerDepth(175) < sack.depth).toBe(true);
     expect(sack && playerDepth(185) > sack.depth).toBe(true);
+  });
+
+  it("stands the house rooms' furniture on its footprints' bottom edges, sorted there, each display spot's tree on its piece's top face", () => {
+    const sprites = (room: Room) =>
+      furnitureSprites(room).map((s) => [s.sheet.key, s.x, s.y, s.originY, s.scale, s.depth]);
+    expect(sprites(LOUNGE_ROOM)).toEqual([
+      ['spr_fireplace', 240, 88, 1, 0.25, 88],
+      ['spr_side_table', 168, 80, 1, 0.25, 80],
+      ['spr_counter', 384, 208, 1, 0.25, 208],
+      ['spr_counter_v', 422, 188, 1, 0.25, 188],
+    ]);
+    expect(sprites(HALLWAY_ROOM)).toEqual([['spr_hall_table', 274, 208, 1, 0.25, 208]]);
+    expect(sprites(STUDY_ROOM)).toEqual([
+      ['spr_desk', 176, 80, 1, 0.25, 80],
+      ['spr_bookshelf', 280, 80, 1, 0.25, 80],
+    ]);
+    // A piece's sprite is its front face over its footprint's depth, so its top face runs from the
+    // sprite's top for the footprint's depth; each spot's top edge, where its tree stands, lies on it.
+    for (const room of [LOUNGE_ROOM, STUDY_ROOM]) {
+      for (const p of room.props.filter((q) => q.pedestalKey !== undefined)) {
+        const piece = room.furniture.find(
+          (f) => f.sorted && p.x >= f.x && p.x <= f.x + f.w && p.y + p.h / 2 === f.y + f.h,
+        );
+        if (!piece) throw new Error(p.key);
+        const top = piece.y + piece.h - piece.sheet.frameHeight / sheetPxPerLogical(piece.sheet);
+        const spot = p.y - p.h / 2;
+        expect(spot, `${room.key} ${p.key}`).toBeGreaterThan(top);
+        expect(spot, `${room.key} ${p.key}`).toBeLessThan(top + piece.h);
+      }
+    }
   });
 });
 
