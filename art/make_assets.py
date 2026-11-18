@@ -1,5 +1,5 @@
 """
-make_assets.py — generate every sprite slot from ART_SPEC.md.
+make_assets.py — generate every sprite slot from archive/gamemaker/ART_SPEC.md.
 
 Output PNGs land in ./out, named exactly as the spec tables require.
 Multi-frame sprites are written as horizontal strips (GM "Import Strip"),

@@ -10,7 +10,7 @@ Read in this order for anything non-trivial:
 
 - `ARCHITECTURE.md` is the authoritative description of the web project's shape and the invariants carried over from the prototype.
 - `docs/ADR-001-typescript-rewrite.md` records why the rewrite happened and the rules of the port.
-- `DESIGN.md` and `README.md` describe the game as designed: mechanics, controls, feel. `SIMPLIFICATIONS.md` lists behaviour deliberately not simulated; check it before adding realism.
+- `README.md` covers the game as built: gameplay, controls and mechanics. `SIMPLIFICATIONS.md` lists behaviour deliberately not simulated; check it before adding realism.
 - `archive/gamemaker/ARCHITECTURE.md` and `archive/gamemaker/CLAUDE.md` explain how the prototype worked. The GML is the behavioural reference when porting.
 
 ## Development is autonomous

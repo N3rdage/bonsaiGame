@@ -2,7 +2,8 @@
 
 The GameMaker prototype's sprite spec. It defines every sprite slot — size,
 origin, frames, naming — plus a shared palette. The prototype's sprites follow
-it, and the web build packs those sprites into its sheets (`art/README.md`).
+it, and the web build packs those sprites into its sheets (the repo root's
+[`art/README.md`](../../art/README.md)).
 
 **Workflow:** PNGs made to this spec are imported as sprites in the GM IDE
 (sizes/origins below), assigned to their objects there, and drawn by name in
