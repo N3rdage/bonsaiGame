@@ -1,9 +1,10 @@
-/* eslint-disable no-console -- reports each sheet a house room's generator writes. */
-// Drawing the three house rooms' generators share (lounge.mjs, hallway.mjs,
-// study.mjs): the ink widths, a face tile's cornice and skirting, the 8 px
-// cap of a plastered wall, a window on the face with daylight washed into its
-// panes, and the loop that writes a room's sheets. Each room's own drawing
-// stays in its file; this holds only what all three draw alike.
+/* eslint-disable no-console -- reports each sheet a house generator writes. */
+// Drawing the house's generators share, the three rooms' (lounge.mjs,
+// hallway.mjs, study.mjs) and the doors' (doors.mjs): the ink widths, a face
+// tile's cornice and skirting, the 8 px cap of a plastered wall, a window on
+// the face with daylight washed into its panes, and the loop that writes a
+// generator's sheets. Each generator's own drawing stays in its file; this
+// holds only what they draw alike.
 
 import { join } from 'node:path';
 

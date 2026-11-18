@@ -615,7 +615,7 @@ describe('props', () => {
       return s && [s.sheet.art, s.x, s.y, s.originY, s.scale];
     };
     expect(at(LOUNGE_ROOM.props, 'door')).toEqual(['pixel', 240, 216, 0.5, 0.5]);
-    expect(at(STUDY_ROOM.props, 'door_garden')).toEqual(['pixel', 232, 216, 0.5, 0.5]);
+    expect(at(HALLWAY_ROOM.props, 'door_front')).toEqual(['pixel', 240, 136, 0.5, 0.5]);
   });
 
   it('sorts a prop at its bottom edge and a door, in its wall, at its top edge', () => {
@@ -720,99 +720,47 @@ describe('props', () => {
     ]);
   });
 
-  it('draws the doors in the side walls seen from the side, the E walls mirroring the W, sorted at their top edge', () => {
-    const at = (props: readonly Prop[], key: string) => {
-      const p = propByKey(props, key);
+  it('draws the doors in the side walls side-on on the cap, the E walls mirroring the W, sorted at their top edge', () => {
+    expect([SHEETS.doorSideW, SHEETS.doorSideE]).toEqual([
+      { key: 'spr_door_side_w', frameWidth: 32, frameHeight: 160, frames: 1, art: 'inked' },
+      { key: 'spr_door_side_e', frameWidth: 32, frameHeight: 160, frames: 1, art: 'inked' },
+    ]);
+    const at = (room: Room, key: string) => {
+      const p = propByKey(room.props, key);
       const s = propSprite(p);
-      // The frame at the sprite's scale covers the door's 16 px square in the wall band exactly.
-      expect(s && [s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale]).toEqual([
-        p.w,
-        p.h,
-      ]);
-      return s && [p.wall, s.sheet.key, s.x, s.y, s.scale, s.depth];
+      if (!s) throw new Error(key);
+      // An 8 x 40 frame, the cap's width, standing on the door's rect's bottom edge.
+      expect([s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale]).toEqual([WALL_CAP, 40]);
+      expect([s.originY, s.y]).toEqual([1, p.y + p.h / 2]);
+      // Its frame lies exactly over the side cap baked beside the door's rect.
+      const left = s.x - WALL_CAP / 2;
+      const cap = wallRuns(room).find(
+        (r) =>
+          r.sheet.key.endsWith('_cap_v') &&
+          r.x === left &&
+          r.w === WALL_CAP &&
+          r.y <= p.y &&
+          r.y + r.h >= p.y,
+      );
+      expect(cap, key).toBeDefined();
+      return [p.wall, s.sheet.key, s.x, s.y, s.scale, s.depth];
     };
-    // The lounge's in the hallway block's west face.
-    expect(at(LOUNGE_ROOM.props, 'door_hallway')).toEqual([
-      'E',
-      'spr_door_side_e',
-      344,
-      96,
-      0.5,
-      88,
-    ]);
-    expect(at(HALLWAY_ROOM.props, 'door_lounge')).toEqual([
-      'W',
-      'spr_door_side_w',
-      184,
-      176,
-      0.5,
-      168,
-    ]);
-    expect(at(HALLWAY_ROOM.props, 'door_study')).toEqual([
-      'E',
-      'spr_door_side_e',
-      296,
-      176,
-      0.5,
-      168,
-    ]);
-    expect(at(STUDY_ROOM.props, 'door_hallway')).toEqual([
-      'W',
-      'spr_door_side_w',
-      152,
-      96,
-      0.5,
-      88,
-    ]);
+    // The lounge's in the hallway block's west face, on the block's cap at x 336..344.
+    expect(at(LOUNGE_ROOM, 'door_hallway')).toEqual(['E', 'spr_door_side_e', 340, 104, 0.25, 88]);
+    // The hallway's on its side caps at x 184..192 and 288..296, the study's at x 152..160.
+    expect(at(HALLWAY_ROOM, 'door_lounge')).toEqual(['W', 'spr_door_side_w', 188, 184, 0.25, 168]);
+    expect(at(HALLWAY_ROOM, 'door_study')).toEqual(['E', 'spr_door_side_e', 292, 184, 0.25, 168]);
+    expect(at(STUDY_ROOM, 'door_hallway')).toEqual(['W', 'spr_door_side_w', 156, 104, 0.25, 88]);
   });
 
-  it("draws the study's glazed double door centred in its 48x16 opening and the greenhouse's glazed leaf over its own rect, the garden's Inked leaves standing in their faces, sorted at their top edge", () => {
+  it("stands the study's glazed double door across its 48x16 opening and the glazed leaves on their rects' bottom edges, a south wall's sorted at its drawn top", () => {
     expect(SHEETS.doorGlass).toEqual({
       key: 'spr_door_glass',
-      frameWidth: 64,
-      frameHeight: 32,
+      frameWidth: 192,
+      frameHeight: 160,
       frames: 1,
-      art: 'pixel',
+      art: 'inked',
     });
-    expect(SHEETS.doorGlassSingle).toEqual({
-      key: 'spr_door_glass_single',
-      frameWidth: 32,
-      frameHeight: 32,
-      frames: 1,
-      art: 'pixel',
-    });
-    const at = (props: readonly Prop[], key: string) => {
-      const p = propByKey(props, key);
-      const s = propSprite(p);
-      // The frame at the sprite's scale covers the prop's rect exactly.
-      expect(s && [s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale]).toEqual([
-        p.w,
-        p.h,
-      ]);
-      return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
-    };
-    // The study's doors: the 1.5 m (48 px) opening is wider than the 32 px sprite, drawn at its
-    // own size centred in it, the opening's band showing 8 px either side.
-    const glass = propByKey(STUDY_ROOM.props, 'door_garden');
-    const leaves = propSprite(glass);
-    expect([glass.w, glass.h]).toEqual([48, 16]);
-    expect(
-      leaves && [leaves.sheet.frameWidth * leaves.scale, leaves.sheet.frameHeight * leaves.scale],
-    ).toEqual([32, 16]);
-    expect(leaves && [leaves.sheet.key, leaves.x, leaves.y, leaves.scale, leaves.depth]).toEqual([
-      'spr_door_glass',
-      232,
-      216,
-      0.5,
-      208,
-    ]);
-    // The garden's sides of both are one Inked glazed leaf, 24 x 40, standing on the rect's bottom edge.
-    const inked = (key: string) => {
-      const s = propSprite(propByKey(GARDEN_ROOM.props, key));
-      return s && [s.sheet.key, s.x, s.y, s.scale, s.depth];
-    };
-    expect(inked('door_study')).toEqual(['spr_door_glazed', 344, 144, 0.25, 128]);
-    expect(inked('door_greenhouse')).toEqual(['spr_door_glazed', 336, 416, 0.25, 400]);
     expect(SHEETS.doorGlazed).toEqual({
       key: 'spr_door_glazed',
       frameWidth: 96,
@@ -820,13 +768,43 @@ describe('props', () => {
       frames: 1,
       art: 'inked',
     });
-    expect(at(GREENHOUSE_ROOM.props, 'door_garden')).toEqual([
-      'spr_door_glass_single',
-      240,
-      200,
-      0.5,
-      192,
+    const at = (props: readonly Prop[], key: string) => {
+      const s = propSprite(propByKey(props, key));
+      return s && [s.sheet.key, s.x, s.y, s.originY, s.scale, s.depth];
+    };
+    // The study's doors: two leaves, 48 x 40, as wide as the 1.5 m opening, x 208..256, standing
+    // on the south band's bottom edge (y 224) and sorted at their drawn top, y 184, so the player
+    // landing north of them draws in front.
+    const glass = propByKey(STUDY_ROOM.props, 'door_garden');
+    expect([glass.w, glass.h]).toEqual([48, 16]);
+    expect(SHEETS.doorGlass.frameWidth / 4).toBe(glass.w);
+    expect(at(STUDY_ROOM.props, 'door_garden')).toEqual(['spr_door_glass', 232, 224, 1, 0.25, 184]);
+    // The garden's sides of both and the greenhouse's back are one Inked glazed leaf, 24 x 40.
+    expect(at(GARDEN_ROOM.props, 'door_study')).toEqual([
+      'spr_door_glazed',
+      344,
+      144,
+      1,
+      0.25,
+      128,
     ]);
+    expect(at(GARDEN_ROOM.props, 'door_greenhouse')).toEqual([
+      'spr_door_glazed',
+      336,
+      416,
+      1,
+      0.25,
+      400,
+    ]);
+    expect(at(GREENHOUSE_ROOM.props, 'door_garden')).toEqual([
+      'spr_door_glazed',
+      240,
+      208,
+      1,
+      0.25,
+      168,
+    ]);
+    expect(GREENHOUSE_ROOM.playerStart.y + PLAYER_FEET).toBeGreaterThan(168);
     // Every other door keeps the prototype's spr_door.
     const doors = Object.values(ROOMS).flatMap((r) =>
       r.props.filter((p) => p.target).map((p) => `${r.key}.${p.key}`),
