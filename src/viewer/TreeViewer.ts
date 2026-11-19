@@ -10,16 +10,20 @@ import {
   LinearMipmapLinearFilter,
   LinearSRGBColorSpace,
   Mesh,
+  MeshBasicMaterial,
   MeshToonMaterial,
   MirroredRepeatWrapping,
   NearestFilter,
   NoColorSpace,
   PerspectiveCamera,
+  PlaneGeometry,
   RedFormat,
+  RepeatWrapping,
   Scene,
   ShaderMaterial,
   TextureLoader,
   Vector2,
+  Vector3,
   WebGLRenderer,
   type Texture,
 } from 'three';
@@ -39,9 +43,18 @@ import {
   zoomCamera,
   type OrbitCamera,
 } from './camera';
+import backdropUrl from './backdrop.png';
 import barkUrl from './bark.png';
 import foliageUrl from './foliage.png';
 import { buildFoliageMesh } from './foliageMesh';
+import {
+  BACKDROP_CSS_PX_PER_TEXEL,
+  BACKDROP_TEXTURE_PX,
+  GROUND_HALF,
+  backdropTint,
+  groundZ,
+} from './ground';
+import groundUrl from './ground.png';
 import {
   HOTSPOT_ALPHA,
   HOTSPOT_ALPHA_HOVER,
@@ -132,6 +145,24 @@ void main() {
 }
 `;
 
+// The backdrop: a quad over the whole viewport, drawn first without depth, the surround
+// texture tiled across it in screen pixels (`uPeriod` device px per tile), so
+// it holds still under orbit and zoom and its grain lands a texel to a CSS
+// pixel. `uTint` brings the page's mean to the surround (`backdropTint`).
+const BACKDROP_VERTEX = /* glsl */ `
+void main() {
+  gl_Position = vec4(position.xy, 0.0, 1.0);
+}
+`;
+const BACKDROP_FRAGMENT = /* glsl */ `
+uniform sampler2D uMap;
+uniform vec3 uTint;
+uniform float uPeriod;
+void main() {
+  gl_FragColor = vec4(texture2D(uMap, gl_FragCoord.xy / uPeriod).rgb * uTint, 1.0);
+}
+`;
+
 function rgba({ r, g, b }: Rgb, alpha: number): string {
   return `rgba(${String(r)}, ${String(g)}, ${String(b)}, ${String(alpha)})`;
 }
@@ -217,7 +248,32 @@ export class TreeViewer {
     vertexShader: OUTLINE_VERTEX,
     fragmentShader: OUTLINE_FRAGMENT,
   });
-  /** True once the foliage sprite and the bark texture are both bound. */
+  // The ground slab (`ground.ts`): its texture carries its ink and the pot's
+  // shadow, and it lies flat facing the light, so it is drawn unlit, as the
+  // toon ramp's lit band would draw it. Drawn before everything that stands on
+  // it and never writing depth, so it hides nothing, not even the pot's ink
+  // hull where that dips below it; seen from below it is culled.
+  private readonly groundMaterial = new MeshBasicMaterial({ alphaTest: 0.5, depthWrite: false });
+  private readonly backdropMap: { value: Texture | null } = { value: null };
+  /** Device px per backdrop tile; set on every resize. */
+  private readonly backdropPeriod = { value: BACKDROP_TEXTURE_PX };
+  private readonly backdropMaterial = (() => {
+    const tint = backdropTint();
+    return new ShaderMaterial({
+      uniforms: {
+        uMap: this.backdropMap,
+        uTint: { value: new Vector3(tint.r, tint.g, tint.b) },
+        uPeriod: this.backdropPeriod,
+      },
+      vertexShader: BACKDROP_VERTEX,
+      fragmentShader: BACKDROP_FRAGMENT,
+      depthTest: false,
+      depthWrite: false,
+    });
+  })();
+  private ground: Mesh | undefined;
+  private backdrop: Mesh | undefined;
+  /** True once the foliage sprite, the bark, the ground and the backdrop textures are all bound. */
   private texturesReady = false;
   private readonly textures: Texture[] = [];
   private pot: Mesh | undefined;
@@ -307,12 +363,14 @@ export class TreeViewer {
     window.addEventListener('resize', this.onResize);
 
     const loader = new TextureLoader();
-    Promise.all([loader.loadAsync(foliageUrl), loader.loadAsync(barkUrl)]).then(
-      this.onTexturesLoaded,
-      (err: unknown) => {
-        console.warn('3D viewer: could not load its textures.', err);
-      },
-    );
+    Promise.all([
+      loader.loadAsync(foliageUrl),
+      loader.loadAsync(barkUrl),
+      loader.loadAsync(groundUrl),
+      loader.loadAsync(backdropUrl),
+    ]).then(this.onTexturesLoaded, (err: unknown) => {
+      console.warn('3D viewer: could not load its textures.', err);
+    });
   }
 
   get isOpen(): boolean {
@@ -332,6 +390,7 @@ export class TreeViewer {
     this.state = state;
     state.paused = true;
     this.potTier = tree.potTier;
+    this.ground?.position.setZ(groundZ(tree.potTier));
     this.cam = {
       ...createOrbitCamera(),
       target: { x: 0, y: 0, z: targetZForTree(tree.trunk.heightCm) },
@@ -407,6 +466,10 @@ export class TreeViewer {
     this.barkMaterial.dispose();
     this.foliageMaterial.dispose();
     this.outlineMaterial.dispose();
+    this.groundMaterial.dispose();
+    this.backdropMaterial.dispose();
+    this.ground?.geometry.dispose();
+    this.backdrop?.geometry.dispose();
     this.gradient.dispose();
     for (const texture of this.textures) texture.dispose();
     this.canvas.remove();
@@ -511,28 +574,55 @@ export class TreeViewer {
     this.foliageBuilt = { revision: tree.revision, season };
   }
 
-  private readonly onTexturesLoaded = ([foliage, bark]: [Texture, Texture]): void => {
+  private readonly onTexturesLoaded = ([foliage, bark, ground, backdrop]: [
+    Texture,
+    Texture,
+    Texture,
+    Texture,
+  ]): void => {
     if (this.destroyed) {
-      foliage.dispose();
-      bark.dispose();
+      for (const texture of [foliage, bark, ground, backdrop]) texture.dispose();
       return;
     }
     // Texture bytes pass through untouched, like the palette colours, and
     // scale smoothly, as Inked art always does, through mipmaps, so the ink
     // does not sparkle at the size the viewer shows it. The bark repeats
     // mirrored, so it tiles without a seam (`ringU`).
-    for (const texture of [foliage, bark]) {
+    for (const texture of [foliage, bark, ground, backdrop]) {
       texture.colorSpace = NoColorSpace;
       texture.magFilter = LinearFilter;
       texture.minFilter = LinearMipmapLinearFilter;
     }
     bark.wrapS = MirroredRepeatWrapping;
     bark.wrapT = MirroredRepeatWrapping;
-    this.textures.push(foliage, bark);
+    // The backdrop is one grain period, so it repeats without a seam; it is
+    // shown a texel to a pixel, so it needs no mipmaps.
+    backdrop.wrapS = RepeatWrapping;
+    backdrop.wrapT = RepeatWrapping;
+    backdrop.minFilter = LinearFilter;
+    backdrop.generateMipmaps = false;
+    this.textures.push(foliage, bark, ground, backdrop);
     this.foliageMaterial.map = foliage;
     this.foliageMaterial.needsUpdate = true;
     this.barkMaterial.map = bark;
     this.barkMaterial.needsUpdate = true;
+    this.groundMaterial.map = ground;
+    this.groundMaterial.needsUpdate = true;
+    // The slab is a square the texture's cut-out disc is drawn on, in the
+    // mirrored world like the pot, so `ground.ts` maps it in the tree's own space.
+    this.ground = new Mesh(
+      new PlaneGeometry(2 * GROUND_HALF, 2 * GROUND_HALF),
+      this.groundMaterial,
+    );
+    this.ground.renderOrder = -1;
+    this.ground.position.setZ(groundZ(this.potTier));
+    this.world.add(this.ground);
+    // Without the texture the renderer's clear colour, the surround itself, stands in.
+    this.backdropMap.value = backdrop;
+    this.backdrop = new Mesh(new PlaneGeometry(2, 2), this.backdropMaterial);
+    this.backdrop.frustumCulled = false;
+    this.backdrop.renderOrder = -2;
+    this.scene.add(this.backdrop);
     this.texturesReady = true;
     if (this.opened) this.requestRender();
   };
@@ -640,6 +730,8 @@ export class TreeViewer {
     this.renderer.setSize(width, height, false);
     // The ink width in clip units: 2 per viewport, so OUTLINE_WIDTH_PX CSS px whatever the pixel ratio.
     this.outlineWidth.set((2 * OUTLINE_WIDTH_PX) / width, (2 * OUTLINE_WIDTH_PX) / height);
+    this.backdropPeriod.value =
+      BACKDROP_TEXTURE_PX * BACKDROP_CSS_PX_PER_TEXEL * this.renderer.getPixelRatio();
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
   }
