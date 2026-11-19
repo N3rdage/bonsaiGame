@@ -603,7 +603,11 @@ export interface Caster {
  * static, so the bake lays them once, after the floor, the walls' runs and
  * the `flat` furniture and before the standing furniture, which covers its
  * own shadow under it. Only a wall whose shadow falls into the room shows:
- * with the light in the upper left, the north and west walls'.
+ * with the light in the upper left, the north and west walls'. A wall casts
+ * as one band the length of its side, whatever is drawn over it: the front
+ * garden's low north fence shadows across its drive and path gaps too, 3 px
+ * under the beds, and the greenhouse's glass face casts as a timber wall
+ * does, the one look's wash at one strength.
  */
 export function castShadows(room: Room): ShadowPolygon[] {
   const { row, column } = ROOM_STYLES[room.key].wallHeight;
