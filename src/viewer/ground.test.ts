@@ -149,9 +149,9 @@ describe('the pot shadow', () => {
   });
 
   it('pins the pool art/inked/viewer.mjs draws', () => {
-    expect(groundShadowPx()).toEqual({ cx: 29.02, cy: 33.19, r: 21.34 });
+    expect(groundShadowPx()).toEqual({ cx: 31.66, cy: 34.36, r: 20.51 });
     const generator = readFileSync(here('../../art/inked/viewer.mjs'), 'utf8');
-    expect(generator).toContain('shadow: { cx: 29.02, cy: 33.19, r: 21.34 }');
+    expect(generator).toContain('shadow: { cx: 31.66, cy: 34.36, r: 20.51 }');
     expect(generator).toContain(`size: ${String(GROUND_TEXTURE_SIZE)},`);
     expect(generator).toContain(`disc: ${String(GROUND_DISC_PX)},`);
   });

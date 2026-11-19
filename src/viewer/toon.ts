@@ -12,6 +12,8 @@
  */
 
 import type { Vec3 } from '../sim/types';
+import { CAST_SHADOW } from '../world/lighting';
+import { DEFAULT_YAW } from './camera';
 import type { Rgb } from './potPalette';
 
 /** Ink, as art/inked/style.mjs has it. */
@@ -34,12 +36,30 @@ export function toonRampBytes(ramp: readonly number[] = TOON_RAMP): Uint8Array {
   return Uint8Array.from(ramp);
 }
 
-/** Toward the light, in world space (z up), before the viewer's y mirror: above the tree and to one side. */
-export const LIGHT_DIRECTION: Vec3 = (() => {
-  const d = { x: 1, y: 0.4, z: 1.6 };
-  const len = Math.hypot(d.x, d.y, d.z);
-  return { x: d.x / len, y: d.y / len, z: d.z / len };
-})();
+/**
+ * Toward the rooms' one light (src/world/lighting.ts), in the tree's own
+ * space (z up, before the viewer's y mirror), as the camera at `yaw` sees
+ * the floor: the rooms' x (right on screen) is the camera's right along the
+ * ground and their y (down the screen) toward the camera, so a point one unit
+ * up casts its shadow `CAST_SHADOW.length` along the rooms' direction, the
+ * same screen way as a room's. Unit length.
+ */
+export function roomLight(yaw: number = DEFAULT_YAW): Vec3 {
+  const [dx, dy] = CAST_SHADOW.direction;
+  const c = Math.cos((yaw * Math.PI) / 180);
+  const s = Math.sin((yaw * Math.PI) / 180);
+  // In the tree's space the eye lies toward (c, -s) (camera.ts's cameraEye), the camera's right
+  // along the ground toward (-s, -c).
+  const shadow = {
+    x: CAST_SHADOW.length * (dx * -s + dy * c),
+    y: CAST_SHADOW.length * (dx * -c + dy * -s),
+  };
+  const len = Math.hypot(shadow.x, shadow.y, 1);
+  return { x: -shadow.x / len, y: -shadow.y / len, z: 1 / len };
+}
+
+/** Toward the light at the default orbit (roomLight): above the tree, behind it and to the left, as the rooms' is. */
+export const LIGHT_DIRECTION: Vec3 = roomLight();
 
 /** Ink outline width in CSS px. */
 export const OUTLINE_WIDTH_PX = 2;
