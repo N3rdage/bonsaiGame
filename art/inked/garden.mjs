@@ -65,7 +65,7 @@ const SEEDS = {
 
 /** Ink widths, art px: an outline, a tile's seams, a small mark, a blade of grass. */
 const OUTLINE = 2.6;
-const SEAM = 1.8;
+const SEAM = 1.0;
 const MARK = 1.5;
 const BLADE = 1.2;
 /** Hatching for small forms, finer than the kit's default. */
@@ -106,37 +106,17 @@ const tuft = (k, x, y) => {
 /** The lawn under a tile: the `outside` wash edge to edge, its rim pooled off the page. */
 const lawn = (k) => k.box(-1, -1, 18, 18, 'outside', { edges: false });
 
-// The lawn: the wash, a darker pool where the pigment settled, a few tufts and
-// single blades. Per variant: the pool (centre, radii, lobes), the tufts and
-// the blades.
+// The lawn: the wash and a few blades, one plane with a little life. Per
+// variant: a tuft or none, and the single blades; one variant is nearly bare.
 const LAWN_VARIANTS = [
+  { tufts: [[11, 12]], blades: [[4, 6]] },
+  { tufts: [], blades: [[6, 10]] },
   {
-    pool: [10, 5, 4.5, 2.6, 3],
-    tufts: [
-      [3, 6],
-      [11, 13],
-    ],
+    tufts: [],
     blades: [
-      [7, 10],
-      [14, 3],
+      [3, 13],
+      [12, 4],
     ],
-  },
-  {
-    pool: [5, 11, 3.6, 3, 2],
-    tufts: [[9, 5]],
-    blades: [
-      [2, 3],
-      [12, 10],
-      [6, 15],
-    ],
-  },
-  {
-    pool: [12, 12, 3, 2.2, 4],
-    tufts: [
-      [4, 9],
-      [13, 4],
-    ],
-    blades: [[9, 14]],
   },
 ];
 
@@ -145,12 +125,13 @@ function lawnTile(i) {
   const { k } = page;
   const v = LAWN_VARIANTS[i];
   lawn(k);
-  const [px, py, rx, ry, lobes] = v.pool;
-  k.shape(oval(px, py, rx, ry, lobes, i), 'outside', { edges: false, paper: false });
   for (const [x, y] of v.tufts) tuft(k, x, y);
   for (const [x, y] of v.blades) seg(k, x, y, x + 0.5, y - 1.8, BLADE);
   return finish(page);
 }
+
+/** A shadow on the lawn: a second layer of its wash over `pts`, no ink. */
+const lawnShade = (k, pts) => k.shape(pts, 'outside', { edges: false, paper: false });
 
 /**
  * Palings 4 px wide from x `from` to `to`, their pointed tops at y `top` (one
@@ -173,16 +154,13 @@ function palings(k, from, to, tops) {
   }
 }
 
-/** The two rails across the palings from x `from` to `to`, a nail in each paling. */
+/** The two rails across the palings from x `from` to `to`. */
 function rails(k, from, to) {
-  for (const y of [4.5, 11]) {
-    k.box(from, y, to - from, 1.8, 'top', { width: MARK, wear: false });
-    for (let x = from + 2; x < to; x += 4) seg(k, x, y + 0.7, x + 0.2, y + 1, MARK);
-  }
+  for (const y of [4.5, 11]) k.box(from, y, to - from, 1.8, 'top', { width: SEAM, wear: false });
 }
 
 // The fence's face, front-on: palings on two rails, the ground's shadow
-// hatched along its foot. Per variant: the palings' tops.
+// along its foot. Per variant: the palings' tops.
 const FENCE_TOPS = [
   [1, 1.6, 1.2, 1.9],
   [1.8, 1.1, 1.5, 1],
@@ -195,7 +173,7 @@ function fenceTile(i) {
   lawn(k);
   palings(k, 0, 16, FENCE_TOPS[i]);
   rails(k, -1, 17);
-  k.hatchIn(rect(-1, 14, 18, 2), FINE);
+  lawnShade(k, rect(-1, 14.6, 18, 1.4));
   return finish(page);
 }
 
@@ -211,11 +189,11 @@ const FENCE_V_VARIANTS = [
 
 /** The fence's strip down x 6..10 from y `y0` to `y1`, its seams across it. */
 function fenceStrip(k, y0, y1, seams) {
-  k.hatchIn(rect(10, y0, 2.4, y1 - y0), FINE);
+  lawnShade(k, rect(10, y0, 2.4, y1 - y0));
   k.box(6, y0, 4, y1 - y0, 'wood', { edges: false, wear: false });
-  seg(k, 6, y0, 6, y1, OUTLINE);
-  seg(k, 10, y0, 10, y1, OUTLINE);
-  for (const y of seams) if (y > y0 && y < y1) seg(k, 6, y, 10, y, MARK);
+  seg(k, 6, y0, 6, y1, MARK);
+  seg(k, 10, y0, 10, y1, MARK);
+  for (const y of seams) if (y > y0 && y < y1) seg(k, 6, y, 10, y);
 }
 
 function fenceVTile(i) {
@@ -249,9 +227,9 @@ function cornerTile(i) {
   const [from, to] = east ? [8, 16] : [0, 8];
   palings(k, from, to, FENCE_TOPS[i % 3]);
   rails(k, east ? 8 : -1, east ? 17 : 8);
-  k.hatchIn(rect(from, 14, 8, 2), FINE);
-  k.box(5.2, 0.4, 5.6, 15.3, 'top', { width: OUTLINE, hatching: rect(9, 0.4, 1.8, 15.3) });
-  seg(k, 5.2, 2, 10.8, 2, MARK);
+  lawnShade(k, rect(from, 14.6, 8, 1.4));
+  k.box(5.2, 0.4, 5.6, 15.3, 'top', { width: MARK, wear: false });
+  seg(k, 5.2, 2, 10.8, 2);
   return finish(page);
 }
 
@@ -323,13 +301,12 @@ function sourcePlant(i) {
 }
 
 // The shed's south face: a gutter along the eaves (y 0.6..4.2), weatherboards
-// 4 px deep down to a soil line at the foot, each board's lower edge throwing
-// a thin shadow on the board below, and the bottom metre's grime. Per variant:
-// a butt joint, a knot and a split.
+// 4 px deep down to a soil line at the foot, each board's lower edge a thin
+// seam. Per variant: a butt joint and, on one in three, a knot and a split.
 const SHED_FACE_VARIANTS = [
   { joint: [11, 2], knot: [5, 22], split: [12, 33, 4] },
-  { joint: [4, 6], knot: [11, 14], split: [3, 26, 5] },
-  { joint: [8, 9], knot: [3, 37], split: [10, 17, 4] },
+  { joint: [4, 6], knot: null, split: null },
+  { joint: [8, 9], knot: null, split: null },
 ];
 
 function shedFace(i) {
@@ -337,18 +314,15 @@ function shedFace(i) {
   const { k } = page;
   const v = SHED_FACE_VARIANTS[i];
   k.box(-1, 4.2, 18, 41, 'wood', { edges: false, wear: false });
-  k.hatchIn(rect(-1, 36, 18, 9), { spacing: 2, width: 1.1 });
-  for (let y = 8.2; y < 45; y += 4) {
-    k.hatchIn(rect(-1, y, 18, 0.9), FINE);
-    seg(k, -1, y, 17, y);
-  }
+  for (let y = 8.2; y < 45; y += 4) seg(k, -1, y, 17, y);
   const [jx, jRow] = v.joint;
-  seg(k, jx, 4.2 + jRow * 4, jx, 8.2 + jRow * 4, MARK);
-  const [kx, ky] = v.knot;
-  k.blob(kx, ky, 1.2, 0.7, 'wood', { width: MARK });
-  const [sx, sy, len] = v.split;
-  seg(k, sx, sy, sx + len, sy + 0.3, MARK);
-  k.box(-1, 0.6, 18, 3.6, 'metal', { edges: false, hatching: rect(-1, 2.6, 18, 1.6) });
+  seg(k, jx, 4.2 + jRow * 4, jx, 8.2 + jRow * 4);
+  if (v.knot) k.blob(v.knot[0], v.knot[1], 1.2, 0.7, 'wood', { width: SEAM });
+  if (v.split) {
+    const [sx, sy, len] = v.split;
+    seg(k, sx, sy, sx + len, sy + 0.3, 1);
+  }
+  k.box(-1, 0.6, 18, 3.6, 'metal', { edges: false });
   seg(k, -1, 0.6, 17, 0.6, OUTLINE);
   seg(k, -1, 4.2, 17, 4.2, OUTLINE);
   k.box(-1, 45, 18, 3, 'soil', { edges: false });
@@ -356,78 +330,31 @@ function shedFace(i) {
   return finish(page);
 }
 
-// The shed's roof: corrugated iron, its ridges running down the slope, a lap
-// where one sheet overlaps the next with its row of screws, and, on one
-// in three, a rust stain. Per variant: the lap's height and the stain.
-const SHED_ROOF_VARIANTS = [
-  { lap: 5, stain: null },
-  { lap: 12, stain: [4, 4, 1.8, 2.4] },
-  { lap: 1.5, stain: null },
-];
+// The shed's roof: corrugated iron, its ridges thin seams running down the
+// slope, and, on one in three, the lap where one sheet overlaps the next with
+// its pair of screws. Per variant: the lap's height, if any.
+const SHED_ROOF_VARIANTS = [{ lap: 5 }, { lap: null }, { lap: null }];
 
 function shedRoof(i) {
   const page = createPage(16, 16, { seed: SEEDS.shedRoof[i], origin: [0, 144] });
   const { k } = page;
   const v = SHED_ROOF_VARIANTS[i];
   k.box(-1, -1, 18, 18, 'metal', { edges: false });
-  if (v.stain) {
-    const [cx, cy, rx, ry] = v.stain;
-    k.shape(oval(cx, cy, rx, ry, 2, i), 'soil', { edges: false, paper: false });
+  for (let x = 2; x < 16; x += 4) seg(k, x, -1, x, 17, 0.8);
+  if (v.lap !== null) {
+    seg(k, -1, v.lap, 17, v.lap);
+    for (const x of [4, 12]) seg(k, x, v.lap + 1, x + 0.2, v.lap + 1.3, 1);
   }
-  for (let x = 1; x < 16; x += 2) seg(k, x, -1, x, 17, 1);
-  for (let x = 2; x < 16; x += 4) k.hatchIn(rect(x - 1, -1, 1, 18), { spacing: 1.4, width: 1 });
-  seg(k, -1, v.lap, 17, v.lap, SEAM);
-  for (const x of [2, 6, 10, 14]) seg(k, x, v.lap + 1, x + 0.2, v.lap + 1.3, MARK);
   return finish(page);
 }
 
-// The house's back face: a gutter along the eaves, rendered wall down to a
-// stone plinth, the bottom metre's grime, and the render's own marks. Per
-// variant: a hairline crack and two trowel marks.
-const HOUSE_FACE_VARIANTS = [
-  {
-    crack: [
-      [4, 14],
-      [5.5, 18],
-      [4.6, 22],
-    ],
-    trowel: [
-      [9, 28],
-      [2, 9],
-    ],
-  },
-  {
-    crack: [
-      [12, 30],
-      [10.6, 34],
-      [11.4, 38],
-    ],
-    trowel: [
-      [4, 20],
-      [11, 11],
-    ],
-  },
-  {
-    crack: [
-      [8, 7],
-      [9.2, 10],
-    ],
-    trowel: [
-      [12, 24],
-      [3, 32],
-    ],
-  },
-];
-
+// The house's back face: a gutter along the eaves, calm render down to a
+// stone plinth; the variants differ only in the wash's own pooling.
 function houseFace(i) {
   const page = createPage(16, 48, { seed: SEEDS.houseFace[i], origin: [160, 96] });
   const { k } = page;
-  const v = HOUSE_FACE_VARIANTS[i];
   k.box(-1, 4, 18, 39, 'render', { edges: false });
-  k.hatchIn(rect(-1, 35, 18, 8), { spacing: 2.2, width: 1 });
-  k.line(v.crack, MARK);
-  for (const [x, y] of v.trowel) seg(k, x, y, x + 3, y - 0.4, 1);
-  k.box(-1, 0.6, 18, 3.4, 'metal', { edges: false, hatching: rect(-1, 2.6, 18, 1.4) });
+  k.box(-1, 0.6, 18, 3.4, 'metal', { edges: false });
   seg(k, -1, 0.6, 17, 0.6, OUTLINE);
   seg(k, -1, 4, 17, 4, OUTLINE);
   k.box(-1, 43, 18, 5, 'stone', { edges: false });
@@ -436,13 +363,13 @@ function houseFace(i) {
   return finish(page);
 }
 
-// The house's roof: courses of clay tiles 4 px deep, each course's foot
-// shadowed, the joints staggered course to course. Per variant: where the
-// joints start, a cracked tile and a patch of moss.
+// The house's roof: courses of clay tiles 4 px deep, each course's foot a
+// thin seam, the joints staggered course to course. Per variant: where the
+// joints start and, on one in three, a little moss.
 const HOUSE_ROOF_VARIANTS = [
-  { stagger: 0, crack: [5, 1], moss: [12, 10, 2.2, 1.2] },
-  { stagger: 4, crack: [13, 2], moss: [3, 3, 1.8, 1] },
-  { stagger: 2, crack: [9, 3], moss: [7, 14, 2.6, 1.1] },
+  { stagger: 0, moss: null },
+  { stagger: 4, moss: [3, 2, 1.6, 0.9] },
+  { stagger: 2, moss: null },
 ];
 
 function houseRoof(i) {
@@ -450,17 +377,16 @@ function houseRoof(i) {
   const { k } = page;
   const v = HOUSE_ROOF_VARIANTS[i];
   k.box(-1, -1, 18, 18, 'tile', { edges: false });
-  const [mx, my, mrx, mry] = v.moss;
-  k.shape(oval(mx, my, mrx, mry, 3, i), 'foliage', { edges: false, paper: false });
+  if (v.moss) {
+    const [mx, my, mrx, mry] = v.moss;
+    k.shape(oval(mx, my, mrx, mry, 3, i), 'foliage', { edges: false, paper: false });
+  }
   for (let row = 0; row < 4; row += 1) {
     const y = row * 4;
-    k.hatchIn(rect(-1, y + 2.6, 18, 0.9), FINE);
     seg(k, -1, y + 3.5, 17, y + 3.5);
     for (let x = (v.stagger + row * 4) % 8; x < 16; x += 8)
-      seg(k, x + 0.3, y, x + 0.3, y + 3.5, MARK);
+      seg(k, x + 0.3, y, x + 0.3, y + 3.5, 0.8);
   }
-  const [cx, cRow] = v.crack;
-  seg(k, cx, cRow * 4 + 0.4, cx + 1.4, cRow * 4 + 2.8, 1.1);
   return finish(page);
 }
 
@@ -509,20 +435,12 @@ function houseWindow() {
 }
 
 // The greenhouse's roof: glass in a white frame, its bars 8 px apart down the
-// slope, the light catching the panes. Per variant: the highlights, a pane's
-// lap, and a leaf or the plants below showing through.
+// slope. Per variant: a glint, a pane's lap, and, on one in three, the plants
+// below showing through.
 const GREENHOUSE_ROOF_VARIANTS = [
-  { glints: [[2, 12]], lap: 6, below: [12, 11, 2.6, 2], leaf: null },
-  { glints: [[10, 6]], lap: null, below: null, leaf: [4, 9] },
-  {
-    glints: [
-      [3, 5],
-      [11, 14],
-    ],
-    lap: 11,
-    below: [4, 4, 2.2, 1.6],
-    leaf: null,
-  },
+  { glint: [2, 12], lap: 6, below: null },
+  { glint: null, lap: null, below: null },
+  { glint: [11, 14], lap: 11, below: [4, 4, 1.8, 1.3] },
 ];
 
 function greenhouseRoof(i) {
@@ -534,33 +452,23 @@ function greenhouseRoof(i) {
     const [bx, by, brx, bry] = v.below;
     k.shape(oval(bx, by, brx, bry, 4, i), 'foliage', { edges: false, paper: false });
   }
-  for (const [x, y] of v.glints) {
-    seg(k, x, y, x + 3, y - 3, 1);
-    seg(k, x + 1.2, y + 0.8, x + 3.4, y - 1.4, 1);
-  }
+  if (v.glint) seg(k, v.glint[0], v.glint[1], v.glint[0] + 3, v.glint[1] - 3, 0.8);
   if (v.lap !== null) {
-    seg(k, 1, v.lap, 7, v.lap, 1);
-    seg(k, 9, v.lap, 15, v.lap, 1);
+    seg(k, 1, v.lap, 7, v.lap, 0.8);
+    seg(k, 9, v.lap, 15, v.lap, 0.8);
   }
-  if (v.leaf) k.blob(v.leaf[0], v.leaf[1], 1.4, 0.8, 'foliage', { width: MARK });
-  for (const x of [-0.8, 7.2]) k.box(x, -1, 1.6, 18, 'paint', { width: MARK });
+  for (const x of [-0.8, 7.2]) k.box(x, -1, 1.6, 18, 'paint', { width: SEAM });
   return finish(page);
 }
 
 // The greenhouse's south face: a white rail along the eaves, glass between
-// bars 8 px apart and a rail across the middle, plants on the staging inside
-// showing through, the light on the panes, and a brick dwarf wall 0.55 m high
-// at the foot. Per variant: the plants and the highlights.
+// bars 8 px apart and a rail across the middle, on one in three a plant on
+// the staging inside showing through, and a brick dwarf wall 0.55 m high at
+// the foot. Per variant: the plant and the glint.
 const GREENHOUSE_FACE_VARIANTS = [
-  { plants: [[4, 31, 3, 3]], glints: [[10, 14]] },
-  {
-    plants: [
-      [12, 32, 3.4, 2.6],
-      [5, 32.4, 2, 2],
-    ],
-    glints: [[2, 10]],
-  },
-  { plants: [], glints: [[9, 26]] },
+  { plants: [], glints: [[10, 14]] },
+  { plants: [[12, 32, 2.6, 2]], glints: [] },
+  { plants: [], glints: [] },
 ];
 
 function greenhouseFace(i) {
@@ -569,28 +477,24 @@ function greenhouseFace(i) {
   const v = GREENHOUSE_FACE_VARIANTS[i];
   k.box(-1, 3.6, 18, 32.4, 'glass', { edges: false });
   k.box(-1, 30, 18, 6, 'wood', { edges: false, wear: false });
-  seg(k, -1, 30, 17, 30, MARK);
+  seg(k, -1, 30, 17, 30);
   for (const [x, y, rx, ry] of v.plants)
-    k.blob(x, y - ry, rx, ry, 'foliage', { bump: 0.3, lobes: 6, width: MARK });
-  for (const [x, y] of v.glints) {
-    seg(k, x, y, x + 3, y - 4, 1);
-    seg(k, x + 1.4, y + 1, x + 3.6, y - 2, 1);
-  }
-  for (const x of [-0.8, 7.2]) k.box(x, 3.6, 1.6, 32.4, 'paint', { width: MARK });
-  k.box(-1, 18, 18, 1.4, 'paint', { width: MARK });
-  k.box(-1, 0.6, 18, 3, 'paint', { edges: false, hatching: rect(-1, 2.4, 18, 1.2) });
+    k.blob(x, y - ry, rx, ry, 'foliage', { bump: 0.3, lobes: 6, width: SEAM });
+  for (const [x, y] of v.glints) seg(k, x, y, x + 3, y - 4, 0.8);
+  for (const x of [-0.8, 7.2]) k.box(x, 3.6, 1.6, 32.4, 'paint', { width: SEAM });
+  k.box(-1, 18, 18, 1.4, 'paint', { width: SEAM });
+  k.box(-1, 0.6, 18, 3, 'paint', { edges: false });
   seg(k, -1, 0.6, 17, 0.6, OUTLINE);
   seg(k, -1, 3.6, 17, 3.6, OUTLINE);
   k.box(-1, 36, 18, 12, 'terracotta', { edges: false, wear: false });
-  k.hatchIn(rect(-1, 41, 18, 7), { spacing: 2.2, width: 1 });
-  for (const y of [39, 42, 45]) seg(k, -1, y, 17, y, 1);
+  for (const y of [39, 42, 45]) seg(k, -1, y, 17, y, 0.8);
   for (const [y, xs] of [
     [36, [3, 11]],
     [39, [7, 15]],
     [42, [3, 11]],
     [45, [7, 15]],
   ])
-    for (const x of xs) seg(k, x, y, x, y + 3, 1);
+    for (const x of xs) seg(k, x, y, x, y + 3, 0.8);
   k.box(-1, 35.4, 18, 1.8, 'stone', { width: SEAM });
   seg(k, -1, 47.6, 17, 47.6, OUTLINE);
   return finish(page);

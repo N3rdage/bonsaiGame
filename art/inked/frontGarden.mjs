@@ -42,7 +42,7 @@ const SEEDS = {
 
 /** Ink widths, art px: an outline, a seam, a small mark, a blade of grass. */
 const OUTLINE = 2.6;
-const SEAM = 1.8;
+const SEAM = 1.0;
 const MARK = 1.5;
 const BLADE = 1.2;
 /** Hatching for small forms, finer than the kit's default. */
@@ -83,24 +83,11 @@ const tuft = (k, x, y) => {
 // The road: asphalt from the canvas's top to the gutter, a 1 m dash of the
 // centre line (16 px, then a 16 px gap), the gutter's shadow, and a kerb
 // stone 1 m long along the foot, its top lit and its face hatched. The road
-// repeats every three slices, so its variants differ only quietly: a few
-// flecks of grit, in one a short hairline crack, and where the kerb stone's
-// joint falls.
+// repeats every three slices, so its variants differ only quietly: in one a
+// short hairline crack, and where the kerb stone's joint falls.
 const ROAD_VARIANTS = [
+  { crack: null, joint: 31.5 },
   {
-    grit: [
-      [5, 14],
-      [21, 63],
-      [27, 30],
-    ],
-    crack: null,
-    joint: 31.5,
-  },
-  {
-    grit: [
-      [12, 22],
-      [3, 74],
-    ],
     crack: [
       [18, 60],
       [20, 62.4],
@@ -108,15 +95,7 @@ const ROAD_VARIANTS = [
     ],
     joint: 15.5,
   },
-  {
-    grit: [
-      [9, 54],
-      [24, 9],
-      [16, 78],
-    ],
-    crack: null,
-    joint: 31.5,
-  },
+  { crack: null, joint: 31.5 },
 ];
 
 /** The kerb's top edge, the gutter above it and the kerb face's foot, logical px down the slice. */
@@ -127,10 +106,9 @@ function roadTile(i) {
   const { k } = page;
   const v = ROAD_VARIANTS[i];
   k.box(-1, -1, 34, KERB + 1, 'asphalt', { edges: false });
-  for (const [x, y] of v.grit) seg(k, x, y, x + 0.6, y + 0.2, 1);
-  if (v.crack) k.line(v.crack, 1.1);
-  k.box(8, 40.5, 16, 2.6, 'paint', { width: MARK, wear: false });
-  k.hatchIn(rect(-1, KERB - 3, 34, 3), FINE);
+  if (v.crack) k.line(v.crack, 1);
+  k.box(8, 40.5, 16, 2.6, 'paint', { width: SEAM, wear: false });
+  k.shape(rect(-1, KERB - 2.4, 34, 2.4), 'asphalt', { edges: false, paper: false });
   k.box(-1, KERB, 34, 4, 'stone', { edges: false });
   k.box(-1, KERB + 4, 34, 7, 'stone', { edges: false, hatching: rect(-1, KERB + 4, 34, 7) });
   seg(k, -1, KERB, 33, KERB, OUTLINE);
@@ -154,7 +132,7 @@ function fenceLowTile(i) {
   const page = createPage(16, 16, { seed: SEEDS.fenceLow[i], origin: [0, 96] });
   const { k } = page;
   k.box(-1, 7, 18, 10, 'outside', { edges: false });
-  k.hatchIn(rect(-1, 14.4, 18, 1.6), FINE);
+  k.shape(rect(-1, 14.6, 18, 1.4), 'outside', { edges: false, paper: false });
   for (let n = 0; n < 4; n += 1) {
     const x = n * 4 + 0.8;
     const top = PICKET_TOPS[i][n];
@@ -167,20 +145,20 @@ function fenceLowTile(i) {
         [x, 15.7],
       ],
       'wood',
-      { width: MARK },
+      { width: SEAM },
     );
   }
-  for (const y of [8, 12.4]) k.box(-1, y, 18, 1.5, 'top', { width: MARK, wear: false });
+  for (const y of [8, 12.4]) k.box(-1, y, 18, 1.5, 'top', { width: SEAM, wear: false });
   return finishCutOut(page);
 }
 
 // The drive's block paving: 8 x 4 px blocks (0.25 x 0.125 m) in courses
-// staggered half a block, every joint inked. Per variant: where the courses
-// start, an oil stain and moss in a joint.
+// staggered half a block, every joint a thin seam. Per variant: where the
+// courses start and, on one in three, an oil stain.
 const DRIVE_VARIANTS = [
-  { stagger: 0, stain: [10, 9, 3.4, 2.2], moss: [3, 4] },
-  { stagger: 4, stain: null, moss: [11, 12] },
-  { stagger: 2, stain: [5, 12, 2.6, 1.8], moss: null },
+  { stagger: 0, stain: [10, 9, 3.4, 2.2] },
+  { stagger: 4, stain: null },
+  { stagger: 2, stain: null },
 ];
 
 function driveTile(i) {
@@ -194,16 +172,15 @@ function driveTile(i) {
   }
   for (let row = 0; row < 4; row += 1) {
     const y = row * 4;
-    seg(k, -1, y + 4, 17, y + 4, 1.2);
-    for (let x = (v.stagger + (row % 2) * 4) % 8; x < 16; x += 8) seg(k, x, y, x, y + 4, 1.2);
+    seg(k, -1, y + 4, 17, y + 4, 0.8);
+    for (let x = (v.stagger + (row % 2) * 4) % 8; x < 16; x += 8) seg(k, x, y, x, y + 4, 0.8);
   }
-  if (v.moss) tuft(k, v.moss[0], v.moss[1]);
   return finish(page);
 }
 
 // The path's paving: one square flag 0.5 m a side to a tile, its joints on
-// the tile's edges, the flag's lower and right edges shaded. Per variant: a
-// crack, a chipped corner, grass in a joint.
+// the tile's edges. Per variant: a crack, a chipped corner or grass in a
+// joint, one each.
 const PATH_VARIANTS = [
   {
     crack: [
@@ -212,18 +189,10 @@ const PATH_VARIANTS = [
       [6.6, 11],
     ],
     chip: null,
-    grass: [12, 15.6],
+    grass: null,
   },
   { crack: null, chip: [15.2, 0.8], grass: null },
-  {
-    crack: [
-      [10, 15],
-      [11.4, 12],
-      [14, 10.6],
-    ],
-    chip: null,
-    grass: [2, 15.6],
-  },
+  { crack: null, chip: null, grass: [2, 15.6] },
 ];
 
 function pathTile(i) {
@@ -231,18 +200,8 @@ function pathTile(i) {
   const { k } = page;
   const v = PATH_VARIANTS[i];
   k.box(-1, -1, 18, 18, 'soil', { edges: false });
-  k.box(0.8, 0.8, 14.4, 14.4, 'stone', {
-    width: SEAM,
-    hatching: [
-      [0.8, 15.2],
-      [15.2, 15.2],
-      [15.2, 0.8],
-      [14, 2],
-      [14, 14],
-      [2, 14],
-    ],
-  });
-  if (v.crack) k.line(v.crack, 1.1);
+  k.box(0.8, 0.8, 14.4, 14.4, 'stone', { width: SEAM });
+  if (v.crack) k.line(v.crack, 1);
   if (v.chip) {
     const [cx, cy] = v.chip;
     k.shape(
@@ -259,9 +218,8 @@ function pathTile(i) {
   return finish(page);
 }
 
-// A flower bed: soil, a shrub or two seen from above with their shade
-// hatched, and a few flowers. Per variant: the shrubs (centre, radii) and
-// the flowers (centre, wash).
+// A flower bed: soil, a shrub or two seen from above, and a few flowers. Per
+// variant: the shrubs (centre, radii) and the flowers (centre, wash).
 const BED_VARIANTS = [
   {
     shrubs: [[8, 8, 5.6, 5]],
@@ -292,16 +250,10 @@ function bedTile(i) {
   const { k } = page;
   const v = BED_VARIANTS[i];
   k.box(-1, -1, 18, 18, 'soil', { edges: false });
-  for (const [x, y] of [
-    [3, 12],
-    [12, 3],
-    [8, 14.6],
-  ])
-    seg(k, x, y, x + 1, y + 0.2, 1);
   for (const [cx, cy, rx, ry] of v.shrubs)
-    k.blob(cx, cy, rx, ry, 'foliage', { bump: 0.25, lobes: 7, hatching: FINE, width: SEAM });
-  for (const [cx, cy, wash] of v.flowers) k.blob(cx, cy, 1.1, 1, wash, { width: MARK });
-  seg(k, -1, 15.6, 17, 15.6, MARK);
+    k.blob(cx, cy, rx, ry, 'foliage', { bump: 0.25, lobes: 7, width: SEAM });
+  for (const [cx, cy, wash] of v.flowers) k.blob(cx, cy, 1.1, 1, wash, { width: SEAM });
+  seg(k, -1, 15.6, 17, 15.6);
   return finish(page);
 }
 
