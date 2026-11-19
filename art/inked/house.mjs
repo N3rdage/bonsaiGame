@@ -18,6 +18,8 @@ const OUT = join(import.meta.dirname, '..', '..', 'public', 'assets');
 export const OUTLINE = 2.6;
 export const SEAM = 1.8;
 export const MARK = 1.5;
+/** The joints of a large surface (a floor's boards and tiles, a wall's paper and panels), thin so it stays calm. */
+export const JOINT = 1.0;
 /** Hatching for small forms, finer than the kit's default. */
 export const FINE = { spacing: 1.2, width: 1.2 };
 
@@ -40,15 +42,14 @@ export const seg = (k, x0, y0, x1, y1, width = SEAM) =>
 
 /**
  * A 16 x 48 face tile's two bands: the painted cornice where the wall meets
- * the ceiling (y 0..3.5) and the painted skirting on the floor line (y 43..48),
- * its foot shaded. Drawn after the wall between them.
+ * the ceiling (y 0..3.5) and the painted skirting on the floor line (y
+ * 43..48), both plain. Drawn after the wall between them.
  */
 export function faceBands(k) {
   k.box(-1, -1, 18, 4.5, 'paint', { edges: false });
-  seg(k, -1, 1.8, 17, 1.8, MARK);
+  seg(k, -1, 1.8, 17, 1.8, JOINT);
   seg(k, -1, 3.5, 17, 3.5, OUTLINE);
   k.box(-1, 43, 18, 5, 'paint', { edges: false });
-  k.hatchIn(rect(-1, 46, 18, 1.6), FINE);
   seg(k, -1, 43, 17, 43, OUTLINE);
   seg(k, -1, 47.6, 17, 47.6, OUTLINE);
 }
