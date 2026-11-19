@@ -9,7 +9,8 @@ import { getSpecies } from '../sim/species';
 import { treeOnPedestal, treesInRoom } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import type { Interactable } from './interactables';
-import { SHED_ROOM, fromPrototype, insideWalls, type Room } from './shedRoom';
+import { PEDESTAL_EMPTY_LABEL, PEDESTAL_LABEL_DY } from './roomArt';
+import { SHED_ROOM, fromPrototype, insideWalls, type Prop, type Room } from './shedRoom';
 
 /**
  * First floor spot, prototype (340, 320); columns 64 and rows 80 prototype px
@@ -134,6 +135,60 @@ export function treeSprites(state: GameState, room: Room): TreeSprite[] {
     ];
   });
   return [...floor, ...displayed];
+}
+
+/**
+ * The depth of a display label: above every sorted world depth (a bottom edge
+ * in the room, or the player's feet, never past a few hundred px), so a label
+ * reads over the player standing in front of its furniture; under the weather.
+ */
+export const DISPLAY_LABEL_DEPTH = 8_000;
+
+/** Between the names of the trees on one piece of furniture. */
+export const DISPLAY_LABEL_JOIN = ' · ';
+
+/** One piece of display furniture's label (obj_pedestal Draw_0): top centre, logical px. */
+export interface DisplayLabel {
+  readonly x: number;
+  readonly y: number;
+  readonly text: string;
+  /** No tree on any of the piece's spots: `(empty)`, in the softer ink. */
+  readonly empty: boolean;
+  readonly depth: number;
+}
+
+/**
+ * One label per piece of display furniture in `room`: a placed item's spots
+ * (one per `placedId`) share one, a built-in spot has its own. It is centred
+ * under the piece's spots, `PEDESTAL_LABEL_DY` below their centre, and reads
+ * the names of the trees on them left to right, joined, or `(empty)` when
+ * none holds a tree.
+ */
+export function displayLabels(state: GameState, room: Room): DisplayLabel[] {
+  const pieces = new Map<string, Prop[]>();
+  for (const p of room.props) {
+    if (p.pedestalKey === undefined) continue;
+    const piece = p.placedId === undefined ? `spot:${p.key}` : `placed:${String(p.placedId)}`;
+    pieces.set(piece, [...(pieces.get(piece) ?? []), p]);
+  }
+  return [...pieces.values()].map((spots) => {
+    const names = [...spots]
+      .sort((a, b) => a.x - b.x)
+      .flatMap((p) => {
+        const tree = p.pedestalKey === undefined ? undefined : treeOnPedestal(state, p.pedestalKey);
+        return tree ? [treeLabel(tree)] : [];
+      });
+    const left = Math.min(...spots.map((p) => p.x - p.w / 2));
+    const right = Math.max(...spots.map((p) => p.x + p.w / 2));
+    const centreY = Math.min(...spots.map((p) => p.y));
+    return {
+      x: (left + right) / 2,
+      y: centreY + PEDESTAL_LABEL_DY,
+      text: names.length === 0 ? PEDESTAL_EMPTY_LABEL : names.join(DISPLAY_LABEL_JOIN),
+      empty: names.length === 0,
+      depth: DISPLAY_LABEL_DEPTH,
+    };
+  });
 }
 
 /** The floor trees as interactables; a displayed tree is reached through its pedestal. */

@@ -115,7 +115,13 @@ import {
   type Rect,
   type Room,
 } from '../world/shedRoom';
-import { treeSprites, treeTargets, treeLabel, type TreeTarget } from '../world/treeSprites';
+import {
+  displayLabels,
+  treeSprites,
+  treeTargets,
+  treeLabel,
+  type TreeTarget,
+} from '../world/treeSprites';
 import {
   renameCounter,
   renameInput,
@@ -161,8 +167,6 @@ import {
   type Sheet,
 } from '../world/assets';
 import {
-  PEDESTAL_EMPTY_LABEL,
-  PEDESTAL_LABEL_DY,
   CAST_SHADOW_WASH,
   ROOM_STYLES,
   bakeScale,
@@ -241,7 +245,7 @@ void main () { gl_FragColor = texture2D(uMainSampler, outTexCoord); }`,
 const HUD_DEPTH = 10_000;
 /** Modal panels and their dimmer sit above the HUD, so a press on the HUD under them hits the dimmer. */
 const MODAL_DEPTH = 10_001;
-/** Weather falls past the room, props, trees and player (depth = bottom y, at most 270), under the HUD. */
+/** Weather falls past the room, props, trees and player (depth = bottom y, at most 270) and the display labels (DISPLAY_LABEL_DEPTH), under the HUD. */
 const WEATHER_DEPTH = 9_000;
 /** The placement ghost lies on the floor, under the drop shadows, sorted furniture and the player. */
 const GHOST_DEPTH = FLOOR_DEPTH + 0.5;
@@ -1723,8 +1727,8 @@ export class WorldScene extends Phaser.Scene {
   /**
    * obj_tree_sprite for every tree in the room (src/world/treeArt.ts), sized
    * from its trunk height, in the season's leaf colour. A floor tree is
-   * labelled above, a displayed one under its pedestal as obj_pedestal did,
-   * which shows `(empty)` with no tree.
+   * labelled above; each piece of display furniture has one label under it
+   * (displayLabels), its trees' names or `(empty)`, as obj_pedestal did.
    */
   private drawTrees(): void {
     for (const part of this.treeParts) part.destroy();
@@ -1751,17 +1755,13 @@ export class WorldScene extends Phaser.Scene {
           .setDepth(s.depth),
       ];
     });
-    for (const p of room.props) {
-      if (p.pedestalKey === undefined) continue;
-      const tree = treeOnPedestal(state, p.pedestalKey);
-      // An empty spot's `(empty)` in the softer ink.
-      const label = this.text(
-        p.x,
-        p.y + PEDESTAL_LABEL_DY,
-        tree ? treeLabel(tree) : PEDESTAL_EMPTY_LABEL,
-        { ...worldLabelStyle(this.worldUi), color: tree ? PANEL_STYLE.text : PANEL_STYLE.soft },
-      );
-      this.treeParts.push(label.setOrigin(0.5, 0).setDepth(p.y + p.h / 2));
+    for (const l of displayLabels(state, room)) {
+      // An empty piece's `(empty)` in the softer ink.
+      const label = this.text(l.x, l.y, l.text, {
+        ...worldLabelStyle(this.worldUi),
+        color: l.empty ? PANEL_STYLE.soft : PANEL_STYLE.text,
+      });
+      this.treeParts.push(label.setOrigin(0.5, 0).setDepth(l.depth));
     }
     for (const part of this.treeParts) this.inWorld(part);
     this.drawShadows(floorArt);
