@@ -1,8 +1,8 @@
 // The greenhouse interior, drawn in Inked (art/inked/README.md) at the scale
 // rule's heights and written to public/assets/, sizes in logical px:
 //   spr_floor_greenhouse  3 variants of a 16 x 16 tile of stone paving, a
-//                         0.5 m flag whole or split in two, wash pooled in
-//                         the joints, scattered by the floor's hash
+//                         0.5 m flag whole or split in two, a neutral grey,
+//                         wash pooled in the joints, scattered by the floor's hash
 //                         (src/world/assets.ts's `floorFrame`)
 //   spr_greenhouse_wall   3 variants of the back wall's face, 16 x 48 (2.4 m),
 //                         its bottom edge on the floor line: the glass house
@@ -18,7 +18,7 @@
 // origin where its run starts in the greenhouse. Everything is seeded: a
 // rerun reproduces the PNGs byte for byte.
 
-import { FINE, MARK, OUTLINE, SEAM, rect, seg, variants, writeSheets } from './house.mjs';
+import { JOINT, MARK, OUTLINE, SEAM, rect, seg, variants, writeSheets } from './house.mjs';
 import { createPage, finish } from './index.mjs';
 
 /** One seed per page, written out so adding a page never moves another's. */
@@ -34,28 +34,28 @@ const SEEDS = {
 function joint(k, x0, y0, x1, y1) {
   const across = x0 === x1 ? rect(x0 - 0.4, y0, 0.8, y1 - y0) : rect(x0, y0 - 0.4, x1 - x0, 0.8);
   k.shape(across, 'shadow', { edges: false, paper: false, wear: false });
-  seg(k, x0, y0, x1, y1);
+  seg(k, x0, y0, x1, y1, JOINT);
 }
 
 // The paving: a 0.5 m flag to a tile, its joints drawn at its bottom and its
-// right, as the study's parquet's. Per variant: a joint splitting the flag
-// into two smaller slabs (from (x0, y0) to (x1, y1), or none), so the
-// scattered tiles lay an irregular paving rather than a grid, a crack across
-// a slab, a hatched worn patch, and moss in a joint (a blob of `foliage` at
-// its x, y).
+// right, as the study's parquet's. The flags are glazed twice, a warm
+// `terracotta` underwash under `metal`'s cool blue-grey, so they land a
+// neutral grey darker than the glass and the frame. Per variant: a joint splitting the flag into two
+// smaller slabs (from (x0, y0) to (x1, y1), or none), so the scattered tiles
+// lay an irregular paving rather than a grid; one variant has a crack across
+// a slab and one moss in a joint (a blob of `foliage` at its x, y).
 const PAVING_VARIANTS = [
-  { split: null, crack: [3, 2.4, 6, 7], worn: [11, 10], moss: [] },
-  { split: [-1, 9.5, 15.75, 9.5], crack: null, worn: [5, 4], moss: [[15.75, 9.5]] },
-  { split: [6.5, -1, 6.5, 15.75], crack: [10, 8.4, 12.6, 13.4], worn: [3, 11], moss: [] },
+  { split: null, crack: [3, 2.4, 6, 7], moss: [] },
+  { split: [-1, 9.5, 15.75, 9.5], crack: null, moss: [[15.75, 9.5]] },
+  { split: [6.5, -1, 6.5, 15.75], crack: null, moss: [] },
 ];
 
 function pavingTile(i) {
   const page = createPage(16, 16, { seed: SEEDS.floor[i], origin: [160, 80] });
   const { k } = page;
   const v = PAVING_VARIANTS[i];
-  k.box(-1, -1, 18, 18, 'stone', { edges: false });
-  const [wx, wy] = v.worn;
-  k.hatchIn(rect(wx - 2.2, wy - 1.2, 4.4, 2.4), FINE);
+  k.box(-1, -1, 18, 18, 'terracotta', { edges: false, wear: false });
+  k.box(-1, -1, 18, 18, 'metal', { edges: false, paper: false, wear: false });
   joint(k, -1, 15.75, 17, 15.75);
   joint(k, 15.75, -1, 15.75, 17);
   if (v.split) joint(k, ...v.split);
@@ -80,20 +80,13 @@ function pavingTile(i) {
 // and a rail across the middle (y 18), and the brick dwarf wall 0.55 m high
 // at the foot under its stone sill (y 35.4..37.2), its foot on the floor line.
 // Through the lower panes the garden shows green, the `outside` wash rising
-// to a hedge line; the upper panes are pale glass with the light on them.
-// The dwarf wall's inner face is in the shade of the staging, hatched. Per
-// variant: the hedge line's bumps, a shrub or tree over it, and the glints.
+// to a hedge line; the upper panes are pale glass, left calm. The dwarf
+// wall's bricks are thin courses with no hatching. Per variant: the hedge
+// line's bumps, and on one variant in three a shrub over it and a glint.
 const WALL_VARIANTS = [
   { hedge: [27, 25.4, 26.6, 24.8], crown: [11, 22.6, 3.4, 3], glints: [[2, 12]] },
-  {
-    hedge: [25.6, 26.8, 25, 26.2],
-    crown: null,
-    glints: [
-      [9, 8],
-      [2.4, 30],
-    ],
-  },
-  { hedge: [26.4, 25, 27.2, 25.8], crown: [3.6, 23.2, 2.6, 2.4], glints: [[10.4, 14]] },
+  { hedge: [25.6, 26.8, 25, 26.2], crown: null, glints: [] },
+  { hedge: [26.4, 25, 27.2, 25.8], crown: null, glints: [] },
 ];
 
 function wallTile(i) {
@@ -119,24 +112,22 @@ function wallTile(i) {
     k.blob(cx, cy, rx, ry, 'outside', { bump: 0.3, lobes: 5, width: 1.2 });
   }
   for (const [x, y] of v.glints) {
-    seg(k, x, y, x + 3, y - 4, 1);
-    seg(k, x + 1.4, y + 1, x + 3.6, y - 2, 1);
+    seg(k, x, y, x + 3, y - 4, 0.8);
   }
   for (const x of [-0.8, 7.2]) k.box(x, 3.6, 1.6, 32.4, 'paint', { width: MARK });
   k.box(-1, 18, 18, 1.4, 'paint', { width: MARK });
-  k.box(-1, 0.6, 18, 3, 'paint', { edges: false, hatching: rect(-1, 0.6, 18, 1.2) });
+  k.box(-1, 0.6, 18, 3, 'paint', { edges: false });
   seg(k, -1, 0.6, 17, 0.6, OUTLINE);
   seg(k, -1, 3.6, 17, 3.6, OUTLINE);
   k.box(-1, 36, 18, 12, 'terracotta', { edges: false, wear: false });
-  k.hatchIn(rect(-1, 37.2, 18, 10.4), { spacing: 2.2, width: 1 });
-  for (const y of [39, 42, 45]) seg(k, -1, y, 17, y, 1);
+  for (const y of [39, 42, 45]) seg(k, -1, y, 17, y, 0.8);
   for (const [y, xs] of [
     [36, [3, 11]],
     [39, [7, 15]],
     [42, [3, 11]],
     [45, [7, 15]],
   ])
-    for (const x of xs) seg(k, x, y, x, y + 3, 1);
+    for (const x of xs) seg(k, x, y, x, y + 3, 0.8);
   k.box(-1, 35.4, 18, 1.8, 'stone', { width: SEAM });
   seg(k, -1, 47.6, 17, 47.6, OUTLINE);
   return finish(page);
