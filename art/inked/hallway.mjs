@@ -22,6 +22,7 @@
 
 import {
   FINE,
+  JOINT,
   MARK,
   OUTLINE,
   SEAM,
@@ -45,10 +46,10 @@ const SEEDS = {
 };
 
 // The floor: four boards to a tile running north-south, each seam drawn at
-// the right of its board (x 3.5, 7.5, 11.5, 15.5), so a tile owns its right
-// seam. Per variant: the boards' end joints (board, y), a grain streak
-// (board, y, length), nail pairs and a scuff where the front door's traffic
-// wears it.
+// the right of its board (x 3.5, 7.5, 11.5, 15.5), thin, so a tile owns its
+// right seam. Per variant: the boards' end joints (board, y) and a grain
+// streak (board, y, length); on one variant in three a nail pair and a scuff
+// where the front door's traffic wears it.
 const FLOOR_VARIANTS = [
   {
     joints: [[1, 10]],
@@ -62,11 +63,8 @@ const FLOOR_VARIANTS = [
   {
     joints: [[3, 5]],
     grain: [[2, 1, 8]],
-    nails: [
-      [0, 13],
-      [3, 1],
-    ],
-    scuff: [11, 4],
+    nails: [],
+    scuff: null,
   },
   {
     joints: [],
@@ -74,8 +72,8 @@ const FLOOR_VARIANTS = [
       [1, 6, 5],
       [2, 11, 4],
     ],
-    nails: [[1, 8]],
-    scuff: [3, 6],
+    nails: [],
+    scuff: null,
   },
 ];
 
@@ -84,51 +82,42 @@ function floorTile(i) {
   const { k } = page;
   const v = FLOOR_VARIANTS[i];
   k.box(-1, -1, 18, 18, 'floor', { edges: false });
-  for (const x of [3.5, 7.5, 11.5, 15.5]) seg(k, x, -1, x, 17);
-  for (const [board, y] of v.joints) seg(k, board * 4 - 0.5, y, board * 4 + 3.5, y, MARK);
-  for (const [board, y, len] of v.grain) seg(k, board * 4 + 1.6, y, board * 4 + 1.8, y + len, 1);
+  for (const x of [3.5, 7.5, 11.5, 15.5]) seg(k, x, -1, x, 17, JOINT);
+  for (const [board, y] of v.joints) seg(k, board * 4 - 0.5, y, board * 4 + 3.5, y, JOINT);
+  for (const [board, y, len] of v.grain) seg(k, board * 4 + 1.6, y, board * 4 + 1.8, y + len, 0.8);
   for (const [board, y] of v.nails) {
     seg(k, board * 4 + 1.2, y, board * 4 + 1.5, y + 0.2, MARK);
     seg(k, board * 4 + 2.4, y, board * 4 + 2.7, y + 0.2, MARK);
   }
-  const [sx, sy] = v.scuff;
-  k.hatchIn(rect(sx - 2, sy - 1, 4, 2), FINE);
+  if (v.scuff) {
+    const [sx, sy] = v.scuff;
+    k.hatchIn(rect(sx - 2, sy - 1, 4, 2), FINE);
+  }
   return finish(page);
 }
 
 // The back wall's face: plaster (y 3.5..27), a dado rail (y 27..29.5) and
 // painted tongue-and-groove below it to the skirting, its boards 4 px wide.
-// Per variant: a hairline crack in the plaster and a scuff on the boards.
-const WALL_VARIANTS = [
-  {
-    crack: [
-      [5, 8],
-      [6.4, 12],
-      [5.6, 15],
-    ],
-    scuff: [9, 38],
-  },
-  {
-    crack: [
-      [12, 18],
-      [11, 21],
-      [12.2, 24],
-    ],
-    scuff: [3, 34],
-  },
-  { crack: null, scuff: [13, 40] },
+// The plaster and boards stay calm: on one variant in three a hairline crack
+// in the plaster.
+const WALL_CRACKS = [
+  [
+    [5, 8],
+    [6.4, 12],
+    [5.6, 15],
+  ],
+  null,
+  null,
 ];
 
 function wallTile(i) {
   const page = createPage(16, 48, { seed: SEEDS.wall[i], origin: [192, 96] });
   const { k } = page;
-  const v = WALL_VARIANTS[i];
+  const crack = WALL_CRACKS[i];
   k.box(-1, 3.5, 18, 24, 'wall', { edges: false });
-  if (v.crack) k.line(v.crack, 1);
+  if (crack) k.line(crack, 1);
   k.box(-1, 29.5, 18, 14, 'paint', { edges: false });
-  for (const x of [3.5, 7.5, 11.5, 15.5]) seg(k, x, 29.5, x, 43, 1.2);
-  const [sx, sy] = v.scuff;
-  k.hatchIn(rect(sx - 1.6, sy - 1, 3.2, 2), FINE);
+  for (const x of [3.5, 7.5, 11.5, 15.5]) seg(k, x, 29.5, x, 43, JOINT);
   k.box(-1, 27, 18, 2.5, 'wood', { edges: false });
   seg(k, -1, 27, 17, 27, OUTLINE);
   seg(k, -1, 29.5, 17, 29.5, OUTLINE);
@@ -175,7 +164,7 @@ function hallTable() {
   const { k } = page;
   k.box(3, 16, 10, 11.4, 'shadow', { edges: false, hatching: 'shadow', wear: false });
   for (const x of [1.2, 13]) k.box(x, 14, 1.8, 13.6, 'wood', { width: SEAM });
-  k.box(0.6, 0.8, 14.8, 11.4, 'top');
+  k.box(0.6, 0.8, 14.8, 11.4, 'wood');
   k.blob(5.4, 5.6, 2.8, 1.8, 'terracotta', { width: MARK });
   seg(k, 10.2, 4.4, 12.4, 6.2, MARK);
   k.box(0.6, 12, 14.8, 3.4, 'wood', { width: SEAM });
