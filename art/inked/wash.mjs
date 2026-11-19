@@ -3,9 +3,10 @@
 // pigment pools at the edge into a darker rim (`washPool`, over
 // `washPoolWidth` logical px), creeps a little past the outline in an
 // uneven, noise-shaped bleed (`washBleed` logical px at most) and settles
-// unevenly inside (`washGranulation`).
+// unevenly inside (`washGranulation`), in a pattern that repeats every
+// GRAIN_PERIOD art px of the page, so a wash over a whole page tiles.
 
-import { valueNoise } from './paper.mjs';
+import { GRAIN_PERIOD, valueNoise } from './paper.mjs';
 import { crossings, fillPolygon, paint } from './stroke.mjs';
 
 /** The distance from (x, y) to the nearest edge of closed polygon `s`. */
@@ -56,7 +57,9 @@ export function wash(ink, pts, c, a) {
         alpha = (a + washPool) * 0.6 * (1 - d / limit) ** 2;
       }
       if (washGranulation > 0)
-        alpha *= 1 + washGranulation * (2 * valueNoise(x, y, 1.5 * ink.ss, seed + 1) - 1);
+        alpha *=
+          1 +
+          washGranulation * (2 * valueNoise(x, y, 2 * ink.ss, seed + 1, GRAIN_PERIOD * ink.ss) - 1);
       paint(ink, x, y, c, Math.min(1, alpha));
     }
   }
