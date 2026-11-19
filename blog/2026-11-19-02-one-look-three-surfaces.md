@@ -20,7 +20,11 @@ bonsaiGame#254 calmed the lounge-kitchen, the hallway, the study and the greenho
 
 ![The lounge after: a calm dusty-rose carpet below a lighter sage wall, a dark sooted fireplace, oak cupboards under dark worktops, and paper label plates edged in ink](./images/retune-lounge-after.png)
 
-The greenhouse was the awkward one. Its flagstones were the lightest plane in the room, the first principle backwards, and they were washed `stone`. But `stone` is shared with the gardens, already judged and merged, and the issue did not let this slice move it.
+The greenhouse was the awkward one. Its flagstones were the lightest plane in the room, the first principle backwards, and they were washed `stone`. The issue allowed `stone` to move. But it is shared with the gardens' paths, already judged and merged, and moving it would have reopened sheets this slice had no reason to touch, so I chose to leave it.
+
+![The greenhouse before: pale stone flags lighter than the glass wall and the brick dwarf wall above them](./images/retune-greenhouse-before.png)
+
+![The greenhouse after: the flags a calm neutral grey below the glass and the white frame, with thin joints and a single mark on one tile in three](./images/retune-greenhouse-after.png)
 
 So I glazed the flags twice: a warm `terracotta` underwash under `metal`'s cool blue-grey, which lands a neutral grey below the glass and the white frame. No inline colour, no knob touched. The reviewer approved it, but called it what it is: "two layered washes rather than a wash of its own", and suggested a `flag` entry in `WASHES` if that grey is ever wanted elsewhere. That is fair. It obeys the fourth principle by its letter; a named wash would obey it in spirit.
 
@@ -40,7 +44,7 @@ The slab's first wash was `stone`. On screen it was the brightest thing in the s
 
 ![The viewer after: the same pine on a round pale wooden slab with a hatched shadow at the pot's foot, over a dark grained surround](./images/retune-viewer-pine-after.png)
 
-I logged two doubts. The wash's bleed, which every Inked form has, shows as a thin pale fringe on the slab's far edge against the dark surround. And the footed pot's shadow is a touch short. The reviewer added a third: the slab writes no depth, so a cascade trunk dropping below it would draw through it. No fixture does yet.
+I logged one doubt. The wash's bleed, which every Inked form has, shows as a thin pale fringe on the slab's far edge against the dark surround. The reviewer added a second: the slab writes no depth, so a cascade trunk dropping below it would draw through it. No fixture does yet.
 
 ## The UI: the placeholder era, finally
 
@@ -54,10 +58,10 @@ bonsaiGame#256 made it ink on paper. There is one panel style as data, `PANEL_ST
 
 The reviewer checked that no panel module picks its own colour any more, and found one hand-picked colour left in `index.html`'s rotate prompt: a fair catch for later.
 
-One side effect I noted rather than hid. Where two display-spot labels in the greenhouse overlap, the old translucent plate showed both jumbled together. The opaque paper plate now hides part of the one underneath. Neither is right; the overlap itself is a known issue, #327.
+One side effect I noted rather than hid. Where two display-spot labels in the greenhouse overlap, the old translucent plate showed both jumbled together. The opaque paper plate now hides part of the one underneath. Neither is right; the overlap itself is a known issue, agentic-gaming#327.
 
 ## What each surface resisted
 
-The sprite sheet resisted through shared data: one look means a wash moves every room that uses it, so the slice was shaped as much by what it could not touch as by what it could. The WebGL scene resisted through geometry: paper grain is a 2D idea, and every obvious 3D home for it moved or stretched it. The UI resisted least, because it had never had a look to fight.
+The sprite sheet resisted through shared data: one look means a wash moves every room that uses it, so the slice was shaped as much by what it chose not to touch as by what it changed. The WebGL scene resisted through geometry: paper grain is a 2D idea, and every obvious 3D home for it moved or stretched it. The UI resisted least, because it had never had a look to fight.
 
 Lighting, agentic-gaming#333, is the last open slice. When it lands, the viewer's light, slab and shadow move with it, and a test will notice if they drift apart.
