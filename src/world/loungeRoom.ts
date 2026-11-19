@@ -15,7 +15,7 @@
  */
 
 import { SHEETS } from './assets';
-import { WALL_CAP } from './roomArt';
+import { BACK_WALL_FACE, WALL_CAP } from './roomArt';
 import {
   SHED_ROOM,
   displaySpot,
@@ -40,7 +40,8 @@ export const LOUNGE_BOUNDS: Rect = { x: 144, y: 48, w: 304, h: 176 };
  * The hallway's 3 x 2 m (96x64) in the floor's north-east corner, x 336..432
  * and y 64..128: a solid block, the hallway door in its west face, drawn as
  * the paper (the house beyond this room, as the surround outside the walls
- * is) inside the lounge's caps on its open edges (HALLWAY_BLOCK_CAPS). The
+ * is) inside the lounge's caps on its open edges (HALLWAY_BLOCK_CAPS). Its
+ * walls stand the back wall's 2.4 m, so it casts as the ring's walls do. The
  * kitchen is the floor below it, x 336..432 and y 128..208.
  */
 export const HALLWAY_BLOCK: Furniture = {
@@ -50,6 +51,7 @@ export const HALLWAY_BLOCK: Furniture = {
   w: 96,
   h: 64,
   solid: true,
+  stands: { height: BACK_WALL_FACE },
 };
 
 /**
@@ -71,6 +73,7 @@ export const KITCHEN_FLOOR: Furniture = {
   w: 96,
   h: 80,
   solid: false,
+  flat: true,
 };
 
 /**
@@ -85,6 +88,7 @@ export const FIREPLACE: Furniture = {
   h: 24,
   solid: true,
   sorted: true,
+  stands: { height: 20 },
 };
 
 /**
@@ -99,6 +103,7 @@ export const SIDE_TABLE: Furniture = {
   h: 16,
   solid: true,
   sorted: true,
+  stands: { height: 8 },
 };
 
 /**
@@ -107,11 +112,13 @@ export const SIDE_TABLE: Furniture = {
  * the east run its worktop alone (20 x 60), its south end joined to the south
  * run, so it starts at the block's south cap, y 128, the south run's worktop
  * over its last 20 px. Solid: no floor-tree spot and no walk in the lounge
- * reaches east of x 336.
+ * reaches east of x 336. Both runs stand 20 px, the south run's front face.
  */
+const COUNTER = { solid: true, sorted: true, stands: { height: 20 } } as const;
+
 export const KITCHEN_COUNTER: readonly Furniture[] = [
-  { sheet: SHEETS.counter, x: 336, y: 188, w: 96, h: 20, solid: true, sorted: true },
-  { sheet: SHEETS.counterV, x: 412, y: 128, w: 20, h: 60, solid: true, sorted: true },
+  { ...COUNTER, sheet: SHEETS.counter, x: 336, y: 188, w: 96, h: 20 },
+  { ...COUNTER, sheet: SHEETS.counterV, x: 412, y: 128, w: 20, h: 60 },
 ];
 
 const FURNITURE = [

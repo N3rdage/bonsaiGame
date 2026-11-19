@@ -35,6 +35,7 @@ export const DESK: Furniture = {
   h: 16,
   solid: true,
   sorted: true,
+  stands: { height: 16 },
 };
 
 /**
@@ -49,6 +50,7 @@ export const BOOKSHELF: Furniture = {
   h: 16,
   solid: true,
   sorted: true,
+  stands: { height: 12 },
 };
 
 const FURNITURE = [DESK, BOOKSHELF];

@@ -60,6 +60,12 @@ const run = (sheet: Furniture['sheet'], r: Rect, solid = false): Furniture => ({
   solid,
 });
 
+/** A building's roof over its whole footprint, which stands as its 2.4 m walls do and casts their shadow. */
+const roof = (sheet: Furniture['sheet'], r: Rect, solid = false): Furniture => ({
+  ...run(sheet, r, solid),
+  stands: { height: BACK_WALL_FACE },
+});
+
 /** A face the garden sees, BACK_WALL_FACE (2.4 m) tall, standing on the footprint's south edge from x `x0` to `x1`. */
 const face = (sheet: Furniture['sheet'], r: Rect, x0: number, x1: number): Furniture =>
   run(sheet, { x: x0, y: r.y + r.h - BACK_WALL_FACE, w: x1 - x0, h: BACK_WALL_FACE });
@@ -82,16 +88,17 @@ export const KITCHEN_WINDOW: Rect = { x: 7 * METRE - 20, y: HOUSE.h - 20 - 24, w
  * 16 px tile's overhang (x 408..416); the greenhouse's north, east and west walls show
  * their frame rails on its edges. The house's and the shed's walls are their
  * footprints (GARDEN_ROOM.walls); the glass box is solid through its roof
- * run. The garage, west of the shed, is out of sight.
+ * run. Each roof stands for its building's footprint and casts the
+ * building's shadow (`roof`). The garage, west of the shed, is out of sight.
  */
 export const EXTERIORS: readonly Furniture[] = [
-  run(SHEETS.houseRoof, HOUSE),
+  roof(SHEETS.houseRoof, HOUSE),
   face(SHEETS.houseFace, HOUSE, SHED.w, HOUSE.w - WALL_CAP),
   run(SHEETS.houseCapV, { x: HOUSE.w - WALL_CAP, y: 0, w: WALL_CAP, h: HOUSE.h }),
   run(SHEETS.houseWindow, KITCHEN_WINDOW),
-  run(SHEETS.shedRoof, SHED),
+  roof(SHEETS.shedRoof, SHED),
   face(SHEETS.shedFace, SHED, 0, SHED.w),
-  run(SHEETS.greenhouseRoof, GREENHOUSE, true),
+  roof(SHEETS.greenhouseRoof, GREENHOUSE, true),
   run(SHEETS.greenhouseCap, { x: GREENHOUSE.x, y: GREENHOUSE.y, w: GREENHOUSE.w, h: WALL_CAP }),
   ...[GREENHOUSE.x, GREENHOUSE.x + GREENHOUSE.w - WALL_CAP].map((x) =>
     run(SHEETS.greenhouseCapV, {

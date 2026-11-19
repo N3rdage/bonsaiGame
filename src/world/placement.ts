@@ -10,7 +10,7 @@ import { PLACEABLE_SIZES } from '../sim/greenhouseFloor';
 import { inventoryAdd, inventoryRemove } from '../sim/inventory';
 import { DISPLAYED_PREFIX, treeOnPedestal } from '../sim/tree';
 import type { GameState, PlaceableKind, PlacedItem } from '../sim/types';
-import { SHEETS, type Sheet } from './assets';
+import { SHEETS, sheetPxPerLogical, type Sheet } from './assets';
 import { landing } from './doors';
 import type { Facing } from './player';
 import { TILE } from './roomArt';
@@ -131,14 +131,18 @@ export function placedProps(state: GameState, room: Room, carrying: boolean): Pr
   );
 }
 
-/** The furniture placed in `room` as sorted, walk-through pieces over their footprints (roomArt's `furnitureSprites`). */
+/**
+ * The furniture placed in `room` as sorted, walk-through pieces over their
+ * footprints (roomArt's `furnitureSprites`), each standing its sheet's height
+ * above its footprint (the 0.6 m pedestal 12 px, the 0.4 m shelf 8 px).
+ */
 export function placedFurniture(state: GameState, room: Room): Furniture[] {
-  return placedIn(state, room).map((item) => ({
-    ...footprint(item.kind, item.x, item.y),
-    sheet: PLACEABLE_SHEETS[item.kind],
-    solid: false,
-    sorted: true,
-  }));
+  return placedIn(state, room).map((item) => {
+    const sheet = PLACEABLE_SHEETS[item.kind];
+    const rect = footprint(item.kind, item.x, item.y);
+    const height = sheet.frameHeight / sheetPxPerLogical(sheet) - rect.h;
+    return { ...rect, sheet, solid: false, sorted: true, stands: { height } };
+  });
 }
 
 function overlaps(a: Rect, b: Rect): boolean {

@@ -143,7 +143,7 @@ function bark() {
 const GROUND = {
   size: 64,
   disc: 29,
-  shadow: { cx: 29.02, cy: 33.19, r: 21.34 },
+  shadow: { cx: 31.66, cy: 34.36, r: 20.51 },
 };
 
 function ground() {

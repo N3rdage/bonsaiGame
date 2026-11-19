@@ -92,8 +92,22 @@ export interface RoomWindow {
 export interface Furniture extends Rect {
   readonly sheet: Sheet;
   readonly solid: boolean;
-  /** The shed's decor: a faint ground shadow under the piece's foot (roomArt's `furnitureShadows`). */
-  readonly shadow?: boolean;
+  /**
+   * What the piece stands on and how tall it is, so it casts a shadow on the
+   * floor (roomArt's `castShadows`): `height` logical px (its front face, real
+   * height x 21.33 px/m) on a footprint of the rect's bottom `foot` px (the
+   * whole rect unless given; a piece whose rect is its whole drawn frame
+   * stands on the frame's bottom). None for a piece that is `flat` or drawn on
+   * another that casts (a wall's cap, a window, a building's face on the
+   * footprint its roof stands for).
+   */
+  readonly stands?: { readonly height: number; readonly foot?: number };
+  /**
+   * Lies flat on the floor (a runner, the kitchen's tiles, the front garden's
+   * road, drive, path and beds): baked with the floor, under the cast
+   * shadows, where every other baked piece is drawn over them.
+   */
+  readonly flat?: boolean;
   /**
    * Left out of the bake and drawn as its own sprite at its bottom edge's
    * depth (roomArt's `furnitureSprites`), so the player walks behind and in
@@ -220,9 +234,11 @@ export function prop(
  * Not solid: the prototype's decor was draw-only, with no collision, and a
  * solid shelf against the top wall would block the walk up from the left half
  * of the shed along y 66. A piece standing on the floor is `sorted` against
- * the player; the shelf stays in the bake.
+ * the player; the shelf stays in the bake. Each stands `height` logical px
+ * tall (art/inked/shed.mjs's real heights at 21.33 px/m) on the rest of its
+ * frame below that.
  */
-function decor(sheet: Sheet, px: number, py: number, sorted: boolean): Furniture {
+function decor(sheet: Sheet, px: number, py: number, sorted: boolean, height: number): Furniture {
   const w = sheet.frameWidth / sheetPxPerLogical(sheet);
   const h = sheet.frameHeight / sheetPxPerLogical(sheet);
   return {
@@ -232,7 +248,7 @@ function decor(sheet: Sheet, px: number, py: number, sorted: boolean): Furniture
     w,
     h,
     solid: false,
-    shadow: true,
+    stands: { height, foot: h - height },
     sorted,
   };
 }
@@ -252,11 +268,12 @@ export const SHED_ROOM: Room = {
   walls: ringWalls(SHED_BOUNDS),
   // The workshop's working furniture is its props; this is Draw_0's clutter.
   furniture: [
-    decor(SHEETS.shelf, 440, 174, false),
-    decor(SHEETS.tools, 212, 352, true),
-    decor(SHEETS.wateringCan, 706, 256, true),
-    decor(SHEETS.potStack, 706, 388, true),
-    decor(SHEETS.sack, 300, 384, true),
+    // The 0.6 m shelf, the 1.5 m spade and rake, the 0.3 m can, the 0.6 m pots and sack.
+    decor(SHEETS.shelf, 440, 174, false, 12),
+    decor(SHEETS.tools, 212, 352, true, 28),
+    decor(SHEETS.wateringCan, 706, 256, true, 6),
+    decor(SHEETS.potStack, 706, 388, true, 12),
+    decor(SHEETS.sack, 300, 384, true, 12),
   ],
   props: [
     prop('workbench', 'Workbench', 'Make Pot', 250, 180, 40, 20),

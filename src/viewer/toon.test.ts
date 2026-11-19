@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { castOffset } from '../world/lighting';
+import { DEFAULT_YAW, RESET_YAW, cameraEye, createOrbitCamera, toViewerSpace } from './camera';
+import { shadowOffset } from './ground';
 import { unit } from './meshArrays';
 import {
   INK_RGB,
@@ -8,6 +11,7 @@ import {
   SURROUND_RGB,
   TOON_RAMP,
   bothWindings,
+  roomLight,
   toonRampBytes,
 } from './toon';
 
@@ -52,6 +56,28 @@ describe('the Inked viewer constants', () => {
     const { x, y, z } = LIGHT_DIRECTION;
     expect(Math.hypot(x, y, z)).toBeCloseTo(1, 12);
     expect(z).toBeGreaterThan(0.7);
+  });
+
+  it("is the rooms' one light: at the default orbit a shadow falls the rooms' way, as far per unit of height", () => {
+    expect(LIGHT_DIRECTION).toEqual(roomLight(DEFAULT_YAW));
+    expect(RESET_YAW).toBe(DEFAULT_YAW);
+    // The camera's right along the ground and the way toward it, in the tree's own space (z up,
+    // before the y mirror), from the eye's place (cameraEye).
+    const eye = cameraEye(createOrbitCamera());
+    const toward = unit({ x: eye.x, y: eye.y, z: 0 });
+    const right = { x: toward.y, y: -toward.x, z: 0 };
+    // On screen the right is the right: the eye, looking at the trunk, sees `right` to its right
+    // once the y mirror (toViewerSpace) is applied.
+    const view = toViewerSpace(right);
+    const forward = toViewerSpace({ x: -toward.x, y: -toward.y, z: 0 });
+    expect(forward.x * view.y - forward.y * view.x).toBeLessThan(0);
+    const offset = shadowOffset(1);
+    const room = castOffset(1);
+    expect(offset.x * right.x + offset.y * right.y).toBeCloseTo(room.x, 12);
+    expect(offset.x * toward.x + offset.y * toward.y).toBeCloseTo(room.y, 12);
+    // So the pool falls right of the trunk and toward the camera, down the screen, as a room's.
+    expect(room.x).toBeGreaterThan(0);
+    expect(room.y).toBeGreaterThan(0);
   });
 
   it('pins the outline', () => {
