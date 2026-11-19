@@ -79,7 +79,8 @@ export const WASHES = {
 /**
  * How far from paper a finished pixel may be and still count as paper when a
  * cut-out sprite (`finishCutOut`) drops the paper around its forms: above
- * the grain's deepest darkening, below every wash as it lands.
+ * the grain's deepest darkening. A wash that lands within it (`wall`,
+ * `cream`) survives a cut-out only inside an ink edge.
  */
 export const CUT_OUT_TOLERANCE = 42;
 /** Which washes wear as which material: wood splits and knots, pots chip and ring, cloth frays and stains. */
