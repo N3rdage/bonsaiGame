@@ -116,6 +116,7 @@ export const STYLE = {
   washGranulation: 0.06,
   grain: 0.04,
   shadowAlpha: 0.45,
+  castShadow: { direction: [0.8, 0.6], length: 0.5 },
   crossHatch: { angle: -0.75, spacing: 1.7 },
   cornerShade: 7,
   wear: 0.3,

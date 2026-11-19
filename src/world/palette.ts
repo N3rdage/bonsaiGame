@@ -2,7 +2,8 @@
  * The Inked palette entries the world draws with at runtime, as 0xRRGGBB:
  * each mirrors the `WASHES` entry of the same name in art/inked/style.mjs,
  * where the art's colours live. The gardens' season washes (roomArt's
- * `seasonWash`) and the weather's particles (weather.ts) read them here.
+ * `seasonWash`), the cast shadows' wash and the weather's particles
+ * (weather.ts) read them here.
  */
 export const PALETTE = {
   /** The gardens' season washes: WASHES.lawnSpring, lawnAutumn, frost. */
@@ -26,4 +27,6 @@ export const PALETTE = {
   snowShade: 0xe2ecf6,
   /** The indoor rooms' dust motes: WASHES.mote. */
   mote: 0xe8e2c8,
+  /** The cast shadows on every room's floor (roomArt's `castShadows`): WASHES.shadow. */
+  shadow: 0x6e5e50,
 } as const;
