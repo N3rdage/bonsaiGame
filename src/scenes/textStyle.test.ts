@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   DESKTOP_UI,
@@ -11,14 +12,82 @@ import { caveatMetrics, textWidthEm } from './caveatMetrics';
 import {
   FONT_FAMILY,
   FONT_KEY,
+  INK,
   INK_OVERHANG_EM,
-  TEXT_BACKING,
+  PANEL_STYLE,
+  PAPER,
+  SURROUND,
   bodyStyle,
+  cssColour,
   hudStyle,
   inkPadding,
   labelStyle,
+  mixColour,
+  panelFrame,
   worldLabelStyle,
 } from './textStyle';
+
+/**
+ * art/inked/style.mjs's `export const NAME = [r, g, b];` as 0xRRGGBB, read
+ * from its source as src/world/palette.test.ts reads its WASHES (the
+ * generator's module is untyped JavaScript the tests cannot import).
+ */
+function inkedColour(name: string): number {
+  const source = readFileSync(new URL('../../art/inked/style.mjs', import.meta.url), 'utf8');
+  const m = new RegExp(`^export const ${name} = \\[(\\d+), (\\d+), (\\d+)\\];`, 'm').exec(source);
+  return m ? (Number(m[1]) << 16) | (Number(m[2]) << 8) | Number(m[3]) : NaN;
+}
+
+/** A file of the project as text. */
+const projectFile = (path: string): string =>
+  readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
+
+describe('the panel style', () => {
+  it("is drawn in art/inked/style.mjs's paper, ink and surround", () => {
+    expect([PAPER, INK, SURROUND]).toEqual([0xf2eada, 0x322a26, 0x3e3632]);
+    expect(PAPER).toBe(inkedColour('PAPER'));
+    expect(INK).toBe(inkedColour('INK'));
+    expect(SURROUND).toBe(inkedColour('SURROUND'));
+    expect([PANEL_STYLE.paper, PANEL_STYLE.ink, PANEL_STYLE.dim.colour]).toEqual([PAPER, INK, INK]);
+    expect(PANEL_STYLE.text).toBe(cssColour(INK));
+  });
+
+  it('shades the band and fades the softer and greyed inks towards the paper', () => {
+    expect(cssColour(0x0a0b0c)).toBe('#0a0b0c');
+    expect(PANEL_STYLE.band).toBe(mixColour(PAPER, INK, 0.08));
+    expect(PANEL_STYLE.soft).toBe(cssColour(mixColour(INK, PAPER, 0.3)));
+    expect(PANEL_STYLE.disabled).toBe(cssColour(mixColour(INK, PAPER, 0.55)));
+    expect([PANEL_STYLE.rule, PANEL_STYLE.innerRule]).toEqual([1, { inset: 3, alpha: 0.35 }]);
+  });
+
+  it('puts the page behind the canvas in the surround', () => {
+    const surround = cssColour(SURROUND);
+    const html = projectFile('index.html');
+    expect(html).toContain(`<meta name="theme-color" content="${surround}" />`);
+    expect(html).toMatch(new RegExp(`body \\{[^}]*background: ${surround};`));
+    const vite = projectFile('vite.config.ts');
+    expect(vite).toContain(`theme_color: '${surround}'`);
+    expect(vite).toContain(`background_color: '${surround}'`);
+  });
+
+  it('frames a panel with an ink rule, a fainter one 3 px in, and the title band over its own rule', () => {
+    const box = { x: 40, y: 60, w: 400, h: 150 };
+    expect(panelFrame(box).band).toBeUndefined();
+    const framed = panelFrame(box, 24);
+    expect(framed.band).toEqual({ x: 40, y: 60, w: 400, h: 24 });
+    expect(framed.rules).toEqual([
+      { x: 40, y: 83, w: 400, h: 1, alpha: 1 },
+      { x: 40, y: 60, w: 400, h: 1, alpha: 1 },
+      { x: 40, y: 209, w: 400, h: 1, alpha: 1 },
+      { x: 40, y: 61, w: 1, h: 148, alpha: 1 },
+      { x: 439, y: 61, w: 1, h: 148, alpha: 1 },
+      { x: 43, y: 63, w: 394, h: 1, alpha: 0.35 },
+      { x: 43, y: 206, w: 394, h: 1, alpha: 0.35 },
+      { x: 43, y: 64, w: 1, h: 142, alpha: 0.35 },
+      { x: 436, y: 64, w: 1, h: 142, alpha: 0.35 },
+    ]);
+  });
+});
 
 /**
  * The bound every layout counts a character at, in em: 6 px at 10 px. The
@@ -52,7 +121,7 @@ describe('the UI font', () => {
     const style = (px: number) => ({
       fontFamily: FONT_FAMILY,
       fontSize: `${String(px)}px`,
-      color: '#d8e6c8',
+      color: '#322a26',
       padding: { left: 0, right: inkPadding(px), top: 0, bottom: 0 },
     });
     expect(labelStyle(DESKTOP_UI)).toEqual(style(8));
@@ -62,15 +131,12 @@ describe('the UI font', () => {
     expect(labelStyle({ hit: 44, label: 14, body: 14 }).fontSize).toBe('14px');
   });
 
-  it('backs the HUD rows and the world labels with Inked ink at 0.6 alpha, 2 px across and 1 px down', () => {
-    // INK in art/inked/style.mjs.
-    expect(TEXT_BACKING).toEqual({
-      backgroundColor: 'rgba(50, 42, 38, 0.6)',
-      padding: { x: 2, y: 1 },
-    });
+  it('backs the HUD rows and the world labels with a paper plate, 2 px across and 1 px down', () => {
+    expect(PANEL_STYLE.plate).toEqual({ fill: '#f2eada', padding: { x: 2, y: 1 } });
+    expect(PANEL_STYLE.plate.fill).toBe(cssColour(PAPER));
     for (const ui of [DESKTOP_UI, PHONE_UI]) {
       const plate = (px: number) => ({
-        backgroundColor: TEXT_BACKING.backgroundColor,
+        backgroundColor: PANEL_STYLE.plate.fill,
         padding: { left: 2, right: 2 + inkPadding(px), top: 1, bottom: 1 },
       });
       expect(hudStyle(ui)).toEqual({ ...bodyStyle(ui), ...plate(ui.body) });

@@ -34,8 +34,9 @@ export default defineConfig({
         name: 'Bonsai Greenhouse',
         short_name: 'Bonsai',
         description: 'A cozy bonsai-growing sim.',
-        theme_color: '#3b5d3a',
-        background_color: '#1d2a1c',
+        // The Inked surround (SURROUND in src/scenes/textStyle.ts), as the page behind the canvas.
+        theme_color: '#3e3632',
+        background_color: '#3e3632',
         display: 'standalone',
         // Phones run landscape only (src/platform/orientation.ts); the installed app opens that way.
         orientation: 'landscape',

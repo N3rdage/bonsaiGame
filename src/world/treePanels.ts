@@ -6,6 +6,7 @@
  * WorldScene draws them and maps their rows to the sim's actions.
  */
 
+import { PANEL_STYLE } from '../scenes/textStyle';
 import { inventoryCount } from '../sim/inventory';
 import { scoreTree } from '../sim/scoring';
 import { sellPrice } from '../sim/shop';
@@ -25,8 +26,9 @@ import {
 } from './panels';
 import { DESKTOP_UI, type UiMetrics } from './uiScale';
 
-/** obj_ui_tree_sell_confirm's price colour, rgb(220, 200, 120). */
-export const PRICE_COLOR = '#dcc878';
+/** The sale price in the note ink, the questions in ink (PANEL_STYLE). */
+export const PRICE_COLOR = PANEL_STYLE.note;
+const QUESTION_COLOR = PANEL_STYLE.text;
 
 /** The prototype's `"<name>"`, or `(unnamed)`. */
 function quoted(tree: BonsaiTree): string {
@@ -54,7 +56,7 @@ export function repotPanel(
   const pots = inventoryCount(state.inventory, 'pot');
   const fancy = inventoryCount(state.inventory, 'fancy_pot');
   const items: Omit<PanelRow, 'y'>[] = [
-    { text: `Repot ${quoted(tree)}?`, id: '', color: '#ffffff' },
+    { text: `Repot ${quoted(tree)}?`, id: '', color: QUESTION_COLOR },
     { text: species(tree), id: '' },
     { text: `Current pot: ${tree.potTier === 1 ? 'Fancy' : 'Standard'}`, id: '' },
     { text: `Vigor: ${String(Math.floor(tree.vigor))} / 100 (resets to 50)`, id: '' },
@@ -100,7 +102,7 @@ export function sellPanel(tree: BonsaiTree): PanelModel {
     box: TALL_PANEL,
     rows: rows(
       [
-        { text: `Sell ${quoted(tree)}?`, id: '', color: '#ffffff' },
+        { text: `Sell ${quoted(tree)}?`, id: '', color: QUESTION_COLOR },
         { text: species(tree), id: '' },
         { text: `Score: ${String(scoreTree(tree).total)} / 100`, id: '' },
         { text: `Sale price: ${String(sellPrice(tree))} coins`, id: '', color: PRICE_COLOR },
@@ -152,7 +154,7 @@ export function renamePanel(tree: BonsaiTree, typed: string): PanelModel {
     title: 'Rename Tree',
     rows: rows([
       { text: `Current name: ${quoted(tree)}`, id: '' },
-      { text: 'New name:', id: '', color: '#ffffff' },
+      { text: 'New name:', id: '', color: QUESTION_COLOR },
       { text: renameCounter(typed), id: '' },
       { text: 'Save', id: 'panel-rename-save' },
     ]),

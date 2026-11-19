@@ -14,10 +14,12 @@ import {
   type PickerMode,
   type SlotRow,
 } from '../world/saveSlots';
+import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import {
   PANEL,
   PANEL_CLOSE_LABEL,
   PANEL_INSET,
+  PANEL_TITLE_H,
   fitRows,
   panelClose,
   panelTitleY,
@@ -28,10 +30,14 @@ import { SoundPlayer } from './audio';
 import { crispText, fitCamera, hitArea, sceneUi, sceneZoom, setHitArea } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { IDLE_HOOK, type TitleSceneData, type WorldSceneData } from './sceneData';
-import { TEXT_COLOR, bodyStyle, fontLoaded } from './textStyle';
+import { drawPanel, underline } from './inkPanel';
+import { PANEL_STYLE, bodyStyle, fontLoaded } from './textStyle';
 
-const DISABLED = '#5f6b58';
 const CENTER_X = 240;
+/** The title page: the whole canvas, one paper panel on the surround. */
+const PAGE = { x: 0, y: 0, w: GAME_WIDTH, h: GAME_HEIGHT } as const;
+/** The slot picker's and the overwrite confirmation's box, centred. */
+const PICKER_BOX = { x: CENTER_X - 200, y: 75, w: 400, h: 150 } as const;
 /** The title's size, and the menu buttons' (never under the copy's). */
 const TITLE_PX = 20;
 const TITLE_BUTTON_PX = 12;
@@ -58,7 +64,7 @@ type View =
 /**
  * Title (obj_title): New Game, Continue and Load Game over src/sim/save.ts,
  * with the slot picker of obj_ui_save_slots, and Settings
- * (src/world/settingsPanel.ts). Placeholder-styled like the world; the
+ * (src/world/settingsPanel.ts). An ink-and-paper page (PANEL_STYLE) like the world's panels; the
  * prototype's 3D hero tree is not ported yet and its Quit is not ported (a web
  * page has no quit). Every button also has a key (Enter, C, L, S; 1-3 in the
  * picker; Y/N to confirm; Escape to back out) so tests drive it without canvas
@@ -221,17 +227,24 @@ export class TitleScene extends Phaser.Scene {
     const text = this.text(x, y, label, {
       ...this.style(),
       fontSize: `${String(size)}px`,
-      color: enabled ? '#ffffff' : DISABLED,
+      color: enabled ? PANEL_STYLE.text : PANEL_STYLE.disabled,
     }).setOrigin(originX, 0.5);
+    this.layer.add(text);
     if (enabled) {
       setHitArea(text, this.ui.hit).on('pointerup', () => {
         this.sfx.tap(onClick);
         if (!this.leaving) this.publishHook();
       });
       this.buttons.push({ id, text });
+      this.layer.add(underline(this, text));
     }
-    this.layer.add(text);
     return text;
+  }
+
+  /** A paper panel over `box` with its frame (drawPanel), its title band `titleH` px tall; the title has no joystick for it to shield. */
+  private panel(box: { x: number; y: number; w: number; h: number }, titleH = 0): void {
+    const [paper, frame] = drawPanel(this, box, titleH);
+    this.layer.add([paper.removeInteractive(), frame]);
   }
 
   /** The title's copy style, from the UI metrics. */
@@ -253,24 +266,25 @@ export class TitleScene extends Phaser.Scene {
     return crispText(this, x, y, text, style);
   }
 
-  private label(x: number, y: number, text: string, color = TEXT_COLOR): void {
+  private label(x: number, y: number, text: string, color: string = PANEL_STYLE.text): void {
     this.layer.add(this.text(x, y, text, { ...this.style(), color }).setOrigin(0.5));
   }
 
   private draw(): void {
     this.layer.removeAll(true);
     this.buttons = [];
+    this.panel(PAGE);
     this.layer.add(
       this.text(CENTER_X, 34, 'Bonsai Greenhouse', {
         ...this.style(),
         fontSize: `${String(TITLE_PX)}px`,
-        color: '#ffffff',
+        color: PANEL_STYLE.heading,
       }).setOrigin(0.5),
     );
-    this.label(CENTER_X, 56, 'A cozy bonsai-growing sim', '#a0b496');
+    this.label(CENTER_X, 56, 'A cozy bonsai-growing sim', PANEL_STYLE.soft);
     this.versionLink = this.text(474, 264, `v${__APP_VERSION__} (${COMMIT})`, {
       ...this.style(),
-      color: DISABLED,
+      color: PANEL_STYLE.disabled,
     }).setOrigin(1, 1);
     setHitArea(this.versionLink, this.ui.hit).on('pointerup', () => {
       window.open(__APP_COMMIT_URL__, '_blank', 'noopener');
@@ -301,15 +315,8 @@ export class TitleScene extends Phaser.Scene {
     } else if (view.kind === 'settings') {
       this.drawSettings();
     } else if (view.kind === 'picker') {
-      this.layer.add(
-        this.add.rectangle(CENTER_X, 150, 400, 150, 0x28322a).setStrokeStyle(1, 0x8ca078),
-      );
-      this.label(
-        CENTER_X,
-        88,
-        view.mode === 'new' ? 'New Game - Pick a Slot' : 'Load Game',
-        '#ffffff',
-      );
+      this.panel(PICKER_BOX, PANEL_TITLE_H);
+      this.label(CENTER_X, 88, view.mode === 'new' ? 'New Game - Pick a Slot' : 'Load Game');
       const y = (i: number): number => PICKER_TOP + i * pitch(PICKER_PITCH);
       this.rows.forEach((row, i) => {
         const action =
@@ -332,12 +339,15 @@ export class TitleScene extends Phaser.Scene {
       });
     } else {
       const row = this.rows[view.slot - 1];
-      this.layer.add(
-        this.add.rectangle(CENTER_X, 150, 400, 150, 0x28322a).setStrokeStyle(1, 0x8ca078),
+      this.panel(PICKER_BOX);
+      this.label(CENTER_X, 96, `Slot ${String(view.slot)} already has a save:`);
+      if (row) this.label(CENTER_X, 116, slotRowText(row), PANEL_STYLE.note);
+      this.label(
+        CENTER_X,
+        140,
+        'Overwriting starts a new game and erases this save.',
+        PANEL_STYLE.warn,
       );
-      this.label(CENTER_X, 96, `Slot ${String(view.slot)} already has a save:`, '#ffffff');
-      if (row) this.label(CENTER_X, 116, slotRowText(row), '#dcc878');
-      this.label(CENTER_X, 140, 'Overwriting starts a new game and erases this save.', '#dca0a0');
       this.button('confirm-no', CENTER_X - 60, 190, 'Cancel (N)', true, () => {
         this.show({ kind: 'picker', mode: 'new' });
       });
@@ -345,7 +355,7 @@ export class TitleScene extends Phaser.Scene {
         this.startGame(view.slot, createNewGameState());
       });
     }
-    if (this.message) this.label(CENTER_X, 240, this.message, '#dca0a0');
+    if (this.message) this.label(CENTER_X, 240, this.message, PANEL_STYLE.warn);
     this.publishHook();
   }
 
@@ -353,19 +363,9 @@ export class TitleScene extends Phaser.Scene {
   private drawSettings(): void {
     const model = fitRows(settingsPanel(this.ctx.settings, fullscreenState(this)), this.ui);
     const box = model.box ?? PANEL;
-    this.layer.add(
-      this.add
-        .rectangle(box.x, box.y, box.w, box.h, 0x28322a)
-        .setOrigin(0)
-        .setStrokeStyle(1, 0x8ca078),
-    );
+    this.panel(box, PANEL_TITLE_H);
     const left = box.x + PANEL_INSET;
-    this.layer.add(
-      this.text(left, panelTitleY(box), model.title, {
-        ...this.style(),
-        color: '#ffffff',
-      }).setOrigin(0, 0.5),
-    );
+    this.layer.add(this.text(left, panelTitleY(box), model.title, this.style()).setOrigin(0, 0.5));
     const size = this.ui.body;
     for (const row of model.rows) {
       this.button(

@@ -6,6 +6,7 @@
  * them, the corner panel at HUD depth and the confirmation as a modal panel.
  */
 
+import { PANEL_STYLE } from '../scenes/textStyle';
 import { TUTORIAL_DONE, tutorialStepBody, tutorialStepLabel } from '../sim/tutorial';
 import { INTERACT_BUTTON } from './menu';
 import { PANEL_INSET, panelClose, rowY, wrapLines, type PanelModel } from './panels';
@@ -63,11 +64,11 @@ function boxBottom(ui: UiMetrics): number {
   return Math.min(TUTORIAL_BOX.bottom, skipY + SKIP_LINE_H + GAP);
 }
 
-/** The prototype's heading green rgb(170, 200, 150), body grey rgb(190, 190, 190) and hint rgb(140, 160, 130). */
-export const TUTORIAL_HEADING_COLOR = '#aac896';
-const LABEL_COLOR = '#ffffff';
-const BODY_COLOR = '#bebebe';
-const HINT_COLOR = '#8ca082';
+/** The heading in the heading ink, the label in ink, the body and the hint softer (PANEL_STYLE). */
+const HEADING_COLOR = PANEL_STYLE.heading;
+const LABEL_COLOR = PANEL_STYLE.text;
+const BODY_COLOR = PANEL_STYLE.soft;
+const HINT_COLOR = PANEL_STYLE.soft;
 
 /** One 8 px line, origin top-left. */
 export interface TutorialText {
@@ -136,7 +137,7 @@ export function tutorialPanel(
   return {
     box: { x, y, w, h },
     texts: [
-      { text: parts.heading, x: left, y: y + HEADING_DY, color: TUTORIAL_HEADING_COLOR },
+      { text: parts.heading, x: left, y: y + HEADING_DY, color: HEADING_COLOR },
       { text: parts.label, x: left, y: y + labelDy, color: LABEL_COLOR },
       ...body.map((text, i) => ({
         text,
@@ -163,8 +164,8 @@ export const SKIP_CONFIRM_PANEL = { x: 90, y: 80, w: 300, h: 110, rowSpacing: 14
 const GLYPH_W = 6;
 /** Characters per line inside SKIP_CONFIRM_PANEL at 10 px. */
 const CONFIRM_WRAP = 46;
-/** obj_ui_tutorial_skip_confirm's second line, rgb(180, 180, 180). */
-const CONFIRM_NOTE_COLOR = '#b4b4b4';
+/** The confirmation's first line in ink, its second softer (PANEL_STYLE). */
+const CONFIRM_NOTE_COLOR = PANEL_STYLE.soft;
 
 /** obj_ui_tutorial_skip_confirm: Cancel closes, Skip calls `tutorialSkip`; both sit on Close's line. */
 export function skipConfirmPanel(): PanelModel {
@@ -172,7 +173,7 @@ export function skipConfirmPanel(): PanelModel {
   const left = box.x + PANEL_INSET;
   const lines = [
     ...wrapLines("The corner prompts will go away and you'll be on your own.", CONFIRM_WRAP).map(
-      (text) => ({ text, color: '#ffffff' }),
+      (text) => ({ text, color: PANEL_STYLE.text }),
     ),
     ...wrapLines(
       'You can still figure things out by walking up to objects and pressing E.',

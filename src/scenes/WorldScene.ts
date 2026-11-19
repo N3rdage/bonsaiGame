@@ -37,9 +37,8 @@ import {
 import {
   PANEL,
   PANEL_CLOSE_LABEL,
-  PANEL_DISABLED_COLOR,
   PANEL_INSET,
-  PANEL_TEXT_COLOR,
+  PANEL_TITLE_H,
   fitRows,
   loadSlotsPanel,
   panelClose,
@@ -134,7 +133,6 @@ import {
   notebookPanel,
 } from '../world/notebook';
 import {
-  TUTORIAL_HEADING_COLOR,
   seasonTipParts,
   skipConfirmPanel,
   tutorialPanel,
@@ -163,7 +161,6 @@ import {
   type Sheet,
 } from '../world/assets';
 import {
-  PEDESTAL_EMPTY_COLOUR,
   PEDESTAL_EMPTY_LABEL,
   PEDESTAL_LABEL_DY,
   ROOM_STYLES,
@@ -198,9 +195,12 @@ import {
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
+import { PlateEdges, drawPanel, underline } from './inkPanel';
 import {
   FONT_FAMILY,
+  PANEL_STYLE,
   bodyStyle,
+  cssColour,
   fontLoaded,
   hudStyle,
   labelStyle,
@@ -276,13 +276,7 @@ interface OpenPanel {
 
 type HudPart = Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Visible;
 
-/** Text colours of the inspector's lines and enabled buttons. */
-const INSPECTOR_TEXT = '#ffffff';
-const INSPECTOR_HINT = '#b4b4b4';
-/** obj_ui_panel's title bar band, rgb(60, 80, 55). */
-const TITLE_BAR = 0x3c5037;
-/** ui_bar's dark track and its height in logical px. */
-const BAR_TRACK = 0x282828;
+/** ui_bar's height in logical px. */
 const BAR_H = 6;
 
 /**
@@ -422,6 +416,8 @@ export class WorldScene extends Phaser.Scene {
   private sfx!: SoundPlayer;
   /** The place's ambient loop, behind the Music switch (src/scenes/audio.ts). */
   private music!: MusicPlayer;
+  /** The ink rules round the plated texts (the HUD rows and the world labels). */
+  private plates!: PlateEdges;
 
   constructor() {
     super('world');
@@ -468,6 +464,7 @@ export class WorldScene extends Phaser.Scene {
       this.worldCamera.ignore(o);
     };
     this.events.on(Phaser.Scenes.Events.ADDED_TO_SCENE, toHud);
+    this.plates = new PlateEdges(this);
     this.ui = sceneUi(this);
     this.worldUi = sceneUi(this, worldZoom(window.innerWidth, window.innerHeight));
     fitCamera(this, this.onResize, this.fitWorld);
@@ -488,16 +485,11 @@ export class WorldScene extends Phaser.Scene {
         .setOrigin(0.5, PLAYER_ORIGIN_Y),
     );
     this.promptText = this.inWorld(
-      this.text(0, 0, '', { ...worldLabelStyle(this.worldUi), color: '#ffffff' })
-        .setOrigin(0.5, 1)
-        .setDepth(HUD_DEPTH),
+      this.text(0, 0, '', worldLabelStyle(this.worldUi)).setOrigin(0.5, 1).setDepth(HUD_DEPTH),
     );
 
     const hud = hudStyle(this.ui);
-    this.hud = this.text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), {
-      ...hud,
-      color: '#ffffff',
-    })
+    this.hud = this.text(HUD_BADGE.right, HUD_BADGE.top, hudText(data.state), hud)
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
     this.carryText = this.text(CARRY_TEXT.right, CARRY_TEXT.top, '', hud)
@@ -552,7 +544,7 @@ export class WorldScene extends Phaser.Scene {
       1,
       hud,
     );
-    this.toast = this.text(TOAST_X, 2, '', { ...hud, color: '#ffffff' }).setDepth(HUD_DEPTH);
+    this.toast = this.text(TOAST_X, 2, '', hud).setDepth(HUD_DEPTH);
 
     const keyboard = this.input.keyboard;
     if (!keyboard) throw new Error('WorldScene needs the keyboard plugin');
@@ -698,7 +690,10 @@ export class WorldScene extends Phaser.Scene {
     text: string,
     style: Phaser.Types.GameObjects.Text.TextStyle,
   ): Phaser.GameObjects.Text {
-    return crispText(this, x, y, text, style);
+    const t = crispText(this, x, y, text, style);
+    // A text on the plate (hudStyle, worldLabelStyle) gets the plate's ink rule.
+    if (style.backgroundColor) this.plates.add(t);
+    return t;
   }
 
   /** Hands `o` to the world camera alone (a text at its zoom, so it stays crisp); everything else is the HUD camera's. */
@@ -766,13 +761,20 @@ export class WorldScene extends Phaser.Scene {
     return !this.viewer.isOpen && !this.panel?.modal;
   }
 
-  /** A panel background; interactive, so a press on it reaches nothing beneath. */
-  private panelBox(box: { x: number; y: number; w: number; h: number }, depth: number) {
+  /** A panel's paper and frame (drawPanel), its title band `titleH` px tall; the paper is interactive, so a press on it reaches nothing beneath. */
+  private panelBox(box: { x: number; y: number; w: number; h: number }, depth: number, titleH = 0) {
+    const parts = drawPanel(this, box, titleH);
+    for (const part of parts) part.setDepth(depth);
+    return parts;
+  }
+
+  /** The modal dimmer over the room; interactive, so it takes the presses outside the panel. */
+  private dimmer(): Phaser.GameObjects.Rectangle {
+    const { colour, alpha } = PANEL_STYLE.dim;
     return this.add
-      .rectangle(box.x, box.y, box.w, box.h, 0x28322a)
+      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, colour, alpha)
       .setOrigin(0)
-      .setStrokeStyle(1, 0x8ca078)
-      .setDepth(depth)
+      .setDepth(MODAL_DEPTH)
       .setInteractive();
   }
 
@@ -786,6 +788,7 @@ export class WorldScene extends Phaser.Scene {
       nextKind: next !== undefined && next !== placing ? PLACEABLES[next].label : undefined,
     };
     const bg = this.panelBox(menuPanel(options, this.ui), HUD_DEPTH);
+    const parts: Phaser.GameObjects.GameObject[] = [...bg];
     const actions = {
       inventory: () => {
         this.toggleInventory();
@@ -826,11 +829,12 @@ export class WorldScene extends Phaser.Scene {
         this.togglePlacing();
       },
     };
-    const buttons = menuItems(options, this.ui).map((item) => ({
-      id: `menu-${item.id}`,
-      text: this.hudButton(item.x, item.y, item.label, actions[item.id], 0, 0.5),
-    }));
-    this.panel = { key: 'menu', modal: false, parts: [bg], buttons };
+    const buttons = menuItems(options, this.ui).map((item) => {
+      const text = this.hudButton(item.x, item.y, item.label, actions[item.id], 0, 0.5);
+      parts.push(underline(this, text));
+      return { id: `menu-${item.id}`, text };
+    });
+    this.panel = { key: 'menu', modal: false, parts, buttons };
     this.publishHook();
   }
 
@@ -847,11 +851,6 @@ export class WorldScene extends Phaser.Scene {
     this.joystick = undefined;
     const model = fitRows(unfitted, this.ui);
     const box = model.box ?? PANEL;
-    const dim = this.add
-      .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5)
-      .setOrigin(0)
-      .setDepth(MODAL_DEPTH)
-      .setInteractive();
     const left = box.x + PANEL_INSET;
     const style = bodyStyle(this.ui);
     const text = (y: number, label: string, color: string, x = left) =>
@@ -859,15 +858,15 @@ export class WorldScene extends Phaser.Scene {
         .setOrigin(0, 0.5)
         .setDepth(MODAL_DEPTH);
     const parts: Phaser.GameObjects.GameObject[] = [
-      dim,
-      this.panelBox(box, MODAL_DEPTH),
-      text(panelTitleY(box), model.title, '#ffffff'),
+      this.dimmer(),
+      ...this.panelBox(box, MODAL_DEPTH, PANEL_TITLE_H),
+      text(panelTitleY(box), model.title, PANEL_STYLE.text),
     ];
     const buttons: OpenPanel['buttons'] = [];
     // A greyed row is plain text, not a control.
     const texts = model.rows.map((row, i) => {
       if (!row.id || row.enabled === false) {
-        const color = row.enabled === false ? PANEL_DISABLED_COLOR : PANEL_TEXT_COLOR;
+        const color = row.enabled === false ? PANEL_STYLE.disabled : PANEL_STYLE.text;
         const t = text(row.y, row.text, row.color ?? color, row.x);
         if (row.align === 'right') t.setOrigin(1, 0.5);
         parts.push(t);
@@ -883,7 +882,7 @@ export class WorldScene extends Phaser.Scene {
         0,
         0.5,
       );
-      buttons.push({ id: row.id, text: button.setColor(row.color ?? '#ffffff') });
+      buttons.push({ id: row.id, text: button.setColor(row.color ?? PANEL_STYLE.text) });
       return button;
     });
     const at = panelClose(box);
@@ -897,7 +896,7 @@ export class WorldScene extends Phaser.Scene {
       0.5,
     );
     buttons.push({ id: 'panel-close', text: close });
-    for (const b of buttons) b.text.setDepth(MODAL_DEPTH);
+    for (const b of buttons) parts.push(underline(this, b.text.setDepth(MODAL_DEPTH)));
     this.panel = { key: model.key, modal: true, parts, buttons };
     this.publishHook();
     return texts;
@@ -1023,12 +1022,7 @@ export class WorldScene extends Phaser.Scene {
    * season tip away.
    */
   private tutorialPartsFor(m: TutorialPanelModel): HudPart[] {
-    const { x, y, w, h } = m.box;
-    const bg = this.add
-      .rectangle(x, y, w, h, 0x1c221a, 0.85)
-      .setOrigin(0)
-      .setStrokeStyle(1, Phaser.Display.Color.HexStringToColor(TUTORIAL_HEADING_COLOR).color)
-      .setInteractive();
+    const bg = drawPanel(this, m.box);
     const texts = m.texts.map((t) =>
       this.text(t.x, t.y, t.text, { ...labelStyle(this.ui), color: t.color }),
     );
@@ -1047,11 +1041,13 @@ export class WorldScene extends Phaser.Scene {
         )
       : this.text(bx, by, label, {
           ...bodyStyle(this.ui),
-          color: PANEL_DISABLED_COLOR,
+          color: PANEL_STYLE.disabled,
         }).setOrigin(1, 0);
     if (enabled) this.tutorialButton = { id, text: button };
-    const parts = [bg, ...texts, button];
+    const parts = [...bg, ...texts, button];
     for (const part of parts) part.setDepth(HUD_DEPTH);
+    // After the depth, which the underline takes from its button.
+    if (enabled) parts.push(underline(this, button));
     return parts;
   }
 
@@ -1086,9 +1082,9 @@ export class WorldScene extends Phaser.Scene {
     input.value = tree.name;
     input.style.position = 'fixed';
     input.style.boxSizing = 'border-box';
-    input.style.background = '#141914';
-    input.style.color = '#ffffff';
-    input.style.border = '1px solid #8ca078';
+    input.style.background = cssColour(PANEL_STYLE.paper);
+    input.style.color = PANEL_STYLE.text;
+    input.style.border = `1px solid ${cssColour(PANEL_STYLE.ink)}`;
     input.style.fontFamily = FONT_FAMILY;
     const model = renamePanel(tree, input.value);
     // Where openPanel draws the New name row: the model as fitted to the screen's tap targets.
@@ -1141,16 +1137,13 @@ export class WorldScene extends Phaser.Scene {
     const { state } = this.ctx;
     const m = inspectorPanel(tree, state, this.ui);
     const box = INSPECTOR_PANEL;
-    const line = (l: InspectorText, color = INSPECTOR_TEXT) =>
+    const line = (l: InspectorText, color: string = PANEL_STYLE.text) =>
       this.text(l.x, l.y, l.text, { ...labelStyle(this.ui), color }).setOrigin(0, 0.5);
-    const big = { ...bodyStyle(this.ui), color: INSPECTOR_TEXT };
+    const big = bodyStyle(this.ui);
+    const track = PANEL_STYLE.barTrack;
     const parts: (Phaser.GameObjects.GameObject & Phaser.GameObjects.Components.Depth)[] = [
-      this.add
-        .rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.5)
-        .setOrigin(0)
-        .setInteractive(),
-      this.panelBox(box, MODAL_DEPTH),
-      this.add.rectangle(box.x, box.y, box.w, INSPECTOR_TITLE_H, TITLE_BAR).setOrigin(0),
+      this.dimmer(),
+      ...this.panelBox(box, MODAL_DEPTH, INSPECTOR_TITLE_H),
       this.text(box.x + INSPECTOR_INSET, box.y + INSPECTOR_TITLE_H / 2, m.title, big).setOrigin(
         0,
         0.5,
@@ -1161,14 +1154,16 @@ export class WorldScene extends Phaser.Scene {
       ...m.breakdown.flatMap((c) => [line(c.label), line(c.value)]),
       ...m.bars.flatMap((b) => [
         line({ text: b.label, x: b.x, y: b.y }),
-        this.add.rectangle(b.trackX, b.y, b.trackW, BAR_H, BAR_TRACK).setOrigin(0, 0.5),
+        this.add
+          .rectangle(b.trackX, b.y, b.trackW, BAR_H, track.colour, track.alpha)
+          .setOrigin(0, 0.5),
         this.add
           .rectangle(b.trackX, b.y, b.trackW * clamp(b.value / b.max, 0, 1), BAR_H, b.color)
           .setOrigin(0, 0.5),
         this.add
           .rectangle(b.trackX, b.y, b.trackW, BAR_H)
           .setOrigin(0, 0.5)
-          .setStrokeStyle(1, 0xffffff),
+          .setStrokeStyle(PANEL_STYLE.rule, PANEL_STYLE.ink),
         line({ text: b.text, x: b.textX, y: b.y }),
       ]),
       line(m.footer, FOOTER_COLOR),
@@ -1207,7 +1202,8 @@ export class WorldScene extends Phaser.Scene {
     for (const b of m.buttons) {
       if (b.enabled) {
         const text = this.hudButton(b.x, b.y, b.label, actions[b.id], 0, 0.5);
-        buttons.push({ id: `panel-${b.id}`, text: text.setColor(INSPECTOR_TEXT) });
+        buttons.push({ id: `panel-${b.id}`, text });
+        parts.push(underline(this, text));
       } else {
         parts.push(
           this.text(b.x, b.y, b.label, { ...big, color: DISABLED_COLOR }).setOrigin(0, 0.5),
@@ -1224,7 +1220,8 @@ export class WorldScene extends Phaser.Scene {
       1,
       0.5,
     );
-    buttons.push({ id: 'panel-close', text: close.setColor(INSPECTOR_HINT) });
+    buttons.push({ id: 'panel-close', text: close.setColor(PANEL_STYLE.soft) });
+    parts.push(underline(this, close));
     for (const part of parts) part.setDepth(MODAL_DEPTH);
     for (const b of buttons) b.text.setDepth(MODAL_DEPTH);
     this.destroyPanel();
@@ -1731,15 +1728,13 @@ export class WorldScene extends Phaser.Scene {
     for (const p of room.props) {
       if (p.pedestalKey === undefined) continue;
       const tree = treeOnPedestal(state, p.pedestalKey);
-      const label = tree
-        ? this.text(p.x, p.y + PEDESTAL_LABEL_DY, treeLabel(tree), {
-            ...worldLabelStyle(this.worldUi),
-            color: '#ffffff',
-          })
-        : this.text(p.x, p.y + PEDESTAL_LABEL_DY, PEDESTAL_EMPTY_LABEL, {
-            ...worldLabelStyle(this.worldUi),
-            color: PEDESTAL_EMPTY_COLOUR,
-          });
+      // An empty spot's `(empty)` in the softer ink.
+      const label = this.text(
+        p.x,
+        p.y + PEDESTAL_LABEL_DY,
+        tree ? treeLabel(tree) : PEDESTAL_EMPTY_LABEL,
+        { ...worldLabelStyle(this.worldUi), color: tree ? PANEL_STYLE.text : PANEL_STYLE.soft },
+      );
       this.treeParts.push(label.setOrigin(0.5, 0).setDepth(p.y + p.h / 2));
     }
     for (const part of this.treeParts) this.inWorld(part);
