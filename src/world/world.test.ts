@@ -163,7 +163,15 @@ describe('shed room', () => {
     for (const f of SHED_ROOM.furniture) {
       expect([f.w, f.h]).toEqual([f.sheet.frameWidth / 4, f.sheet.frameHeight / 4]);
     }
-    expect(SHED_ROOM.furniture.every((f) => !f.solid && f.shadow === true)).toBe(true);
+    expect(SHED_ROOM.furniture.every((f) => !f.solid)).toBe(true);
+    // Each stands its real height (art/inked/shed.mjs) at 21.33 px/m on the rest of its frame.
+    expect(SHED_ROOM.furniture.map((f) => [f.stands?.height, f.stands?.foot])).toEqual([
+      [12, 8],
+      [28, 4],
+      [6, 6],
+      [12, 8],
+      [12, 8],
+    ]);
     // The floor clutter sorts against the player; the wall-mounted shelf is baked. Of the other
     // rooms only the house rooms sort theirs, the pieces that stand up off the floor.
     expect(SHED_ROOM.furniture.map((f) => f.sorted)).toEqual([false, true, true, true, true]);
@@ -447,7 +455,8 @@ describe('lounge room', () => {
     ]);
     // 17 x 9 tiles of 16 px, 8.5 x 4.5 m at 50 cm a tile.
     expect(insideWalls(LOUNGE_ROOM)).toEqual({ x: 160, y: 64, w: 272, h: 144 });
-    // The block, 6 x 4 tiles, in the floor's north-east corner, drawn as the paper.
+    // The block, 6 x 4 tiles, in the floor's north-east corner, drawn as the paper, standing as
+    // the walls do.
     expect(HALLWAY_BLOCK).toEqual({
       sheet: SHEETS.paper,
       x: 336,
@@ -455,6 +464,7 @@ describe('lounge room', () => {
       w: 96,
       h: 64,
       solid: true,
+      stands: { height: 48 },
     });
     // The kitchen below the block, x 336..432 and y 128..208, its quarry tiles over it, is open
     // floor joined to the lounge inside its counter: 0.6 m (20 px) deep along its south wall and

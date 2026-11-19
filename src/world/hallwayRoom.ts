@@ -30,6 +30,7 @@ export const RUNNER: Furniture = {
   w: 60,
   h: 24,
   solid: false,
+  flat: true,
 };
 
 /**
@@ -45,6 +46,7 @@ export const HALL_TABLE: Furniture = {
   h: 12,
   solid: false,
   sorted: true,
+  stands: { height: 16 },
 };
 
 /** A door's 16 px square centred at (x, y) logical px. */

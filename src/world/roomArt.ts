@@ -3,10 +3,11 @@
  * (obj_game_controller Draw_0), the wall and fence runs (Other_4's ring,
  * obj_wall Draw_0), or a back wall's face and the other walls' caps, the
  * rooms' windows and furniture (the shed's decor, the garden's buildings),
- * the shed's rug, each prop's sprite, the drop shadows (the props' Draw
- * events) and the gardens' season wash, with each room's sheets and extras in
- * one table, ROOM_STYLES. The prototype's numbers are in prototype px and
- * halved here.
+ * the shed's rug, each prop's sprite, the shadows the walls and furniture
+ * cast in the one light (lighting.ts), the prototype's drop shadows (the
+ * props' Draw events) and the gardens' season wash, with each room's sheets
+ * and extras in one table, ROOM_STYLES. The prototype's numbers are in
+ * prototype px and halved here.
  */
 
 import {
@@ -17,6 +18,7 @@ import {
   sheetPxPerLogical,
   sourcePlantFrame,
 } from './assets';
+import { SHADOW_ALPHA, castOffset } from './lighting';
 import { PALETTE } from './palette';
 import { PROTOTYPE_SCALE } from './prototype';
 import type { Season } from '../sim/seasons';
@@ -24,6 +26,7 @@ import type { Sheet } from './assets';
 import {
   fromPrototype,
   insideWalls,
+  ringWalls,
   type Furniture,
   type Prop,
   type Rect,
@@ -54,6 +57,18 @@ export const SHED_RUG: Rect = {
 export const BACK_WALL_FACE = 48;
 /** The scale rule's 0.25 m wall cap: an 8 px band. */
 export const WALL_CAP = 8;
+/** The gardens' 0.75 m fence stands 16 px, the front garden's low 0.5 m fence 11 (10.67, the scale rule's 21.33 px/m). */
+export const FENCE_HEIGHT = 16;
+export const LOW_FENCE_HEIGHT = 11;
+
+/** How tall a room's walls stand, logical px: its top and bottom rows, and its left and right columns. */
+export interface WallHeight {
+  readonly row: number;
+  readonly column: number;
+}
+
+/** A room's walls the back wall's 2.4 m all round. */
+const FULL_HEIGHT: WallHeight = { row: BACK_WALL_FACE, column: BACK_WALL_FACE };
 
 /**
  * A room whose back wall is drawn as its face: `sheet`, TILE wide and
@@ -83,6 +98,13 @@ export interface RoomStyle {
   readonly wallColumn: Sheet;
   /** The back wall drawn as a face standing on the floor line, the other walls as caps; none for a ring of whole bands. */
   readonly face?: WallFace;
+  /**
+   * How tall the ring's walls stand, so each casts its shadow on the floor
+   * (castShadows): the face's 2.4 m all round where the room has a face,
+   * the 0.75 m fence round the back garden, and the front garden's low
+   * 0.5 m fence along its rows with the 0.75 m fence down its columns.
+   */
+  readonly wallHeight: WallHeight;
   /** The sheet the room's windows are drawn with; none for a room with no windows. */
   readonly window?: WindowStyle;
   /** An inset room's floor fills only the inside of its ring; an outdoor one fills the canvas. */
@@ -114,6 +136,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallRow: SHEETS.shedCap,
     wallColumn: SHEETS.shedCapV,
     face: { sheet: SHEETS.shedWall, height: BACK_WALL_FACE, cap: WALL_CAP },
+    wallHeight: FULL_HEIGHT,
     window: { sheet: SHEETS.shedWindow, top: 44 },
     inset: true,
     rug: { sheet: SHEETS.shedRug, ...SHED_RUG },
@@ -125,6 +148,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     floor: SHEETS.floorGarden,
     wallRow: SHEETS.fence,
     wallColumn: SHEETS.fenceV,
+    wallHeight: { row: FENCE_HEIGHT, column: FENCE_HEIGHT },
     inset: false,
     corner: SHEETS.fenceCorner,
     paper: false,
@@ -139,6 +163,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     floor: SHEETS.floorGarden,
     wallRow: SHEETS.fenceLow,
     wallColumn: SHEETS.fenceV,
+    wallHeight: { row: LOW_FENCE_HEIGHT, column: FENCE_HEIGHT },
     inset: false,
     paper: false,
   },
@@ -147,6 +172,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallRow: SHEETS.loungeCap,
     wallColumn: SHEETS.loungeCapV,
     face: { sheet: SHEETS.wallLounge, height: BACK_WALL_FACE, cap: WALL_CAP },
+    wallHeight: FULL_HEIGHT,
     window: { sheet: SHEETS.loungeWindow, top: 44 },
     inset: true,
     paper: true,
@@ -156,6 +182,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallRow: SHEETS.hallwayCap,
     wallColumn: SHEETS.hallwayCapV,
     face: { sheet: SHEETS.wallHallway, height: BACK_WALL_FACE, cap: WALL_CAP },
+    wallHeight: FULL_HEIGHT,
     inset: true,
     paper: true,
   },
@@ -164,6 +191,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallRow: SHEETS.studyCap,
     wallColumn: SHEETS.studyCapV,
     face: { sheet: SHEETS.wallStudy, height: BACK_WALL_FACE, cap: WALL_CAP },
+    wallHeight: FULL_HEIGHT,
     window: { sheet: SHEETS.studyWindow, top: 44 },
     inset: true,
     paper: true,
@@ -176,6 +204,7 @@ export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
     wallRow: SHEETS.greenhouseCap,
     wallColumn: SHEETS.greenhouseCapV,
     face: { sheet: SHEETS.greenhouseWall, height: BACK_WALL_FACE, cap: WALL_CAP },
+    wallHeight: FULL_HEIGHT,
     inset: true,
     paper: true,
   },
@@ -256,18 +285,18 @@ export function bakeScale(room: Room, style: RoomStyle = ROOM_STYLES[room.key]):
 
 /**
  * Other_4's ring round the room's bounds, then the room's windows
- * (windowRuns), so the bake draws them over the wall, and last its furniture
- * (furnitureRuns), over the floor and walls: the garden's buildings cover the
- * ring where the plan has no fence. A room with a `face` (the shed, the house
- * rooms, the greenhouse) draws its ring as the face and caps (faceRuns); the
- * gardens draw theirs as bands of whole tiles (bandRuns).
+ * (windowRuns), so the bake draws them over the wall; the bake draws the
+ * furniture (furnitureRuns) after them, over the floor and walls: the
+ * garden's buildings cover the ring where the plan has no fence. A room with
+ * a `face` (the shed, the house rooms, the greenhouse) draws its ring as the
+ * face and caps (faceRuns); the gardens draw theirs as bands of whole tiles
+ * (bandRuns).
  */
 export function wallRuns(room: Room): WallRun[] {
   const style = ROOM_STYLES[room.key];
   return [
     ...(style.face ? faceRuns(room, style.face, style) : bandRuns(room, style)),
     ...windowRuns(room),
-    ...furnitureRuns(room),
   ];
 }
 
@@ -352,11 +381,13 @@ function tileRuns(sheet: Sheet, area: Rect): WallRun[] {
  * Each baked piece of the room's furniture as runs of its sheet over its rect,
  * in the room's order (runsOver: one run for a one-frame sheet, a run per
  * tile for a sheet of variants, so the garden's faces and roofs scatter
- * theirs); the sorted pieces are sprites (furnitureSprites).
+ * theirs); the sorted pieces are sprites (furnitureSprites). The bake draws
+ * the `flat` pieces' runs (`layer` 'flat') under the cast shadows and the
+ * rest ('standing') over them.
  */
-export function furnitureRuns(room: Room): WallRun[] {
+export function furnitureRuns(room: Room, layer?: 'flat' | 'standing'): WallRun[] {
   return room.furniture
-    .filter((f) => !f.sorted)
+    .filter((f) => !f.sorted && (layer === undefined || (layer === 'flat') === (f.flat ?? false)))
     .flatMap(({ sheet, x, y, w, h }) => runsOver(sheet, { x, y, w, h }));
 }
 
@@ -529,31 +560,6 @@ export function propShadow(prop: Prop): Shadow | undefined {
 }
 
 /**
- * Draw_0's ground shadow under each piece of the shed's decor, black at 0.18
- * alpha: `draw_ellipse(dx - w/3, dy - 4, dx + w/3, dy + 2)` round the
- * sprite's bottom-centre origin, `w` the piece's width in prototype px. The bake draws the
- * baked pieces' on the floor, under the furniture as the prototype drew each
- * before its sprite; the sorted pieces' are drawn live (sortedFurnitureShadows).
- */
-export function furnitureShadows(room: Room): Shadow[] {
-  return decorShadows(room.furniture.filter((f) => !f.sorted));
-}
-
-/** The sorted pieces' Draw_0 shadows, drawn with the props' on the live shadow layer. */
-export function sortedFurnitureShadows(room: Room): Shadow[] {
-  return decorShadows(room.furniture.filter((f) => f.sorted));
-}
-
-function decorShadows(furniture: readonly Furniture[]): Shadow[] {
-  return furniture
-    .filter((f) => f.shadow)
-    .map(({ x, y, w, h }) => {
-      const third = (w * PROTOTYPE_SCALE) / 3;
-      return ellipse(x + w / 2, y + h, [-third, -4, third, 2], 0.18);
-    });
-}
-
-/**
  * obj_player_2d's drop shadow, 16 x 4.5 logical px, centred under the figure's
  * feet at y + PLAYER_FEET (the box is in prototype px, halved by `ellipse`).
  */
@@ -564,4 +570,232 @@ export function playerShadow(x: number, y: number): Shadow {
 /** obj_tree_sprite's drop shadow round the sprite's centre, at the tree's scale (logical px per prototype px). */
 export function treeShadow(x: number, y: number, scale: number): Shadow {
   return ellipse(x, y, [-16, 16, 16, 21], 0.25, scale);
+}
+
+/** A point in logical px. */
+export interface Point {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** A cast shadow on the floor: a polygon in logical px, its points in order round it. */
+export type ShadowPolygon = readonly Point[];
+
+/**
+ * Every cast shadow's wash: `WASHES.shadow` at `STYLE.shadowAlpha`, laid on
+ * the shadows' non-overlapping pieces (washPieces), so where two shadows
+ * overlap the floor is washed once, not twice.
+ */
+export const CAST_SHADOW_WASH: Wash = { colour: PALETTE.shadow, alpha: SHADOW_ALPHA };
+
+/** Something that casts: its footprint on the floor and how tall it stands, logical px. */
+export interface Caster {
+  readonly footprint: Rect;
+  readonly height: number;
+}
+
+/**
+ * The shadows the room's walls, its furniture and its props cast in the one
+ * light (lighting.ts), each clipped to the floor (castShadow): the ring's
+ * four walls standing the style's `wallHeight` on their bands, every piece
+ * of furniture that `stands`, sorted or baked, and each prop drawn standing
+ * on its footprint (the shed's workbench, planting table and kiosk). All
+ * static, so the bake lays them once, after the floor, the walls' runs and
+ * the `flat` furniture and before the standing furniture, which covers its
+ * own shadow under it. Only a wall whose shadow falls into the room shows:
+ * with the light in the upper left, the north and west walls'.
+ */
+export function castShadows(room: Room): ShadowPolygon[] {
+  const { row, column } = ROOM_STYLES[room.key].wallHeight;
+  const heights = [row, row, column, column];
+  const walls = ringWalls(room.bounds).map((footprint, i) => ({
+    footprint,
+    height: heights[i] ?? 0,
+  }));
+  const props = room.props.flatMap((p) => propCaster(p) ?? []);
+  return [
+    ...[...walls, ...props].flatMap((c) => castShadow(room, c)),
+    ...pieceShadows(room, room.furniture),
+  ];
+}
+
+/**
+ * The shadows of `furniture` in `room` (castShadows' for its pieces): the
+ * room's own in the bake, and the pieces the player has placed, which come
+ * and go, on the live shadow layer.
+ */
+export function pieceShadows(room: Room, furniture: readonly Furniture[]): ShadowPolygon[] {
+  return furniture.flatMap((f) => {
+    const caster = furnitureCaster(f);
+    return caster ? castShadow(room, caster) : [];
+  });
+}
+
+/** A piece that `stands`, on its rect's bottom `foot` px (all of it unless given). */
+export function furnitureCaster({ x, y, w, h, stands }: Furniture): Caster | undefined {
+  if (!stands) return undefined;
+  const foot = stands.foot ?? h;
+  return { footprint: { x, y: y + h - foot, w, h: foot }, height: stands.height };
+}
+
+/**
+ * A prop drawn standing on its footprint (an Inked sprite at originY 1 on
+ * its rect's bottom edge; not a door, which is in its wall, nor a source
+ * plant, which keeps obj_source_plant's drop shadow, propShadow): it stands
+ * its drawn height less its footprint's depth, across its sprite's width.
+ */
+export function propCaster(prop: Prop): Caster | undefined {
+  if (prop.wall || prop.speciesKey) return undefined;
+  const sprite = propSprite(prop);
+  if (sprite?.originY !== 1) return undefined;
+  const w = sprite.sheet.frameWidth * sprite.scale;
+  const height = sprite.sheet.frameHeight * sprite.scale - prop.h;
+  return { footprint: { x: sprite.x - w / 2, y: sprite.y - prop.h, w, h: prop.h }, height };
+}
+
+/**
+ * A caster's shadow: its footprint swept along the light's offset for its
+ * height (the convex hull of the footprint and the footprint moved by
+ * castOffset), clipped to the room's floor inside its walls (insideWalls: no
+ * shadow lands on a wall's band, the surround or the road); none if the
+ * caster has no height or nothing of the shadow is left.
+ */
+export function castShadow(room: Room, { footprint, height }: Caster): ShadowPolygon[] {
+  if (height <= 0) return [];
+  const { x, y, w, h } = footprint;
+  const offset = castOffset(height);
+  const corners = [
+    { x, y },
+    { x: x + w, y },
+    { x: x + w, y: y + h },
+    { x, y: y + h },
+  ];
+  const swept = convexHull([
+    ...corners,
+    ...corners.map((p) => ({ x: p.x + offset.x, y: p.y + offset.y })),
+  ]);
+  const clipped = clipToRect(swept, insideWalls(room));
+  return area(clipped) > SLIVER ? [clipped] : [];
+}
+
+/** A polygon's area with its sign, the shoelace formula: the sign says which way round its points run. */
+function signedArea(polygon: readonly Point[]): number {
+  const twice = polygon.reduce((sum, a, i) => {
+    const b = polygon[(i + 1) % polygon.length] ?? a;
+    return sum + a.x * b.y - b.x * a.y;
+  }, 0);
+  return twice / 2;
+}
+
+/** A polygon's area; 0 for one with no inside, as a shadow clipped to an edge of the floor. */
+function area(polygon: readonly Point[]): number {
+  return Math.abs(signedArea(polygon));
+}
+
+/** The convex hull of the points (Andrew's monotone chain), without collinear points. */
+export function convexHull(points: readonly Point[]): Point[] {
+  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  const cross = (o: Point, a: Point, b: Point): number =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const half = (list: readonly Point[]): Point[] => {
+    const chain: Point[] = [];
+    for (const p of list) {
+      for (;;) {
+        const a = chain.at(-2);
+        const b = chain.at(-1);
+        if (!a || !b || cross(a, b, p) > 0) break;
+        chain.pop();
+      }
+      chain.push(p);
+    }
+    chain.pop();
+    return chain;
+  };
+  return [...half(sorted), ...half([...sorted].reverse())];
+}
+
+/** The points p with a * p.x + b * p.y + c >= 0. */
+interface HalfPlane {
+  readonly a: number;
+  readonly b: number;
+  readonly c: number;
+}
+
+/** Below this area, logical px squared, a piece of shadow is a sliver from rounding, not a shadow. */
+const SLIVER = 1e-6;
+
+/** The polygon clipped to the rect (Sutherland–Hodgman, one edge of the rect at a time); empty if none of it lies inside. */
+export function clipToRect(polygon: readonly Point[], rect: Rect): Point[] {
+  const sides: readonly HalfPlane[] = [
+    { a: 1, b: 0, c: -rect.x },
+    { a: -1, b: 0, c: rect.x + rect.w },
+    { a: 0, b: 1, c: -rect.y },
+    { a: 0, b: -1, c: rect.y + rect.h },
+  ];
+  return sides.reduce<Point[]>((out, side) => clipToHalfPlane(out, side), [...polygon]);
+}
+
+/** The part of the polygon in the half-plane: one step of Sutherland–Hodgman. */
+function clipToHalfPlane(polygon: readonly Point[], { a, b, c }: HalfPlane): Point[] {
+  const side = (p: Point): number => a * p.x + b * p.y + c;
+  const out: Point[] = [];
+  polygon.forEach((q, i) => {
+    const p = polygon.at(i - 1) ?? q;
+    const [sp, sq] = [side(p), side(q)];
+    if (sp >= 0 !== sq >= 0) {
+      const t = sp / (sp - sq);
+      out.push({ x: p.x + (q.x - p.x) * t, y: p.y + (q.y - p.y) * t });
+    }
+    if (sq >= 0) out.push(q);
+  });
+  // A point on the line is both kept and a crossing: keep it once.
+  return out.filter((p, i) => {
+    const prev = out.at(i - 1);
+    return out.length === 1 || !prev || Math.hypot(p.x - prev.x, p.y - prev.y) > 1e-9;
+  });
+}
+
+/** A convex polygon's edges as the half-planes it lies in, whichever way round its points run. */
+function sidesOf(polygon: readonly Point[]): HalfPlane[] {
+  const turn = Math.sign(signedArea(polygon));
+  return polygon.map((p, i) => {
+    const q = polygon[(i + 1) % polygon.length] ?? p;
+    const [dx, dy] = [q.x - p.x, q.y - p.y];
+    return { a: -dy * turn, b: dx * turn, c: (dy * p.x - dx * p.y) * turn };
+  });
+}
+
+/** The convex polygon less the convex polygon `hole`, as convex pieces that do not overlap. */
+export function subtractConvex(polygon: readonly Point[], hole: readonly Point[]): Point[][] {
+  const pieces: Point[][] = [];
+  let rest: Point[] = [...polygon];
+  for (const side of sidesOf(hole)) {
+    const outside = clipToHalfPlane(rest, { a: -side.a, b: -side.b, c: -side.c });
+    if (area(outside) > SLIVER) pieces.push(outside);
+    rest = clipToHalfPlane(rest, side);
+    if (area(rest) <= SLIVER) break;
+  }
+  return pieces;
+}
+
+/**
+ * The convex polygons' union as convex pieces that do not overlap, less what
+ * `washed` already covers: so a wash laid on each piece at one alpha lands
+ * once on every point the shadows cover, never twice where two meet. The
+ * bake's shadows are washed on their own; the live layer's, the placed
+ * pieces', less the bake's.
+ */
+export function washPieces(
+  polygons: readonly ShadowPolygon[],
+  washed: readonly ShadowPolygon[] = [],
+): ShadowPolygon[] {
+  const covered = [...washed];
+  return polygons.flatMap((polygon) => {
+    const pieces = covered.reduce<Point[][]>(
+      (parts, hole) => parts.flatMap((part) => subtractConvex(part, hole)),
+      [[...polygon]],
+    );
+    covered.push(polygon);
+    return pieces;
+  });
 }

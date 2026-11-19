@@ -318,10 +318,11 @@ describe('placed furniture in the room', () => {
     ]);
   });
 
-  it("draws the room's items as sorted walk-through furniture over their footprints", () => {
+  it("draws the room's items as sorted walk-through furniture over their footprints, standing their sheets' front faces", () => {
+    const placed = { solid: false, sorted: true };
     expect(placedFurniture(laidOut(), GREENHOUSE_ROOM)).toEqual([
-      { x: 240, y: 128, w: 16, h: 16, sheet: SHEETS.pedestal, solid: false, sorted: true },
-      { x: 288, y: 128, w: 32, h: 16, sheet: SHEETS.floorShelf, solid: false, sorted: true },
+      { x: 240, y: 128, w: 16, h: 16, sheet: SHEETS.pedestal, ...placed, stands: { height: 12 } },
+      { x: 288, y: 128, w: 32, h: 16, sheet: SHEETS.floorShelf, ...placed, stands: { height: 8 } },
     ]);
     expect(placedFurniture(laidOut(), SHED_ROOM)).toEqual([]);
   });

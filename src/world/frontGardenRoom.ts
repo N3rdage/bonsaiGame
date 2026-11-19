@@ -22,7 +22,7 @@
  */
 
 import { SHEETS } from './assets';
-import { BACK_WALL_FACE, WALL_CAP } from './roomArt';
+import { BACK_WALL_FACE, FENCE_HEIGHT, WALL_CAP } from './roomArt';
 import {
   SHED_ROOM,
   WALL_BAND,
@@ -106,6 +106,9 @@ export const ROLLER_DOOR: Rect = {
 /** A run of `sheet` tiled over `r`, not solid: the ring's bands are the room's collision. */
 const run = (sheet: Furniture['sheet'], r: Rect): Furniture => ({ sheet, ...r, solid: false });
 
+/** A run lying flat on the ground, under the cast shadows. */
+const flat = (sheet: Furniture['sheet'], r: Rect): Furniture => ({ ...run(sheet, r), flat: true });
+
 /** A face BACK_WALL_FACE (2.4 m) tall standing on the footprint `r`'s bottom edge, as the back garden's (gardenRoom.ts). */
 const face = (sheet: Furniture['sheet'], r: Rect): Furniture =>
   run(sheet, { x: r.x, y: r.y + r.h - BACK_WALL_FACE, w: r.w, h: BACK_WALL_FACE });
@@ -127,13 +130,16 @@ const BED_Y = FRONT_GARDEN_BOUNDS.y + WALL_BAND;
  * px tall on the south band's bottom edge so they rise 32 px over the lawn's
  * southern edge, the roller door and the windows in them, the passage's
  * fence, the clay-tiled roofs below, and the house's edge-on east wall's cap.
+ * The road, the drive, the path and the beds lie `flat`, under the cast
+ * shadows; the passage's fence casts as a fence, the roofs as the 2.4 m
+ * buildings they stand for.
  */
 export const FRONT_GARDEN_FURNITURE: readonly Furniture[] = [
-  run(SHEETS.road, ROAD),
-  run(SHEETS.drive, DRIVE),
-  run(SHEETS.path, PATH),
-  run(SHEETS.bed, { x: 128, y: BED_Y, w: 176, h: WALL_BAND }),
-  run(SHEETS.bed, { x: 368, y: BED_Y, w: 176, h: WALL_BAND }),
+  flat(SHEETS.road, ROAD),
+  flat(SHEETS.drive, DRIVE),
+  flat(SHEETS.path, PATH),
+  flat(SHEETS.bed, { x: 128, y: BED_Y, w: 176, h: WALL_BAND }),
+  flat(SHEETS.bed, { x: 368, y: BED_Y, w: 176, h: WALL_BAND }),
   face(SHEETS.houseFace, GARAGE_FACE),
   run(SHEETS.rollerDoor, ROLLER_DOOR),
   face(SHEETS.houseFace, HOUSE_FACE),
@@ -142,8 +148,11 @@ export const FRONT_GARDEN_FURNITURE: readonly Furniture[] = [
   houseWindow(232),
   houseWindow(424),
   houseWindow(488),
-  run(SHEETS.fence, PASSAGE_FENCE),
-  run(SHEETS.houseRoof, { x: 0, y: ROOF_Y, w: PASSAGE_FENCE.x, h: HEIGHT - ROOF_Y }),
+  { ...run(SHEETS.fence, PASSAGE_FENCE), stands: { height: FENCE_HEIGHT } },
+  {
+    ...run(SHEETS.houseRoof, { x: 0, y: ROOF_Y, w: PASSAGE_FENCE.x, h: HEIGHT - ROOF_Y }),
+    stands: { height: BACK_WALL_FACE },
+  },
   // The house's east wall beside the passage, edge-on: its 8 px cap down the face's and the roof's
   // east end, as the back garden draws it.
   run(SHEETS.houseCapV, {

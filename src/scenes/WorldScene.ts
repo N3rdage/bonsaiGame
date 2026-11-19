@@ -163,20 +163,25 @@ import {
 import {
   PEDESTAL_EMPTY_LABEL,
   PEDESTAL_LABEL_DY,
+  CAST_SHADOW_WASH,
   ROOM_STYLES,
   bakeScale,
+  castShadows,
   floorTiles,
-  furnitureShadows,
+  furnitureRuns,
   furnitureSprites,
   paperTiles,
+  pieceShadows,
   playerShadow,
   propShadow,
   propSprite,
   seasonWash,
-  sortedFurnitureShadows,
   wallRuns,
+  washPieces,
   type Shadow,
+  type ShadowPolygon,
   type Wash,
+  type WallRun,
 } from '../world/roomArt';
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import { treeArt, type TreeArt } from '../world/treeArt';
@@ -247,6 +252,17 @@ const GHOST_REFUSED = 0xd25a5a;
 /** A placement refusal as the prompt and toast say it: `In the way`. */
 function refusalText(reason: PlacementRefusal | 'none left'): string {
   return reason.charAt(0).toUpperCase() + reason.slice(1);
+}
+
+/** Fills each piece of cast shadow into `g` in the shadow wash (washPieces: pieces that do not overlap). */
+function fillShadows(g: Phaser.GameObjects.Graphics, polygons: readonly ShadowPolygon[]): void {
+  g.fillStyle(CAST_SHADOW_WASH.colour, CAST_SHADOW_WASH.alpha);
+  for (const points of polygons) {
+    g.fillPoints(
+      points.map((p) => new Phaser.Math.Vector2(p.x, p.y)),
+      true,
+    );
+  }
 }
 
 /** The particle field of the room shown, built for one season (obj_weather's instance). */
@@ -1453,9 +1469,10 @@ export class WorldScene extends Phaser.Scene {
    * draws is Inked), so each tile keeps its pixels and a frame draws it as one
    * quad: the room's colour (the prototype's background layer), the paper
    * when its style lays it, the floor tiles, the room style's rug (the
-   * shed's), the decor's ground shadows, the wall, face or fence runs with the
-   * windows and furniture, and last the season's wash over all of it (the
-   * gardens'). A sheet coarser than the bake
+   * shed's), the wall, face or fence runs with the windows, the furniture
+   * lying flat, the shadows the walls, furniture and props cast (one wash
+   * over all of them), the standing furniture, and last the season's wash
+   * over all of it (the gardens'). A sheet coarser than the bake
    * scale is scaled up to it; a bake finer than prototype px is
    * linear-filtered, as its Inked sheets are.
    */
@@ -1491,19 +1508,24 @@ export class WorldScene extends Phaser.Scene {
     });
     const { rug } = ROOM_STYLES[room.key];
     if (rug) stampAt(rug.sheet, 0, rug.x, rug.y);
-    // roomArt's rects are in logical px; the Graphics scales them up to the texture's px.
-    const shadows = this.make.graphics({}, false).setScale(s);
-    for (const d of furnitureShadows(room))
-      shadows.fillStyle(0x000000, d.alpha).fillEllipse(d.x, d.y, d.w, d.h);
-    texture.draw(shadows);
     // A run repeats its sheet's frame over its rect; a TileSprite `scale` of f draws each sheet px
     // as f bake px, so the repeated area is the rect's bake px over f and the last tile still crops.
-    for (const w of wallRuns(room)) {
-      const f = s / sheetPxPerLogical(w.sheet);
-      texture.repeat(w.sheet.key, w.frame ?? 0, w.x * s, w.y * s, (w.w * s) / f, (w.h * s) / f, {
-        scale: f,
-      });
-    }
+    const repeat = (runs: readonly WallRun[]): void => {
+      for (const w of runs) {
+        const f = s / sheetPxPerLogical(w.sheet);
+        texture.repeat(w.sheet.key, w.frame ?? 0, w.x * s, w.y * s, (w.w * s) / f, (w.h * s) / f, {
+          scale: f,
+        });
+      }
+    };
+    repeat(wallRuns(room));
+    repeat(furnitureRuns(room, 'flat'));
+    // roomArt's polygons are in logical px; the Graphics scales them up to the texture's px. The
+    // shadows are washed in pieces that do not overlap, so where two meet the floor is washed once.
+    const shadows = this.make.graphics({}, false).setScale(s);
+    fillShadows(shadows, washPieces(castShadows(room)));
+    texture.draw(shadows);
+    repeat(furnitureRuns(room, 'standing'));
     const over = this.make.graphics({}, false).setScale(s);
     if (wash) over.fillStyle(wash.colour, wash.alpha).fillRect(0, 0, room.width, room.height);
     texture.draw(over).render();
@@ -1512,18 +1534,22 @@ export class WorldScene extends Phaser.Scene {
     return texture;
   }
 
-  /** The drop shadows of the room's props, its sorted furniture and the trees on its floor (the pedestal trees' are drawn with them). */
+  /**
+   * The live shadows: the shadows the pieces the player has placed cast (the
+   * room's own are baked), and the drop shadows of the room's props and the
+   * trees on its floor (the pedestal trees' are drawn with them).
+   */
   private drawShadows(trees: readonly TreeArt[]): void {
     const g = this.shadowGfx.clear();
+    const placed = pieceShadows(this.room, placedFurniture(this.ctx.state, this.room));
+    fillShadows(g, washPieces(placed, castShadows(this.room)));
     const fill = (s: Shadow): void => {
       g.fillStyle(0x000000, s.alpha).fillEllipse(s.x, s.y, s.w, s.h);
     };
-    const room = this.liveRoom();
-    for (const p of room.props) {
+    for (const p of this.liveRoom().props) {
       const s = propShadow(p);
       if (s) fill(s);
     }
-    for (const s of sortedFurnitureShadows(room)) fill(s);
     for (const t of trees) fill(t.shadow);
   }
 
