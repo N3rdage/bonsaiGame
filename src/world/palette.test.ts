@@ -21,7 +21,7 @@ describe('palette', () => {
   it("mirrors art/inked/style.mjs's WASHES entry of the same name, each one", () => {
     const washes = inkedWashes();
     // The table is read: its first material and the lawn's, which the world does not mirror, are there.
-    expect(washes.wall).toBe(0xdeccb0);
+    expect(washes.wall).toBe(0xeee2c8);
     expect(washes.outside).toBe(0x96b876);
     for (const [name, colour] of Object.entries(PALETTE)) expect(washes[name], name).toBe(colour);
   });
