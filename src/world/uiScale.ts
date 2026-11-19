@@ -119,7 +119,7 @@ export function estimatedBox(
   return { x: x - originX * w, y: y - originY * h, w, h };
 }
 
-/** The plate's padding round a HUD text, in logical px a side (`TEXT_BACKING` in src/scenes/textStyle.ts). */
+/** The plate's padding round a HUD text, in logical px a side (`PANEL_STYLE.plate` in src/scenes/textStyle.ts). */
 export const PLATE_PADDING = { x: 2, y: 1 } as const;
 
 /**

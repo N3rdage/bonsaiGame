@@ -33,9 +33,8 @@ export const PANEL_ROW_SPACING = PANEL.rowSpacing;
 /** Centre of the `Close (Esc)` button (text origin 0.5). */
 export const PANEL_CLOSE = panelClose(PANEL);
 export const PANEL_CLOSE_LABEL = 'Close (Esc)';
-/** Plain rows' text colour, and a greyed button's. */
-export const PANEL_TEXT_COLOR = '#a0b496';
-export const PANEL_DISABLED_COLOR = '#6e7a68';
+/** The height of a panel's title band, the title centred in it (panelTitleY). */
+export const PANEL_TITLE_H = 24;
 
 /** Vertical centre of `box`'s title. */
 export function panelTitleY(box: PanelBox): number {
@@ -57,7 +56,7 @@ export interface PanelRow {
   readonly x?: number;
   /** 'right' for plain text right-aligned at `x` (text origin 1, 0.5), as a column of counts. */
   readonly align?: 'right';
-  /** False for a greyed button: drawn in PANEL_DISABLED_COLOR and not a control. */
+  /** False for a greyed button: drawn in PANEL_STYLE.disabled (src/scenes/textStyle.ts) and not a control. */
   readonly enabled?: boolean;
   /** Text colour overriding the default. */
   readonly color?: string;

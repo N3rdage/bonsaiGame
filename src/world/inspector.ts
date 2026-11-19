@@ -12,6 +12,7 @@
  * starts at the top (backlog #88).
  */
 
+import { PANEL_STYLE } from '../scenes/textStyle';
 import {
   REPOT_COOLDOWN_DAYS,
   fertilizeTree,
@@ -35,7 +36,7 @@ export const SKIP_DAYS = 7;
 
 /** The box, centred on the canvas; the 400x150 PANEL stays for the other panels. */
 export const INSPECTOR_PANEL = { x: 20, y: 4, w: 440, h: 262 } as const;
-/** Height of the title bar (obj_ui_panel's darker band). */
+/** Height of the title band (obj_ui_panel's title bar). */
 export const INSPECTOR_TITLE_H = 22;
 /** Left and right inset of the content. */
 export const INSPECTOR_INSET = 10;
@@ -109,9 +110,10 @@ export function inspectorFitsOneColumn(ui: UiMetrics): boolean {
   return last + line / 2 <= inspectorButtonRows(ui)[0] - hitHalf(ui);
 }
 
-export const NOTE_COLOR = '#dcb450';
-export const FOOTER_COLOR = '#969696';
-export const DISABLED_COLOR = '#6e7a68';
+/** The status notes in the note ink, the footer softer, a greyed button faded (PANEL_STYLE). */
+export const NOTE_COLOR = PANEL_STYLE.note;
+export const FOOTER_COLOR = PANEL_STYLE.soft;
+export const DISABLED_COLOR = PANEL_STYLE.disabled;
 
 /** One line of label-sized text; text origin (0, 0.5), so `y` is its vertical centre. */
 export interface InspectorText {
@@ -120,7 +122,7 @@ export interface InspectorText {
   readonly y: number;
 }
 
-/** ui_bar: a dark track, the filled fraction in `color`, then `N/100`. */
+/** ui_bar: an ink track, the filled fraction in `color`, then `N/100`. */
 export interface InspectorBar {
   readonly label: string;
   readonly value: number;

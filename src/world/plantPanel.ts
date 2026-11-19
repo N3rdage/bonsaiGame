@@ -7,6 +7,7 @@
  * panel after every Select and toggle.
  */
 
+import { PANEL_STYLE } from '../scenes/textStyle';
 import { inventoryCount } from '../sim/inventory';
 import { SEED_KEYS } from '../sim/planting';
 import { CUTTING_KEYS } from '../sim/sourcePlant';
@@ -20,10 +21,10 @@ export const PLANTING_TABLE_KEY = 'planting_table';
 /** The prop whose interaction makes a pot. */
 export const WORKBENCH_KEY = 'workbench';
 
-/** obj_ui_plant_cutting's "none" pink, rgb(200, 150, 150), and its hint grey, rgb(150, 150, 150). */
-export const NONE_COLOR = '#c89696';
-export const HINT_COLOR = '#969696';
-const TEXT_COLOR = '#ffffff';
+/** The "none" lines in the warning ink, the hint in the softer ink, the rest in ink (PANEL_STYLE). */
+export const NONE_COLOR = PANEL_STYLE.warn;
+export const HINT_COLOR = PANEL_STYLE.soft;
+const TEXT_COLOR: string = PANEL_STYLE.text;
 /** The Select column, near the box's right edge as the prototype's button was. */
 const SELECT_X = TALL_PANEL.x + TALL_PANEL.w - 80;
 /** The hint's left edge beside Plant Cutting: past the button's 13 characters at the layouts' 6 px a character (4.6 em, 46 px, in Caveat), and a gap. */

@@ -3,6 +3,7 @@ import { createInventory } from '../sim/inventory';
 import type { Inventory } from '../sim/types';
 import {
   INVENTORY_COLUMNS,
+  INVENTORY_HEADER_COLOR,
   INVENTORY_PANEL,
   inventoryPanel,
   inventorySections,
@@ -105,7 +106,7 @@ describe('inventory panel', () => {
 
   it('puts Resources and Seeds in the left column, Cuttings and Furniture in the right', () => {
     const headers = inventoryPanel(empty())
-      .rows.filter((r) => r.color === '#8cb478')
+      .rows.filter((r) => r.color === INVENTORY_HEADER_COLOR)
       .map((r) => [r.text, r.x, r.y]);
     const [left, right] = INVENTORY_COLUMNS;
     expect(headers).toEqual([

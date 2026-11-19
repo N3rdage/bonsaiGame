@@ -5,6 +5,7 @@
  * buys through `shopBuy`, then reopens it with the new state.
  */
 
+import { PANEL_STYLE } from '../scenes/textStyle';
 import { inventoryCount } from '../sim/inventory';
 import { SHOP_CATALOGUE, type ShopItem } from '../sim/shop';
 import type { GameState } from '../sim/types';
@@ -38,10 +39,10 @@ export function shopColumns(block: number): {
   return { item: left + PANEL_INSET, price: left + 100, owned: left + 140, buy: left + 185 };
 }
 
-/** obj_ui_shop's header colour, rgb(140, 180, 120), and its footer's, rgb(150, 150, 150). */
-export const SHOP_HEADER_COLOR = '#8cb478';
-export const SHOP_FOOTER_COLOR = '#969696';
-const ITEM_COLOR = '#ffffff';
+/** The headers in the heading ink, the items in ink, the footer in the softer ink (PANEL_STYLE). */
+export const SHOP_HEADER_COLOR = PANEL_STYLE.heading;
+export const SHOP_FOOTER_COLOR = PANEL_STYLE.soft;
+const ITEM_COLOR: string = PANEL_STYLE.text;
 
 /** The control id of `item`'s Buy button. */
 export function buyId(item: ShopItem): string {

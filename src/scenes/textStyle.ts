@@ -26,8 +26,102 @@ export const FONT_KEY = 'Caveat';
 /** The CSS family list every text style and DOM control uses. */
 export const FONT_FAMILY = `${FONT_KEY}, sans-serif`;
 
-/** The default text colour of labels and panel copy. */
-export const TEXT_COLOR = '#d8e6c8';
+/** The Inked page's three values as 0xRRGGBB: PAPER, INK and SURROUND in art/inked/style.mjs. */
+export const PAPER = 0xf2eada;
+export const INK = 0x322a26;
+export const SURROUND = 0x3e3632;
+
+/** `rgb` as a CSS hex string. */
+export function cssColour(rgb: number): string {
+  return `#${rgb.toString(16).padStart(6, '0')}`;
+}
+
+/** `from` mixed `t` of the way towards `to`, each channel rounded. */
+export function mixColour(from: number, to: number, t: number): number {
+  return [16, 8, 0].reduce((out, shift) => {
+    const a = (from >> shift) & 0xff;
+    const b = (to >> shift) & 0xff;
+    return out | (Math.round(a + (b - a) * t) << shift);
+  }, 0);
+}
+
+/**
+ * The one look of every panel, HUD row and world label: ink on paper, as the
+ * Inked rooms are drawn. A panel is a paper box framed by an ink rule and a
+ * fainter second rule `innerRule.inset` px inside it; its title sits in a
+ * band of shaded paper over an ink rule. Copy is ink, a button is ink over a
+ * faint ink underline, a greyed one is ink faded towards the paper with no
+ * underline, and the few marked lines (headings, notes, warnings, done) are
+ * dark inks that keep their hue. A text drawn straight over the room sits on a
+ * paper plate `plate.padding` px round it, edged by an ink rule. A modal dims
+ * the room with ink. The bars keep their fills over an ink-washed track.
+ */
+export const PANEL_STYLE = {
+  paper: PAPER,
+  ink: INK,
+  /** The outer rule's width, logical px, and the inner rule's inset and strength. */
+  rule: 1,
+  innerRule: { inset: 3, alpha: 0.35 },
+  /** The title band: paper shaded 8% towards ink. */
+  band: 0xe3dbcc,
+  /** A button's underline, `alpha` ink, `rule` px under its text box's bottom edge. */
+  underline: { alpha: 0.55 },
+  /** The modal dimmer over the room. */
+  dim: { colour: INK, alpha: 0.5 },
+  /** A bar's track under its fill, and its ink edge. */
+  barTrack: { colour: INK, alpha: 0.15 },
+  /** Text colours: copy and buttons, secondary copy, greyed, and the marked lines. */
+  text: '#322a26',
+  soft: '#6c645c',
+  disabled: '#9c9489',
+  heading: '#3c5a32',
+  note: '#8a5c12',
+  warn: '#9a3426',
+  good: '#3c6a2c',
+  /** The plate under a text drawn over the room. */
+  plate: { fill: '#f2eada', padding: PLATE_PADDING },
+} as const;
+
+/** A box in logical px. */
+export interface FrameRect {
+  readonly x: number;
+  readonly y: number;
+  readonly w: number;
+  readonly h: number;
+}
+
+/** What a panel's frame draws over its paper: the title band, then ink rules (`alpha` 1 for full ink). */
+export interface PanelFrame {
+  readonly band?: FrameRect;
+  readonly rules: readonly (FrameRect & { readonly alpha: number })[];
+}
+
+/** The four sides of `r`'s border, `t` px wide, inside it. */
+function border(r: FrameRect, t: number): FrameRect[] {
+  return [
+    { x: r.x, y: r.y, w: r.w, h: t },
+    { x: r.x, y: r.y + r.h - t, w: r.w, h: t },
+    { x: r.x, y: r.y + t, w: t, h: r.h - 2 * t },
+    { x: r.x + r.w - t, y: r.y + t, w: t, h: r.h - 2 * t },
+  ];
+}
+
+/**
+ * `box`'s frame (PANEL_STYLE): the title band `titleH` px tall at the top
+ * with an ink rule along its foot (none for 0), the outer ink rule inside the
+ * box's edge and the fainter inner rule `innerRule.inset` px in.
+ */
+export function panelFrame(box: FrameRect, titleH = 0): PanelFrame {
+  const { rule, innerRule } = PANEL_STYLE;
+  const inset = innerRule.inset;
+  const inner = { x: box.x + inset, y: box.y + inset, w: box.w - 2 * inset, h: box.h - 2 * inset };
+  const rules = [
+    ...(titleH > 0 ? [{ x: box.x, y: box.y + titleH - rule, w: box.w, h: rule, alpha: 1 }] : []),
+    ...border(box, rule).map((r) => ({ ...r, alpha: 1 })),
+    ...border(inner, rule).map((r) => ({ ...r, alpha: innerRule.alpha })),
+  ];
+  return titleH > 0 ? { band: { x: box.x, y: box.y, w: box.w, h: titleH }, rules } : { rules };
+}
 
 /** The farthest any glyph's ink reaches right of its advance, in em (`[` at 0.301). */
 export const INK_OVERHANG_EM = 0.31;
@@ -42,7 +136,7 @@ function style(px: number) {
   return {
     fontFamily: FONT_FAMILY,
     fontSize: `${String(px)}px`,
-    color: TEXT_COLOR,
+    color: PANEL_STYLE.text,
     padding: { left: 0, right: inkPadding(px), top: 0, bottom: 0 },
   };
 }
@@ -58,22 +152,16 @@ export function bodyStyle(ui: UiMetrics) {
 }
 
 /**
- * The plate behind every text drawn straight over the room's art, light or
- * dark: the Inked ink (`INK`, rgb(50, 42, 38), in art/inked/style.mjs) at
- * 0.6 alpha, filling the text's box grown by `padding` logical px a side.
- * A fill, not a stroke, so it reads the same whatever the glyphs.
+ * `px` px ink text on the paper plate (PANEL_STYLE.plate), which fills the
+ * text's box grown by the plate's padding a side, its right side grown by the
+ * ink overhang too; the scene edges it with an ink rule (src/scenes/inkPanel.ts).
  */
-export const TEXT_BACKING = {
-  backgroundColor: 'rgba(50, 42, 38, 0.6)',
-  padding: PLATE_PADDING,
-} as const;
-
-/** `px` px text in the default colour on the plate, its right side grown by the ink overhang too. */
 function plated(px: number) {
-  const { x, y } = TEXT_BACKING.padding;
+  const { fill, padding } = PANEL_STYLE.plate;
+  const { x, y } = padding;
   return {
     ...style(px),
-    backgroundColor: TEXT_BACKING.backgroundColor,
+    backgroundColor: fill,
     padding: { left: x, right: x + inkPadding(px), top: y, bottom: y },
   };
 }

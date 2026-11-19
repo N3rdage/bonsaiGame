@@ -7,6 +7,7 @@
  * draws it.
  */
 
+import { PANEL_STYLE } from '../scenes/textStyle';
 import { SPECIES_KEYS, getSpecies } from '../sim/species';
 import type { Inventory, InventoryKey } from '../sim/types';
 import { PANEL_INSET, type PanelModel, type PanelRow } from './panels';
@@ -35,10 +36,10 @@ function inventoryColumn(x: number): { readonly left: number; readonly countRigh
 }
 const SECTIONS_PER_COLUMN = 2;
 
-/** obj_ui_inventory's colours: headers rgb(140, 180, 120), `(none)` rgb(140, 140, 140), items white. */
-const HEADER_COLOR = '#8cb478';
-const NONE_COLOR = '#8c8c8c';
-const ITEM_COLOR = '#ffffff';
+/** The headers in the heading ink, `(none)` greyed, the items in ink (PANEL_STYLE). */
+export const INVENTORY_HEADER_COLOR = PANEL_STYLE.heading;
+const NONE_COLOR = PANEL_STYLE.disabled;
+const ITEM_COLOR = PANEL_STYLE.text;
 
 /** obj_ui_inventory's resource_labels, in its order. */
 const RESOURCE_LABELS: readonly (readonly [InventoryKey, string])[] = [
@@ -97,7 +98,7 @@ export function inventoryPanel(inv: Inventory): PanelModel {
     const { left, countRight } = INVENTORY_COLUMNS[i < SECTIONS_PER_COLUMN ? 0 : 1];
     if (i % SECTIONS_PER_COLUMN === 0) y = box.y + 36;
     else y += SECTION_GAP;
-    line(title, HEADER_COLOR, left);
+    line(title, INVENTORY_HEADER_COLOR, left);
     y += box.rowSpacing;
     if (entries.length === 0) {
       line('(none)', NONE_COLOR, left + ITEM_INDENT);

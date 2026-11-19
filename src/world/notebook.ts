@@ -7,6 +7,7 @@
  * on the new page.
  */
 
+import { PANEL_STYLE } from '../scenes/textStyle';
 import {
   TUTORIAL_DONE,
   tutorialAllSteps,
@@ -47,16 +48,16 @@ const PROMPT_WRAP = 66;
 /** Left edge of `Page i / n`, room for `Page 10 / 10` before the box's inset. */
 const INDICATOR_X = NOTEBOOK_PANEL.x + NOTEBOOK_PANEL.w - PANEL_INSET - 72;
 
-/** obj_ui_notebook's colours: title rgb(220, 220, 180), indicator rgb(140, 140, 140), prompt heading rgb(170, 200, 150), prompt rgb(220, 220, 220). */
-const TITLE_COLOR = '#dcdcb4';
-const INDICATOR_COLOR = '#8c8c8c';
-const FLAVOUR_COLOR = '#ffffff';
-const PROMPT_HEADING_COLOR = '#aac896';
-const PROMPT_COLOR = '#dcdcdc';
+/** The page's inks (PANEL_STYLE): the title and prompt heading in the heading ink, the indicator and prompt softer, the badges marked. */
+const TITLE_COLOR = PANEL_STYLE.heading;
+const INDICATOR_COLOR = PANEL_STYLE.soft;
+const FLAVOUR_COLOR = PANEL_STYLE.text;
+const PROMPT_HEADING_COLOR = PANEL_STYLE.heading;
+const PROMPT_COLOR = PANEL_STYLE.soft;
 const BADGES = {
-  completed: { text: 'done', color: '#8cc878' },
-  active: { text: 'in progress', color: '#dcc878' },
-  locked: { text: 'not yet', color: '#787878' },
+  completed: { text: 'done', color: PANEL_STYLE.good },
+  active: { text: 'in progress', color: PANEL_STYLE.note },
+  locked: { text: 'not yet', color: PANEL_STYLE.disabled },
 } as const;
 
 /** The Seasons page's entry in `notebookPages`; tutorial steps are 0 and up, TUTORIAL_DONE -1. */

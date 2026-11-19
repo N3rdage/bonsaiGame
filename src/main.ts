@@ -3,6 +3,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { currentViewport, isPhone, isPhonePortrait, lockLandscape } from './platform/orientation';
 import { handleNeedReload } from './platform/swUpdate';
 import { BootScene } from './scenes/BootScene';
+import { SURROUND, cssColour } from './scenes/textStyle';
 import { TitleScene } from './scenes/TitleScene';
 import { WorldScene } from './scenes/WorldScene';
 import { canvasSize, deviceScale } from './world/resolution';
@@ -42,7 +43,7 @@ const game = new Phaser.Game({
   parent: 'game',
   width: initial.width,
   height: initial.height,
-  backgroundColor: '#1d2a1c',
+  backgroundColor: cssColour(SURROUND),
   pixelArt: true,
   scale: {
     mode: Phaser.Scale.FIT,

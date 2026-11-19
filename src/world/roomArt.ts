@@ -108,7 +108,7 @@ export interface RoomStyle {
 export const ROOM_STYLES: Record<RoomKey, RoomStyle> = {
   // The shed in Inked: its back wall's face, its caps, its window on the face (its sill 20 px,
   // 0.94 m, above the floor) and its rug, on paper: the surround outside the walls and the bands'
-  // outer halves show spr_paper, and the HUD reads on it through its ink plate (TEXT_BACKING).
+  // outer halves show spr_paper, and the HUD reads on it from its paper plate (PANEL_STYLE.plate).
   shed: {
     floor: SHEETS.floorShed,
     wallRow: SHEETS.shedCap,
@@ -491,10 +491,9 @@ export function furnitureSprites(room: Room): PropSprite[] {
     .map(({ sheet, x, y, w, h }) => onFootprint(sheet, 0, x + w / 2, y + h / 2, h, y + h));
 }
 
-/** obj_pedestal Draw_0: the label's top, below the pedestal's centre; `(empty)` in grey, else the tree's label in white. */
+/** obj_pedestal Draw_0: the label's top, below the pedestal's centre, and an empty pedestal's label. */
 export const PEDESTAL_LABEL_DY = fromPrototype(30);
 export const PEDESTAL_EMPTY_LABEL = '(empty)';
-export const PEDESTAL_EMPTY_COLOUR = '#969696';
 
 /** A translucent black ellipse on the floor, centre and size in logical px. */
 export interface Shadow {
