@@ -46,11 +46,11 @@ export const WASHES = {
   asphalt: [108, 108, 110],
   // The house rooms: the lounge's carpet and wallpaper, the hallway's runner,
   // the study's paper and parquet.
-  carpet: [196, 164, 140],
-  wallpaper: [178, 192, 160],
-  runner: [128, 152, 132],
-  studyPaper: [162, 176, 190],
-  parquet: [186, 128, 100],
+  carpet: [168, 128, 110],
+  wallpaper: [196, 206, 178],
+  runner: [76, 128, 92],
+  studyPaper: [184, 196, 208],
+  parquet: [178, 116, 86],
   // The 3D viewer's textures are tinted by each species' colours: these are chosen to land near neutral.
   bark: [185, 175, 163],
   leaf: [199, 199, 186],

@@ -4,7 +4,7 @@
 //                       scattered by the floor's hash (src/world/assets.ts's
 //                       `floorFrame`)
 //   spr_wall_study      3 variants of the back wall's face, paper over a rail
-//                       and raised wooden panels, 16 x 48 (2.4 m), its bottom
+//                       and raised painted panels, 16 x 48 (2.4 m), its bottom
 //                       edge on the floor line
 //   spr_study_cap       3 variants of the south wall's 8 px cap, 16 wide
 //   spr_study_cap_v     3 variants of the side walls' 8 px cap, 16 tall
@@ -23,14 +23,13 @@
 // Everything is seeded: a rerun reproduces the PNGs byte for byte.
 
 import {
-  FINE,
+  JOINT,
   MARK,
   OUTLINE,
   SEAM,
   capTile,
   faceBands,
   faceWindow,
-  rect,
   seg,
   variants,
   writeSheets,
@@ -48,69 +47,56 @@ const SEEDS = {
   bookshelf: 0x7c51,
 };
 
-// The parquet: four 8 px squares to a tile, each three blocks wide, the
+// The parquet: four 8 px squares to a tile, each two blocks wide, the
 // blocks east-west in the top-left and bottom-right squares and north-south
 // in the others, so the weave runs on across tiles. Each square's edge is
-// drawn at its bottom and right. Per variant: a block's grain streak and a
-// chair's scuff.
-const PARQUET_VARIANTS = [
-  { grain: [2, 3.4, 4], scuff: [12, 4] },
-  { grain: [9.4, 10, 4], scuff: [4, 12] },
-  { grain: [1, 12, 5], scuff: [11, 11] },
-];
+// drawn at its bottom and right; every line is thin, the blocks' finest, so
+// the floor stays calm. On one variant in three, a block's grain streak.
+const PARQUET_GRAIN = [[2, 3.4, 4], null, null];
 
 function parquetTile(i) {
   const page = createPage(16, 16, { seed: SEEDS.floor[i], origin: [160, 64] });
   const { k } = page;
-  const v = PARQUET_VARIANTS[i];
+  const grain = PARQUET_GRAIN[i];
   k.box(-1, -1, 18, 18, 'parquet', { edges: false });
   for (const [qx, qy] of [
     [0, 0],
     [8, 8],
   ]) {
-    for (const d of [2.67, 5.33]) seg(k, qx, qy + d, qx + 7.75, qy + d, 1.2);
+    seg(k, qx, qy + 3.9, qx + 7.75, qy + 3.9, 0.6);
   }
   for (const [qx, qy] of [
     [8, 0],
     [0, 8],
   ]) {
-    for (const d of [2.67, 5.33]) seg(k, qx + d, qy, qx + d, qy + 7.75, 1.2);
+    seg(k, qx + 3.9, qy, qx + 3.9, qy + 7.75, 0.6);
   }
   for (const at of [7.75, 15.75]) {
-    seg(k, -1, at, 17, at);
-    seg(k, at, -1, at, 17);
+    seg(k, -1, at, 17, at, JOINT);
+    seg(k, at, -1, at, 17, JOINT);
   }
-  const [gx, gy, len] = v.grain;
-  seg(k, gx, gy, gx + len, gy + 0.2, 1);
-  const [sx, sy] = v.scuff;
-  k.hatchIn(rect(sx - 2, sy - 1, 4, 2), FINE);
+  if (grain) {
+    const [gx, gy, len] = grain;
+    seg(k, gx, gy, gx + len, gy + 0.2, 0.6);
+  }
   return finish(page);
 }
 
-// The back wall's face: paper with a small dot diaper (y 3.5..22), a rail (y
-// 22..24.5) and wooden panelling below, one raised panel to a tile. Per
-// variant: the diaper's phase and a nail hole left in the paper.
-const WALL_VARIANTS = [
-  { phase: 0, hole: [5, 14] },
-  { phase: 2, hole: [12, 8] },
-  { phase: 1, hole: null },
-];
+// The back wall's face: plain paper (y 3.5..22), a wooden rail (y 22..24.5)
+// and painted panelling below, one raised panel to a tile. On one variant in
+// three, a nail hole left in the paper.
+const WALL_VARIANTS = [{ hole: [5, 14] }, { hole: null }, { hole: null }];
 
 function wallTile(i) {
   const page = createPage(16, 48, { seed: SEEDS.wall[i], origin: [160, 16] });
   const { k } = page;
   const v = WALL_VARIANTS[i];
   k.box(-1, 3.5, 18, 19, 'studyPaper', { edges: false });
-  for (let row = 0; row < 4; row += 1) {
-    const y = 6.5 + row * 4;
-    for (let x = ((row + v.phase) % 2) * 2 + 1.5; x < 16; x += 4)
-      seg(k, x, y, x + 0.4, y + 0.3, 1.2);
-  }
   if (v.hole) k.blob(v.hole[0], v.hole[1], 0.5, 0.5, 'shadow', { width: 1 });
-  k.box(-1, 24.5, 18, 18.5, 'wood', { edges: false, wear: false });
-  k.box(2.4, 27, 11.2, 13.6, 'wood', { width: SEAM, hatching: rect(2.4, 38.4, 11.2, 2.2) });
-  seg(k, 15.5, 24.5, 15.5, 43, MARK);
-  k.box(-1, 22, 18, 2.5, 'top', { edges: false });
+  k.box(-1, 24.5, 18, 18.5, 'paint', { edges: false });
+  k.box(2.4, 27, 11.2, 13.6, 'paint', { width: JOINT });
+  seg(k, 15.5, 24.5, 15.5, 43, JOINT);
+  k.box(-1, 22, 18, 2.5, 'wood', { edges: false, wear: false });
   seg(k, -1, 22, 17, 22, OUTLINE);
   seg(k, -1, 24.5, 17, 24.5, OUTLINE);
   faceBands(k);
@@ -146,8 +132,8 @@ function desk() {
     for (const y of [22.6, 27.2]) seg(k, x + 0.4, y, x + 9.6, y, MARK);
     for (const y of [20.3, 24.9, 29.4]) k.blob(x + 5, y, 0.7, 0.6, 'brass', { width: 1 });
   }
-  k.box(0.6, 0.8, 30.8, 15.4, 'top');
-  seg(k, 0.8, 8.4, 31.2, 8.4, MARK);
+  k.box(0.6, 0.8, 30.8, 15.4, 'wood');
+  seg(k, 0.8, 8.4, 31.2, 8.4, JOINT);
   k.blob(5, 6.4, 2.2, 1.2, 'brass', { width: MARK });
   seg(k, 5, 5.4, 5.4, 3.6, MARK);
   k.shape(
@@ -163,7 +149,7 @@ function desk() {
   k.box(21.5, 2.4, 7, 5.4, 'cream', { width: MARK, wear: false });
   for (const y of [4, 5.6]) seg(k, 22.6, y, 27.2, y, 1);
   k.blob(27.6, 11, 1.2, 1.2, 'shirt', { width: MARK });
-  k.box(0.6, 16, 30.8, 2.4, 'wood', { width: SEAM });
+  k.box(0.6, 16, 30.8, 2.4, 'top', { width: SEAM });
   return finishCutOut(page);
 }
 
@@ -205,11 +191,11 @@ function bookshelf() {
   for (const bay of BAYS) {
     for (const [x, w, h, wash] of bay) k.box(x, 26.6 - h, w, h, wash, { width: 1.2, wear: false });
   }
-  k.box(0.6, 0.8, 46.8, 15.4, 'top');
-  seg(k, 0.8, 8.4, 47.2, 8.4, MARK);
+  k.box(0.6, 0.8, 46.8, 15.4, 'wood');
+  seg(k, 0.8, 8.4, 47.2, 8.4, JOINT);
   k.box(4, 7, 10, 2.6, 'rug', { width: MARK, wear: false });
   k.box(4.8, 4.6, 8.6, 2.4, 'shirt', { width: MARK, wear: false });
-  k.box(0, 15.6, 48, 2.2, 'wood', { width: SEAM });
+  k.box(0, 15.6, 48, 2.2, 'top', { width: SEAM });
   return finishCutOut(page);
 }
 
