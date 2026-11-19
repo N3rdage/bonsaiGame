@@ -141,18 +141,18 @@ describe('tree mesh constants (scr_bonsai_mesh build_trunk / build_branch)', () 
     expect(BRANCH_MIN_RADIUS).toBe(0.005);
   });
 
-  it("the juniper's bark is the prototype's one bark; the maple and pine have their own", () => {
+  it("takes each species' bark from its look: warm brown, smooth grey, dark red-brown", () => {
     expect(speciesBark('juniper')).toEqual({
-      trunk: { r: 90, g: 60, b: 40 },
-      branch: { r: 110, g: 75, b: 50 },
+      trunk: { r: 140, g: 94, b: 66 },
+      branch: { r: 158, g: 110, b: 78 },
     });
     expect(speciesBark('maple')).toEqual({
-      trunk: { r: 110, g: 106, b: 98 },
-      branch: { r: 124, g: 120, b: 112 },
+      trunk: { r: 150, g: 146, b: 136 },
+      branch: { r: 166, g: 162, b: 150 },
     });
     expect(speciesBark('pine')).toEqual({
-      trunk: { r: 62, g: 42, b: 30 },
-      branch: { r: 76, g: 54, b: 38 },
+      trunk: { r: 112, g: 74, b: 58 },
+      branch: { r: 128, g: 88, b: 68 },
     });
   });
 
@@ -391,7 +391,7 @@ describe('buildTreeMesh', () => {
     expected.push(expected[2] ?? at(0, 0, 0), expected[1] ?? at(0, 0, 0), at(r1, 0.05, 1));
     expected.forEach((p, v) => {
       expectVec(positionAt(mesh, v), p);
-      expectColor(colorAt(mesh, v), { r: 90, g: 60, b: 40 });
+      expectColor(colorAt(mesh, v), { r: 140, g: 94, b: 66 });
     });
   });
 
@@ -422,7 +422,7 @@ describe('buildTreeMesh', () => {
       expect(p.z).toBeCloseTo(0.32, 6);
       expect(dist(p, origin)).toBeCloseTo(0.0144, 5);
     }
-    expectColor(colorAt(mesh, start), { r: 110, g: 75, b: 50 });
+    expectColor(colorAt(mesh, start), { r: 158, g: 110, b: 78 });
 
     // Tip: 0.48 display units out along 30 degrees, lifted by a quarter of that.
     const tip = ringOf(mesh, start + 5 * 6 * 6, 6, 'b');

@@ -278,12 +278,12 @@ describe('buildFoliageMesh', () => {
     expect(mesh.uvs).toHaveLength((mesh.positions.length / 3) * 2);
   });
 
-  it('tints every vertex with the seasonal colour: juniper summer #4a6741 -> (74, 103, 65)', () => {
+  it('tints every vertex with the seasonal colour: juniper summer #589654 -> (88, 150, 84)', () => {
     const mesh = buildFoliageMesh(starterTree(), 'summer');
     for (let i = 0; i < mesh.colors.length; i += 3) {
-      expect(mesh.colors[i]).toBeCloseTo(74 / 255, 6);
-      expect(mesh.colors[i + 1]).toBeCloseTo(103 / 255, 6);
-      expect(mesh.colors[i + 2]).toBeCloseTo(65 / 255, 6);
+      expect(mesh.colors[i]).toBeCloseTo(88 / 255, 6);
+      expect(mesh.colors[i + 1]).toBeCloseTo(150 / 255, 6);
+      expect(mesh.colors[i + 2]).toBeCloseTo(84 / 255, 6);
     }
   });
 

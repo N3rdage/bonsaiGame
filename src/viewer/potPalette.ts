@@ -1,9 +1,10 @@
 /**
- * Pot colours by tier. Ported from `pot_palette` in
- * archive/gamemaker/scripts/scr_growth/scr_growth.gml so the 3D pot and the
- * future 2D sprite share one table. Standard is terracotta; fancy is glazed
- * celadon. `bodyLine`/`rimLine` were the 2D outlines; the 3D pot uses
- * `bodyLine` as its dark base gradient.
+ * Pot colours by tier, the one table the 3D pot and the 2D tree sprite share,
+ * after `pot_palette` in archive/gamemaker/scripts/scr_growth/scr_growth.gml.
+ * Standard is terracotta; fancy is glazed celadon. Every colour is an Inked
+ * wash, the `WASHES` entry in art/inked/style.mjs named beside it.
+ * `bodyLine`/`rimLine` outline the 2D pot; the 3D pot uses `bodyLine` as its
+ * dark base gradient.
  */
 
 import type { PotTier } from '../sim/types';
@@ -25,27 +26,27 @@ export interface PotPalette {
   highlight?: Rgb;
 }
 
-/** Soil surface colour (from the prototype's `_draw_pot`). */
-export const SOIL_RGB: Rgb = { r: 48, g: 34, b: 24 };
+/** Soil surface colour: `soil`. */
+export const SOIL_RGB: Rgb = { r: 120, g: 96, b: 78 };
 
 const rgb = (r: number, g: number, b: number): Rgb => ({ r, g, b });
 
 export function potPalette(tier: PotTier): PotPalette {
   if (tier === 1) {
     return {
-      body: rgb(60, 110, 105),
-      bodyLine: rgb(35, 70, 68),
-      rim: rgb(95, 150, 140),
-      rimLine: rgb(35, 70, 68),
-      disc: rgb(45, 80, 75),
-      highlight: rgb(150, 200, 190),
+      body: rgb(132, 176, 156), // celadon
+      bodyLine: rgb(74, 114, 104), // celadonShade
+      rim: rgb(162, 200, 180), // celadonRim
+      rimLine: rgb(74, 114, 104), // celadonShade
+      disc: rgb(74, 114, 104), // celadonShade
+      highlight: rgb(222, 238, 226), // celadonSheen
     };
   }
   return {
-    body: rgb(150, 90, 55),
-    bodyLine: rgb(85, 50, 30),
-    rim: rgb(170, 105, 65),
-    rimLine: rgb(85, 50, 30),
-    disc: rgb(70, 55, 45),
+    body: rgb(204, 112, 74), // terracotta
+    bodyLine: rgb(128, 68, 46), // terracottaShade
+    rim: rgb(220, 136, 96), // terracottaRim
+    rimLine: rgb(128, 68, 46), // terracottaShade
+    disc: rgb(128, 68, 46), // terracottaShade
   };
 }

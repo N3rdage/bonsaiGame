@@ -41,10 +41,10 @@ describe('tree art (obj_tree_sprite Draw_0)', () => {
     const a = treeArt(tree(), 'summer', 0, 0, 48);
     expect(a.feet).toEqual([]);
     expect(a.sheen).toBeUndefined();
-    expect([a.rim.fill, a.rim.line, a.outline.colour]).toEqual([0xaa6941, 0x55321e, 0x55321e]);
+    expect([a.rim.fill, a.rim.line, a.outline.colour]).toEqual([0xdc8860, 0x80442e, 0x80442e]);
     expect(a.body).toHaveLength(10);
-    expect(a.body[0]?.colour).toBe(0x935836);
-    expect(a.body[9]?.colour).toBe(0x58341f);
+    expect(a.body[0]?.colour).toBe(0xc86e49);
+    expect(a.body[9]?.colour).toBe(0x84462f);
     expect(a.body[0]?.points.map((p) => p.x)).toEqual([-10, 10, 9.8, -9.8]);
   });
 
@@ -54,31 +54,31 @@ describe('tree art (obj_tree_sprite Draw_0)', () => {
       { x: -8, y: -1, w: 4, h: 4 },
       { x: 4, y: -1, w: 4, h: 4 },
     ]);
-    expect(a.feetColour).toBe(0x234644);
-    expect(a.sheen).toEqual({ rect: { x: -8, y: -8, w: 2, h: 7 }, colour: 0x96c8be });
-    expect(a.rim.fill).toBe(0x5f968c);
+    expect(a.feetColour).toBe(0x4a7268);
+    expect(a.sheen).toEqual({ rect: { x: -8, y: -8, w: 2, h: 7 }, colour: 0xdeeee2 });
+    expect(a.rim.fill).toBe(0xa2c8b4);
   });
 
   it("fills the leaves in the species' seasonal colour, outlined 50 a channel darker", () => {
     expect(treeArt(tree(), 'spring', 0, 0, 24).canopy).toMatchObject({
-      fill: 0x5c7d4f,
-      line: 0x2a4b1d,
+      fill: 0x7cac60,
+      line: 0x4a7a2e,
     });
-    expect(treeArt(tree(), 'summer', 0, 0, 24).canopy?.fill).toBe(0x4a6741);
+    expect(treeArt(tree(), 'summer', 0, 0, 24).canopy?.fill).toBe(0x589654);
     const maple = tree({ speciesKey: 'maple' });
     expect(treeArt(maple, 'autumn', 0, 0, 24).canopy).toMatchObject({
-      fill: 0xb33a2a,
-      line: 0x810800,
+      fill: 0xd25a28,
+      line: 0xa02800,
     });
     // A deciduous maple drops its leaves in winter, as in the 3D viewer.
     expect(treeArt(maple, 'winter', 0, 0, 24).canopy).toBeUndefined();
   });
 
-  it("draws the trunk in the species' sprite colour, the juniper's being Draw_0's rgb(75, 50, 30)", () => {
+  it("draws the trunk in the species' sprite colour, its trunk bark", () => {
     const trunk = (speciesKey: BonsaiTree['speciesKey']): number =>
       treeArt(tree({ speciesKey }), 'summer', 0, 0, 24).trunk.colour;
-    expect(trunk('juniper')).toBe(0x4b321e);
-    expect(trunk('maple')).toBe(0x5a5650);
-    expect(trunk('pine')).toBe(0x32221a);
+    expect(trunk('juniper')).toBe(0x8c5e42);
+    expect(trunk('maple')).toBe(0x969288);
+    expect(trunk('pine')).toBe(0x704a3a);
   });
 });
