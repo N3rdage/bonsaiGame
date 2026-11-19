@@ -1,6 +1,7 @@
 // The Inked style as data: its authoring scale, its palette and its knobs.
-// STYLE is the game's look: rough, uneven ink with dry-brush breaks and
-// spatter, washes that pool and bleed, paper grain, corner shading and wear.
+// STYLE is the game's look: calm ink that seldom runs dry, strong washes that
+// pool and bleed a little, a light paper grain, corner shading and a little
+// wear. Large flat areas stay calm; detail goes on what the player looks at.
 // art/inked/README.md documents each knob.
 
 /** Art px per logical px: a 16 px tile is 64 art px. */
@@ -11,30 +12,32 @@ export const SUPERSAMPLE = 3;
 export const PAPER = [242, 234, 218];
 export const INK = [50, 42, 38];
 export const SURROUND = [62, 54, 50];
-export const WASH_ALPHA = 0.65;
+export const WASH_ALPHA = 0.82;
 /** Every wash by material. A form names its wash; later rooms add materials here, never inline. */
 export const WASHES = {
-  wall: [222, 204, 176],
-  floor: [214, 190, 156],
-  wood: [184, 140, 100],
-  top: [212, 178, 136],
-  cap: [150, 124, 100],
+  wall: [238, 226, 200],
+  floor: [186, 140, 98],
+  wood: [150, 100, 64],
+  top: [168, 120, 78],
+  cap: [98, 76, 62],
   stone: [196, 194, 188],
   metal: [150, 166, 178],
-  terracotta: [208, 136, 100],
-  foliage: [132, 164, 108],
+  terracotta: [204, 112, 74],
+  foliage: [88, 150, 84],
   soil: [120, 96, 78],
   shirt: [116, 146, 184],
   trousers: [120, 106, 96],
   skin: [236, 192, 160],
   hair: [96, 76, 64],
   brass: [214, 180, 96],
-  glass: [168, 198, 206],
+  glass: [150, 204, 222],
   lamp: [250, 222, 150],
-  cream: [230, 216, 188],
-  rug: [190, 120, 110],
+  cream: [240, 226, 196],
+  rug: [168, 70, 66],
   outside: [150, 184, 118],
   shadow: [110, 94, 80],
+  // The dark surround the rooms' paper is washed with, so each room stands framed.
+  surroundWash: [92, 80, 72],
   // The buildings seen from the garden: the house's render and roof tiles, the greenhouse's white frame.
   render: [214, 198, 176],
   tile: [184, 116, 92],
@@ -48,9 +51,9 @@ export const WASHES = {
   runner: [128, 152, 132],
   studyPaper: [162, 176, 190],
   parquet: [186, 128, 100],
-  // The 3D viewer's textures are tinted by each species' colours, so their washes are near neutral.
-  bark: [170, 160, 148],
-  leaf: [188, 190, 178],
+  // The 3D viewer's textures are tinted by each species' colours: these are chosen to land near neutral.
+  bark: [185, 175, 163],
+  leaf: [199, 199, 186],
   // The gardens' season washes, laid over the whole baked garden at runtime
   // (src/world/palette.ts mirrors these): spring's fresh green, autumn's
   // browning, winter's frost. Summer has none.
@@ -101,18 +104,18 @@ export const palette = [
 
 /** The chosen look. Lengths are logical px unless a comment says art px. */
 export const STYLE = {
-  jitter: 0.8,
-  overshoot: 1.8,
+  jitter: 0.5,
+  overshoot: 1.0,
   weightVariation: 0.35,
-  dryBrush: { strength: 0.85, minLength: 12, every: 24 },
-  spatter: { chance: 0.12, minWidth: 2.4, dots: 3, radius: 2.2 },
+  dryBrush: { strength: 0.5, minLength: 20, every: 80 },
+  spatter: { chance: 0.02, minWidth: 2.4, dots: 3, radius: 2.2 },
   washPool: 0.25,
   washPoolWidth: 0.9,
   washBleed: 0.8,
-  washGranulation: 0.12,
-  grain: 0.09,
+  washGranulation: 0.06,
+  grain: 0.04,
   shadowAlpha: 0.45,
   crossHatch: { angle: -0.75, spacing: 1.7 },
   cornerShade: 7,
-  wear: 1,
+  wear: 0.3,
 };

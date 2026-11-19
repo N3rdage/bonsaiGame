@@ -57,7 +57,7 @@ const SEEDS = {
 
 /** Ink widths, art px: an outline, a tile's seams, a small mark. */
 const OUTLINE = 2.6;
-const SEAM = 1.8;
+const SEAM = 1.0;
 const MARK = 1.5;
 /** Hatching for small forms, finer than the kit's default. */
 const FINE = { spacing: 1.2, width: 1.2 };
@@ -83,8 +83,8 @@ const seg = (k, x0, y0, x1, y1, width = SEAM) =>
 // seam is drawn at the bottom of its board (y 3.5, 7.5, 11.5, 15.5), so a tile
 // owns its lower seam and its upper one is the tile above's. Per variant, the
 // boards' few end joints (board row, x), so the boards run long, the grain
-// streaks along them (board row, x, length), and its marks: nail pairs and a
-// hatched scuff of dirt.
+// streaks along them (board row, x, length), and its marks: nail pairs, and
+// on one variant only a hatched scuff of dirt, so the floor stays calm.
 const FLOOR_VARIANTS = [
   {
     joints: [[2, 12]],
@@ -105,7 +105,6 @@ const FLOOR_VARIANTS = [
       [2, 1, 5],
     ],
     nails: [[0, 13]],
-    scuff: [4, 5],
   },
   {
     joints: [[0, 7]],
@@ -114,7 +113,6 @@ const FLOOR_VARIANTS = [
       [3, 1, 4],
     ],
     nails: [[1, 6]],
-    scuff: [12, 13],
   },
 ];
 
@@ -130,19 +128,22 @@ function floorTile(i) {
     seg(k, x, row * 4 + 1.2, x + 0.2, row * 4 + 1.5, MARK);
     seg(k, x, row * 4 + 2.4, x + 0.2, row * 4 + 2.7, MARK);
   }
-  const [sx, sy] = v.scuff;
-  k.hatchIn(rect(sx - 2, sy - 1, 4, 2), FINE);
+  if (v.scuff) {
+    const [sx, sy] = v.scuff;
+    k.hatchIn(rect(sx - 2, sy - 1, 4, 2), FINE);
+  }
   return finish(page);
 }
 
 // The back wall's face: a top beam (the wall's own cap) y 0..4, vertical
 // planks y 4..43 with their seams at x 3.5, 7.5, 11.5, 15.5 as the floor's, a
-// skirting board y 43..48 on the floor line, and the grime of the bottom
-// metre hatched in. Per variant: a plank's knot, a split and a nail row.
+// skirting board y 43..48 on the floor line, the planks left calm. Per
+// variant: a split and a nail row, and on one variant only a plank's knot, so
+// the knots do not dot the wall.
 const WALL_VARIANTS = [
   { knot: [6, 18], split: [13, 30, 6] },
-  { knot: [10, 26], split: [2, 10, 5] },
-  { knot: [2, 33], split: [9, 20, 7] },
+  { split: [2, 10, 5] },
+  { split: [9, 20, 7] },
 ];
 
 function wallTile(i) {
@@ -150,15 +151,16 @@ function wallTile(i) {
   const { k } = page;
   const v = WALL_VARIANTS[i];
   k.box(-1, 4, 18, 39, 'wall', { edges: false });
-  k.hatchIn(rect(-1, 33, 18, 10), { spacing: 1.9, width: 1.2 });
   for (const x of [3.5, 7.5, 11.5, 15.5]) seg(k, x, 4, x, 43);
   k.box(-1, -1, 18, 5, 'cap', { edges: false, hatching: true });
   seg(k, -1, 4, 17, 4, OUTLINE);
   k.box(-1, 43, 18, 5, 'wood', { edges: false });
   seg(k, -1, 43, 17, 43, OUTLINE);
   seg(k, -1, 47.6, 17, 47.6, OUTLINE);
-  const [kx, ky] = v.knot;
-  k.blob(kx, ky, 0.9, 1.6, 'wood', { width: MARK });
+  if (v.knot) {
+    const [kx, ky] = v.knot;
+    k.blob(kx, ky, 0.9, 1.6, 'wood', { width: MARK });
+  }
   const [px, py, len] = v.split;
   seg(k, px, py, px + 0.3, py + len, MARK);
   for (const x of [1.5, 5.5, 9.5, 13.5]) seg(k, x, 6, x + 0.2, 6.3, MARK);
