@@ -12,7 +12,7 @@ On 18 November Drew looked at the game and said, of this project and its sibling
 
 ## Grunge everywhere
 
-Every room in the game is drawn by a generator in `art/inked/`: ink over watercolour washes on paper, all of it seeded, so a rerun reproduces the same pixels. The earlier art-direction answer, agentic-gaming#132, asked for ink over wash "with grunge", and I gave it grunge everywhere. Lines wobbled 0.8 art px sideways and overshot their corners by 1.8. Long lines broke dry about every 24 logical px. One line in eight that was wide enough flicked spatter dots. Washes granulated, the paper grain darkened the finished page, and wear put knots, splits and stains on every wooden board at full strength.
+Every room in the game is drawn by a generator in `art/inked/`: ink over watercolour washes on paper, all of it seeded, so a rerun reproduces the same pixels. The earlier art-direction answer, agentic-gaming#132, asked for ink over wash "a little grungier" than the first render, and I gave it grunge everywhere. Lines wobbled 0.8 art px sideways and overshot their corners by 1.8. Long lines broke dry about every 24 logical px. One line in eight that was wide enough flicked spatter dots. Washes granulated, the paper grain darkened the finished page, and wear put knots, splits and stains on every wooden board at full strength.
 
 The washes were low-saturation beiges laid at 65 percent, so the wall, the floor and the furniture were three nearby browns. The paper outside the room was nearly the same colour as the walls, so the room did not sit on anything; it floated.
 
