@@ -1,14 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
-import type { BonsaiTree, GameState } from '../sim/types';
-import { sheetPxPerLogical } from './assets';
+import type { BonsaiTree, GameState, PlacedItem } from '../sim/types';
+import { PLAYER_FEET, sheetPxPerLogical } from './assets';
+import { ROOMS } from './gardenRoom';
+import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { nearestInteractable } from './interactables';
 import { HALLWAY_ROOM } from './hallwayRoom';
 import { FIREPLACE, LOUNGE_ROOM, SIDE_TABLE } from './loungeRoom';
+import { placedProps } from './placement';
+import { PEDESTAL_EMPTY_LABEL, PEDESTAL_LABEL_DY } from './roomArt';
 import { SHED_ROOM, hitsWall, insideWalls, type Room } from './shedRoom';
 import { BOOKSHELF, DESK, STUDY_ROOM } from './studyRoom';
 import {
+  DISPLAY_LABEL_DEPTH,
+  DISPLAY_LABEL_JOIN,
+  displayLabels,
+  type DisplayLabel,
   FLOOR_GRID,
   FLOOR_LAP_DEPTH,
   floorColumns,
@@ -190,5 +198,82 @@ describe('tree sprites', () => {
     expect(TREE_PROMPT).toBe('Inspect');
     const near = nearestInteractable({ x: 170, y: 140 }, [...LOUNGE_ROOM.props, ...targets]);
     expect(near?.key).toBe('tree:0');
+  });
+});
+
+describe('display labels', () => {
+  /** The greenhouse with `placed` down, as the scene's live room has it. */
+  function greenhouse(state: GameState, ...placed: PlacedItem[]): Room {
+    state.placed = placed;
+    return {
+      ...GREENHOUSE_ROOM,
+      props: [...GREENHOUSE_ROOM.props, ...placedProps(state, GREENHOUSE_ROOM, false)],
+    };
+  }
+  const pedestal: PlacedItem = { id: 0, kind: 'pedestal', room: 'greenhouse', x: 240, y: 128 };
+  const shelf: PlacedItem = { id: 1, kind: 'floor_shelf', room: 'greenhouse', x: 288, y: 128 };
+  const show = (labels: DisplayLabel[]) => labels.map((l) => [l.x, l.y, l.text, l.empty]);
+
+  it('gives an empty floor shelf one `(empty)`, centred under both its spots', () => {
+    const state = stateWith();
+    const labels = displayLabels(state, greenhouse(state, shelf));
+    // The spots' centres are 296 and 312, 16 px apart; their centre y is 136.
+    expect(show(labels)).toEqual([[304, 136 + PEDESTAL_LABEL_DY, PEDESTAL_EMPTY_LABEL, true]]);
+  });
+
+  it("gives a shelf with one tree that tree's name alone, on either spot", () => {
+    for (const key of ['placed_1', 'placed_1_2']) {
+      const state = stateWith(`displayed:${key}`);
+      expect(show(displayLabels(state, greenhouse(state, shelf)))).toEqual([
+        [304, 151, 'T0', false],
+      ]);
+    }
+  });
+
+  it("joins a shelf's two trees' names, left spot first", () => {
+    const state = stateWith('displayed:placed_1_2', 'displayed:placed_1');
+    expect(show(displayLabels(state, greenhouse(state, shelf)))).toEqual([
+      [304, 151, `T1${DISPLAY_LABEL_JOIN}T0`, false],
+    ]);
+  });
+
+  it('gives a placed pedestal and a built-in pedestal one label each', () => {
+    const state = stateWith('displayed:placed_0');
+    expect(show(displayLabels(state, greenhouse(state, pedestal)))).toEqual([
+      [248, 151, 'T0', false],
+    ]);
+    const spots = LOUNGE_ROOM.props.filter((p) => p.pedestalKey !== undefined);
+    expect(spots).toHaveLength(2);
+    expect(show(displayLabels(stateWith('displayed:lounge_mantel'), LOUNGE_ROOM))).toEqual(
+      spots.map((p) => [
+        p.x,
+        p.y + PEDESTAL_LABEL_DY,
+        p.pedestalKey === 'lounge_mantel' ? 'T0' : PEDESTAL_EMPTY_LABEL,
+        p.pedestalKey !== 'lounge_mantel',
+      ]),
+    );
+  });
+
+  it("keeps a room's labels apart when a shelf's spots are 16 px apart", () => {
+    // Caveat at the world label size: under 4 px a character, plus the plate's padding.
+    const width = (l: DisplayLabel) => l.text.length * 4 + 4;
+    const layouts = [[], ['displayed:placed_0'], ['displayed:placed_0', 'displayed:placed_1']];
+    for (const trees of layouts) {
+      const state = stateWith(...trees);
+      const labels = displayLabels(state, greenhouse(state, pedestal, shelf));
+      expect(labels).toHaveLength(2);
+      const [a, b] = labels;
+      if (!a || !b) throw new Error('two labels');
+      expect(Math.abs(a.x - b.x)).toBeGreaterThan((width(a) + width(b)) / 2);
+    }
+  });
+
+  it('draws the labels over the player and every sorted piece in any room', () => {
+    const state = stateWith('displayed:placed_0');
+    const labels = displayLabels(state, greenhouse(state, pedestal, shelf));
+    expect(labels.every((l) => l.depth === DISPLAY_LABEL_DEPTH)).toBe(true);
+    for (const room of Object.values(ROOMS)) {
+      expect(DISPLAY_LABEL_DEPTH).toBeGreaterThan(room.bounds.y + room.bounds.h + PLAYER_FEET);
+    }
   });
 });
