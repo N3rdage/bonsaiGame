@@ -1,6 +1,6 @@
 /**
  * obj_tree_sprite's Draw event as pure data: the bonsai silhouette the room
- * draws for a tree (shadow, pot in its tier's `pot_palette` colours, trunk,
+ * draws for a tree (shadow, pot in its tier's `potPalette` colours, trunk,
  * three leaf circles with a darker outline pass), in logical px, the trunk in
  * the species' `look.spriteTrunk`. The
  * prototype drew it 48 px tall round a centre origin for every tree; here it
@@ -129,7 +129,6 @@ export function treeArt(
       colour: hex(pot.bodyLine),
     },
     rim: { rect: rect(-11, 7, 11, 10), fill: hex(pot.rim), line: hex(pot.rimLine) },
-    // Draw_0's trunk rgb(75, 50, 30) is the juniper's; each species has its own.
     trunk: {
       rect: rect(-2, -8, 2, 8),
       colour: Number.parseInt(species.look.spriteTrunk.slice(1), 16),

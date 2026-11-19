@@ -9,9 +9,8 @@
  * from `trunkFrames` and the `*FrameAt` lookups only, so what
  * you see is what you score. A wired branch's wire coil and trunk anchor are
  * appended to the bark list right after that branch's bark, as the prototype
- * appended them to its bark buffer. Bark takes the species' `look` colours
- * (the prototype's one bark colour pair is the juniper's). Foliage is built separately in
- * `foliageMesh.ts`.
+ * appended them to its bark buffer. Bark takes the species' `look` colours.
+ * Foliage is built separately in `foliageMesh.ts`.
  */
 
 import type { BonsaiTree, Branch, Frame, SpeciesKey, Vec3 } from '../sim/types';

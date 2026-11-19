@@ -75,6 +75,32 @@ export const WASHES = {
   snow: [255, 255, 255],
   snowShade: [226, 236, 246],
   mote: [232, 226, 200],
+  // The trees, drawn live as the 2D sprite and tinting the 3D viewer's
+  // textures (src/sim/species.ts mirrors these): each species' seasonal
+  // foliage (the juniper's summer is `foliage`, the maple's autumn `leafRed`)
+  // and its trunk and branch bark, the trunk's being the sprite's too.
+  juniperSpring: [124, 172, 96],
+  juniperWinter: [134, 124, 82],
+  mapleSpring: [156, 180, 84],
+  mapleSummer: [70, 126, 70],
+  pineSpring: [112, 164, 124],
+  pineSummer: [80, 128, 104],
+  pineWinter: [64, 104, 90],
+  barkJuniper: [140, 94, 66],
+  barkJuniperBranch: [158, 110, 78],
+  barkMaple: [150, 146, 136],
+  barkMapleBranch: [166, 162, 150],
+  barkPine: [112, 74, 58],
+  barkPineBranch: [128, 88, 68],
+  // The pots, drawn live (src/viewer/potPalette.ts mirrors these): the
+  // standard pot's `terracotta` with its rim and shade, the fancy pot's
+  // celadon glaze with its rim, shade and sheen, and `soil` on top.
+  terracottaRim: [220, 136, 96],
+  terracottaShade: [128, 68, 46],
+  celadon: [132, 176, 156],
+  celadonRim: [162, 200, 180],
+  celadonShade: [74, 114, 104],
+  celadonSheen: [222, 238, 226],
 };
 /**
  * How far from paper a finished pixel may be and still count as paper when a

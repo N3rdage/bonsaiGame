@@ -81,10 +81,10 @@ describe('buildPotGeometry (obj_viewer_3d _draw_pot)', () => {
   });
 
   it('builds the first segment of the terracotta pot vertex for vertex', () => {
-    const body = { r: 150, g: 90, b: 55 };
-    const dark = { r: 85, g: 50, b: 30 };
-    const rim = { r: 170, g: 105, b: 65 };
-    const soil = { r: 48, g: 34, b: 24 };
+    const body = { r: 204, g: 112, b: 74 };
+    const dark = { r: 128, g: 68, b: 46 };
+    const rim = { r: 220, g: 136, b: 96 };
+    const soil = { r: 120, g: 96, b: 78 };
     const a = (2 * Math.PI) / 28;
     const ring = (r: number, z: number, second: boolean): Vec3 =>
       second ? { x: Math.cos(a) * r, y: Math.sin(a) * r, z } : { x: r, y: 0, z };
@@ -167,7 +167,7 @@ describe('buildPotGeometry (obj_viewer_3d _draw_pot)', () => {
       const sides = i < 24;
       expectColor(
         colorAt(pot, first + i),
-        sides ? { r: 60, g: 110, b: 105 } : { r: 35, g: 70, b: 68 },
+        sides ? { r: 132, g: 176, b: 156 } : { r: 74, g: 114, b: 104 },
       );
       if (!sides) expect(positionAt(pot, first + i).z).toBeCloseTo(-0.344, 6);
     }
