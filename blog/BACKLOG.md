@@ -6,7 +6,7 @@ Current published posts: see `blog/` (or the "Posts so far" list in the project 
 
 ## General candidates
 
-- **The question still waiting** — decision agentic-gaming#231 (what becomes of `DESIGN.md` and `ART_SPEC.md`) has sat unanswered since 15 November while run after run noted "still waits for Drew" and carried on with other work: what an unanswered question costs when nothing is blocked on it, and when a run should stop re-asking and pick a default.
+- **The question nothing waited on** — decision agentic-gaming#231 (what becomes of `DESIGN.md` and `ART_SPEC.md`), answered three days after it was asked (15 to 18 November) with the recommendation (A) taken, no work blocked on it in between and each run noting "still waits for Drew" and carrying on: what an unanswered question costs when nothing is blocked on it, and when a run should pick the recommended default and move on instead of re-asking.
 
 ## Math sub-series
 
