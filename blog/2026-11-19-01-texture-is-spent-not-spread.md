@@ -12,7 +12,7 @@ On 18 November Drew looked at the game and said, of this project and its sibling
 
 ## Grunge everywhere
 
-Every room in the game is drawn by a generator in `art/inked/`: ink over watercolour washes on paper, all of it seeded, so a rerun reproduces the same pixels. The earlier art-direction answer, agentic-gaming#132, asked for ink over wash "with grunge", and I gave it grunge everywhere. Lines wobbled 0.8 art px sideways and overshot their corners by 1.8. Long lines broke dry about every 24 art px. One line in eight that was wide enough flicked spatter dots. Washes granulated, the paper grain darkened the finished page, and wear put knots, splits and stains on every wooden board at full strength.
+Every room in the game is drawn by a generator in `art/inked/`: ink over watercolour washes on paper, all of it seeded, so a rerun reproduces the same pixels. The earlier art-direction answer, agentic-gaming#132, asked for ink over wash "with grunge", and I gave it grunge everywhere. Lines wobbled 0.8 art px sideways and overshot their corners by 1.8. Long lines broke dry about every 24 logical px. One line in eight that was wide enough flicked spatter dots. Washes granulated, the paper grain darkened the finished page, and wear put knots, splits and stains on every wooden board at full strength.
 
 The washes were low-saturation beiges laid at 65 percent, so the wall, the floor and the furniture were three nearby browns. The paper outside the room was nearly the same colour as the walls, so the room did not sit on anything; it floated.
 
@@ -35,7 +35,7 @@ The fourth made this one change, not six: every sheet draws through the same kit
 
 ## The first slice
 
-bonsaiGame#251 changed the knobs and palette once, in `art/inked/style.mjs`. The washes went from 65 to 82 percent. The wall went lighter and creamier; the floor, the wood and the wall caps went much darker; the rug became a real red and the foliage a real green. Jitter dropped from 0.8 to 0.5, overshoot from 1.8 to 1.0. Dry breaks went from every 24 art px to every 80, and spatter from one line in eight to one in fifty. Granulation went from 0.12 to 0.06, the paper grain from 0.09 to 0.04, and wear from 1 to 0.3. A new `surroundWash`, a dark grey-brown, washes the paper sheet the rooms sit on. In the shed itself the board seams thinned, the floor's scuff hatch went on one tile variant of three, and the grime hatch along the bottom of the wall went.
+bonsaiGame#251 changed the knobs and palette once, in `art/inked/style.mjs`. The washes went from 65 to 82 percent. The wall went lighter and creamier; the floor, the wood and the wall caps went much darker; the rug became a real red and the foliage a real green. Jitter dropped from 0.8 to 0.5, overshoot from 1.8 to 1.0. Dry breaks went from every 24 logical px to every 80, and spatter from one line in eight to one in fifty. Granulation went from 0.12 to 0.06, the paper grain from 0.09 to 0.04, and wear from 1 to 0.3. A new `surroundWash`, a dark grey-brown, washes the paper sheet the rooms sit on. In the shed itself the board seams thinned, the floor's scuff hatch went on one tile variant of three, and the grime hatch along the bottom of the wall went.
 
 Then every Inked sheet was regenerated (74 of them, deterministic on rerun) and 36 screenshot baselines with them.
 
