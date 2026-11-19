@@ -1,13 +1,18 @@
 /* eslint-disable no-console -- reports each texture `npm run art:viewer` writes. */
-// The 3D viewer's two textures, drawn in Inked (art/inked/README.md) and
+// The 3D viewer's textures, drawn in Inked (art/inked/README.md) and
 // written beside the viewer that imports them:
-//   src/viewer/foliage.png  a leaf cluster cut out of its paper, crisp alpha
-//                           for the foliage pass's alpha test
-//   src/viewer/bark.png     bark with ink grain, repeated mirrored along and
-//                           around every trunk, branch and wire tube
-// Both are washed near neutral (`leaf`, `bark` in style.mjs) because the
-// viewer tints them with each species' colours. 32 logical px square, so
-// 128 art px. Everything is seeded: a rerun reproduces the PNGs byte for byte.
+//   src/viewer/foliage.png   a leaf cluster cut out of its paper, crisp alpha
+//                            for the foliage pass's alpha test
+//   src/viewer/bark.png      bark with ink grain, repeated mirrored along and
+//                            around every trunk, branch and wire tube
+//   src/viewer/ground.png    the round wooden slab the pot stands on, cut out,
+//                            the pot's ground shadow washed into it
+//   src/viewer/backdrop.png  the surround: the page washed all over in
+//                            `surroundWash`, tiled behind everything
+// Foliage and bark are washed near neutral (`leaf`, `bark` in style.mjs)
+// because the viewer tints them with each species' colours; they are 32
+// logical px square, so 128 art px. Ground and backdrop are 64 logical px, 256
+// art px. Everything is seeded: a rerun reproduces the PNGs byte for byte.
 
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -22,6 +27,8 @@ const SIZE = 32;
 const SEEDS = {
   foliage: 0x7e1f,
   bark: 0xb3a4,
+  ground: 0x6d52,
+  backdrop: 0xd0c8,
 };
 
 // The viewer shows these textures five or six times smaller than they are
@@ -126,9 +133,46 @@ function bark() {
   return finish(page);
 }
 
+/**
+ * The slab and its shadow, logical px. `src/viewer/ground.ts` derives these
+ * from the pot's geometry and the light (`groundShadowPx`), and its test pins
+ * them to this table: the slab's radius `GROUND_DISC_PX` in a page
+ * `GROUND_TEXTURE_SIZE` square, the pool centred where the pot's mid-height
+ * falls away from the light.
+ */
+const GROUND = {
+  size: 64,
+  disc: 29,
+  shadow: { cx: 29.02, cy: 33.19, r: 21.34 },
+};
+
+function ground() {
+  const { size, disc, shadow } = GROUND;
+  const page = createPage(size, size, { seed: SEEDS.ground });
+  const { k } = page;
+  k.blob(size / 2, size / 2, disc, disc, 'floor');
+  k.groundShadow(shadow.cx, shadow.cy, shadow.r, shadow.r);
+  return finishCutOut(page);
+}
+
+/** The backdrop: one grain period square, as `paperSheet.mjs` lays the rooms' surround. */
+const BACKDROP = { size: 64, oversize: 16 };
+
+function backdrop() {
+  const { size, oversize } = BACKDROP;
+  const page = createPage(size, size, { seed: SEEDS.backdrop, origin: [0, 0] });
+  page.k.box(-oversize, -oversize, size + 2 * oversize, size + 2 * oversize, 'surroundWash', {
+    edges: false,
+    wear: false,
+  });
+  return finish(page);
+}
+
 for (const [name, draw] of [
   ['foliage', foliage],
   ['bark', bark],
+  ['ground', ground],
+  ['backdrop', backdrop],
 ]) {
   const canvas = draw();
   writePng(join(OUT, `${name}.png`), canvas);
