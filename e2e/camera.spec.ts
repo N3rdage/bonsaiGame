@@ -207,6 +207,34 @@ test.describe('world camera screenshot', () => {
   });
 });
 
+// The owner's phone in landscape with the browser's bars showing: 711x273 CSS
+// px at 2.8x. The tutorial box is the compact form there (src/world/tutorialPanel.ts),
+// a step label and its two buttons in the corner; More opens it out.
+test.describe('world camera screenshot on a short phone', () => {
+  test.use({
+    viewport: { width: 711, height: 273 },
+    deviceScaleFactor: 2.8,
+    hasTouch: true,
+    isMobile: true,
+  });
+
+  test('the compact tutorial box, and opened out with More', async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape baseline only');
+    await bootStill(page);
+    await page.waitForFunction(() => window.__bonsai?.tutorialLabel !== '');
+    expect((await hook(page)).controls.map((c) => c.id)).toEqual([
+      'view',
+      'notebook',
+      'menu',
+      'tutorial-skip',
+      'tutorial-more',
+    ]);
+    await expect(page).toHaveScreenshot('shed-start-711x273.png');
+    await tapControl(page, 'tutorial-more');
+    await expect(page).toHaveScreenshot('shed-start-711x273-more.png');
+  });
+});
+
 // The panels' text on the phone, for reviewing the UI font: the starter's
 // inspector and Granny's notebook at the shed's start, the tutorial skipped.
 test.describe('shed-start panel screenshots', () => {

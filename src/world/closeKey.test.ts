@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { closeKeyName, escapeReachesPage, isCloseKey, withCloseKey } from './closeKey';
 
-const windowed = { fullscreen: false, escapeLocked: false };
-const full = { fullscreen: true, escapeLocked: false };
-const locked = { fullscreen: true, escapeLocked: true };
+const windowed = { fullscreen: false, escapeLocked: false, touch: false };
+const full = { fullscreen: true, escapeLocked: false, touch: false };
+const locked = { fullscreen: true, escapeLocked: true, touch: false };
 
 describe('closeKeyName', () => {
   it('names Esc outside fullscreen', () => {
@@ -22,6 +22,13 @@ describe('closeKeyName', () => {
     expect(closeKeyName(full, true)).toBeUndefined();
     expect(closeKeyName(locked, true)).toBe('Esc');
     expect(closeKeyName(windowed, true)).toBe('Esc');
+  });
+
+  it('names no key by touch, whatever the fullscreen state', () => {
+    for (const state of [windowed, full, locked]) {
+      expect(closeKeyName({ ...state, touch: true })).toBeUndefined();
+      expect(escapeReachesPage({ ...state, touch: true })).toBe(false);
+    }
   });
 });
 

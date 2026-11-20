@@ -191,7 +191,7 @@ interface BonsaiTestHook {
    * 'panel-rename-save', 'panel-style-<key>', 'panel-style-none' and 'panel-sell'; 'panel-place' (an empty pedestal's
    * panel while carrying) and 'menu-putdown' (the HUD menu while carrying); 'notebook' (the HUD's Notebook (J)) and
    * 'tutorial-skip' (the tutorial corner panel's Skip, with no modal open) or, while it holds the season tip,
-   * 'tip-dismiss' (its Got it) in Skip's place; the notebook's 'panel-prev' and 'panel-next'
+   * 'tip-dismiss' (its Got it) in Skip's place, and its 'tutorial-more' (More / Less) while the panel is the compact form; the notebook's 'panel-prev' and 'panel-next'
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant's
    * 'panel-select-<species>' (unselected cuttings), 'panel-select-seed-<species>' (unselected seeds), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
    * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), 'menu-sleep' and 'menu-sleep-week' (its Sleep (Z) and Sleep a week rows), and the Settings panel's 'panel-fullscreen' (only where the browser offers
