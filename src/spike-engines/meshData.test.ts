@@ -44,14 +44,12 @@ describe('the scene as triangles', () => {
       const [a, b, c] = [p(t), p(t + 1), p(t + 2)];
       const u = [0, 1, 2].map((i) => (b[i] ?? 0) - (a[i] ?? 0));
       const v = [0, 1, 2].map((i) => (c[i] ?? 0) - (a[i] ?? 0));
-      const cross = [
-        (u[1] ?? 0) * (v[2] ?? 0) - (u[2] ?? 0) * (v[1] ?? 0),
-        (u[2] ?? 0) * (v[0] ?? 0) - (u[0] ?? 0) * (v[2] ?? 0),
-        (u[0] ?? 0) * (v[1] ?? 0) - (u[1] ?? 0) * (v[0] ?? 0),
-      ];
+      const cx = (u[1] ?? 0) * (v[2] ?? 0) - (u[2] ?? 0) * (v[1] ?? 0);
+      const cy = (u[2] ?? 0) * (v[0] ?? 0) - (u[0] ?? 0) * (v[2] ?? 0);
+      const cz = (u[0] ?? 0) * (v[1] ?? 0) - (u[1] ?? 0) * (v[0] ?? 0);
       const k = (mesh.indices[t] ?? 0) * 3;
-      const n = [mesh.normals[k] ?? 0, mesh.normals[k + 1] ?? 0, mesh.normals[k + 2] ?? 0];
-      expect(cross[0] * n[0] + cross[1] * n[1] + cross[2] * n[2]).toBeGreaterThan(0);
+      const [nx = 0, ny = 0, nz = 0] = mesh.normals.subarray(k, k + 3);
+      expect(cx * nx + cy * ny + cz * nz).toBeGreaterThan(0);
     }
   });
 
