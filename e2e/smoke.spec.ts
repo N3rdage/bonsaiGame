@@ -50,4 +50,23 @@ test.describe('boot', () => {
       timeout: 15_000,
     });
   });
+
+  test('the service worker gives every fixed-name asset a revision', async ({ request }) => {
+    // A precache entry without a revision is never fetched again, so it is only safe for a file
+    // whose name changes with its content. Sprite sheets and sounds keep their names: without a
+    // revision a returning device runs new code over the sheets its first visit cached.
+    const worker = await request.get('/sw.js');
+    expect(worker.ok()).toBe(true);
+    const entries = [
+      ...(await worker.text()).matchAll(/\{url:"([^"]+)",revision:(null|"[^"]+")\}/g),
+    ];
+    expect(entries.length).toBeGreaterThan(50);
+    const hashedName = /-[A-Za-z0-9_-]{8}\.[a-z0-9]+(\.map)?$/;
+    const stale = entries
+      .filter(([, url, revision]) => revision === 'null' && !hashedName.test(url ?? ''))
+      .map(([, url]) => url);
+    expect(stale).toEqual([]);
+    const sprites = entries.filter(([, url]) => url?.includes('assets/spr_'));
+    expect(sprites.length).toBeGreaterThan(20);
+  });
 });
