@@ -1,4 +1,5 @@
 import type { CloseKeyState } from '../world/closeKey';
+import { currentInputMode } from './inputMode';
 
 /** The slice of Chromium's Keyboard Lock API (`navigator.keyboard`) the page uses; absent elsewhere. */
 interface KeyboardLockApi {
@@ -21,7 +22,11 @@ function setEscapeLocked(locked: boolean): void {
 
 /** Whether the page is fullscreen now, and whether it holds the Escape lock: what the close labels follow. */
 export function closeKeyState(): CloseKeyState {
-  return { fullscreen: document.fullscreenElement !== null, escapeLocked };
+  return {
+    fullscreen: document.fullscreenElement !== null,
+    escapeLocked,
+    touch: currentInputMode() === 'touch',
+  };
 }
 
 /** Runs `listener` whenever the Escape lock is granted or released; returns the function that stops it. */

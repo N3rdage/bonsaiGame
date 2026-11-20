@@ -10,21 +10,25 @@ export interface CloseKeyState {
   readonly fullscreen: boolean;
   /** The page holds the Escape keyboard lock (src/platform/fullscreen.ts). */
   readonly escapeLocked: boolean;
+  /** The player drives the game by touch (src/world/keyHints.ts): no key is named. */
+  readonly touch: boolean;
 }
 
 export type CloseKey = 'Esc' | 'Q';
 
-/** Whether a press of Escape reaches the game. */
+/** Whether a label may name Escape: a press of it reaches the game and the player has a keyboard in hand. */
 export function escapeReachesPage(state: CloseKeyState): boolean {
-  return !state.fullscreen || state.escapeLocked;
+  return !state.touch && (!state.fullscreen || state.escapeLocked);
 }
 
 /**
- * The key a close label names, or undefined when none can be named: while the
+ * The key a close label names, or undefined when none can be named: by touch,
+ * and while the
  * player is typing, Q is a letter, so only Escape can be named and not in
  * fullscreen without the lock.
  */
 export function closeKeyName(state: CloseKeyState, typing = false): CloseKey | undefined {
+  if (state.touch) return undefined;
   if (escapeReachesPage(state)) return 'Esc';
   return typing ? undefined : 'Q';
 }

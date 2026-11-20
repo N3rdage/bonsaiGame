@@ -1,5 +1,7 @@
 import { closeKeyState } from '../platform/fullscreen';
+import { currentInputMode } from '../platform/inputMode';
 import { closeKeyName } from '../world/closeKey';
+import { keyLabel } from '../world/keyHints';
 import type { ViewerMode } from './hotspots';
 import {
   CAMERA_BUTTONS,
@@ -74,13 +76,14 @@ export class ViewerToolbar {
     this.camera.classList.add('open');
     this.bar.style.setProperty('--tb-subrow-separator', px(subRowSeparator(viewportWidth)));
     const exit = exitLabel(closeKeyName(closeKeyState()));
-    const key = JSON.stringify([model, exit]);
+    const input = currentInputMode();
+    const key = JSON.stringify([model, exit, input]);
     if (key === this.drawn) return;
     this.drawn = key;
     this.bar.style.setProperty('--tb-height', `${String(model.height)}px`);
 
     const modes = model.modes.map(({ mode, label, selected }) => {
-      const el = button('ui-button mode', label, () => this.onMode?.(mode));
+      const el = button('ui-button mode', keyLabel(label, input), () => this.onMode?.(mode));
       el.dataset.mode = mode;
       el.classList.toggle('selected', selected);
       el.setAttribute('aria-pressed', String(selected));
