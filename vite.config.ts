@@ -59,6 +59,9 @@ export default defineConfig({
         // returning device keeps the copies its first visit cached, under new code that expects
         // new frame sizes. e2e/smoke.spec.ts checks the built worker.
         dontCacheBustURLsMatching: /^assets\/[^/]+-[A-Za-z0-9_-]{8}\.[a-z0-9]+(\.map)?$/,
+        // The engine comparison's pages (backlog #378, this branch only) are their own documents:
+        // a navigation to one must never be answered with the game's index.html.
+        navigateFallbackDenylist: [/^\/engine-/],
       },
     }),
   ],
@@ -67,6 +70,13 @@ export default defineConfig({
     sourcemap: true,
     chunkSizeWarningLimit: 2000,
     rolldownOptions: {
+      // The engine comparison spike (backlog #378) ships its two pages on its own branch, never
+      // merged, so its PR preview can be opened on a phone; the game is index.html.
+      input: {
+        index: 'index.html',
+        'engine-three': 'engine-three.html',
+        'engine-babylon': 'engine-babylon.html',
+      },
       output: {
         // Phaser changes rarely; keeping it in its own chunk lets browsers cache it across app updates.
         advancedChunks: {
