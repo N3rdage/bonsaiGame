@@ -6,6 +6,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
+    // Agent worktrees live under .claude/ (git-ignored); linting them runs ESLint out of heap.
     ignores: [
       'archive/**',
       'blog/**',
@@ -14,6 +15,7 @@ export default tseslint.config(
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
+      '.claude/**',
     ],
   },
   js.configs.recommended,
