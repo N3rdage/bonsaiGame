@@ -84,7 +84,8 @@ export default defineConfig({
             { name: 'phaser', test: 'node_modules/phaser/' },
             // Three.js likewise changes rarely and gets its own cacheable chunk.
             { name: 'three', test: 'node_modules/three/' },
-            // As does Babylon.js, on the engine comparison spike's Babylon page (backlog #378).
+            // As does Babylon.js, on the engine comparison spike's Babylon page (backlog #378). The
+            // group also pulls in the shaders and loaders Babylon would otherwise import lazily.
             { name: 'babylon', test: 'node_modules/@babylonjs/' },
           ],
         },

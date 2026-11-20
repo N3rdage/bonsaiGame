@@ -329,24 +329,18 @@ playerMaterial.backFaceCulling = false;
 playerMaterial.transparencyMode = Material.MATERIAL_ALPHATEST;
 playerMaterial.alphaCutOff = 0.5;
 playerMaterial.useAlphaFromDiffuseTexture = true;
-const halfW = PLAYER_HEIGHT / 4;
+// The quad Three's PlaneGeometry would make, facing +z, its corners from their uvs.
+const corners = [0, 0, 1, 0, 1, 1, 0, 1];
 const player = buildMesh('player', {
-  positions: new Float32Array([
-    -halfW,
-    0,
-    0,
-    halfW,
-    0,
-    0,
-    halfW,
-    PLAYER_HEIGHT,
-    0,
-    -halfW,
-    PLAYER_HEIGHT,
-    0,
-  ]),
+  positions: new Float32Array(
+    [0, 1, 2, 3].flatMap((i) => [
+      ((corners[i * 2] ?? 0) - 0.5) * (PLAYER_HEIGHT / 2),
+      (corners[i * 2 + 1] ?? 0) * PLAYER_HEIGHT,
+      0,
+    ]),
+  ),
   normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]),
-  uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+  uvs: new Float32Array(corners),
   indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
 });
 player.material = playerMaterial;
