@@ -5,6 +5,7 @@ import {
   TUTORIAL_WATER,
   tutorialStepBody,
 } from '../sim/tutorial';
+import { CAMERA_HELP } from '../viewer/toolbar';
 import { inputModeFor, keyLabel, keyProse, notebookHint } from './keyHints';
 
 describe('input mode', () => {
@@ -73,5 +74,25 @@ describe('notebookHint', () => {
   it('names J with a keyboard and the button by touch', () => {
     expect(notebookHint('keyboard')).toBe('Press J for notebook');
     expect(notebookHint('touch')).toBe('Tap Notebook for notes');
+  });
+});
+
+describe('keyProse and the viewer help lines', () => {
+  const wire =
+    'Click branch or trunk to bend (15° per click on branches, 20° on trunks)  |  Wire: 10';
+  const remove = 'Click a wired branch to remove its wire  |  Wire: 3';
+
+  it('keeps the clicks and the R key with a keyboard', () => {
+    for (const line of [wire, remove, CAMERA_HELP]) expect(keyProse(line, 'keyboard')).toBe(line);
+  });
+
+  it('says tap, and names no click or key, by touch', () => {
+    expect(keyProse(wire, 'touch')).toBe(
+      'Tap branch or trunk to bend (15° per tap on branches, 20° on trunks)  |  Wire: 10',
+    );
+    expect(keyProse(remove, 'touch')).toBe('Tap a wired branch to remove its wire  |  Wire: 3');
+    expect(keyProse(CAMERA_HELP, 'touch')).toBe(
+      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button',
+    );
   });
 });
