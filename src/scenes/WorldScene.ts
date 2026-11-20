@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { trackFor } from '../platform/audio';
 import { closeKeyState } from '../platform/fullscreen';
+import { currentInputMode } from '../platform/inputMode';
 import { registerSaveBeforeReload } from '../platform/swUpdate';
 import { loadGame, saveGame } from '../sim/save';
 import { seasonForDay, type Season } from '../sim/seasons';
@@ -23,6 +24,7 @@ import {
 import type { BonsaiTree, GameState, PlaceableKind } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
 import { closeKeyName, escapeReachesPage } from '../world/closeKey';
+import { keyLabel } from '../world/keyHints';
 import { hudText } from '../world/hud';
 import { nearestInteractable, promptFor } from '../world/interactables';
 import {
@@ -403,6 +405,9 @@ export class WorldScene extends Phaser.Scene {
   private tutorialParts: HudPart[] = [];
   private tutorialDrawn = '';
   private tutorialButton: { id: string; text: Phaser.GameObjects.Text } | undefined;
+  /** The compact corner panel's More / Less button while drawn, and the step (or tip) whose full text it has opened out; scene state, so a new step starts compact. */
+  private tutorialToggle: { id: string; text: Phaser.GameObjects.Text } | undefined;
+  private tutorialExpandedFor: string | undefined;
   /** The first-dormancy tip while the corner panel holds it; scene state, cleared by Got it or the notebook. */
   private seasonTip: string | undefined;
   /** The notebook page shown while it is open; scene state, never saved. */
@@ -477,6 +482,8 @@ export class WorldScene extends Phaser.Scene {
     this.tutorialParts = [];
     this.tutorialDrawn = '';
     this.tutorialButton = undefined;
+    this.tutorialToggle = undefined;
+    this.tutorialExpandedFor = undefined;
     this.seasonTip = undefined;
     this.player = createPlayer(SHED_ROOM);
     // The scene's own camera becomes the world camera; the HUD's, added after it, draws on top.
@@ -769,7 +776,9 @@ export class WorldScene extends Phaser.Scene {
     originY = originX,
     style: Phaser.Types.GameObjects.Text.TextStyle = bodyStyle(this.ui),
   ): Phaser.GameObjects.Text {
-    const button = this.text(x, y, label, style).setOrigin(originX, originY).setDepth(HUD_DEPTH);
+    const button = this.text(x, y, keyLabel(label, currentInputMode()), style)
+      .setOrigin(originX, originY)
+      .setDepth(HUD_DEPTH);
     setHitArea(button, this.ui.hit).on('pointerup', () => {
       this.sfx.tap(onTap);
     });
@@ -780,7 +789,7 @@ export class WorldScene extends Phaser.Scene {
   private readonly onResize = (): void => {
     this.ui = { ...this.ui, hit: sceneUi(this).hit };
     const buttons = [this.viewButton, this.notebookButton, this.menuButton, this.interactButton];
-    for (const button of [...buttons, this.tutorialButton?.text]) {
+    for (const button of [...buttons, this.tutorialButton?.text, this.tutorialToggle?.text]) {
       if (button) setHitArea(button, this.ui.hit);
     }
     this.publishHook();
@@ -1018,7 +1027,7 @@ export class WorldScene extends Phaser.Scene {
 
   /** obj_ui_tutorial_skip_confirm: Skip ends the tutorial, Cancel keeps it; both close. */
   private openSkipConfirm(): void {
-    const model = skipConfirmPanel();
+    const model = skipConfirmPanel(currentInputMode());
     this.openPanel(model, (i) => {
       if (model.rows[i]?.id === 'panel-skip') tutorialSkip(this.ctx.state);
       this.closePanel();
@@ -1036,15 +1045,29 @@ export class WorldScene extends Phaser.Scene {
       this.panel?.modal === true,
       this.ui,
       this.seasonTip,
+      { mode: currentInputMode(), expanded: this.tutorialExpandedFor === this.tutorialKey() },
     );
     const drawn = model ? JSON.stringify(model) : '';
     if (drawn !== this.tutorialDrawn) {
       for (const part of this.tutorialParts) part.destroy();
       this.tutorialButton = undefined;
+      this.tutorialToggle = undefined;
       this.tutorialParts = model ? this.tutorialPartsFor(model) : [];
       this.tutorialDrawn = drawn;
     }
     for (const part of this.tutorialParts) part.setVisible(!this.viewer.isOpen);
+  }
+
+  /** What the corner panel shows now: the held season tip, else the step. */
+  private tutorialKey(): string {
+    return this.seasonTip ?? String(this.ctx.state.tutorialStep);
+  }
+
+  /** More / Less: opens the compact corner panel out to the step's full text, or folds it back. */
+  private toggleTutorialExpanded(): void {
+    const key = this.tutorialKey();
+    this.tutorialExpandedFor = this.tutorialExpandedFor === key ? undefined : key;
+    this.publishHook();
   }
 
   /**
@@ -1076,9 +1099,26 @@ export class WorldScene extends Phaser.Scene {
         }).setOrigin(1, 0);
     if (enabled) this.tutorialButton = { id, text: button };
     const parts = [...bg, ...texts, button];
+    const more = m.toggle
+      ? this.hudButton(
+          m.toggle.x,
+          m.toggle.y,
+          m.toggle.label,
+          () => {
+            this.toggleTutorialExpanded();
+          },
+          0,
+          0,
+        )
+      : undefined;
+    if (more && m.toggle) {
+      this.tutorialToggle = { id: m.toggle.id, text: more };
+      parts.push(more);
+    }
     for (const part of parts) part.setDepth(HUD_DEPTH);
     // After the depth, which the underline takes from its button.
     if (enabled) parts.push(underline(this, button));
+    if (more) parts.push(underline(this, more));
     return parts;
   }
 
@@ -2005,12 +2045,16 @@ export class WorldScene extends Phaser.Scene {
     const tutorial = this.tutorialButton
       ? [at(this.tutorialButton.id, this.tutorialButton.text)]
       : [];
+    const toggle = this.tutorialToggle
+      ? [at(this.tutorialToggle.id, this.tutorialToggle.text)]
+      : [];
     return [
       at('view', this.viewButton),
       at('notebook', this.notebookButton),
       at('menu', this.menuButton),
       ...interact,
       ...tutorial,
+      ...toggle,
       ...rows,
     ];
   }

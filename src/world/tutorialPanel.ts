@@ -8,9 +8,11 @@
 
 import { PANEL_STYLE } from '../scenes/textStyle';
 import { TUTORIAL_DONE, tutorialStepBody, tutorialStepLabel } from '../sim/tutorial';
+import { keyProse, notebookHint, type InputMode } from './keyHints';
 import { INTERACT_BUTTON } from './menu';
 import { PANEL_INSET, panelClose, rowY, wrapLines, type PanelModel } from './panels';
-import { estimatedBox, estimatedHudBox, hitRect, type UiMetrics } from './uiScale';
+import { GAME_HEIGHT, GAME_WIDTH } from './resolution';
+import { estimatedBox, estimatedHudBox, hitRect, textHeight, type UiMetrics } from './uiScale';
 
 /**
  * The corner box's left edge, bottom and width; its height follows the body,
@@ -94,6 +96,33 @@ export interface TutorialPanelModel {
     readonly label: string;
     readonly id: string;
   };
+  /**
+   * The compact form's `More` / `Less` button (`tutorial-more`), its top-left
+   * corner, on the button row's left; absent where the full box fits.
+   */
+  readonly toggle?: {
+    readonly x: number;
+    readonly y: number;
+    readonly enabled: boolean;
+    readonly label: string;
+    readonly id: string;
+  };
+}
+
+/** What the panel is drawn for besides the step: the input in use and whether the compact form is opened out. */
+export interface TutorialView {
+  readonly mode: InputMode;
+  readonly expanded: boolean;
+}
+
+/** The most of the canvas's height a box may take, and of its width, before the compact form (just the step label and its buttons) replaces the full one. */
+export const COMPACT_MAX_H = GAME_HEIGHT / 3;
+export const COMPACT_MAX_W = GAME_WIDTH / 2;
+/** The compact form's width: two fifths of the canvas, from the same right edge. */
+const COMPACT_W = Math.round(GAME_WIDTH * 0.4);
+/** Characters per line in `width` px at `ui`'s label size, at the layouts' 0.6 em a character. */
+function wrapFor(width: number, ui: UiMetrics): number {
+  return Math.max(1, Math.floor((width - 2 * TUTORIAL_INSET) / (0.6 * ui.label)));
 }
 
 /** The season tip split for the corner panel: its first sentence as the label, the rest as the body. */
@@ -116,15 +145,21 @@ export function tutorialPanel(
   modalOpen: boolean,
   ui: UiMetrics,
   tip?: string,
+  view: TutorialView = { mode: 'keyboard', expanded: false },
 ): TutorialPanelModel | undefined {
   if (tip === undefined && step === TUTORIAL_DONE) return undefined;
   const parts =
     tip === undefined
-      ? { heading: 'Tutorial', label: tutorialStepLabel(step), body: tutorialStepBody(step) }
+      ? {
+          heading: 'Tutorial',
+          label: keyProse(tutorialStepLabel(step), view.mode),
+          body: keyProse(tutorialStepBody(step), view.mode),
+        }
       : { heading: 'Seasons', ...seasonTipParts(tip) };
   // Wider in proportion to the label size, from the same right edge, so the longest step label still fits.
   const w = Math.round((TUTORIAL_BOX.w * ui.label) / 8);
-  const x = TUTORIAL_BOX.x + TUTORIAL_BOX.w - w;
+  const right = TUTORIAL_BOX.x + TUTORIAL_BOX.w;
+  const x = right - w;
   const bottom = boxBottom(ui);
   const left = x + TUTORIAL_INSET;
   const lineH = tutorialLineH(ui);
@@ -132,6 +167,44 @@ export function tutorialPanel(
   const bodyDy = labelDy + lineH;
   const body = wrapLines(parts.body, tutorialWrap(ui));
   const h = bodyDy + body.length * lineH + GAP + SKIP_LINE_H + GAP;
+  const compact = h > COMPACT_MAX_H || w > COMPACT_MAX_W;
+  const button = (
+    bx: number,
+    by: number,
+  ): Pick<TutorialPanelModel['button'], 'x' | 'y' | 'enabled' | 'label' | 'id'> => ({
+    x: bx,
+    y: by,
+    enabled: !modalOpen,
+    ...(tip === undefined
+      ? { label: 'Skip', id: 'tutorial-skip' }
+      : { label: 'Got it', id: 'tip-dismiss' }),
+  });
+  if (compact && !view.expanded) {
+    const cw = Math.min(w, COMPACT_W);
+    const cx = right - cw;
+    const lines = wrapLines(parts.label, wrapFor(cw, ui));
+    const buttonH = textHeight(ui.body);
+    const ch = GAP + lines.length * lineH + GAP + buttonH + GAP;
+    const cy = bottom - ch;
+    const rowY = cy + GAP + lines.length * lineH + GAP;
+    return {
+      box: { x: cx, y: cy, w: cw, h: ch },
+      texts: lines.map((text, i) => ({
+        text,
+        x: cx + TUTORIAL_INSET,
+        y: cy + GAP + i * lineH,
+        color: LABEL_COLOR,
+      })),
+      button: button(right - TUTORIAL_INSET, rowY),
+      toggle: {
+        x: cx + TUTORIAL_INSET,
+        y: rowY,
+        enabled: true,
+        label: 'More',
+        id: 'tutorial-more',
+      },
+    };
+  }
   const y = bottom - h;
   const skipY = y + bodyDy + body.length * lineH + GAP;
   return {
@@ -145,16 +218,14 @@ export function tutorialPanel(
         y: y + bodyDy + i * lineH,
         color: BODY_COLOR,
       })),
-      { text: 'Press J for notebook', x: left, y: skipY + 2, color: HINT_COLOR },
+      ...(compact
+        ? []
+        : [{ text: notebookHint(view.mode), x: left, y: skipY + 2, color: HINT_COLOR }]),
     ],
-    button: {
-      x: x + w - TUTORIAL_INSET,
-      y: skipY,
-      enabled: !modalOpen,
-      ...(tip === undefined
-        ? { label: 'Skip', id: 'tutorial-skip' }
-        : { label: 'Got it', id: 'tip-dismiss' }),
-    },
+    button: button(x + w - TUTORIAL_INSET, skipY),
+    ...(compact
+      ? { toggle: { x: left, y: skipY, enabled: true, label: 'Less', id: 'tutorial-more' } }
+      : {}),
   };
 }
 
@@ -168,7 +239,7 @@ const CONFIRM_WRAP = 46;
 const CONFIRM_NOTE_COLOR = PANEL_STYLE.soft;
 
 /** obj_ui_tutorial_skip_confirm: Cancel closes, Skip calls `tutorialSkip`; both sit on Close's line. */
-export function skipConfirmPanel(): PanelModel {
+export function skipConfirmPanel(mode: InputMode = 'keyboard'): PanelModel {
   const box = SKIP_CONFIRM_PANEL;
   const left = box.x + PANEL_INSET;
   const lines = [
@@ -176,7 +247,7 @@ export function skipConfirmPanel(): PanelModel {
       (text) => ({ text, color: PANEL_STYLE.text }),
     ),
     ...wrapLines(
-      'You can still figure things out by walking up to objects and pressing E.',
+      keyProse('You can still figure things out by walking up to objects and pressing E.', mode),
       CONFIRM_WRAP,
     ).map((text) => ({ text, color: CONFIRM_NOTE_COLOR })),
   ];
