@@ -24,7 +24,7 @@ export function keyLabel(label: string, mode: InputMode): string {
  * Prose with a key in it as the input names it. By touch, `press E on the
  * workbench` becomes `walk to the workbench and tap Interact` (the Interact
  * button appears beside whatever is in reach), `pressing E` becomes `tapping
- * Interact` and `click` becomes `tap`, and `with J` becomes `with the Notebook button`. A keyboard keeps the text as written.
+ * Interact` and `click` becomes `tap`, `Pinch or scroll to zoom` becomes `Pinch to zoom`, and `with J` becomes `with the Notebook button`. A keyboard keeps the text as written.
  */
 export function keyProse(text: string, mode: InputMode): string {
   if (mode === 'keyboard') return text;
@@ -40,6 +40,7 @@ export function keyProse(text: string, mode: InputMode): string {
     .replace(/\bpressing E\b/g, 'tapping Interact')
     .replace(/\bwith J\b/g, 'with the Notebook button')
     .replace(/\bReset button or R\b/g, 'Reset button')
+    .replace(/\bPinch or scroll to zoom\b/g, 'Pinch to zoom')
     .replace(/\bclick\b/g, 'tap')
     .replace(/\bClick\b/g, 'Tap');
 }

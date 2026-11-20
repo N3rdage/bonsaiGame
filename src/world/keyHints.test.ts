@@ -92,7 +92,7 @@ describe('keyProse and the viewer help lines', () => {
     );
     expect(keyProse(remove, 'touch')).toBe('Tap a wired branch to remove its wire  |  Wire: 3');
     expect(keyProse(CAMERA_HELP, 'touch')).toBe(
-      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button',
+      'Drag to rotate  |  Pinch to zoom  |  Reset button',
     );
   });
 });
