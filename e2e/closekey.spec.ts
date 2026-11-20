@@ -145,7 +145,9 @@ test.describe('Q closes what Escape closes', () => {
 test.describe('close labels follow the fullscreen state', () => {
   test('name Esc windowed, Q in fullscreen, and Esc again with the lock granted', async ({
     page,
+    tapRoute,
   }) => {
+    test.skip(tapRoute, 'a touch device names no key (the next test)');
     test.setTimeout(120_000);
     await bootWorld(page);
     await inspectStarter(page);
@@ -180,9 +182,31 @@ test.describe('close labels follow the fullscreen state', () => {
     expect((await hook(page)).closeLabel).toBe('Close (Esc)');
   });
 
+  test('a touch device names no key, windowed or in fullscreen', async ({ page, tapRoute }) => {
+    test.skip(!tapRoute, 'a keyboard names its close key (the tests around this one)');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await inspectStarter(page);
+    expect((await hook(page)).closeLabel).toBe('Close');
+    await tapControl(page, 'panel-close');
+    await panelIs(page, '');
+
+    await fakeFullscreen(page, true, 'absent');
+    await openNotebook(page);
+    expect((await hook(page)).closeLabel).toBe('Close');
+    await tapControl(page, 'panel-close');
+    await panelIs(page, '');
+
+    await fakeFullscreen(page, true, 'granted');
+    await openNotebook(page);
+    expect((await hook(page)).closeLabel).toBe('Close');
+  });
+
   test('the Settings panel redraws its Close when fullscreen changes under it', async ({
     page,
+    tapRoute,
   }) => {
+    test.skip(tapRoute, 'a touch device names no key (the test above)');
     await bootWorld(page);
     await openSettingsFromMenu(page);
     expect((await hook(page)).closeLabel).toBe('Close (Esc)');
