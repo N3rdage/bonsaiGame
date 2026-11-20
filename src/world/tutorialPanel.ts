@@ -109,10 +109,15 @@ export interface TutorialPanelModel {
   };
 }
 
-/** What the panel is drawn for besides the step: the input in use and whether the compact form is opened out. */
+/**
+ * What the panel is drawn for besides the step: the input in use, whether the
+ * compact form is opened out, and whether the menu is open (the panel then
+ * keeps the compact form, as the opened-out box would cover the menu).
+ */
 export interface TutorialView {
   readonly mode: InputMode;
   readonly expanded: boolean;
+  readonly menuOpen?: boolean;
 }
 
 /** The most of the canvas's height a box may take, and of its width, before the compact form (just the step label and its buttons) replaces the full one. */
@@ -165,9 +170,13 @@ export function tutorialPanel(
   const lineH = tutorialLineH(ui);
   const labelDy = HEADING_DY + ui.label + 1;
   const bodyDy = labelDy + lineH;
-  const body = wrapLines(parts.body, tutorialWrap(ui));
+  const fullBody = wrapLines(parts.body, tutorialWrap(ui));
+  const compact =
+    bodyDy + fullBody.length * lineH + GAP + SKIP_LINE_H + GAP > COMPACT_MAX_H || w > COMPACT_MAX_W;
+  // Opened out, the body wraps to the box's own width, not the full form's character count.
+  const opened = compact && view.expanded && view.menuOpen !== true;
+  const body = compact ? wrapLines(parts.body, wrapFor(w, ui)) : fullBody;
   const h = bodyDy + body.length * lineH + GAP + SKIP_LINE_H + GAP;
-  const compact = h > COMPACT_MAX_H || w > COMPACT_MAX_W;
   const button = (
     bx: number,
     by: number,
@@ -179,7 +188,7 @@ export function tutorialPanel(
       ? { label: 'Skip', id: 'tutorial-skip' }
       : { label: 'Got it', id: 'tip-dismiss' }),
   });
-  if (compact && !view.expanded) {
+  if (compact && !opened) {
     const cw = Math.min(w, COMPACT_W);
     const cx = right - cw;
     const lines = wrapLines(parts.label, wrapFor(cw, ui));

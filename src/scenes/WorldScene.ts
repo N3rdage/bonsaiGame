@@ -1045,7 +1045,11 @@ export class WorldScene extends Phaser.Scene {
       this.panel?.modal === true,
       this.ui,
       this.seasonTip,
-      { mode: currentInputMode(), expanded: this.tutorialExpandedFor === this.tutorialKey() },
+      {
+        mode: currentInputMode(),
+        expanded: this.tutorialExpandedFor === this.tutorialKey(),
+        menuOpen: this.panel?.key === 'menu',
+      },
     );
     const drawn = model ? JSON.stringify(model) : '';
     if (drawn !== this.tutorialDrawn) {

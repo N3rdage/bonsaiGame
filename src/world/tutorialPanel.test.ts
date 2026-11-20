@@ -20,6 +20,7 @@ import {
   NOTEBOOK_BUTTON,
   VIEW_BUTTON,
   menuItems,
+  menuPanel,
   type MenuOptions,
 } from './menu';
 import { PEDESTAL_LABEL_DY } from './roomArt';
@@ -35,6 +36,7 @@ import {
   tutorialLineH,
   tutorialPanel,
   tutorialWrap,
+  type TutorialView,
 } from './tutorialPanel';
 import {
   DESKTOP_UI,
@@ -148,9 +150,16 @@ describe('tutorial corner panel', () => {
 
   it("keeps the HUD's visible tap targets apart and inside the canvas on the phone", () => {
     const winterTip = seasonTipFor({ ...createNewGameState(), day: WINTER }, WINTER - 1);
-    const hud = (ui: UiMetrics, step: number, menu: MenuOptions, tip?: string): UiRect[] => {
-      const m = tutorialPanel(step, false, ui, tip);
+    const hud = (
+      ui: UiMetrics,
+      step: number,
+      menu: MenuOptions | undefined,
+      view: TutorialView,
+      tip?: string,
+    ): UiRect[] => {
+      const m = tutorialPanel(step, false, ui, tip, { ...view, menuOpen: menu !== undefined });
       if (!m) throw new Error('no panel');
+      if (menu) expect(rectsOverlap(m.box, menuPanel(menu, ui))).toBe(false);
       const boxes = [
         estimatedHudBox('View tree (V)', VIEW_BUTTON.left, VIEW_BUTTON.bottom, 0, 1, ui),
         estimatedHudBox('Notebook (J)', NOTEBOOK_BUTTON.left, NOTEBOOK_BUTTON.bottom, 0, 1, ui),
@@ -158,7 +167,9 @@ describe('tutorial corner panel', () => {
         estimatedHudBox('Interact (E)', INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, 1, 1, ui),
         estimatedBox(m.button.label, m.button.x, m.button.y, 1, 0, ui),
         ...(m.toggle ? [estimatedBox(m.toggle.label, m.toggle.x, m.toggle.y, 0, 0, ui)] : []),
-        ...menuItems(menu, ui).map((item) => estimatedBox(item.label, item.x, item.y, 0, 0.5, ui)),
+        ...(menu
+          ? menuItems(menu, ui).map((item) => estimatedBox(item.label, item.x, item.y, 0, 0.5, ui))
+          : []),
       ];
       return boxes.map((b) => hitRect(b, ui.hit));
     };
@@ -169,6 +180,7 @@ describe('tutorial corner panel', () => {
         [TUTORIAL_DONE, winterTip] as const,
       ]) {
         for (const menu of [
+          undefined,
           { carrying: false, placeable: false, placing: false, escapeReaches: true },
           { carrying: true, placeable: false, placing: false, escapeReaches: true },
           {
@@ -180,17 +192,21 @@ describe('tutorial corner panel', () => {
           },
         ]) {
           // At 711x273 the placing menu's `Next: Floor shelf` and `Save (F5)` rows, in neighbouring columns, share a tap target: a menu layout limit, not the tutorial box's (backlog follow-up).
-          if (ui === SHORT_PHONE_UI && menu.placing) continue;
-          const rects = hud(ui, step, menu, tip);
-          rects.forEach((a, i) => {
-            expect(a.w).toBeGreaterThanOrEqual(ui.hit);
-            expect(a.h).toBeGreaterThanOrEqual(ui.hit);
-            expect(a.x).toBeGreaterThanOrEqual(0);
-            expect(a.y).toBeGreaterThanOrEqual(0);
-            expect(a.x + a.w).toBeLessThanOrEqual(480);
-            expect(a.y + a.h).toBeLessThanOrEqual(270);
-            for (const b of rects.slice(i + 1)) expect(rectsOverlap(a, b)).toBe(false);
-          });
+          if (ui === SHORT_PHONE_UI && menu?.placing) continue;
+          for (const mode of ['keyboard', 'touch'] as const) {
+            for (const expanded of [false, true]) {
+              const rects = hud(ui, step, menu, { mode, expanded }, tip);
+              rects.forEach((a, i) => {
+                expect(a.w).toBeGreaterThanOrEqual(ui.hit);
+                expect(a.h).toBeGreaterThanOrEqual(ui.hit);
+                expect(a.x).toBeGreaterThanOrEqual(0);
+                expect(a.y).toBeGreaterThanOrEqual(0);
+                expect(a.x + a.w).toBeLessThanOrEqual(480);
+                expect(a.y + a.h).toBeLessThanOrEqual(270);
+                for (const b of rects.slice(i + 1)) expect(rectsOverlap(a, b)).toBe(false);
+              });
+            }
+          }
         }
       }
     }
@@ -284,6 +300,8 @@ describe('compact tutorial box on short screens', () => {
           expect(box.x + box.w).toBeLessThanOrEqual(480);
           expect(box.y + box.h).toBeLessThanOrEqual(270);
           expect(box.y + box.h).toBeLessThanOrEqual(TUTORIAL_BOX.bottom);
+          expect(box.y).toBeGreaterThanOrEqual(CARRY_TEXT.top + LINE_10);
+          expect(box.y + box.h).toBeLessThan(INTERACT_BUTTON.bottom - LINE_10);
           const notebook = hitRect(
             estimatedHudBox('Notebook', NOTEBOOK_BUTTON.left, NOTEBOOK_BUTTON.bottom, 0, 1, ui),
             ui.hit,
