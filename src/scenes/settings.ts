@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { onEscapeLockChange } from '../platform/fullscreen';
 import { saveSettings } from '../platform/settings';
 import type { FullscreenState } from '../world/settingsPanel';
 import type { SharedSceneData } from './sceneData';
@@ -32,12 +33,14 @@ export function toggleSetting(scene: Phaser.Scene, ctx: SharedSceneData, id: str
   saveSettings(ctx.settingsStorage, ctx.settings);
 }
 
-/** Runs `onChange` whenever the page enters or leaves fullscreen (our toggle, or the browser's Escape), until shutdown. */
+/** Runs `onChange` whenever the page enters or leaves fullscreen (our toggle, or the browser's Escape) or the Escape lock is granted or released, until shutdown. */
 export function onFullscreenChange(scene: Phaser.Scene, onChange: () => void): void {
   const { ENTER_FULLSCREEN, LEAVE_FULLSCREEN } = Phaser.Scale.Events;
   scene.scale.on(ENTER_FULLSCREEN, onChange);
   scene.scale.on(LEAVE_FULLSCREEN, onChange);
+  const stopLock = onEscapeLockChange(onChange);
   scene.events.once('shutdown', () => {
+    stopLock();
     scene.scale.off(ENTER_FULLSCREEN, onChange);
     scene.scale.off(LEAVE_FULLSCREEN, onChange);
   });

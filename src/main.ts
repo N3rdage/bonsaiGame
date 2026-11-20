@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { registerSW } from 'virtual:pwa-register';
 import { currentViewport, isPhone, isPhonePortrait, lockLandscape } from './platform/orientation';
+import { watchEscapeLock } from './platform/fullscreen';
 import { handleNeedReload } from './platform/swUpdate';
 import { BootScene } from './scenes/BootScene';
 import { SURROUND, cssColour } from './scenes/textStyle';
@@ -17,6 +18,8 @@ registerSW({
     });
   },
 });
+
+watchEscapeLock();
 
 /** Whether the rotate prompt is up (see applyOrientation below). */
 let rotatePrompt = false;

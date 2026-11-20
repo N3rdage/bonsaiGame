@@ -162,9 +162,15 @@ describe('tutorial corner panel', () => {
         [TUTORIAL_DONE, winterTip] as const,
       ]) {
         for (const menu of [
-          { carrying: false, placeable: false, placing: false },
-          { carrying: true, placeable: false, placing: false },
-          { carrying: true, placeable: true, placing: true, nextKind: 'Floor shelf' },
+          { carrying: false, placeable: false, placing: false, escapeReaches: true },
+          { carrying: true, placeable: false, placing: false, escapeReaches: true },
+          {
+            carrying: true,
+            placeable: true,
+            placing: true,
+            nextKind: 'Floor shelf',
+            escapeReaches: true,
+          },
         ]) {
           const rects = hud(ui, step, menu, tip);
           rects.forEach((a, i) => {

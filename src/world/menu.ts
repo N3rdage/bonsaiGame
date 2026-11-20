@@ -6,6 +6,7 @@
  * canvas. Pure data; WorldScene draws it.
  */
 
+import { withCloseKey } from './closeKey';
 import { estimatedHudBox, hitRect, type UiMetrics } from './uiScale';
 
 /** Top-right anchor of the HUD badge (text origin 1, 0). */
@@ -50,6 +51,8 @@ export interface MenuOptions {
   readonly placing: boolean;
   /** While placing, the kind `Next:` switches to, if another is in stock. */
   readonly nextKind?: string | undefined;
+  /** Whether Escape reaches the game (src/world/closeKey.ts): the Title item names it, else no key. */
+  readonly escapeReaches: boolean;
 }
 
 export interface MenuItem {
@@ -68,7 +71,6 @@ const ITEMS: readonly { id: MenuItemId; label: string }[] = [
   { id: 'save', label: 'Save (F5)' },
   { id: 'load', label: 'Load (F9)' },
   { id: 'settings', label: 'Settings' },
-  { id: 'title', label: 'Title (Esc)' },
 ];
 
 /** The least room between the panel's edge and its rows' bands. */
@@ -82,7 +84,11 @@ function entries(o: MenuOptions): readonly { id: MenuItemId; label: string }[] {
   if (o.placing && o.nextKind !== undefined) {
     lead.push({ id: 'place-next', label: `Next: ${o.nextKind}` });
   }
-  return [...lead, ...ITEMS];
+  return [
+    ...lead,
+    ...ITEMS,
+    { id: 'title', label: withCloseKey('Title', o.escapeReaches ? 'Esc' : undefined) },
+  ];
 }
 
 /** The row pitch: MENU_ROW_SPACING, or the tap target where that is taller. */
