@@ -11,7 +11,7 @@
 import type { Facing, MoveInput } from '../world/player';
 import { CAST_SHADOW } from '../world/lighting';
 import { viewSize, worldZoom } from '../world/worldCamera';
-import { ROOM_PX_PER_METRE } from './site';
+import { ROOM_PX_PER_METRE } from '../spike-engines/site';
 
 export type AngleKey = 'south' | 'cutaway' | 'north';
 

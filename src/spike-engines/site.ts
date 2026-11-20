@@ -1,10 +1,11 @@
 /**
- * The front garden spike's world as pure data (backlog #359): plan B3's front
- * garden, the house's front and the garage beside it, in metres
- * (docs/site-plan/README.md). Site x runs east and y south, with the house's
- * north-west corner at 0, 0; `z` is height above the lawn. Every block is an
- * axis-aligned box, or a roof slab tilted about the x axis, and the renderer
- * (main.ts) only scales and colours them.
+ * The front garden as pure data, shared by the 3D spikes (backlog #359's
+ * front garden page, and #378's engine comparison, which builds on it in
+ * `scene.ts`): plan B3's front garden, the house's front and the garage
+ * beside it, in metres (docs/site-plan/README.md). Site x runs east and y
+ * south, with the house's north-west corner at 0, 0; `z` is height above the
+ * lawn. Every block is an axis-aligned box, or a roof slab tilted about the x
+ * axis, and the renderers only scale and colour them.
  *
  * The world's room data stays the collision: room px map to metres by the
  * front garden's own rule (frontGardenRoom.ts: 32 px a metre, room x 0 at

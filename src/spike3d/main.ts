@@ -73,8 +73,15 @@ import {
   cornerNormals,
   onPaper,
   spriteSize,
-} from './ink';
-import { SITE, cutaway, roomToSite, siteBlocks, type Block, type Wash } from './site';
+} from '../spike-engines/ink';
+import {
+  SITE,
+  cutaway,
+  roomToSite,
+  siteBlocks,
+  type Block,
+  type Wash,
+} from '../spike-engines/site';
 
 /** Palette bytes reach the screen untouched, as in the viewer (outputColorSpace below). */
 const raw = ({ r, g, b }: Rgb): Color =>

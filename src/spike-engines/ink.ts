@@ -1,8 +1,8 @@
 /**
- * The Inked look for the spike's blocks as plain data (backlog #359): each
- * wash as it lands on paper, the ink hull's corner normals and the shaders.
- * Pure: no three.js import, so it is unit-tested in Node; main.ts builds the
- * materials. The toon ramp, ink colour and outline width are the viewer's
+ * The Inked look for the 3D spikes' blocks as plain data (backlog #359, #378):
+ * each wash as it lands on paper, the ink hull's corner normals and the
+ * shaders. Pure: no engine import, so it is unit-tested in Node; each page
+ * builds its own materials. The toon ramp, ink colour and outline width are the viewer's
  * (src/viewer/toon.ts), imported, not copied.
  */
 
