@@ -30,6 +30,7 @@ import { CUTTING_SEASONS } from '../sim/sourcePlant';
 import { SPECIES_KEYS, getSpecies } from '../sim/species';
 import { PRUNE_SEASONS } from '../sim/training';
 import type { GameState } from '../sim/types';
+import { keyProse, type InputMode } from './keyHints';
 import { PANEL_INSET, panelClose, rowY, wrapLines, type PanelModel, type PanelRow } from './panels';
 
 /** The hook's `panel` while the notebook is open. */
@@ -145,7 +146,11 @@ export function notebookHeader(
 }
 
 /** Page `page` (an index into `notebookPages`) of the notebook over `state`. */
-export function notebookPanel(state: GameState, page: number): PanelModel {
+export function notebookPanel(
+  state: GameState,
+  page: number,
+  mode: InputMode = 'keyboard',
+): PanelModel {
   const box = NOTEBOOK_PANEL;
   const left = box.x + PANEL_INSET;
   const pages = notebookPages(state.tutorialStep);
@@ -159,7 +164,7 @@ export function notebookPanel(state: GameState, page: number): PanelModel {
     color,
   });
   const paragraph = (from: number, text: string, color: string): PanelRow[] =>
-    wrapLines(text, NOTEBOOK_WRAP).map((t, i) => line(from + i, t, color));
+    wrapLines(keyProse(text, mode), NOTEBOOK_WRAP).map((t, i) => line(from + i, t, color));
 
   let content: PanelRow[];
   if (step === SEASONS_PAGE) {
@@ -184,7 +189,7 @@ export function notebookPanel(state: GameState, page: number): PanelModel {
         badge,
         ...flavour,
         line(prompt, 'Quick prompt:', PROMPT_HEADING_COLOR),
-        ...wrapLines(tutorialStepBody(step), PROMPT_WRAP).map((t, i) =>
+        ...wrapLines(keyProse(tutorialStepBody(step), mode), PROMPT_WRAP).map((t, i) =>
           line(prompt + 1 + i, t, PROMPT_COLOR, left + PROMPT_INDENT),
         ),
       ];

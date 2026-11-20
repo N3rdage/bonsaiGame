@@ -1018,7 +1018,7 @@ export class WorldScene extends Phaser.Scene {
    */
   private openNotebook(page = notebookOpeningPage(this.ctx.state.tutorialStep)): void {
     this.seasonTip = undefined;
-    const model = notebookPanel(this.ctx.state, page);
+    const model = notebookPanel(this.ctx.state, page, currentInputMode());
     this.notebookPage = page;
     this.openPanel(model, (i) => {
       this.openNotebook(model.rows[i]?.id === 'panel-prev' ? page - 1 : page + 1);

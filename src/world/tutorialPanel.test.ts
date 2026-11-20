@@ -269,6 +269,52 @@ describe('compact tutorial box on short screens', () => {
     expect(text).not.toMatch(/Press|click|\bJ\b|\bE\b/);
   });
 
+  it('opened out at 711x273 and 824x384, stays on screen, clears Notebook, and keeps Less and Skip apart', () => {
+    const glyph = (ui: UiMetrics): number => ui.label * 0.6 + 0.1;
+    for (const ui of [SHORT_PHONE_UI, PHONE_UI]) {
+      for (const step of [...tutorialAllSteps(), TUTORIAL_DONE]) {
+        for (const mode of ['touch', 'keyboard'] as const) {
+          const tip = step === TUTORIAL_DONE ? winterTip : undefined;
+          const m = tutorialPanel(step, false, ui, tip, { mode, expanded: true });
+          if (!m?.toggle) continue;
+          expect(m.toggle.label).toBe('Less');
+          const { box } = m;
+          expect(box.x).toBeGreaterThanOrEqual(0);
+          expect(box.y).toBeGreaterThanOrEqual(0);
+          expect(box.x + box.w).toBeLessThanOrEqual(480);
+          expect(box.y + box.h).toBeLessThanOrEqual(270);
+          expect(box.y + box.h).toBeLessThanOrEqual(TUTORIAL_BOX.bottom);
+          const notebook = hitRect(
+            estimatedHudBox('Notebook', NOTEBOOK_BUTTON.left, NOTEBOOK_BUTTON.bottom, 0, 1, ui),
+            ui.hit,
+          );
+          const less = hitRect(
+            estimatedBox(m.toggle.label, m.toggle.x, m.toggle.y, 0, 0, ui),
+            ui.hit,
+          );
+          const skip = hitRect(
+            estimatedBox(m.button.label, m.button.x, m.button.y, 1, 0, ui),
+            ui.hit,
+          );
+          const rects = [less, skip];
+          expect(rectsOverlap(less, skip)).toBe(false);
+          for (const r of rects) {
+            expect(r.x).toBeGreaterThanOrEqual(0);
+            expect(r.y).toBeGreaterThanOrEqual(0);
+            expect(r.x + r.w).toBeLessThanOrEqual(480);
+            expect(r.y + r.h).toBeLessThanOrEqual(270);
+            expect(rectsOverlap(r, notebook)).toBe(false);
+          }
+          expect(rectsOverlap(box, notebook)).toBe(false);
+          for (const t of m.texts) {
+            expect(t.x + t.text.length * glyph(ui)).toBeLessThanOrEqual(box.x + box.w);
+            expect(t.y + ui.label).toBeLessThanOrEqual(m.button.y + LINE_10);
+          }
+        }
+      }
+    }
+  });
+
   it('words the full box by input: keys with a keyboard, taps by touch', () => {
     const keyboard = tutorialPanel(TUTORIAL_WATER, false, DESKTOP_UI);
     const touch = tutorialPanel(TUTORIAL_WATER, false, DESKTOP_UI, undefined, {

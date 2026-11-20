@@ -24,15 +24,21 @@ export function keyLabel(label: string, mode: InputMode): string {
  * Prose with a key in it as the input names it. By touch, `press E on the
  * workbench` becomes `walk to the workbench and tap Interact` (the Interact
  * button appears beside whatever is in reach), `pressing E` becomes `tapping
- * Interact` and `click` becomes `tap`. A keyboard keeps the text as written.
+ * Interact` and `click` becomes `tap`, and `with J` becomes `with the Notebook button`. A keyboard keeps the text as written.
  */
 export function keyProse(text: string, mode: InputMode): string {
   if (mode === 'keyboard') return text;
   return text
-    .replace(/\b([Pp])ress E on (.+?)(?= to |,|\.| and )/g, (_, p: string, target: string) =>
-      p === 'P' ? `Walk to ${target} and tap Interact` : `walk to ${target} and tap Interact`,
+    .replace(
+      /( and |, )?\b([Pp])ress E on (.+?)(?= to |,|\.| and )/g,
+      (_, lead: string | undefined, p: string, target: string) => {
+        const walk = `walk to ${target} and tap Interact`;
+        if (lead !== undefined) return `${lead === ' and ' ? ', ' : lead}${walk}`;
+        return p === 'P' ? `W${walk.slice(1)}` : walk;
+      },
     )
     .replace(/\bpressing E\b/g, 'tapping Interact')
+    .replace(/\bwith J\b/g, 'with the Notebook button')
     .replace(/\bclick\b/g, 'tap')
     .replace(/\bClick\b/g, 'Tap');
 }

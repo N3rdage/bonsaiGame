@@ -50,7 +50,7 @@ describe('keyProse', () => {
       "Walk to Granny's juniper and tap Interact to inspect it, then tap Water.",
     );
     expect(keyProse(tutorialStepBody(TUTORIAL_TAKE_CUTTING), 'touch')).toBe(
-      'Head out to the back garden and walk to the source plant and tap Interact.',
+      'Head out to the back garden, walk to the source plant and tap Interact.',
     );
     expect(keyProse(tutorialStepBody(TUTORIAL_PLANT), 'touch')).toBe(
       'Walk to the workbench and tap Interact, select your cutting, and tap Plant.',
@@ -58,6 +58,14 @@ describe('keyProse', () => {
     expect(
       keyProse('You can still figure things out by walking up to objects and pressing E.', 'touch'),
     ).toBe('You can still figure things out by walking up to objects and tapping Interact.');
+  });
+});
+
+describe('keyProse and the notebook button', () => {
+  it('names the Notebook button, not J, by touch', () => {
+    const text = 'flip back here any time with J.';
+    expect(keyProse(text, 'keyboard')).toBe(text);
+    expect(keyProse(text, 'touch')).toBe('flip back here any time with the Notebook button.');
   });
 });
 
