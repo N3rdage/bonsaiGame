@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PANEL,
   PANEL_CLOSE,
-  PANEL_CLOSE_LABEL,
+  panelCloseLabel,
   PANEL_INSET,
   PANEL_ROW_SPACING,
   PANEL_TITLE_Y,
@@ -72,7 +72,7 @@ describe('world panels', () => {
     }
     expect(above + PANEL_ROW_SPACING / 2).toBeLessThanOrEqual(PANEL_CLOSE.y - LINE_H / 2);
     expect(PANEL_CLOSE.y + LINE_H / 2).toBeLessThanOrEqual(PANEL.y + PANEL.h);
-    expect((PANEL_CLOSE_LABEL.length * GLYPH_W) / 2).toBeLessThan(PANEL.w / 2);
+    expect((panelCloseLabel('Esc').length * GLYPH_W) / 2).toBeLessThan(PANEL.w / 2);
   });
 
   it('offers only readable saves in the load picker', () => {
@@ -161,7 +161,7 @@ function everyPanel(ui: UiMetrics): PanelModel[] {
     repotPanel(tree, state, false, ui),
     sellPanel(tree),
     stylePanel(tree, ui),
-    renamePanel(tree, 'x'.repeat(20)),
+    renamePanel(tree, 'x'.repeat(20), false),
   ];
 }
 
@@ -180,7 +180,7 @@ describe('fitRows', () => {
       expect(box.x + box.w).toBeLessThanOrEqual(480);
       const close = panelClose(box);
       const closeHit = hitRect(
-        estimatedBox(PANEL_CLOSE_LABEL, close.x, close.y, 0.5, 0.5, ui),
+        estimatedBox(panelCloseLabel('Esc'), close.x, close.y, 0.5, 0.5, ui),
         ui.hit,
       );
       expect(closeHit.y + closeHit.h).toBeLessThanOrEqual(box.y + box.h);

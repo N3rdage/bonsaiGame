@@ -137,7 +137,7 @@ describe('style panel', () => {
 describe('rename panel', () => {
   it('shows the current name, the input row, the counter and Save', () => {
     const { tree } = starter();
-    const m = renamePanel(tree, "Granny's");
+    const m = renamePanel(tree, "Granny's", true);
     expect([m.key, m.title]).toEqual(['rename:0', 'Rename Tree']);
     expect(lines(m)).toEqual([
       ['Current name: "Granny\'s"', ''],
@@ -146,15 +146,15 @@ describe('rename panel', () => {
       ['Save', 'panel-rename-save'],
     ]);
     tree.name = '';
-    expect(renamePanel(tree, '').rows[0]?.text).toBe('Current name: (unnamed)');
-    expect(renameCounter('x'.repeat(25))).toMatch(/ 20\/20$/);
+    expect(renamePanel(tree, '', true).rows[0]?.text).toBe('Current name: (unnamed)');
+    expect(renameCounter('x'.repeat(25), true)).toMatch(/ 20\/20$/);
     expect(fits(m)).toBe(true);
   });
 
   it('puts the input on the New name row, right of its label, inside the box', () => {
     const { tree } = starter();
     for (const ui of [DESKTOP_UI, PHONE_UI]) {
-      const m = fitRows(renamePanel(tree, ''), ui);
+      const m = fitRows(renamePanel(tree, '', true), ui);
       const box = m.box ?? PANEL;
       const row = m.rows[1];
       if (!row) throw new Error('no row');
@@ -165,6 +165,6 @@ describe('rename panel', () => {
       expect(input.h).toBeLessThan(box.rowSpacing);
     }
     // At the desktop scale the panel is drawn as modelled, the input where it always was.
-    expect(renameInput(renamePanel(tree, ''))).toEqual({ x: 120, y: 118, w: 310, h: 16 });
+    expect(renameInput(renamePanel(tree, '', true))).toEqual({ x: 120, y: 118, w: 310, h: 16 });
   });
 });

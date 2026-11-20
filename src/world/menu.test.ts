@@ -24,7 +24,12 @@ const LINE_H = 12;
 const panelRight = MENU_PANEL.x + MENU_PANEL.w;
 
 /** The menu outside a room that takes furniture. */
-const opts = (carrying: boolean): MenuOptions => ({ carrying, placeable: false, placing: false });
+const opts = (carrying: boolean): MenuOptions => ({
+  carrying,
+  placeable: false,
+  placing: false,
+  escapeReaches: true,
+});
 
 describe('world HUD menu layout', () => {
   it('has Inventory, Sleep, Sleep a week, Save, Load, Settings and Title, in that order', () => {
@@ -151,20 +156,25 @@ describe('world HUD menu layout', () => {
   it('offers Place item where furniture can go, and Stop placing and Next while placing', () => {
     const rows = (o: MenuOptions) => menuItems(o, DESKTOP_UI).map((i) => [i.id, i.label]);
     const rest = rows(opts(false));
-    expect(rows({ carrying: false, placeable: true, placing: false })).toEqual([
-      ['place', 'Place item'],
-      ...rest,
-    ]);
-    expect(rows({ carrying: true, placeable: true, placing: false })).toEqual([
+    expect(rows({ carrying: false, placeable: true, placing: false, escapeReaches: true })).toEqual(
+      [['place', 'Place item'], ...rest],
+    );
+    expect(rows({ carrying: true, placeable: true, placing: false, escapeReaches: true })).toEqual([
       ['putdown', 'Put down'],
       ['place', 'Place item'],
       ...rest,
     ]);
     expect(
-      rows({ carrying: false, placeable: true, placing: true, nextKind: 'Floor shelf' }),
+      rows({
+        carrying: false,
+        placeable: true,
+        placing: true,
+        nextKind: 'Floor shelf',
+        escapeReaches: true,
+      }),
     ).toEqual([['place', 'Stop placing'], ['place-next', 'Next: Floor shelf'], ...rest]);
     // Placing the last kind in stock: nothing to switch to.
-    expect(rows({ carrying: false, placeable: true, placing: true })).toEqual([
+    expect(rows({ carrying: false, placeable: true, placing: true, escapeReaches: true })).toEqual([
       ['place', 'Stop placing'],
       ...rest,
     ]);
@@ -175,6 +185,7 @@ describe('world HUD menu layout', () => {
     placeable: true,
     placing: true,
     nextKind: 'Floor shelf',
+    escapeReaches: true,
   };
 
   it('lays 8, 9 and 10 rows out column by column on the phone, clear of View tree', () => {
@@ -183,9 +194,19 @@ describe('world HUD menu layout', () => {
       PHONE_UI.hit,
     ).y;
     const cases: [MenuOptions, number, number][] = [
-      [{ carrying: false, placeable: true, placing: false }, 2, 4],
-      [{ carrying: true, placeable: true, placing: false }, 2, 5],
-      [{ carrying: false, placeable: true, placing: true, nextKind: 'Floor shelf' }, 2, 5],
+      [{ carrying: false, placeable: true, placing: false, escapeReaches: true }, 2, 4],
+      [{ carrying: true, placeable: true, placing: false, escapeReaches: true }, 2, 5],
+      [
+        {
+          carrying: false,
+          placeable: true,
+          placing: true,
+          nextKind: 'Floor shelf',
+          escapeReaches: true,
+        },
+        2,
+        5,
+      ],
       [longest, 2, 5],
     ];
     const x = MENU_PANEL.x + 6;

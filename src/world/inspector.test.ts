@@ -11,7 +11,7 @@ import { MAX_TREE_NAME_LENGTH } from '../sim/tree';
 import {
   GLYPH_W,
   INSPECTOR_CLOSE,
-  INSPECTOR_CLOSE_LABEL,
+  inspectorCloseLabel,
   INSPECTOR_FOOTER_Y,
   INSPECTOR_INSET,
   INSPECTOR_LEFT_COLUMN,
@@ -360,7 +360,7 @@ describe('inspector layout', () => {
 
   it('fits a 20-character name and the close hint in the title bar', () => {
     const title = MAX_TREE_NAME_LENGTH * GLYPH_W;
-    const hint = INSPECTOR_CLOSE_LABEL.length * GLYPH_W;
+    const hint = inspectorCloseLabel('Esc').length * GLYPH_W;
     expect(title + GLYPH_W + hint).toBeLessThanOrEqual(w - 2 * INSPECTOR_INSET);
   });
 
@@ -391,7 +391,7 @@ describe('inspector layout', () => {
     const buttonHit = (b: { label: string; x: number; y: number }): UiRect =>
       hitRect(estimatedBox(b.label, b.x, b.y, 0, 0.5, ui), ui.hit);
     const closeHit = hitRect(
-      estimatedBox(INSPECTOR_CLOSE_LABEL, INSPECTOR_CLOSE.x, INSPECTOR_CLOSE.y, 1, 0.5, ui),
+      estimatedBox(inspectorCloseLabel('Esc'), INSPECTOR_CLOSE.x, INSPECTOR_CLOSE.y, 1, 0.5, ui),
       ui.hit,
     );
 
