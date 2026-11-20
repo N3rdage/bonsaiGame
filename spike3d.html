@@ -1,0 +1,49 @@
+<!doctype html>
+<!-- The front garden 3D spike (backlog #359). Dev only: `npm run dev`, then /spike3d.html.
+     `vite build` builds index.html alone, so this page never ships. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Front garden 3D spike</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #3e3632;
+        overflow: hidden;
+      }
+      #spike {
+        display: block;
+      }
+      /* The Inked paper's grain over the whole frame, a 64 logical px tile as the rooms lay it
+       * (480 logical px across), blended so it adds grain without darkening. */
+      #paper {
+        position: fixed;
+        inset: 0;
+        background: url('/assets/spr_paper.png') repeat;
+        background-size: calc(100vw / 7.5);
+        mix-blend-mode: overlay;
+        opacity: 0.5;
+        pointer-events: none;
+      }
+      #prompt {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 12px;
+        color: #f2eada;
+        font: 20px sans-serif;
+        text-align: center;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="spike"></canvas>
+    <div id="paper"></div>
+    <div id="prompt"></div>
+    <script type="module" src="/src/spike3d/main.ts"></script>
+  </body>
+</html>
