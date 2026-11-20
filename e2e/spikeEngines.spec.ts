@@ -4,9 +4,9 @@ import { expect, test } from './drive';
 // The engine comparison spike (backlog #378, src/spike-engines/): each
 // engine's page walks, turns, benchmarks and draws the same scene. Run by
 // playwright.engines.config.ts against the build; in any other project
-// (the main suite) every test here skips. Phase 2 adds 'babylon' to ENGINES.
+// (the main suite) every test here skips.
 
-const ENGINES = ['three'] as const;
+const ENGINES = ['three', 'babylon'] as const;
 
 /** The benchmark's seconds in these tests: short, so a software-GL run stays inside the timeout. */
 const BENCH_SECONDS = 5;
