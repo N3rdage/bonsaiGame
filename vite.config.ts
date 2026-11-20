@@ -53,6 +53,12 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2,wav}'],
         // Phaser alone is over a megabyte; the default 2 MB cap would silently skip it.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // Only a file Vite named with a content hash may skip its revision. The plugin's default
+        // skips everything under assets/, which is also where public/assets/ lands: the sprite
+        // sheets and sounds keep their names when their content changes, and with no revision a
+        // returning device keeps the copies its first visit cached, under new code that expects
+        // new frame sizes. e2e/smoke.spec.ts checks the built worker.
+        dontCacheBustURLsMatching: /^assets\/[^/]+-[A-Za-z0-9_-]{8}\.[a-z0-9]+(\.map)?$/,
       },
     }),
   ],
