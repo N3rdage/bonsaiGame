@@ -213,3 +213,25 @@ describe("Granny's notebook", () => {
     );
   });
 });
+
+describe('notebook wording by input', () => {
+  it('words the quick prompt for a tap by touch and keeps the keys with a keyboard', () => {
+    const state = at(TUTORIAL_WATER);
+    const keyboard = texts(notebookPanel(state, 0, 'keyboard')).join(' ');
+    const touch = texts(notebookPanel(state, 0, 'touch')).join(' ');
+    expect(keyboard).toContain('Press E on Granny');
+    expect(texts(notebookPanel(state, 0)).join(' ')).toBe(keyboard);
+    expect(touch).toContain('Walk to Granny');
+    expect(touch).toContain('tap Interact');
+    expect(touch).not.toMatch(/Press|click|\bJ\b|\bE\b/);
+  });
+
+  it('does not name J on the last page by touch', () => {
+    const last = notebookPages(TUTORIAL_DONE).length - 1;
+    const keyboard = texts(notebookPanel(at(TUTORIAL_DONE), last, 'keyboard')).join(' ');
+    const touch = texts(notebookPanel(at(TUTORIAL_DONE), last, 'touch')).join(' ');
+    expect(keyboard).toContain('flip back here any time with J.');
+    expect(touch).toContain('flip back here any time with the Notebook button.');
+    expect(touch).not.toMatch(/\bJ\b/);
+  });
+});

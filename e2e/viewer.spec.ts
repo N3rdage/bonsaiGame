@@ -389,10 +389,13 @@ test.describe('viewer toolbar', () => {
     expect(await page.evaluate(() => window.__bonsai?.viewer?.mode)).toBe('view');
   });
 
-  test('closes from the Exit button', async ({ page }) => {
+  test('closes from the Exit button, which names Esc only with a keyboard', async ({
+    page,
+    tapRoute,
+  }) => {
     const errors = collectErrors(page);
     await openViewer(page, '/');
-    await expect(page.locator('[data-exit]')).toHaveText('Exit (Esc)');
+    await expect(page.locator('[data-exit]')).toHaveText(tapRoute ? 'Exit' : 'Exit (Esc)');
     await press(page, '[data-exit]');
     await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
     await expect(page.locator('#viewer')).toBeHidden();

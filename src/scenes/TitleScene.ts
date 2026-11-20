@@ -6,6 +6,8 @@ import { loadGame, mostRecentSaveSlot } from '../sim/save';
 import { createNewGameState } from '../sim/state';
 import type { GameState } from '../sim/types';
 import { closeKeyName, withCloseKey } from '../world/closeKey';
+import { keyLabel } from '../world/keyHints';
+import { currentInputMode } from '../platform/inputMode';
 import { onKeyDown } from '../world/keys';
 import {
   canPickSlot,
@@ -228,7 +230,7 @@ export class TitleScene extends Phaser.Scene {
     onClick: () => void,
     { size = this.buttonPx(), originX = 0.5 }: { size?: number; originX?: number } = {},
   ): Phaser.GameObjects.Text {
-    const text = this.text(x, y, label, {
+    const text = this.text(x, y, keyLabel(label, currentInputMode()), {
       ...this.style(),
       fontSize: `${String(size)}px`,
       color: enabled ? PANEL_STYLE.text : PANEL_STYLE.disabled,
