@@ -1,7 +1,9 @@
+import { closeKeyState } from '../platform/fullscreen';
+import { closeKeyName } from '../world/closeKey';
 import type { ViewerMode } from './hotspots';
 import {
   CAMERA_BUTTONS,
-  EXIT_LABEL,
+  exitLabel,
   px,
   subRowSeparator,
   toolbarCssVars,
@@ -71,7 +73,8 @@ export class ViewerToolbar {
     this.help.classList.add('open');
     this.camera.classList.add('open');
     this.bar.style.setProperty('--tb-subrow-separator', px(subRowSeparator(viewportWidth)));
-    const key = JSON.stringify(model);
+    const exit = exitLabel(closeKeyName(closeKeyState()));
+    const key = JSON.stringify([model, exit]);
     if (key === this.drawn) return;
     this.drawn = key;
     this.bar.style.setProperty('--tb-height', `${String(model.height)}px`);
@@ -83,13 +86,13 @@ export class ViewerToolbar {
       el.setAttribute('aria-pressed', String(selected));
       return el;
     });
-    const exit = button('ui-button exit', EXIT_LABEL, () => this.onExit?.());
-    exit.dataset.exit = '';
+    const exitButton = button('ui-button exit', exit, () => this.onExit?.());
+    exitButton.dataset.exit = '';
     const [name, stats] = model.info;
     const top = div(
       'toolbar-row',
       div('info', div('', name), div('', stats)),
-      div('modes', ...modes, exit),
+      div('modes', ...modes, exitButton),
     );
     const rows: HTMLDivElement[] = [top];
     if (model.subRow.length > 0) {

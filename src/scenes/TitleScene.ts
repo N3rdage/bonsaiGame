@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 import { shortCommit } from '../buildVersion';
+import { closeKeyState } from '../platform/fullscreen';
 import { currentViewport, isPhone } from '../platform/orientation';
 import { loadGame, mostRecentSaveSlot } from '../sim/save';
 import { createNewGameState } from '../sim/state';
 import type { GameState } from '../sim/types';
+import { closeKeyName, withCloseKey } from '../world/closeKey';
 import { onKeyDown } from '../world/keys';
 import {
   canPickSlot,
@@ -17,7 +19,7 @@ import {
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import {
   PANEL,
-  PANEL_CLOSE_LABEL,
+  panelCloseLabel,
   PANEL_INSET,
   PANEL_TITLE_H,
   fitRows,
@@ -67,7 +69,7 @@ type View =
  * (src/world/settingsPanel.ts). An ink-and-paper page (PANEL_STYLE) like the world's panels; the
  * prototype's 3D hero tree is not ported yet and its Quit is not ported (a web
  * page has no quit). Every button also has a key (Enter, C, L, S; 1-3 in the
- * picker; Y/N to confirm; Escape to back out) so tests drive it without canvas
+ * picker; Y/N to confirm; Escape or Q to back out) so tests drive it without canvas
  * coordinates. The version line in the corner opens the commit the build came
  * from (src/buildVersion.ts).
  */
@@ -135,10 +137,12 @@ export class TitleScene extends Phaser.Scene {
     onKeyDown(keyboard, 'N', () => {
       if (this.view.kind === 'confirm') this.show({ kind: 'picker', mode: 'new' });
     });
-    onKeyDown(keyboard, 'ESC', () => {
+    const back = (): void => {
       if (this.view.kind === 'picker' || this.view.kind === 'settings') this.show({ kind: 'menu' });
       else if (this.view.kind === 'confirm') this.show({ kind: 'picker', mode: 'new' });
-    });
+    };
+    onKeyDown(keyboard, 'ESC', back);
+    onKeyDown(keyboard, 'Q', back);
     onFullscreenChange(this, () => {
       if (this.view.kind === 'settings') this.draw();
     });
@@ -334,9 +338,16 @@ export class TitleScene extends Phaser.Scene {
         );
       });
       const cancelY = Math.max(PICKER_CANCEL_Y, y(this.rows.length));
-      this.button('cancel', CENTER_X, cancelY, 'Cancel (Esc)', true, () => {
-        this.show({ kind: 'menu' });
-      });
+      this.button(
+        'cancel',
+        CENTER_X,
+        cancelY,
+        withCloseKey('Cancel', closeKeyName(closeKeyState())),
+        true,
+        () => {
+          this.show({ kind: 'menu' });
+        },
+      );
     } else {
       const row = this.rows[view.slot - 1];
       this.panel(PICKER_BOX);
@@ -386,7 +397,7 @@ export class TitleScene extends Phaser.Scene {
       'panel-close',
       close.x,
       close.y,
-      PANEL_CLOSE_LABEL,
+      panelCloseLabel(closeKeyName(closeKeyState())),
       true,
       () => {
         this.show({ kind: 'menu' });

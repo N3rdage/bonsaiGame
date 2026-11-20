@@ -28,6 +28,7 @@ import { getSpecies } from '../sim/species';
 import { findStyle } from '../sim/styles';
 import { TUTORIAL_SKIP_WEEK, TUTORIAL_WATER, tutorialAdvanceIf } from '../sim/tutorial';
 import type { BonsaiTree, GameState, Rng } from '../sim/types';
+import type { CloseKey } from './closeKey';
 import { treeLabel } from './treeSprites';
 import type { UiMetrics } from './uiScale';
 
@@ -74,8 +75,10 @@ export const INSPECTOR_SCORE_COLUMN = { x: SCORE_X, w: RIGHT - SCORE_X } as cons
 /** Centre of the grey footer line. */
 export const INSPECTOR_FOOTER_Y = INSPECTOR_PANEL.y + INSPECTOR_PANEL.h - 12;
 
-/** The close hint, right-aligned in the title bar opposite the tree's label (text origin 1, 0.5). */
-export const INSPECTOR_CLOSE_LABEL = '[ESC] Close';
+/** The close hint naming `key`, right-aligned in the title bar opposite the tree's label (text origin 1, 0.5). */
+export function inspectorCloseLabel(key: CloseKey | undefined): string {
+  return key === undefined ? 'Close' : `[${key.toUpperCase()}] Close`;
+}
 export const INSPECTOR_CLOSE = {
   x: RIGHT,
   y: INSPECTOR_PANEL.y + INSPECTOR_TITLE_H / 2,

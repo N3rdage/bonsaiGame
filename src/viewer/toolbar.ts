@@ -18,6 +18,7 @@ import {
   type ViewerUiState,
   type WireAction,
 } from './hotspots';
+import { withCloseKey, type CloseKey } from '../world/closeKey';
 import type { Rgb } from './potPalette';
 
 export const TOOLBAR_BG: Rgb = { r: 25, g: 30, b: 25 };
@@ -94,7 +95,9 @@ export const HELP_FROM_BOTTOM = 24;
 /** The wire-age caption's top sits this far below the hotspot circle. */
 export const CAPTION_GAP = 4;
 
-export const EXIT_LABEL = 'Exit (Esc)';
+export function exitLabel(key: CloseKey | undefined): string {
+  return withCloseKey('Exit', key);
+}
 export const CAMERA_HELP = 'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R';
 /** Prune mode's note while `isPruneSeason` refuses the game's day (the inspector's `Repot: requires spring`). */
 export const PRUNE_OUT_OF_SEASON = 'Prune: requires winter';

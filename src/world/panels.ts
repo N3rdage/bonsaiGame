@@ -6,6 +6,7 @@
  */
 
 import type { BonsaiTree } from '../sim/types';
+import { withCloseKey, type CloseKey } from './closeKey';
 import { GAME_HEIGHT } from './resolution';
 import { slotRowText, type SlotRow } from './saveSlots';
 import { treeLabel } from './treeSprites';
@@ -30,9 +31,12 @@ export const PANEL_INSET = 10;
 export const PANEL_TITLE_Y = panelTitleY(PANEL);
 /** Each row's band in PANEL; the first row's centre is 36 px below the top. */
 export const PANEL_ROW_SPACING = PANEL.rowSpacing;
-/** Centre of the `Close (Esc)` button (text origin 0.5). */
+/** Centre of the Close button (text origin 0.5). */
 export const PANEL_CLOSE = panelClose(PANEL);
-export const PANEL_CLOSE_LABEL = 'Close (Esc)';
+/** The Close button's label, naming `key` (src/world/closeKey.ts). */
+export function panelCloseLabel(key: CloseKey | undefined): string {
+  return withCloseKey('Close', key);
+}
 /** The height of a panel's title band, the title centred in it (panelTitleY). */
 export const PANEL_TITLE_H = 24;
 
@@ -41,7 +45,7 @@ export function panelTitleY(box: PanelBox): number {
   return box.y + 12;
 }
 
-/** Centre of `box`'s `Close (Esc)` button. */
+/** Centre of `box`'s Close button. */
 export function panelClose(box: PanelBox): { readonly x: number; readonly y: number } {
   return { x: box.x + box.w / 2, y: box.y + box.h - 16 };
 }
@@ -69,6 +73,8 @@ export interface PanelModel {
   readonly rows: readonly PanelRow[];
   /** The box the rows are laid out in; PANEL when absent. */
   readonly box?: PanelBox;
+  /** True while the player types into the panel, where Q is a letter and cannot name the close key. */
+  readonly textEntry?: boolean;
 }
 
 /** Vertical centre of `box`'s line `i`: one `rowSpacing` apart from 36 px below its top. */

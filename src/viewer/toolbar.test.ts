@@ -21,7 +21,7 @@ import {
   DIR_TOGGLE_WIDTH,
   EXIT_BUTTON_WIDTH,
   EXIT_GAP,
-  EXIT_LABEL,
+  exitLabel,
   EXIT_RIGHT,
   HELP_FROM_BOTTOM,
   HELP_WIRE_FROM_BOTTOM,
@@ -75,7 +75,9 @@ describe('toolbar constants', () => {
     expect([EXIT_BUTTON_WIDTH, EXIT_GAP, EXIT_RIGHT]).toEqual([100, 16, 20]);
     expect(SELECTED_OUTLINE).toEqual({ r: 100, g: 140, b: 80 });
     expect(SELECTED_OUTLINE_WIDTH).toBe(2);
-    expect(EXIT_LABEL).toBe('Exit (Esc)');
+    expect(exitLabel('Esc')).toBe('Exit (Esc)');
+    expect(exitLabel('Q')).toBe('Exit (Q)');
+    expect(exitLabel(undefined)).toBe('Exit');
   });
 
   it('pins the wire sub-row layout', () => {
