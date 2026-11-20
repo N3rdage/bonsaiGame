@@ -15,6 +15,14 @@ import {
   test,
   toTitle,
 } from './drive';
+import { inputModeFor, keyProse } from '../src/world/keyHints';
+
+/** The help line as this project's input words it: taps on a touch screen, clicks and keys otherwise. */
+async function helpAs(page: Page, line: string): Promise<string> {
+  const touch = await page.evaluate(() => 'ontouchstart' in window || navigator.maxTouchPoints > 0);
+  return keyProse(line, inputModeFor(touch));
+}
+const CAMERA_LINE = 'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R';
 
 // Camera drags, pinch and the wheel are gestures, not shortcuts for a control,
 // so they run the same on every project.
@@ -290,7 +298,7 @@ test.describe('viewer toolbar', () => {
     await expect(page.locator('[data-mode="view"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#viewer-toolbar .sub-row')).toHaveCount(0);
     await expect(page.locator('#viewer-help .help-line')).toHaveText([
-      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R',
+      await helpAs(page, CAMERA_LINE),
     ]);
 
     const wire = await clickToolbar(page, '[data-mode="wire"]');
@@ -345,14 +353,17 @@ test.describe('viewer toolbar', () => {
     await expect(page.locator('#viewer-toolbar [data-dir]')).toHaveCount(0);
     await expect(page.locator('#viewer-toolbar [data-show]')).toHaveCount(0);
     await expect(page.locator('#viewer-help .help-line').first()).toHaveText(
-      'Click a wired branch to remove its wire  |  Wire: 10',
+      await helpAs(page, 'Click a wired branch to remove its wire  |  Wire: 10'),
     );
 
     const bend = await clickToolbar(page, '[data-action="bend"]');
     expect(bend.wireAction).toBe('bend');
     await expect(page.locator('#viewer-toolbar [data-dir]')).toHaveCount(4);
     await expect(page.locator('#viewer-help .help-line').first()).toHaveText(
-      'Click branch or trunk to bend (15° per click on branches, 20° on trunks)  |  Wire: 10',
+      await helpAs(
+        page,
+        'Click branch or trunk to bend (15° per click on branches, 20° on trunks)  |  Wire: 10',
+      ),
     );
 
     expect((await clickToolbar(page, '[data-dir="up"]')).bendDir).toBe('up');
@@ -699,7 +710,7 @@ test.describe('viewer actions', () => {
     expect(before.day).toBe(0);
     await expect(page.locator('#viewer-help .help-line')).toHaveText([
       'Prune: requires winter',
-      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R',
+      await helpAs(page, CAMERA_LINE),
     ]);
     // The hotspots stay; the sim refuses the click.
     expect(before.hotspots).toHaveLength(4);
@@ -712,7 +723,7 @@ test.describe('viewer actions', () => {
     // Clip mode has no note.
     await pressMode(page, 'clip');
     await expect(page.locator('#viewer-help .help-line')).toHaveText([
-      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R',
+      await helpAs(page, CAMERA_LINE),
     ]);
     await closeViewer(page);
     expect(errors).toEqual([]);
@@ -744,7 +755,7 @@ test.describe('viewer actions', () => {
     expect(before.day).toBe(100);
     expect(before.branchCount).toBe(5);
     await expect(page.locator('#viewer-help .help-line')).toHaveText([
-      'Drag to rotate  |  Pinch or scroll to zoom  |  Reset button or R',
+      await helpAs(page, CAMERA_LINE),
     ]);
     const after = await clickHotspot(page, 'branch', 0);
     expect(after.branchCount).toBe(4);

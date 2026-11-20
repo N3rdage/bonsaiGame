@@ -191,8 +191,6 @@ describe('tutorial corner panel', () => {
             escapeReaches: true,
           },
         ]) {
-          // At 711x273 the placing menu's `Next: Floor shelf` and `Save (F5)` rows, in neighbouring columns, share a tap target: a menu layout limit, not the tutorial box's (backlog follow-up).
-          if (ui === SHORT_PHONE_UI && menu?.placing) continue;
           for (const mode of ['keyboard', 'touch'] as const) {
             for (const expanded of [false, true]) {
               const rects = hud(ui, step, menu, { mode, expanded }, tip);
@@ -460,5 +458,20 @@ describe('skip confirmation', () => {
       }
     }
     expect(above + LINE_10 / 2).toBeLessThanOrEqual(close.y - LINE_10 / 2);
+  });
+});
+
+describe('More while the menu is open', () => {
+  it('is not offered, and is back when the menu closes, on the short phone', () => {
+    const view = { mode: 'touch', expanded: false } as const;
+    expect(tutorialPanel(0, false, SHORT_PHONE_UI, undefined, view)?.toggle?.label).toBe('More');
+    for (const expanded of [false, true]) {
+      const m = tutorialPanel(0, false, SHORT_PHONE_UI, undefined, {
+        ...view,
+        expanded,
+        menuOpen: true,
+      });
+      expect(m?.toggle).toBeUndefined();
+    }
   });
 });

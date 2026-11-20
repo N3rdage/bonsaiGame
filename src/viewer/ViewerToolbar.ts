@@ -1,7 +1,7 @@
 import { closeKeyState } from '../platform/fullscreen';
 import { currentInputMode } from '../platform/inputMode';
 import { closeKeyName } from '../world/closeKey';
-import { keyLabel } from '../world/keyHints';
+import { keyLabel, keyProse } from '../world/keyHints';
 import type { ViewerMode } from './hotspots';
 import {
   CAMERA_BUTTONS,
@@ -102,7 +102,7 @@ export class ViewerToolbar {
       rows.push(div('sub-row', ...model.subRow.map((group) => this.group(group))));
     }
     this.bar.replaceChildren(...rows);
-    this.help.replaceChildren(...model.help.map((line) => div('help-line', line)));
+    this.help.replaceChildren(...model.help.map((line) => div('help-line', keyProse(line, input))));
   }
 
   /** While a modal is open the toolbar and camera column take no clicks, focus or keys. */

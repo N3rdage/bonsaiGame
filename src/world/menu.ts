@@ -7,7 +7,7 @@
  */
 
 import { withCloseKey } from './closeKey';
-import { estimatedHudBox, hitRect, type UiMetrics } from './uiScale';
+import { estimatedBox, estimatedHudBox, hitRect, type UiMetrics } from './uiScale';
 
 /** Top-right anchor of the HUD badge (text origin 1, 0). */
 export const HUD_BADGE = { right: 472, top: 2 } as const;
@@ -120,7 +120,7 @@ function viewButtonHitTop(ui: UiMetrics): number {
 function layout(
   options: MenuOptions,
   ui: UiMetrics,
-): { y: number; h: number; top: number; columns: number; perColumn: number } {
+): { y: number; h: number; top: number; perColumn: number; xs: number[]; w: number } {
   const count = entries(options).length;
   const pitch = menuRowPitch(ui);
   const minTop = Math.max(MENU_PANEL.y + MENU_PAD, menuButtonHitBottom(ui));
@@ -130,7 +130,41 @@ function layout(
   const perColumn = Math.ceil(count / columns);
   const rowsH = perColumn * pitch;
   const h = Math.max(columns === 1 ? MENU_PANEL.h : 0, rowsH + 2 * MENU_PAD);
-  return { y, h, top: y + (h - rowsH) / 2, columns, perColumn };
+  const { xs, w } = columnXs(entries(options), perColumn, ui);
+  return { y, h, top: y + (h - rowsH) / 2, perColumn, xs, w };
+}
+
+/**
+ * The left edge of each column's labels and the panel's width. A column is
+ * MENU_PANEL.w wide at least; where a label's tap target (its text grown to
+ * `ui.hit`) would reach into the next column's, the next column moves right
+ * until the targets only touch, so no two rows share a tap.
+ */
+function columnXs(
+  rows: readonly { label: string }[],
+  perColumn: number,
+  ui: UiMetrics,
+): { xs: number[]; w: number } {
+  const columns = Math.ceil(rows.length / perColumn);
+  const first = MENU_PANEL.x + MENU_ROW_INSET;
+  const xs: number[] = [];
+  let right = 0;
+  for (let c = 0; c < columns; c++) {
+    let overhang = 0;
+    let reach = 0;
+    for (const { label } of rows.slice(c * perColumn, (c + 1) * perColumn)) {
+      const w = estimatedBox(label, 0, 0, 0, 0, ui).w;
+      const grown = Math.max(w, ui.hit);
+      overhang = Math.max(overhang, (grown - w) / 2);
+      reach = Math.max(reach, (w + grown) / 2);
+    }
+    const x = c === 0 ? first : Math.max(first + c * MENU_PANEL.w, right + overhang);
+    xs.push(x);
+    right = x + reach;
+  }
+  // One column keeps MENU_PANEL.w; several grow to hold the last column's labels.
+  const w = columns === 1 ? MENU_PANEL.w : right + MENU_ROW_INSET - MENU_PANEL.x;
+  return { xs, w: Math.max(MENU_PANEL.w * columns, w) };
 }
 
 /** The open panel's rectangle: MENU_PANEL, lower, taller and wider where `ui`'s rows need it. */
@@ -138,8 +172,8 @@ export function menuPanel(
   options: MenuOptions,
   ui: UiMetrics,
 ): { readonly x: number; readonly y: number; readonly w: number; readonly h: number } {
-  const { y, h, columns } = layout(options, ui);
-  return { ...MENU_PANEL, y, h, w: MENU_PANEL.w * columns };
+  const { y, h, w } = layout(options, ui);
+  return { ...MENU_PANEL, y, h, w };
 }
 
 /**
@@ -150,10 +184,10 @@ export function menuPanel(
  */
 export function menuItems(options: MenuOptions, ui: UiMetrics): readonly MenuItem[] {
   const pitch = menuRowPitch(ui);
-  const { top, perColumn } = layout(options, ui);
+  const { top, perColumn, xs } = layout(options, ui);
   return entries(options).map((item, i) => ({
     ...item,
-    x: MENU_PANEL.x + MENU_ROW_INSET + Math.floor(i / perColumn) * MENU_PANEL.w,
+    x: xs[Math.floor(i / perColumn)] ?? MENU_PANEL.x + MENU_ROW_INSET,
     y: top + ((i % perColumn) + 0.5) * pitch,
   }));
 }

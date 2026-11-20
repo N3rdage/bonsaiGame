@@ -15,7 +15,16 @@ import {
   menuRowPitch,
   type MenuOptions,
 } from './menu';
-import { DESKTOP_UI, PHONE_UI, estimatedBox, estimatedHudBox, hitRect } from './uiScale';
+import {
+  DESKTOP_UI,
+  PHONE_UI,
+  cssPerLogical,
+  estimatedBox,
+  estimatedHudBox,
+  hitRect,
+  rectsOverlap,
+  uiMetrics,
+} from './uiScale';
 
 // At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 12 px tall): 6 px a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
@@ -256,5 +265,29 @@ describe('world HUD menu layout', () => {
     expect(left).toBeGreaterThan(VIEW_BUTTON.left + 'View tree (V)'.length * GLYPH_W);
     expect(INTERACT_BUTTON.bottom - LINE_H).toBeGreaterThan(HUD_BADGE.top + LINE_H);
     expect(left).toBeGreaterThan(panelRight);
+  });
+});
+
+describe('menu columns at 711x273', () => {
+  it('keep every row tap target apart in every menu state', () => {
+    const ui = uiMetrics(cssPerLogical(711, 273), true);
+    for (const carrying of [false, true]) {
+      for (const [placeable, placing] of [
+        [false, false],
+        [true, false],
+        [true, true],
+      ] as const) {
+        const items = menuItems(
+          { carrying, placeable, placing, nextKind: 'Floor shelf', escapeReaches: true },
+          ui,
+        );
+        const rects = items.map((i) =>
+          hitRect(estimatedBox(i.label, i.x, i.y, 0, 0.5, ui), ui.hit),
+        );
+        rects.forEach((a, i) => {
+          for (const b of rects.slice(i + 1)) expect(rectsOverlap(a, b)).toBe(false);
+        });
+      }
+    }
   });
 });

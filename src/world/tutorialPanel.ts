@@ -205,13 +205,18 @@ export function tutorialPanel(
         color: LABEL_COLOR,
       })),
       button: button(right - TUTORIAL_INSET, rowY),
-      toggle: {
-        x: cx + TUTORIAL_INSET,
-        y: rowY,
-        enabled: true,
-        label: 'More',
-        id: 'tutorial-more',
-      },
+      // With the menu open the box stays folded, so More would change nothing: no toggle.
+      ...(view.menuOpen === true
+        ? {}
+        : {
+            toggle: {
+              x: cx + TUTORIAL_INSET,
+              y: rowY,
+              enabled: true,
+              label: 'More',
+              id: 'tutorial-more',
+            },
+          }),
     };
   }
   const y = bottom - h;

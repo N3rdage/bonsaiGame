@@ -39,6 +39,7 @@ export function keyProse(text: string, mode: InputMode): string {
     )
     .replace(/\bpressing E\b/g, 'tapping Interact')
     .replace(/\bwith J\b/g, 'with the Notebook button')
+    .replace(/\bReset button or R\b/g, 'Reset button')
     .replace(/\bclick\b/g, 'tap')
     .replace(/\bClick\b/g, 'Tap');
 }
