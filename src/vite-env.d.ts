@@ -113,6 +113,8 @@ interface BonsaiTestHook {
   readonly picker: string;
   /** World: the open panel, 'menu' (HUD menu), 'slots' (load picker), 'tree:<id>' (a tree's inspector), its sub-panels 'repot:<id>', 'rename:<id>', 'style:<id>' and 'sell:<id>', 'pedestal:<pedestalKey>' (an empty pedestal), 'shop', 'plant' (the planting table's Plant), 'notebook', 'inventory', 'tutorial-skip' (the Skip confirmation) or 'settings'; '' otherwise. Title: 'settings' while its Settings panel is up, else ''. */
   readonly panel: string;
+  /** World only: the text of the open modal panel's close control (its `panel-close` button), '' when no panel with one is open. It follows the fullscreen state: Q in fullscreen without the Escape lock. */
+  readonly closeLabel?: string;
   /** Both scenes: the stored settings, the Sound and Music switches included (the Fullscreen row itself shows the live state, which can differ). */
   readonly settings: {
     readonly fullscreen: boolean;

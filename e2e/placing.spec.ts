@@ -209,6 +209,19 @@ test.describe('placement mode', () => {
     expect(errors).toEqual([]);
   });
 
+  test('Q leaves placement mode', async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    await seedAndContinue(page);
+    await shedToGarden(page);
+    await gardenToGreenhouse(page);
+    await startPlacing(page);
+    await page.keyboard.press('q');
+    await page.waitForFunction(() => window.__bonsai?.placing === undefined);
+    expect((await hook(page)).scene).toBe('world');
+    expect(errors).toEqual([]);
+  });
+
   test('a floor shelf bought at the shop goes down in the greenhouse', async ({ page }) => {
     // Three rooms' walks and the menu taps take about a minute on the S22's tap route.
     test.setTimeout(120_000);

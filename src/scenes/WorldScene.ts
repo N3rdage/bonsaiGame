@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { trackFor } from '../platform/audio';
+import { closeKeyState } from '../platform/fullscreen';
 import { registerSaveBeforeReload } from '../platform/swUpdate';
 import { loadGame, saveGame } from '../sim/save';
 import { seasonForDay, type Season } from '../sim/seasons';
@@ -21,6 +22,7 @@ import {
 } from '../sim/tree';
 import type { BonsaiTree, GameState, PlaceableKind } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
+import { closeKeyName, escapeReachesPage } from '../world/closeKey';
 import { hudText } from '../world/hud';
 import { nearestInteractable, promptFor } from '../world/interactables';
 import {
@@ -36,7 +38,7 @@ import {
 } from '../world/menu';
 import {
   PANEL,
-  PANEL_CLOSE_LABEL,
+  panelCloseLabel,
   PANEL_INSET,
   PANEL_TITLE_H,
   fitRows,
@@ -61,7 +63,7 @@ import {
   DISABLED_COLOR,
   FOOTER_COLOR,
   INSPECTOR_CLOSE,
-  INSPECTOR_CLOSE_LABEL,
+  inspectorCloseLabel,
   INSPECTOR_INSET,
   INSPECTOR_PANEL,
   INSPECTOR_TITLE_H,
@@ -321,7 +323,7 @@ const BAR_H = 6;
  * Within range of a prop the player shows its prompt and an Interact button
  * (E); interacting opens a modal panel (obj_ui_panel) over the dimmed room.
  * While a modal is open the player does not move and the room's keys, Menu and
- * View tree do nothing; Escape or Close (Esc) closes it. F9 on an empty or
+ * View tree do nothing; Escape, Q or Close closes it (Q is a letter in the rename box). F9 on an empty or
  * unreadable slot opens the Load Game slot picker as such a panel.
  *
  * Trees are drawn from their `location` (src/world/treeSprites.ts): on the
@@ -620,11 +622,19 @@ export class WorldScene extends Phaser.Scene {
     // Keyboard events reach Phaser after the viewer's own window listener, so
     // the Escape that closed the viewer is seen here with the viewer already
     // closed; its timestamp tells them apart.
-    onKeyDown(keyboard, 'ESC', (event) => {
+    const closeOrLeave = (event: KeyboardEvent, leaveRoom: boolean): void => {
       if (this.viewer.isOpen || event.timeStamp <= this.viewerClosedAt) return;
       if (this.panel) this.closePanel();
       else if (this.placing) this.stopPlacing();
-      else this.toTitle();
+      else if (leaveRoom) this.toTitle();
+    };
+    onKeyDown(keyboard, 'ESC', (event) => {
+      closeOrLeave(event, true);
+    });
+    // Q closes what Esc closes but never leaves the room, and is a letter in the rename box.
+    onKeyDown(keyboard, 'Q', (event) => {
+      if (document.activeElement instanceof HTMLInputElement) return;
+      closeOrLeave(event, false);
     });
 
     this.input.on(
@@ -805,6 +815,7 @@ export class WorldScene extends Phaser.Scene {
       carrying: carriedTree(this.ctx.state) !== undefined,
       placeable: this.placeable(),
       placing: placing !== undefined,
+      escapeReaches: escapeReachesPage(closeKeyState()),
       nextKind: next !== undefined && next !== placing ? PLACEABLES[next].label : undefined,
     };
     const bg = this.panelBox(menuPanel(options, this.ui), HUD_DEPTH);
@@ -909,7 +920,7 @@ export class WorldScene extends Phaser.Scene {
     const close = this.hudButton(
       at.x,
       at.y,
-      PANEL_CLOSE_LABEL,
+      panelCloseLabel(closeKeyName(closeKeyState(), model.textEntry)),
       () => {
         this.closePanel();
       },
@@ -1106,7 +1117,7 @@ export class WorldScene extends Phaser.Scene {
     input.style.color = PANEL_STYLE.text;
     input.style.border = `1px solid ${cssColour(PANEL_STYLE.ink)}`;
     input.style.fontFamily = FONT_FAMILY;
-    const model = renamePanel(tree, input.value);
+    const model = renamePanel(tree, input.value, escapeReachesPage(closeKeyState()));
     // Where openPanel draws the New name row: the model as fitted to the screen's tap targets.
     const box = renameInput(fitRows(model, this.ui));
     const place = (): void => {
@@ -1127,7 +1138,7 @@ export class WorldScene extends Phaser.Scene {
     };
     const texts = this.openPanel(model, save);
     input.addEventListener('input', () => {
-      texts[2]?.setText(renameCounter(input.value));
+      texts[2]?.setText(renameCounter(input.value, escapeReachesPage(closeKeyState())));
     });
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') save();
@@ -1233,7 +1244,7 @@ export class WorldScene extends Phaser.Scene {
     const close = this.hudButton(
       INSPECTOR_CLOSE.x,
       INSPECTOR_CLOSE.y,
-      INSPECTOR_CLOSE_LABEL,
+      inspectorCloseLabel(closeKeyName(closeKeyState())),
       () => {
         this.closePanel();
       },
@@ -2051,6 +2062,7 @@ export class WorldScene extends Phaser.Scene {
       toast: this.toast.text,
       picker: '',
       panel: this.panel?.key ?? '',
+      closeLabel: this.panel?.buttons.find((b) => b.id === 'panel-close')?.text.text ?? '',
       settings: { ...this.ctx.settings },
       lastSound: this.sfx.lastSound,
       track: this.music.track,

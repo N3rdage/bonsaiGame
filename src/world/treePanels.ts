@@ -148,23 +148,29 @@ export function stylePanel(tree: BonsaiTree, ui: UiMetrics = DESKTOP_UI): PanelM
 }
 
 /** Rename: the second row's right part is where the scene puts the DOM input; the third is its counter. */
-export function renamePanel(tree: BonsaiTree, typed: string): PanelModel {
+export function renamePanel(tree: BonsaiTree, typed: string, escapeReaches: boolean): PanelModel {
   return {
     key: `rename:${String(tree.id)}`,
     title: 'Rename Tree',
+    textEntry: true,
     rows: rows([
       { text: `Current name: ${quoted(tree)}`, id: '' },
       { text: 'New name:', id: '', color: QUESTION_COLOR },
-      { text: renameCounter(typed), id: '' },
+      { text: renameCounter(typed, escapeReaches), id: '' },
       { text: 'Save', id: 'panel-rename-save' },
     ]),
   };
 }
 
-/** The prototype's hint line with its `N/20` counter. */
-export function renameCounter(typed: string): string {
+/**
+ * The prototype's hint line with its `N/20` counter. `escapeReaches` is whether
+ * Escape reaches the game (src/world/closeKey.ts); where it does not, the Close
+ * button cancels, as Q is a letter while typing.
+ */
+export function renameCounter(typed: string, escapeReaches: boolean): string {
   const n = Math.min(typed.length, MAX_TREE_NAME_LENGTH);
-  return `Enter to save  |  Esc to cancel  |  ${String(n)}/${String(MAX_TREE_NAME_LENGTH)}`;
+  const cancel = escapeReaches ? 'Esc to cancel' : 'Close to cancel';
+  return `Enter to save  |  ${cancel}  |  ${String(n)}/${String(MAX_TREE_NAME_LENGTH)}`;
 }
 
 /**

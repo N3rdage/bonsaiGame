@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { SHOP_CATALOGUE, shopBuy } from '../sim/shop';
 import { createNewGameState } from '../sim/state';
-import { PANEL_CLOSE_LABEL, PANEL_INSET, panelClose, panelTitleY } from './panels';
+import { panelCloseLabel, PANEL_INSET, panelClose, panelTitleY } from './panels';
 import { SHED_ROOM } from './shedRoom';
 import {
   SHOP_KIOSK_KEY,
@@ -153,6 +153,6 @@ describe('shop panel', () => {
     const close = panelClose(SHOP_PANEL);
     expect(above + LINE_H / 2).toBeLessThanOrEqual(close.y - LINE_H / 2);
     expect(close.y + LINE_H / 2).toBeLessThanOrEqual(SHOP_PANEL.y + SHOP_PANEL.h);
-    expect((PANEL_CLOSE_LABEL.length * GLYPH_W) / 2).toBeLessThan(SHOP_PANEL.w / 2);
+    expect((panelCloseLabel('Esc').length * GLYPH_W) / 2).toBeLessThan(SHOP_PANEL.w / 2);
   });
 });

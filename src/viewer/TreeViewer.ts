@@ -93,6 +93,7 @@ import {
   bothWindings,
   toonRampBytes,
 } from './toon';
+import { isCloseKey } from '../world/closeKey';
 import { ViewerModal } from './ViewerModal';
 import { ViewerToolbar } from './ViewerToolbar';
 
@@ -858,12 +859,15 @@ export class TreeViewer {
 
   private readonly onKeyDown = (e: KeyboardEvent): void => {
     if (!this.opened) return;
-    // The confirmation takes the keyboard: Escape closes it, nothing else acts (Step_0).
+    // Escape and Q close; Q because the browser takes the Escape that leaves fullscreen.
+    const closes =
+      e.key === 'Escape' || (isCloseKey(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey);
+    // The confirmation takes the keyboard: the close keys back out of it, nothing else acts (Step_0).
     if (this.pendingWireRemoval >= 0) {
-      if (e.key === 'Escape') this.setPendingWireRemoval(-1);
+      if (closes) this.setPendingWireRemoval(-1);
       return;
     }
-    if (e.key === 'Escape') {
+    if (closes) {
       this.close();
       return;
     }
