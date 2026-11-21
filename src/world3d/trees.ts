@@ -12,7 +12,7 @@ import { treeSprites } from '../world/treeSprites';
 import type { Furniture, Room } from '../world/shedRoom';
 import { DEFAULT_FURNITURE_HEIGHT, heightMetres, metres } from './plan';
 
-/** A tree standing in the room: its feet (the middle of the pot's soil line) in plan metres. */
+/** A tree standing in the room: its feet (the middle of the bottom of the pot, on the surface it stands on) in plan metres. */
 export interface TreeStand {
   readonly tree: BonsaiTree;
   readonly x: number;

@@ -14,7 +14,7 @@ index.html
   src/scenes/            Phaser scenes: boot, title, world (every room)
   src/world/             pure room data (the shed, the back and front gardens, the house rooms, the greenhouse), player movement, input and HUD text for the world scene; resolution.ts, the canvas and camera scale
   src/sim/               pure simulation: tree, geometry, growth, seasons, scoring, species, styles, training, save
-  src/world3d/           Babylon.js 3D world: plan.ts (a room's 3D plan in metres, derived from src/world/) meshes.ts, trees.ts and treeMeshes.ts are pure, renderer.ts draws with Babylon, world3d.ts is the world scene's adapter
+  src/world3d/           Babylon.js 3D world: plan.ts (a room's 3D plan in metres, derived from src/world/), meshes.ts, trees.ts and treeMeshes.ts are pure, renderer.ts draws with Babylon, world3d.ts is the world scene's adapter
   src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch/foliage/wire meshes, hotspots and modes, toolbar, actions, lifecycle
   e2e/                   Playwright browser tests
   public/                static assets, PWA icons, staticwebapp.config.json
