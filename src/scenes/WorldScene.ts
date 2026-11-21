@@ -207,6 +207,7 @@ import {
 } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig, pressRoute } from '../world3d/camera';
+import { cameraRelative } from '../world3d/move';
 import { World3d, setSurround } from '../world3d/world3d';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
@@ -1966,7 +1967,8 @@ export class WorldScene extends Phaser.Scene {
     const { steps, accumulatorMs } = fixedSteps(this.accumulatorMs, delta);
     this.accumulatorMs = accumulatorMs;
     if (steps === 0) return;
-    const input = this.joystick?.input ?? this.keyboardMove();
+    const raw = this.joystick?.input ?? this.keyboardMove();
+    const input = this.world3d.active ? cameraRelative(raw, cameraRig.alpha) : raw;
     for (let i = 0; i < steps; i += 1) {
       // obj_player_2d/Step_0: no movement while a UI panel is open.
       if (!modal) {

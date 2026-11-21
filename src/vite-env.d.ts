@@ -57,6 +57,8 @@ interface BonsaiTestHook {
     readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
     /** The names of the room's pieces cut away to the skirting for the camera's heading, sorted; empty while off. */
     readonly cut: readonly string[];
+    /** The way the capsule faces in the plan, radians (0 east, pi/2 south), from its last step; 0 while off. */
+    readonly facing: number;
   };
   /** World only: the current room's `bounds`, the outer edge of its wall ring (top-left and size, logical px); the floor is the band's 16 px inside it. */
   readonly roomBounds?: {

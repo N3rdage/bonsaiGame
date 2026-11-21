@@ -53,11 +53,12 @@ function clamp(v: number, lo: number, hi: number): number {
 
 /** One step of Step_0's movement, facing and walk animation. */
 export function stepPlayer(player: PlayerState, input: MoveInput, room: Room): PlayerState {
-  let ix = clamp(input.x, -1, 1);
-  let iy = clamp(input.y, -1, 1);
+  let ix = input.x;
+  let iy = input.y;
   // The prototype normalises every non-zero input; keyboard input always has
   // length 1 or sqrt(2), so normalising only above 1 is the same for keys and
-  // lets the touch joystick walk slower than full speed.
+  // lets the touch joystick walk slower than full speed. Nothing is clamped
+  // first, so a turned diagonal (the 3D world's) keeps its direction.
   const len = Math.hypot(ix, iy);
   if (len > 1) {
     ix /= len;

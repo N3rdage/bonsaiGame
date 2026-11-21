@@ -20,6 +20,7 @@ import { Scene } from '@babylonjs/core/scene';
 import { PALETTE } from '../world/palette';
 import type { Room } from '../world/shedRoom';
 import { cameraRig, cutNames, cutSpan, ease } from './camera';
+import { facingOf } from './move';
 import { PLAYER_HEIGHT, PLAYER_RADIUS, meshSpecs, playerFeet, toBabylon } from './meshes';
 import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
 
@@ -34,7 +35,12 @@ export interface RendererSnapshot {
   readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
   /** The names of the pieces cut away to the skirting, sorted. */
   readonly cut: readonly string[];
+  /** The way the capsule faces: its last step's heading in the plan, radians (0 east, pi/2 south). */
+  readonly facing: number;
 }
+
+/** The edge of the box on the capsule's front that shows which way it faces, metres. */
+const NOSE = 0.2;
 
 /** A room piece's mesh and the heights its full box spans, in Babylon's y. */
 interface Piece {
@@ -49,6 +55,10 @@ export class Renderer {
   private readonly scene: Scene;
   private readonly camera: ArcRotateCamera;
   private readonly player: Mesh;
+  /** The plan heading the capsule faces; a new session faces away from the default camera, north. */
+  private facing = -Math.PI / 2;
+  /** Where the capsule stood last frame, plan metres. */
+  private lastFeet: { x: number; y: number } | undefined;
   private room: Room['key'] | undefined;
   private plan: RoomPlan3d | undefined;
   private pieces = new Map<string, Piece>();
@@ -87,6 +97,10 @@ export class Renderer {
       this.scene,
     );
     this.player.material = this.material('wood');
+    const nose = CreateBox('player.nose', { size: NOSE }, this.scene);
+    nose.material = this.material('leafOrange');
+    nose.parent = this.player;
+    nose.position.set(0, PLAYER_HEIGHT / 4, PLAYER_RADIUS);
   }
 
   /** The room shown and every mesh in the scene, the player's included. */
@@ -98,6 +112,7 @@ export class Renderer {
       meshes: this.scene.meshes.length,
       camera: { alpha, beta, radius },
       cut: this.cut,
+      facing: this.facing,
     };
   }
 
@@ -111,11 +126,18 @@ export class Renderer {
   frame(room: Room, px: { readonly x: number; readonly y: number }): void {
     const fresh = this.room !== room.key;
     if (fresh) this.build(room);
-    const feet = toBabylon(playerFeet(px));
+    const plan = playerFeet(px);
+    if (this.lastFeet && !fresh) {
+      this.facing = facingOf(plan.x - this.lastFeet.x, plan.y - this.lastFeet.y, this.facing);
+    }
+    this.lastFeet = { x: plan.x, y: plan.y };
+    // The nose sits on the capsule's local +z, which a turn of theta about y points along (sin, cos) in x and z.
+    this.player.rotation.y = this.facing + Math.PI / 2;
+    const feet = toBabylon(plan);
     const middle = feet.y + PLAYER_HEIGHT / 2;
     this.player.position.set(feet.x, middle, feet.z);
     this.follow({ x: feet.x, y: middle, z: feet.z }, fresh);
-    this.cutAway(playerFeet(px));
+    this.cutAway(plan);
     this.fit();
     this.scene.render();
   }

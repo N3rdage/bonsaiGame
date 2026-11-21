@@ -84,6 +84,7 @@ export class World3d {
         radius: cameraRig.radius,
       },
       cut: state ? [...state.cut] : [],
+      facing: state?.facing ?? 0,
       player: this.renderer ? this.renderer.playerAt() : null,
     };
   }

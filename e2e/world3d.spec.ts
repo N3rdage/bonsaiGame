@@ -142,6 +142,37 @@ test.describe('the 3D world', () => {
       .toBeGreaterThan(0.2);
   });
 
+  test('up walks away from the camera, whatever its heading', async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+
+    const walkUp = async (): Promise<{ dx: number; dy: number }> => {
+      const before = (await world3d(page)).player;
+      await page.keyboard.down('ArrowUp');
+      await page.waitForTimeout(300);
+      await page.keyboard.up('ArrowUp');
+      const after = (await world3d(page)).player;
+      return { dx: (after?.x ?? 0) - (before?.x ?? 0), dy: (after?.y ?? 0) - (before?.y ?? 0) };
+    };
+
+    // The default heading looks north: up is north, as in the 2D world.
+    const north = await walkUp();
+    expect(north.dy).toBeLessThan(-0.1);
+    expect(Math.abs(north.dy)).toBeGreaterThan(Math.abs(north.dx));
+    await expect.poll(async () => (await world3d(page)).facing).toBeCloseTo(-Math.PI / 2, 1);
+
+    // Two Q presses (45 degrees each) turn the camera a quarter to look east.
+    await page.keyboard.press('q');
+    await page.keyboard.press('q');
+    await expect.poll(async () => (await world3d(page)).camera.alpha).toBeLessThan(-Math.PI + 0.05);
+    const east = await walkUp();
+    expect(east.dx).toBeGreaterThan(0.1);
+    expect(Math.abs(east.dx)).toBeGreaterThan(Math.abs(east.dy));
+    await expect.poll(async () => (await world3d(page)).facing).toBeCloseTo(0, 1);
+  });
+
   test('the Q that closes the tree viewer does not also turn the camera', async ({ page }) => {
     test.setTimeout(120_000);
     await bootWorld(page);
