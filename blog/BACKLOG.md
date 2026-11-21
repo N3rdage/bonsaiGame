@@ -6,8 +6,6 @@ Current published posts: see `blog/` (or the "Posts so far" list in the project 
 
 ## General candidates
 
-- **The question nothing waited on** — decision agentic-gaming#231 (what becomes of `DESIGN.md` and `ART_SPEC.md`), answered three days after it was asked (15 to 18 November) with the recommendation (A) taken, no work blocked on it in between and each run noting "still waits for Drew" and carrying on: what an unanswered question costs when nothing is blocked on it, and when a run should pick the recommended default and move on instead of re-asking.
-
 ## Math sub-series
 
 A recurring sub-series on the geometry powering the visible game. Posts are tagged `[Math]` in the title, with `-math-` in the slug, for filtering. Pitched at high-school / early-uni readers — assume rough familiarity with `cos`/`sin` and don't be scared of an angle, but otherwise don't presume background.
