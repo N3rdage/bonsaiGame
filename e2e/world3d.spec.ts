@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Page } from '@playwright/test';
+import { serializeState } from '../src/sim/save';
+import { createNewGameState } from '../src/sim/state';
+import { createTree } from '../src/sim/tree';
 import {
   bootWorld,
   clickLogical,
@@ -9,13 +12,18 @@ import {
   dragLogical,
   expect,
   hook,
+  interact,
   openSettingsFromMenu,
   skipTutorial,
+  startPlacing,
   tapControl,
   test,
   toTitle,
 } from './drive';
-import { loungeToShed, shedToLounge } from './rooms';
+import { gardenToGreenhouse, loungeToShed, shedToGarden, shedToLounge } from './rooms';
+
+/** Tests run two workers on software GL: a walk, a camera ease or an instance count can take longer than the default 5 s poll. */
+const POLL = { timeout: 30_000 };
 
 // The 3D world (preview) setting: Babylon draws the room under the Phaser canvas
 // (src/world3d/), which keeps the movement, the doors and the HUD. The setting is
@@ -50,6 +58,14 @@ test.describe('the 3D world', () => {
     const shed = await world3d(page);
     expect(shed.on).toBe(true);
     expect(shed.meshes).toBeGreaterThan(0);
+    // The shed's clutter is one instance of each model, not boxes.
+    expect(shed.instances).toEqual({
+      shelf: 1,
+      tools: 1,
+      watering_can: 1,
+      pot_stack: 1,
+      sack: 1,
+    });
     if (test.info().project.name === 's22-landscape') {
       await skipTutorial(page, true);
       await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
@@ -81,7 +97,7 @@ test.describe('the 3D world', () => {
           return (
             p && [p.x - h.player.x / 32, p.y - h.player.y / 32].every((d) => Math.abs(d) < 0.01)
           );
-        })
+        }, POLL)
         .toBe(true);
     };
     await near();
@@ -123,7 +139,7 @@ test.describe('the 3D world', () => {
 
     await page.keyboard.press('q');
     await expect
-      .poll(async () => (await world3d(page)).camera.alpha)
+      .poll(async () => (await world3d(page)).camera.alpha, POLL)
       .toBeLessThan(-Math.PI / 2 - 0.7);
     const turned = await world3d(page);
     expect(turned.cut).not.toEqual(start.cut);
@@ -132,18 +148,20 @@ test.describe('the 3D world', () => {
     await page.keyboard.press('e');
     await page.keyboard.press('e');
     await expect
-      .poll(async () => (await world3d(page)).camera.alpha)
+      .poll(async () => (await world3d(page)).camera.alpha, POLL)
       .toBeGreaterThan(-Math.PI / 2 + 0.7);
 
     const radius = (await world3d(page)).camera.radius;
     await page.mouse.move(400, 100);
     await page.mouse.wheel(0, 300);
-    await expect.poll(async () => (await world3d(page)).camera.radius).toBeGreaterThan(radius + 1);
+    await expect
+      .poll(async () => (await world3d(page)).camera.radius, POLL)
+      .toBeGreaterThan(radius + 1);
 
     const before = (await world3d(page)).camera.alpha;
     await dragLogical(page, 100, 60, 60);
     await expect
-      .poll(async () => Math.abs((await world3d(page)).camera.alpha - before))
+      .poll(async () => Math.abs((await world3d(page)).camera.alpha - before), POLL)
       .toBeGreaterThan(0.2);
   });
 
@@ -166,16 +184,18 @@ test.describe('the 3D world', () => {
     const north = await walkUp();
     expect(north.dy).toBeLessThan(-0.1);
     expect(Math.abs(north.dy)).toBeGreaterThan(Math.abs(north.dx));
-    await expect.poll(async () => (await world3d(page)).facing).toBeCloseTo(-Math.PI / 2, 1);
+    await expect.poll(async () => (await world3d(page)).facing, POLL).toBeCloseTo(-Math.PI / 2, 1);
 
     // Two Q presses (45 degrees each) turn the camera a quarter to look east.
     await page.keyboard.press('q');
     await page.keyboard.press('q');
-    await expect.poll(async () => (await world3d(page)).camera.alpha).toBeLessThan(-Math.PI + 0.05);
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha, POLL)
+      .toBeLessThan(-Math.PI + 0.05);
     const east = await walkUp();
     expect(east.dx).toBeGreaterThan(0.1);
     expect(Math.abs(east.dx)).toBeGreaterThan(Math.abs(east.dy));
-    await expect.poll(async () => (await world3d(page)).facing).toBeCloseTo(0, 1);
+    await expect.poll(async () => (await world3d(page)).facing, POLL).toBeCloseTo(0, 1);
   });
 
   test('the Q that closes the tree viewer does not also turn the camera', async ({ page }) => {
@@ -195,7 +215,7 @@ test.describe('the 3D world', () => {
     // The next Q is a plain press again.
     await page.keyboard.press('q');
     await expect
-      .poll(async () => (await world3d(page)).camera.alpha)
+      .poll(async () => (await world3d(page)).camera.alpha, POLL)
       .toBeLessThan(-Math.PI / 2 - 0.7);
   });
 
@@ -229,7 +249,7 @@ test.describe('the 3D world', () => {
       .poll(async () => {
         const p = (await world3d(page)).player;
         return Math.hypot((p?.x ?? 0) - (start?.x ?? 0), (p?.y ?? 0) - (start?.y ?? 0));
-      })
+      }, POLL)
       .toBeGreaterThan(0.5);
     expect((await world3d(page)).picked).toBeNull();
 
@@ -238,23 +258,20 @@ test.describe('the 3D world', () => {
     // On software GL beside another 3D test that can take longer than the default 5 s.
     let before = '';
     await expect
-      .poll(
-        async () => {
-          const now = JSON.stringify(
-            (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
-          );
-          const still = now === before;
-          before = now;
-          await page.waitForTimeout(250);
-          return still;
-        },
-        { timeout: 30_000 },
-      )
+      .poll(async () => {
+        const now = JSON.stringify(
+          (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
+        );
+        const still = now === before;
+        before = now;
+        await page.waitForTimeout(250);
+        return still;
+      }, POLL)
       .toBe(true);
     const door = (await world3d(page)).hotspots.find((h) => h.id === 'door_lounge');
     if (!door) throw new Error('no lounge door hotspot');
     await clickLogical(page, door.x, door.y);
-    await expect.poll(async () => (await world3d(page)).picked).toBe('door_lounge');
+    await expect.poll(async () => (await world3d(page)).picked, POLL).toBe('door_lounge');
     await waitForRoom(page, 'lounge');
     expect(errors).toEqual([]);
   });
@@ -276,7 +293,7 @@ test.describe('the 3D world', () => {
     await toTitle(page);
     await continueGame(page);
     await waitForRoom(page, 'shed');
-    await expect.poll(async () => (await world3d(page)).trees).toBe(2);
+    await expect.poll(async () => (await world3d(page)).trees, POLL).toBe(2);
     const shed = await world3d(page);
     expect(shed.meshes).toBeGreaterThan(shed.trees);
 
@@ -287,7 +304,7 @@ test.describe('the 3D world', () => {
         await page.mouse.wheel(0, -900);
         await page.waitForTimeout(100);
       }
-      await expect.poll(async () => (await world3d(page)).camera.radius).toBeLessThan(5);
+      await expect.poll(async () => (await world3d(page)).camera.radius, POLL).toBeLessThan(5);
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot('world3d-trees.png');
     }
@@ -295,7 +312,7 @@ test.describe('the 3D world', () => {
     // The lounge has no tree on its floor or spots in this save: its room draws none.
     await shedToLounge(page);
     await waitForRoom(page, 'lounge');
-    await expect.poll(async () => (await world3d(page)).trees).toBe(0);
+    await expect.poll(async () => (await world3d(page)).trees, POLL).toBe(0);
     expect(errors).toEqual([]);
   });
 
@@ -308,8 +325,89 @@ test.describe('the 3D world', () => {
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
     await page.keyboard.press('q');
     await page.keyboard.press('q');
-    await expect.poll(async () => (await world3d(page)).camera.alpha).toBeLessThan(-Math.PI + 0.01);
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha, POLL)
+      .toBeLessThan(-Math.PI + 0.01);
     await page.waitForTimeout(500);
     await expect(page).toHaveScreenshot('world3d-shed-turned.png');
   });
+
+  test("draws the shed's furniture as models", async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await zoomIn(page, 900, 7.5);
+    await expect(page).toHaveScreenshot('world3d-furniture.png');
+  });
+
+  test('placed items stand in the greenhouse under their trees, and placing another adds an instance', async ({
+    page,
+  }) => {
+    test.setTimeout(180_000);
+    const errors = collectErrors(page);
+    // A pedestal in the inventory; a pedestal and a floor shelf already down in the greenhouse, three trees on their spots.
+    const state = createNewGameState();
+    state.inventory.pedestal = 1;
+    state.placed = [
+      { id: 0, kind: 'pedestal', room: 'greenhouse', x: 240, y: 128 },
+      { id: 1, kind: 'floor_shelf', room: 'greenhouse', x: 288, y: 128 },
+    ];
+    state.nextPlacedId = 2;
+    state.trees = ['placed_0', 'placed_1', 'placed_1_2'].map((spot, id) => ({
+      ...createTree('juniper', 'cutting', id),
+      location: `displayed:${spot}`,
+    }));
+    await page.goto('/');
+    await page.evaluate(
+      (text) => {
+        localStorage.setItem('bonsai.save.1', text);
+      },
+      serializeState(state, new Date(2026, 10, 11, 0, 0)),
+    );
+    await toTitle(page);
+    await continueGame(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await shedToGarden(page);
+    await gardenToGreenhouse(page);
+    await waitForRoom(page, 'greenhouse');
+
+    // The two items are drawn, one instance each, with a hotspot for each of their spots and a tree on each.
+    await expect
+      .poll(async () => (await world3d(page)).instances, POLL)
+      .toEqual({ pedestal: 1, floor_shelf: 1 });
+    expect((await world3d(page)).hotspots.map((h) => h.id)).toEqual(
+      expect.arrayContaining(['placed_0', 'placed_1', 'placed_1_2']),
+    );
+    await expect.poll(async () => (await world3d(page)).trees, POLL).toBe(3);
+
+    if (test.info().project.name === 's22-landscape') {
+      await zoomIn(page, 1500, 6);
+      await expect(page).toHaveScreenshot('world3d-bench-trees.png');
+    }
+
+    // Placing a second pedestal in the 2D flow adds an instance without rebuilding the room.
+    const room = await world3d(page);
+    await startPlacing(page);
+    await interact(page);
+    await expect.poll(async () => (await world3d(page)).instances.pedestal, POLL).toBe(2);
+    const placed = await world3d(page);
+    expect(placed.instances.floor_shelf).toBe(1);
+    expect(placed.hotspots.map((h) => h.id)).toContain('placed_2');
+    // Only the new item's instance and hotspot are new: the room's own meshes are the same count.
+    expect(placed.meshes).toBe(room.meshes + 1);
+    expect(errors).toEqual([]);
+  });
 });
+
+/** Scrolls the camera in by `wheel` units and waits for it to reach `radius` metres or nearer. */
+async function zoomIn(page: Page, wheel: number, radius: number): Promise<void> {
+  await page.mouse.move(240, 135);
+  await page.mouse.wheel(0, -wheel);
+  await expect.poll(async () => (await world3d(page)).camera.radius, POLL).toBeLessThan(radius);
+  await page.waitForTimeout(500);
+}
