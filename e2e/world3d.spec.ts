@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import {
   bootWorld,
   collectErrors,
+  dragLogical,
   expect,
   hook,
   openSettingsFromMenu,
@@ -100,5 +101,44 @@ test.describe('the 3D world', () => {
     await waitForRoom(page, 'lounge');
     expect((await world3d(page)).meshes).toBe(lounge.meshes);
     expect(errors).toEqual([]);
+  });
+
+  test('turns in steps on Q and E, zooms on the wheel and drags round on the mouse', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+
+    const start = await world3d(page);
+    expect(start.camera.alpha).toBeCloseTo(-Math.PI / 2, 1);
+    // Due south of the player, the south wall stands between.
+    expect(start.cut.length).toBeGreaterThan(0);
+
+    await page.keyboard.press('q');
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha)
+      .toBeLessThan(-Math.PI / 2 - 0.7);
+    const turned = await world3d(page);
+    expect(turned.cut).not.toEqual(start.cut);
+    expect(turned.cut.length).toBeGreaterThan(start.cut.length);
+
+    await page.keyboard.press('e');
+    await page.keyboard.press('e');
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha)
+      .toBeGreaterThan(-Math.PI / 2 + 0.7);
+
+    const radius = (await world3d(page)).camera.radius;
+    await page.mouse.move(400, 100);
+    await page.mouse.wheel(0, 300);
+    await expect.poll(async () => (await world3d(page)).camera.radius).toBeGreaterThan(radius + 1);
+
+    const before = (await world3d(page)).camera.alpha;
+    await dragLogical(page, 100, 60, 60);
+    await expect
+      .poll(async () => Math.abs((await world3d(page)).camera.alpha - before))
+      .toBeGreaterThan(0.2);
   });
 });

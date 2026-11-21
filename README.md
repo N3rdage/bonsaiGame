@@ -48,6 +48,7 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 | Input | Action |
 |-------|--------|
 | Drag anywhere (joystick) or WASD / arrows | Move player |
+| 3D world (Settings): Q and E, mouse drag or a finger on the right half of the screen, wheel or pinch | Turn the camera round the player in steps, turn it freely, and zoom; walls between the camera and the room drop to a skirting (the left half of a touchscreen stays the joystick) |
 | Interact button or E | Interact with the nearest object |
 | Interact on a tree (or its pedestal) | Open the tree inspector: stats, score breakdown, Water, Fertilise, Skip 7d, Pick up, View in 3D |
 | Inspector: Rename, Set Style, Sell, Repot | Open the sub-panel: type a name (Enter saves), tap a style, confirm the sale price, or pick a standard or fancy pot (spring, 60 days after the last repot) |

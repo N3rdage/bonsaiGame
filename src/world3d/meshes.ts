@@ -1,8 +1,8 @@
 /**
  * The 3D world's mesh list, as pure data: `meshSpecs` turns a room's plan
  * (plan.ts, metres, x east, y south, z up) into the boxes a renderer draws,
- * in the renderer's frame. Nothing here imports Babylon, so the list, the
- * axis mapping and the camera framing are unit-testable.
+ * in the renderer's frame. Nothing here imports Babylon, so the list and the
+ * axis mapping are unit-testable.
  */
 
 import { metres, type Box, type RoomPlan3d, type WashKey } from './plan';
@@ -73,22 +73,4 @@ export const PLAYER_RADIUS = 0.3;
 /** The player's feet in plan metres, from the 2D player's position in room px. */
 export function playerFeet(px: { readonly x: number; readonly y: number }): Vec3 {
   return { x: metres(px.x), y: metres(px.y), z: 0 };
-}
-
-/** The camera's pitch from vertical, 55 degrees, and its heading: south of the target, looking north. */
-export const CAMERA_BETA = (55 * Math.PI) / 180;
-export const CAMERA_ALPHA = -Math.PI / 2;
-/** The camera's vertical field of view, Babylon's default 0.8 rad. */
-export const CAMERA_FOV = 0.8;
-
-/** The target and distance that frame the whole floor: its centre, and the radius whose view holds the floor's diagonal. */
-export function cameraFraming(plan: RoomPlan3d): { target: Vec3; radius: number } {
-  const x0 = Math.min(...plan.floor.map((b) => b.x0));
-  const x1 = Math.max(...plan.floor.map((b) => b.x1));
-  const y0 = Math.min(...plan.floor.map((b) => b.y0));
-  const y1 = Math.max(...plan.floor.map((b) => b.y1));
-  return {
-    target: toBabylon({ x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: 0 }),
-    radius: Math.hypot(x1 - x0, y1 - y0) / 2 / Math.tan(CAMERA_FOV / 2),
-  };
 }
