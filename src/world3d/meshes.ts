@@ -70,13 +70,15 @@ function buried(inner: Box, outer: Box): boolean {
 }
 
 /**
- * Every box of the plan: the floor, then the walls, then the furniture. A
+ * Every box of the plan: the floor, then the walls, then the furniture that
+ * has no model (a modelled piece is drawn from furniture.ts's pieces). A
  * wall inside a taller piece of furniture (the front garden's band under a
  * building's face) is left out, so two washes never share a surface.
  */
 export function meshSpecs(plan: RoomPlan3d): MeshSpec[] {
   const walls = plan.walls.filter((wall) => !plan.furniture.some((piece) => buried(wall, piece)));
-  return [...plan.floor, ...walls, ...plan.furniture].map(specOf);
+  const boxes = plan.furniture.filter((piece) => piece.model === undefined);
+  return [...plan.floor, ...walls, ...boxes].map(specOf);
 }
 
 /** A capsule 1.6 m tall and 0.3 m in radius stands for the player until there is a model. */

@@ -28,9 +28,8 @@ export interface WorldMeshData {
 /**
  * The viewer's arrays (display units, z up, `DISPLAY_SCALE` of them to the
  * metre, soil at z 0) in Babylon's: metres, y up, raised by `lift` display
- * units. The viewer is right-handed
- * and Babylon left-handed, so swapping y and z (a reflection) keeps the tree
- * looking as it does there, not mirrored.
+ * units. The viewer is right-handed and Babylon left-handed, so swapping y and
+ * z (a reflection) keeps the tree looking as it does there, not mirrored.
  */
 export function worldMeshData({ positions, normals, colors }: MeshArrays, lift = 0): WorldMeshData {
   const count = positions.length / 3;
