@@ -1,5 +1,14 @@
 import type { Page } from '@playwright/test';
-import { bootWorld, collectErrors, expect, hook, test } from './drive';
+import {
+  bootWorld,
+  collectErrors,
+  expect,
+  hook,
+  openSettingsFromMenu,
+  skipTutorial,
+  tapControl,
+  test,
+} from './drive';
 import { loungeToShed, shedToLounge } from './rooms';
 
 // The 3D world (preview) setting: Babylon draws the room under the Phaser canvas
@@ -36,7 +45,25 @@ test.describe('the 3D world', () => {
     expect(shed.on).toBe(true);
     expect(shed.meshes).toBeGreaterThan(0);
     if (test.info().project.name === 's22-landscape') {
-      await page.screenshot({ path: 'test-results/world3d-shed-s22.png' });
+      await skipTutorial(page, true);
+      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      // A few frames for the camera and the scene to settle.
+      await page.evaluate(
+        () =>
+          new Promise<void>((done) => {
+            let n = 0;
+            const tick = (): void => {
+              if (++n >= 5) done();
+              else requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          }),
+      );
+      await expect(page).toHaveScreenshot('world3d-shed.png');
+      await openSettingsFromMenu(page);
+      await expect(page).toHaveScreenshot('settings-world3d.png');
+      await tapControl(page, 'panel-close');
+      await page.waitForFunction(() => window.__bonsai?.panel === '');
     }
 
     // The capsule stands where the 2D player does, in metres.

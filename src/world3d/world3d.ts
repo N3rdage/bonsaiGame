@@ -28,7 +28,9 @@ export function setSurround(game: Phaser.Game, clear: boolean): void {
 export class World3d {
   private renderer: Renderer | undefined;
   private loading = false;
-  private wanted = false;
+  private failed = false;
+  /** Bumped by `dispose`; a load that finishes under an older number is discarded. */
+  private generation = 0;
 
   constructor(private readonly host: HTMLCanvasElement) {}
 
@@ -39,23 +41,31 @@ export class World3d {
 
   /** Follows the setting: starts loading the renderer when it turns on, drops it when it turns off, and draws a frame while it is up. */
   sync(on: boolean, room: Room, player: { readonly x: number; readonly y: number }): void {
-    this.wanted = on;
-    if (on && !this.renderer && !this.loading) {
+    if (on && !this.renderer && !this.loading && !this.failed) {
       this.loading = true;
+      const generation = this.generation;
       void import('./renderer')
         .then(({ Renderer: Created }) => {
-          if (this.wanted) this.renderer = new Created(this.host);
+          if (generation === this.generation) this.renderer = new Created(this.host);
+        })
+        .catch((error: unknown) => {
+          if (generation !== this.generation) return;
+          this.failed = true;
+          console.warn('3D world failed to load', error);
         })
         .finally(() => {
-          this.loading = false;
+          if (generation === this.generation) this.loading = false;
         });
     }
     if (!on) this.dispose();
     this.renderer?.frame(room, player);
   }
 
-  /** Lets the renderer and its canvas go. */
+  /** Lets the renderer and its canvas go, cancels a load in flight, and lets a failed load be tried again. */
   dispose(): void {
+    this.generation += 1;
+    this.loading = false;
+    this.failed = false;
     this.renderer?.dispose();
     this.renderer = undefined;
   }
