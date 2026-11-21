@@ -306,7 +306,7 @@ export class SpikeSession {
   private advanceStress(state: StressState, passStart: number, drawCalls: number): void {
     state.run.push(this.delta, drawCalls);
     const { passSeconds } = this.options.stress;
-    if ((this.now - passStart) / 1000 < passSeconds) {
+    if ((this.now - passStart) / 1000 < passSeconds || !state.run.hasEnoughFrames) {
       this.overlay.setStressRunning(
         `Stress step ${String(state.run.step)}/${String(this.options.stress.maxSteps)}`,
       );

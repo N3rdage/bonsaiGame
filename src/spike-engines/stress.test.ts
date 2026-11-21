@@ -61,6 +61,14 @@ describe('StressRun', () => {
     expect(run.endPass().worstMs).toBe(10);
   });
 
+  it('needs a handful of frames before a pass may end', () => {
+    const run = new StressRun(options);
+    for (let i = 0; i < 3 + 4; i++) run.push(10, 1);
+    expect(run.hasEnoughFrames).toBe(false);
+    run.push(10, 1);
+    expect(run.hasEnoughFrames).toBe(true);
+  });
+
   it('runs to the cap while every step holds the budget', () => {
     const run = new StressRun(options);
     for (let step = 0; step <= 3; step++) {

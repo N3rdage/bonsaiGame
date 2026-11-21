@@ -26,6 +26,8 @@ export const PROPS_PER_STEP = 40;
 export const CROWD_PER_STEP = 4;
 /** Frames at the start of a pass left out: the step's new instances are still uploading. */
 const WARMUP_FRAMES = 3;
+/** Frames a pass must record before it may end, so a renderer too slow to draw many in a pass still reports real frames. */
+const MIN_PASS_FRAMES = 5;
 
 /** What a step draws on top of the player. */
 export interface StressLoad {
@@ -99,6 +101,11 @@ export class StressRun {
 
   get load(): StressLoad {
     return stressLoad(this.step);
+  }
+
+  /** Whether the pass under way has recorded enough frames to end. */
+  get hasEnoughFrames(): boolean {
+    return this.deltas.length >= MIN_PASS_FRAMES;
   }
 
   get finished(): boolean {
