@@ -141,4 +141,39 @@ test.describe('the 3D world', () => {
       .poll(async () => Math.abs((await world3d(page)).camera.alpha - before))
       .toBeGreaterThan(0.2);
   });
+
+  test('the Q that closes the tree viewer does not also turn the camera', async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+
+    await page.keyboard.press('v');
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === true);
+    await page.keyboard.press('q');
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
+    // Longer than the camera's ease: a turn would have shown by now.
+    await page.waitForTimeout(800);
+    expect((await world3d(page)).camera.alpha).toBeCloseTo(-Math.PI / 2, 2);
+
+    // The next Q is a plain press again.
+    await page.keyboard.press('q');
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha)
+      .toBeLessThan(-Math.PI / 2 - 0.7);
+  });
+
+  test('draws the shed again from a turned heading', async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await page.keyboard.press('q');
+    await page.keyboard.press('q');
+    await expect.poll(async () => (await world3d(page)).camera.alpha).toBeLessThan(-Math.PI + 0.01);
+    await page.waitForTimeout(500);
+    await expect(page).toHaveScreenshot('world3d-shed-turned.png');
+  });
 });

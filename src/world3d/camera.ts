@@ -85,6 +85,26 @@ export function ease(current: number, goal: number, dtMs: number): number {
   return current + (goal - current) * (1 - Math.exp(-dtMs / EASE_MS));
 }
 
+/** A press on bare ground, as far as routing it goes. */
+export interface Press {
+  readonly world3d: boolean;
+  readonly touch: boolean;
+  /** Whether the press is on the left half of the screen. */
+  readonly left: boolean;
+  readonly stickHeld: boolean;
+}
+
+/**
+ * Where a press on bare ground goes. In the 2D world it is the stick's. In the
+ * 3D world it is the stick's only as a touch on the left half while no stick
+ * is held; every other press (the mouse, the right half, a second finger) is
+ * the camera's, so a drag is never both.
+ */
+export function pressRoute(press: Press): 'stick' | 'camera' {
+  if (!press.world3d) return 'stick';
+  return press.touch && press.left && !press.stickHeld ? 'stick' : 'camera';
+}
+
 /**
  * The pointers that move the camera: one turns it by the drag, two zoom it
  * by the change of the distance between them. The caller decides which

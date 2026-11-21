@@ -44,6 +44,11 @@ describe('meshSpecs', () => {
     }
   });
 
+  it.each(KEYS)('%s: gives every mesh its own name', (key) => {
+    const names = meshSpecs(roomPlan3d(ROOMS[key])).map((spec) => spec.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it('draws the front garden faces at the wall height and hides the band wall beneath them', () => {
     const plan = roomPlan3d(ROOMS.frontGarden);
     const specs = meshSpecs(plan);

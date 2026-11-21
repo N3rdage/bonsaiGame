@@ -17,6 +17,7 @@ import {
   cutSpan,
   ease,
   facesCamera,
+  pressRoute,
   segmentCrossesBox,
 } from './camera';
 import { playerFeet } from './meshes';
@@ -225,5 +226,27 @@ describe('cutNames', () => {
     expect(cutNames(plan, view(HEADING.S), player)).toEqual(['between']);
     expect(cutNames(plan, view(HEADING.N), player)).toEqual(['behind']);
     expect(cutNames(plan, view(HEADING.E), player)).toEqual([]);
+  });
+});
+
+describe('pressRoute', () => {
+  const press = { world3d: true, touch: true, left: true, stickHeld: false };
+
+  it('is the stick in the 2D world, whatever the press', () => {
+    expect(pressRoute({ ...press, world3d: false, touch: false, left: false })).toBe('stick');
+    expect(pressRoute({ ...press, world3d: false, stickHeld: true })).toBe('stick');
+  });
+
+  it('makes the first touch on the left half the stick', () => {
+    expect(pressRoute(press)).toBe('stick');
+  });
+
+  it('gives a left-half touch to the camera while the stick is held', () => {
+    expect(pressRoute({ ...press, stickHeld: true })).toBe('camera');
+  });
+
+  it('gives a touch on the right half and the mouse to the camera', () => {
+    expect(pressRoute({ ...press, left: false })).toBe('camera');
+    expect(pressRoute({ ...press, touch: false })).toBe('camera');
   });
 });

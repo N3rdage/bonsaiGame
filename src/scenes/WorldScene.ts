@@ -206,7 +206,7 @@ import {
   type DeviceZoom,
 } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
-import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig } from '../world3d/camera';
+import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig, pressRoute } from '../world3d/camera';
 import { World3d, setSurround } from '../world3d/world3d';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
@@ -604,10 +604,12 @@ export class WorldScene extends Phaser.Scene {
     onKeyDown(keyboard, 'V', () => {
       this.openViewer();
     });
-    onKeyDown(keyboard, 'E', () => {
-      // With nothing in reach E has no other use, so in the 3D world it turns the camera.
-      if (this.cameraKeysLive() && !this.near) cameraRig.step(1);
-      else this.interact();
+    onKeyDown(keyboard, 'E', (event) => {
+      // With nothing in reach E has no other use, so in the 3D world it turns the camera,
+      // unless the press is the one that closed the viewer.
+      if (this.cameraKeysLive() && !this.near) {
+        if (event.timeStamp > this.viewerClosedAt) cameraRig.step(1);
+      } else this.interact();
     });
     onKeyDown(keyboard, 'J', () => {
       this.toggleNotebook();
@@ -651,8 +653,10 @@ export class WorldScene extends Phaser.Scene {
     // Q closes what Esc closes but never leaves the room, and is a letter in the rename box.
     onKeyDown(keyboard, 'Q', (event) => {
       if (document.activeElement instanceof HTMLInputElement) return;
-      if (this.cameraKeysLive()) cameraRig.step(-1);
-      else closeOrLeave(event, false);
+      if (this.cameraKeysLive()) {
+        // The press that closed the viewer is spent: it does not also turn the camera.
+        if (event.timeStamp > this.viewerClosedAt) cameraRig.step(-1);
+      } else closeOrLeave(event, false);
     });
 
     this.input.on(
@@ -674,9 +678,13 @@ export class WorldScene extends Phaser.Scene {
         // In the 3D world a press on bare ground is the stick's only as the first touch on the left half
         // of the screen; any other press (the mouse, a touch on the right half, a second finger) turns
         // and zooms the camera, so a drag is never both.
-        const stick =
-          !this.world3d.active || (pointer.wasTouch && pointer.x < this.scale.width / 2);
-        if (stick) {
+        const route = pressRoute({
+          world3d: this.world3d.active,
+          touch: pointer.wasTouch,
+          left: pointer.x < this.scale.width / 2,
+          stickHeld: this.joystick !== undefined,
+        });
+        if (route === 'stick') {
           if (this.joystick) return;
           const { x, y } = this.screenPoint(pointer);
           this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
