@@ -54,11 +54,14 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 export class Overlay {
   /** Called when the benchmark button is pressed. */
   onBench?: () => void;
+  /** Called when the stress button is pressed. */
+  onStress?: () => void;
   /** The stick's analog vector, x right and y down, length 0..1. */
   stick: MoveInput = { x: 0, y: 0 };
 
   private readonly stats: HTMLPreElement;
   private readonly benchButton: HTMLButtonElement;
+  private readonly stressButton: HTMLButtonElement;
   private readonly result: HTMLDivElement;
   private readonly resultText: HTMLPreElement;
   private readonly knob: HTMLDivElement;
@@ -79,6 +82,12 @@ export class Overlay {
     this.benchButton.textContent = `Benchmark ${String(benchSeconds)} s`;
     this.benchButton.addEventListener('click', () => {
       this.onBench?.();
+    });
+    this.stressButton = el('button', 'spike-stress', controls);
+    this.stressButton.type = 'button';
+    this.stressButton.textContent = 'Stress';
+    this.stressButton.addEventListener('click', () => {
+      this.onStress?.();
     });
 
     const help = el('div', 'spike-help', root);
@@ -105,6 +114,7 @@ export class Overlay {
 
   /** While a run is under way the button counts it down and does nothing. */
   setBenchRunning(secondsLeft: number | undefined): void {
+    this.stressButton.disabled = secondsLeft !== undefined;
     this.benchButton.disabled = secondsLeft !== undefined;
     this.benchButton.textContent =
       secondsLeft === undefined
@@ -112,6 +122,13 @@ export class Overlay {
           ? 'Benchmark again'
           : this.benchButton.textContent
         : `Running… ${secondsLeft.toFixed(0)} s`;
+  }
+
+  /** While a stress run is under way the buttons do nothing and the stress button names the step. */
+  setStressRunning(label: string | undefined): void {
+    this.stressButton.disabled = label !== undefined;
+    this.benchButton.disabled = label !== undefined;
+    this.stressButton.textContent = label ?? 'Stress again';
   }
 
   showResult(text: string): void {

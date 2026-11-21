@@ -97,6 +97,8 @@ body {
   top: 50%;
   transform: translate(-50%, -50%);
   max-width: 92vw;
+  max-height: 86vh;
+  overflow: auto;
   padding: 10px 12px;
   background: rgb(30 26 24 / 92%);
   border: 1px solid #f2eada;
@@ -111,6 +113,7 @@ body {
 
 #spike-result-text {
   margin: 0 0 8px;
+  font-size: 11px;
   white-space: pre-wrap;
   user-select: text;
   -webkit-user-select: text;

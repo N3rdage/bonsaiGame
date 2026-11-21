@@ -1,10 +1,9 @@
 /**
  * The player walking the scene (backlog #378): input relative to the
- * camera's yaw, a circle sliding along the colliders' boxes, and which way
- * the sprite faces on screen. Pure and engine-neutral, site frame (scene.ts).
+ * camera's yaw and a circle sliding along the colliders' boxes. Pure and
+ * engine-neutral, site frame (scene.ts).
  */
 
-import { WALK_ANIM_STEP, WALK_FRAMES, type Facing } from '../world/player';
 import { PLAYER_RADIUS, WALK_SPEED, type Rect2 } from './scene';
 
 /** Screen-relative intent: x right, y down the screen (toward the camera), each -1..1. */
@@ -111,11 +110,9 @@ export interface Walker {
   readonly y: number;
   /** Ground heading, radians from east toward south (atan2(y, x)), kept while standing. */
   readonly heading: number;
-  /** The 2D sheet's walk cycle, 0..WALK_FRAMES; 0 standing. */
-  readonly walkAnim: number;
 }
 
-/** One step of `dt` seconds: the move, then collision; the heading and walk cycle as the 2D player's. */
+/** One step of `dt` seconds: the move, then collision, and the heading it ends on. */
 export function stepWalker(
   w: Walker,
   input: MoveInput,
@@ -125,24 +122,10 @@ export function stepWalker(
 ): Walker {
   const dir = groundDirection(input, yawDeg);
   const moving = dir.x !== 0 || dir.y !== 0;
-  if (!moving) return { ...w, walkAnim: 0 };
+  if (!moving) return w;
   const next = collide(
     { x: w.x + dir.x * WALK_SPEED * dt, y: w.y + dir.y * WALK_SPEED * dt },
     colliders,
   );
-  let walkAnim = w.walkAnim + WALK_ANIM_STEP;
-  if (walkAnim >= WALK_FRAMES) walkAnim -= WALK_FRAMES;
-  return { x: next.x, y: next.y, heading: Math.atan2(dir.y, dir.x), walkAnim };
-}
-
-/** Which of the sheet's four rows shows a walker heading `heading` from a camera at `yawDeg`. */
-export function screenFacing(heading: number, yawDeg: number): Facing {
-  const c = Math.cos(rad(yawDeg));
-  const s = Math.sin(rad(yawDeg));
-  const hx = Math.cos(heading);
-  const hy = Math.sin(heading);
-  const right = hx * c - hy * s;
-  const down = hx * s + hy * c;
-  if (Math.abs(right) > Math.abs(down)) return right > 0 ? 'right' : 'left';
-  return down > 0 ? 'down' : 'up';
+  return { x: next.x, y: next.y, heading: Math.atan2(dir.y, dir.x) };
 }

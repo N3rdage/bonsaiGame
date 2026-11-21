@@ -3,7 +3,6 @@ import {
   collide,
   combineInput,
   groundDirection,
-  screenFacing,
   stepWalker,
   stickInput,
   type Walker,
@@ -47,7 +46,7 @@ describe('the walker', () => {
     expect(out.x).toBe(5);
     expect(out.y).toBeCloseTo(1 + PLAYER_RADIUS, 12);
     // A diagonal step into the wall keeps its sideways part.
-    const w: Walker = { x: 5, y: 1 + PLAYER_RADIUS, heading: 0, walkAnim: 0 };
+    const w: Walker = { x: 5, y: 1 + PLAYER_RADIUS, heading: 0 };
     const next = stepWalker(w, { x: Math.SQRT1_2, y: -Math.SQRT1_2 }, 0, 0.1, [wall]);
     expect(next.x).toBeCloseTo(5 + Math.SQRT1_2 * WALK_SPEED * 0.1, 12);
     expect(next.y).toBeCloseTo(1 + PLAYER_RADIUS, 12);
@@ -68,20 +67,10 @@ describe('the walker', () => {
     expect(out.y).toBeCloseTo(1 + PLAYER_RADIUS, 12);
   });
 
-  it('turns the walk cycle while moving and rests it at 0 standing', () => {
-    const w: Walker = { x: 0, y: 0, heading: 0, walkAnim: 3.95 };
+  it('turns the heading while moving and keeps it standing', () => {
+    const w: Walker = { x: 0, y: 0, heading: 1 };
     const moved = stepWalker(w, { x: 1, y: 0 }, 0, 1 / 60, []);
-    expect(moved.walkAnim).toBeCloseTo(0.09, 12);
-    expect(stepWalker(moved, { x: 0, y: 0 }, 0, 1 / 60, []).walkAnim).toBe(0);
+    expect(moved.heading).toBeCloseTo(0, 12);
     expect(stepWalker(moved, { x: 0, y: 0 }, 0, 1 / 60, []).heading).toBe(moved.heading);
-  });
-
-  it('shows the row the walker faces as the camera sees it', () => {
-    const north = -Math.PI / 2;
-    expect(screenFacing(north, 0)).toBe('up');
-    expect(screenFacing(north, 180)).toBe('down');
-    expect(screenFacing(north, 90)).toBe('right');
-    expect(screenFacing(0, 0)).toBe('right');
-    expect(screenFacing(Math.PI / 2, 0)).toBe('down');
   });
 });

@@ -7,11 +7,11 @@
  * `update(now)`, draws what it returns, and calls `rendered()`.
  *
  * Query parameters: `spawn` (scene.ts `SpawnKey`), `yaw`, `pitch`,
- * `distance` (the starting camera) and `bench` (the benchmark's seconds, so
- * tests can run a short one).
+ * `distance` (the starting camera), `bench` (the benchmark's seconds, so
+ * tests can run a short one), `stress` (`quick` for a short two-step stress
+ * run) and `budget` (the stress run's frame budget, ms).
  */
 
-import type { Facing } from '../world/player';
 import {
   BENCH_SECONDS,
   FrameWindow,
@@ -20,15 +20,10 @@ import {
   frameStats,
   type BenchResult,
 } from './bench';
+import { walkRate, walkWeight } from './character';
 import './hook';
-import {
-  MOVE_KEYS,
-  combineInput,
-  screenFacing,
-  stepWalker,
-  type HeldKeys,
-  type Walker,
-} from './movement';
+import type { CharacterHook, ShadowHook } from './hook';
+import { MOVE_KEYS, combineInput, stepWalker, type HeldKeys, type Walker } from './movement';
 import { blockingOccluders } from './occlusion';
 import {
   DEFAULT_ORBIT,
@@ -50,8 +45,26 @@ import {
   type SpawnKey,
   type SpikeScene,
 } from './scene';
+import {
+  BASE_LOAD,
+  StressRun,
+  crowdPose,
+  formatStress,
+  stressOptions,
+  type CrowdPose,
+  type StressLoad,
+  type StressOptions,
+  type StressResult,
+} from './stress';
 
-/** What the page supplies: its name, its canvas and two counters only it can read. */
+/** What an engine reports of its own scene, read from its own objects. */
+export interface EngineDetails {
+  /** The loaded character's clips and joints; undefined until the glTF is in. */
+  readonly character: Omit<CharacterHook, 'weights'> | undefined;
+  readonly shadows: ShadowHook;
+}
+
+/** What the page supplies: its name, its canvas and what only it can read. */
 export interface EngineAdapter {
   readonly engine: string;
   readonly canvas: HTMLCanvasElement;
@@ -59,12 +72,14 @@ export interface EngineAdapter {
   drawCalls(): number;
   /** The GPU's name (overlay.ts `webglRendererName` on the engine's context). */
   rendererName(): string;
+  details(): EngineDetails;
 }
 
 export interface SessionOptions {
   readonly spawn: SpawnKey;
   readonly orbit: OrbitState;
   readonly benchSeconds: number;
+  readonly stress: StressOptions;
 }
 
 const SPAWNS: readonly SpawnKey[] = ['frontDoor', 'shedDoor', 'shed'];
@@ -79,7 +94,9 @@ export function parseOptions(search: string): SessionOptions {
   };
   const spawn = q.get('spawn');
   const bench = num('bench', BENCH_SECONDS);
+  const budget = num('budget', NaN);
   return {
+    stress: stressOptions(q.get('stress'), budget > 0 ? budget : undefined),
     spawn: SPAWNS.find((s) => s === spawn) ?? 'frontDoor',
     orbit: clampOrbit({
       yaw: num('yaw', DEFAULT_ORBIT.yaw),
@@ -93,8 +110,13 @@ export function parseOptions(search: string): SessionOptions {
 /** What to draw this frame, site frame. */
 export interface FrameView {
   readonly player: Walker;
-  /** The sheet row the player shows from this camera, and its frame (world/assets.ts `playerFrame`). */
-  readonly facing: Facing;
+  /** Seconds since the last frame. */
+  readonly delta: number;
+  /** The player's weight on the walk clip (the idle clip takes the rest) and the walk clip's playback rate. */
+  readonly walk: { readonly weight: number; readonly rate: number };
+  /** What the page draws besides the player, and the crowd's walkers (site frame) among it. */
+  readonly load: StressLoad;
+  readonly crowd: readonly CrowdPose[];
   readonly orbit: OrbitState;
   readonly target: SiteVec;
   readonly eye: SiteVec;
@@ -111,9 +133,20 @@ interface BenchRun {
   readonly drawCalls: number[];
 }
 
+interface StressState {
+  readonly run: StressRun;
+  /** When the pass under way began (requestAnimationFrame's time); undefined until the next frame. */
+  passStart: number | undefined;
+}
+
 export class SpikeSession {
   readonly options: SessionOptions;
   private player: Walker;
+  private walk = 0;
+  private stress: StressState | undefined;
+  private lastStress: StressResult | undefined;
+  private now = 0;
+  private delta = 0;
   private orbit: OrbitState;
   private readonly held = { left: false, right: false, up: false, down: false };
   private turn = { q: false, e: false };
@@ -135,11 +168,14 @@ export class SpikeSession {
   ) {
     this.options = parseOptions(search);
     const spawn = scene.spawns[this.options.spawn];
-    this.player = { x: spawn.x, y: spawn.y, heading: -Math.PI / 2, walkAnim: 0 };
+    this.player = { x: spawn.x, y: spawn.y, heading: -Math.PI / 2 };
     this.orbit = this.options.orbit;
     this.overlay = new Overlay(adapter.engine, this.options.benchSeconds);
     this.overlay.onBench = () => {
       this.startBench();
+    };
+    this.overlay.onStress = () => {
+      this.startStress();
     };
     this.attachKeys();
     this.attachGestures(adapter.canvas);
@@ -152,20 +188,44 @@ export class SpikeSession {
 
   /** Starts a benchmark run unless one is under way. */
   startBench(): void {
-    if (this.bench) return;
+    if (this.bench || this.stress) return;
     this.bench = { start: performance.now(), deltas: [], drawCalls: [] };
+  }
+
+  /** Starts a stress run unless a run is under way. */
+  startStress(): void {
+    if (this.bench || this.stress) return;
+    this.stress = { run: new StressRun(this.options.stress), passStart: undefined };
+  }
+
+  /** The camera path's pose for the run under way, if one is. */
+  private scriptedPose(now: number): ReturnType<typeof benchPose> | undefined {
+    if (this.bench) {
+      return benchPose((now - this.bench.start) / 1000, this.options.benchSeconds);
+    }
+    if (this.stress) {
+      this.stress.passStart ??= now;
+      return benchPose((now - this.stress.passStart) / 1000, this.options.stress.passSeconds);
+    }
+    return undefined;
   }
 
   /** Advances the walk, the camera and any benchmark to `now` (requestAnimationFrame's time) and says what to draw. */
   update(now: number): FrameView {
     const delta = this.last === undefined ? 0 : now - this.last;
     this.last = now;
+    this.now = now;
+    this.delta = delta;
     if (this.frames > 0) this.window.push(delta);
     this.bench?.deltas.push(delta);
 
-    if (this.bench) {
-      const pose = benchPose((now - this.bench.start) / 1000, this.options.benchSeconds);
-      this.player = { ...this.player, x: pose.player.x, y: pose.player.y, walkAnim: 0 };
+    const before = this.player;
+    const pose = this.scriptedPose(now);
+    if (pose) {
+      const dx = pose.player.x - before.x;
+      const dy = pose.player.y - before.y;
+      const heading = Math.hypot(dx, dy) > 1e-4 ? Math.atan2(dy, dx) : before.heading;
+      this.player = { x: pose.player.x, y: pose.player.y, heading };
       this.orbit = clampOrbit(pose.orbit);
     } else {
       this.accumulator = Math.min(this.accumulator + delta / 1000, MAX_STEPS * STEP_S);
@@ -178,11 +238,20 @@ export class SpikeSession {
       }
     }
 
+    const seconds = delta / 1000;
+    const speed =
+      seconds > 0 ? Math.hypot(this.player.x - before.x, this.player.y - before.y) / seconds : 0;
+    this.walk = walkWeight(this.walk, speed, seconds);
+    const load = this.stress?.run.load ?? BASE_LOAD;
+
     const target = targetOf(this.player);
     const eye = eyeOf(this.orbit, target);
     this.view = {
       player: this.player,
-      facing: screenFacing(this.player.heading, this.orbit.yaw),
+      delta: seconds,
+      walk: { weight: this.walk, rate: walkRate(speed) },
+      load,
+      crowd: Array.from({ length: load.characters }, (_, i) => crowdPose(i, now / 1000)),
       orbit: this.orbit,
       target,
       eye,
@@ -205,9 +274,12 @@ export class SpikeSession {
       if (elapsed >= this.options.benchSeconds) this.finishBench(this.bench);
       else this.overlay.setBenchRunning(this.options.benchSeconds - elapsed);
     }
+    if (this.stress?.passStart !== undefined)
+      this.advanceStress(this.stress, this.stress.passStart, drawCalls);
     this.overlay.showStats(
       statsText(this.adapter.engine, this.window.stats(), drawCalls, this.renderer),
     );
+    const details = this.adapter.details();
     window.__spikeEngine = {
       engine: this.adapter.engine,
       ready: this.ready,
@@ -219,7 +291,40 @@ export class SpikeSession {
       drawCalls,
       benchRunning: this.bench !== undefined,
       lastBenchmark: this.lastBench,
+      stressRunning: this.stress !== undefined,
+      lastStress: this.lastStress,
+      load: view.load,
+      character: details.character && {
+        ...details.character,
+        weights: { idle: 1 - view.walk.weight, walk: view.walk.weight },
+      },
+      shadows: details.shadows,
     };
+  }
+
+  /** One frame of a stress pass: counts it, and at the pass's end starts the next step or finishes the run. */
+  private advanceStress(state: StressState, passStart: number, drawCalls: number): void {
+    state.run.push(this.delta, drawCalls);
+    const { passSeconds } = this.options.stress;
+    if ((this.now - passStart) / 1000 < passSeconds) {
+      this.overlay.setStressRunning(
+        `Stress step ${String(state.run.step)}/${String(this.options.stress.maxSteps)}`,
+      );
+      return;
+    }
+    state.run.endPass();
+    if (!state.run.finished) {
+      state.passStart = undefined;
+      return;
+    }
+    this.stress = undefined;
+    this.lastStress = state.run.result(
+      this.adapter.engine,
+      this.renderer,
+      `${String(window.innerWidth)}x${String(window.innerHeight)} @${String(window.devicePixelRatio)}x`,
+    );
+    this.overlay.setStressRunning(undefined);
+    this.overlay.showResult(formatStress(this.lastStress));
   }
 
   private finishBench(run: BenchRun): void {
@@ -276,7 +381,7 @@ export class SpikeSession {
     });
     canvas.addEventListener('pointermove', (e) => {
       const prev = pointers.get(e.pointerId);
-      if (!prev || this.bench) return;
+      if (!prev || this.bench || this.stress) return;
       pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
       if (pinch && pointers.size >= 2)
         this.orbit = pinchOrbit(pinch.start, pinch.startPx, spread());
@@ -293,7 +398,7 @@ export class SpikeSession {
       'wheel',
       (e) => {
         e.preventDefault();
-        if (!this.bench) this.orbit = wheelOrbit(this.orbit, e.deltaY);
+        if (!this.bench && !this.stress) this.orbit = wheelOrbit(this.orbit, e.deltaY);
       },
       { passive: false },
     );
