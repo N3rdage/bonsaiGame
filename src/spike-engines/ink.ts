@@ -72,6 +72,26 @@ void main() {
   gl_Position = clip;
 }
 `;
+/**
+ * The same hull for instanced meshes: the page defines `INSTANCE_MODEL_VIEW`,
+ * the view-space matrix of the instance being drawn (its own transform times
+ * the camera's), and `projectionMatrix`. Instance scales are uniform, so the
+ * matrix also turns normals.
+ */
+export const HULL_VERTEX_INSTANCED = /* glsl */ `
+uniform vec2 uWidth;
+uniform float uDepth;
+void main() {
+  mat4 modelView = INSTANCE_MODEL_VIEW;
+  vec4 view = modelView * vec4(position, 1.0);
+  view.z -= uDepth;
+  vec4 clip = projectionMatrix * view;
+  vec2 dir = (projectionMatrix * vec4(normalize(mat3(modelView) * normal), 0.0)).xy;
+  float len = length(dir);
+  if (len > 1e-6) clip.xy += dir / len * uWidth * clip.w;
+  gl_Position = clip;
+}
+`;
 export const INK_FRAGMENT = /* glsl */ `
 uniform vec3 uInk;
 void main() {

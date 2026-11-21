@@ -241,6 +241,8 @@ function backGarden(): SceneBox[] {
   const { passage, notch, lawn, fence } = BACK;
   const t = 0.1;
   return [
+    // The meadow the stress test's trees and hedges stand on, a little under the lawns.
+    block('meadow', 'lawn', [-90, 100], [-90, 100], [-0.4, -0.2]),
     block('lawn', 'lawn', [passage.x0, passage.x1], [passage.y0, passage.y1], ground),
     block('lawn', 'lawn', [notch.x0, notch.x1], [notch.y0, notch.y1], ground),
     block('lawn', 'lawn', [lawn.x0, lawn.x1], [lawn.y0, lawn.y1], ground),
