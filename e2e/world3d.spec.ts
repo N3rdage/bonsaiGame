@@ -235,17 +235,21 @@ test.describe('the 3D world', () => {
 
     // A tap on the lounge door picks its hotspot id, walks there and goes through it.
     // The walk has ended and the camera has settled once the hotspots stop moving on screen.
+    // On software GL beside another 3D test that can take longer than the default 5 s.
     let before = '';
     await expect
-      .poll(async () => {
-        const now = JSON.stringify(
-          (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
-        );
-        const still = now === before;
-        before = now;
-        await page.waitForTimeout(250);
-        return still;
-      })
+      .poll(
+        async () => {
+          const now = JSON.stringify(
+            (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
+          );
+          const still = now === before;
+          before = now;
+          await page.waitForTimeout(250);
+          return still;
+        },
+        { timeout: 30_000 },
+      )
       .toBe(true);
     const door = (await world3d(page)).hotspots.find((h) => h.id === 'door_lounge');
     if (!door) throw new Error('no lounge door hotspot');
