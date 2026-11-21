@@ -4,8 +4,8 @@ import { currentViewport, isPhone, isPhonePortrait, lockLandscape } from './plat
 import { watchEscapeLock } from './platform/fullscreen';
 import { handleNeedReload } from './platform/swUpdate';
 import { BootScene } from './scenes/BootScene';
-import { SURROUND, cssColour } from './scenes/textStyle';
 import { TitleScene } from './scenes/TitleScene';
+import { setSurround } from './world3d/world3d';
 import { WorldScene } from './scenes/WorldScene';
 import { canvasSize, deviceScale } from './world/resolution';
 
@@ -46,7 +46,8 @@ const game = new Phaser.Game({
   parent: 'game',
   width: initial.width,
   height: initial.height,
-  backgroundColor: cssColour(SURROUND),
+  // An alpha channel so the 3D world's canvas can show through; setSurround clears it to the surround, opaque.
+  transparent: true,
   pixelArt: true,
   scale: {
     mode: Phaser.Scale.FIT,
@@ -56,6 +57,7 @@ const game = new Phaser.Game({
   },
   scene: [BootScene, TitleScene, WorldScene],
 });
+setSurround(game, false);
 
 // A window resize or rotation refits the display and emits resize; the backing
 // follows it to the new device px. Our own setGameSize emits resize again, and

@@ -1,0 +1,104 @@
+import type { Page } from '@playwright/test';
+import {
+  bootWorld,
+  collectErrors,
+  expect,
+  hook,
+  openSettingsFromMenu,
+  skipTutorial,
+  tapControl,
+  test,
+} from './drive';
+import { loungeToShed, shedToLounge } from './rooms';
+
+// The 3D world (preview) setting: Babylon draws the room under the Phaser canvas
+// (src/world3d/), which keeps the movement, the doors and the HUD. The setting is
+// stored in localStorage before the page loads.
+
+const SETTINGS = JSON.stringify({ fullscreen: false, weather: false, world3d: true });
+
+async function world3d(page: Page): Promise<NonNullable<BonsaiTestHook['world3d']>> {
+  const state = (await hook(page)).world3d;
+  if (!state) throw new Error('world3d missing from the hook');
+  return state;
+}
+
+/** Waits for the renderer to be up and drawing `room`. */
+async function waitForRoom(page: Page, room: string): Promise<void> {
+  await page.waitForFunction((r) => window.__bonsai?.world3d?.room === r, room);
+}
+
+test.describe('the 3D world', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript((settings) => {
+      localStorage.setItem('bonsai.settings', settings);
+    }, SETTINGS);
+  });
+
+  test('draws the shed, follows the player and changes room through a door', async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+
+    const shed = await world3d(page);
+    expect(shed.on).toBe(true);
+    expect(shed.meshes).toBeGreaterThan(0);
+    if (test.info().project.name === 's22-landscape') {
+      await skipTutorial(page, true);
+      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      // A few frames for the camera and the scene to settle.
+      await page.evaluate(
+        () =>
+          new Promise<void>((done) => {
+            let n = 0;
+            const tick = (): void => {
+              if (++n >= 5) done();
+              else requestAnimationFrame(tick);
+            };
+            requestAnimationFrame(tick);
+          }),
+      );
+      await expect(page).toHaveScreenshot('world3d-shed.png');
+      await openSettingsFromMenu(page);
+      await expect(page).toHaveScreenshot('settings-world3d.png');
+      await tapControl(page, 'panel-close');
+      await page.waitForFunction(() => window.__bonsai?.panel === '');
+    }
+
+    // The capsule stands where the 2D player does, in metres.
+    const near = async (): Promise<void> => {
+      await expect
+        .poll(async () => {
+          const h = await hook(page);
+          const p = (await world3d(page)).player;
+          return (
+            p && [p.x - h.player.x / 32, p.y - h.player.y / 32].every((d) => Math.abs(d) < 0.01)
+          );
+        })
+        .toBe(true);
+    };
+    await near();
+    const before = (await world3d(page)).player;
+    await page.keyboard.down('ArrowRight');
+    await page.waitForTimeout(400);
+    await page.keyboard.up('ArrowRight');
+    await near();
+    const after = (await world3d(page)).player;
+    expect(after?.x).toBeGreaterThan((before?.x ?? 0) + 0.1);
+
+    await shedToLounge(page);
+    await waitForRoom(page, 'lounge');
+    const lounge = await world3d(page);
+    expect(lounge.room).toBe('lounge');
+
+    // Trips dispose the room they leave: coming back to the lounge shows the same meshes.
+    await loungeToShed(page);
+    await waitForRoom(page, 'shed');
+    expect((await world3d(page)).meshes).toBe(shed.meshes);
+    await shedToLounge(page);
+    await waitForRoom(page, 'lounge');
+    expect((await world3d(page)).meshes).toBe(lounge.meshes);
+    expect(errors).toEqual([]);
+  });
+});

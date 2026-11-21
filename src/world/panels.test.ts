@@ -220,14 +220,15 @@ describe('fitRows', () => {
       settingsPanel(DEFAULT_SETTINGS, { available: true, active: false }),
       PHONE_UI,
     );
-    expect(settings.box).toEqual({ ...PANEL, y: 47, h: 176 });
+    expect(settings.box).toEqual({ ...PANEL, y: 31, h: 207 });
     expect(settings.rows.map((r) => [r.id, r.y])).toEqual([
-      ['panel-fullscreen', 83],
-      ['panel-weather', 114],
-      ['panel-sound', 145],
-      ['panel-music', 176],
+      ['panel-fullscreen', 67],
+      ['panel-weather', 98],
+      ['panel-sound', 129],
+      ['panel-music', 160],
+      ['panel-world3d', 191],
     ]);
-    expect(panelClose(settings.box ?? PANEL).y).toBe(207);
+    expect(panelClose(settings.box ?? PANEL).y).toBe(222);
   });
 });
 

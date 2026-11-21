@@ -285,13 +285,26 @@ function openingOf(name: string, kind: Opening['kind'], f: Footprint, along: Cut
   };
 }
 
-/** A piece of furniture's box: over its `foot` if it has one, tall as it `stands`, a slab if `flat`. */
+/** The sheets that draw a building's face: 48 px tall, standing on the bottom `WALL_BAND` of their rect. */
+const FACE_SHEETS: ReadonlySet<string> = new Set([
+  'spr_house_face',
+  'spr_shed_face',
+  'spr_greenhouse_face',
+]);
+
+/**
+ * A piece of furniture's box: over its `foot` if it has one, tall as it
+ * `stands`, a slab if `flat`; a building's face is `WALL_HEIGHT` tall over its
+ * rect's bottom band.
+ */
 function furnitureBox(f: Furniture, index: number): Box {
-  const foot = f.stands?.foot;
+  const isFace = f.stands === undefined && FACE_SHEETS.has(f.sheet.key);
+  const foot = isFace ? WALL_BAND : f.stands?.foot;
   const rect = foot === undefined ? f : { ...f, y: f.y + f.h - foot, h: foot };
   const name = `furniture.${String(index)}.${f.sheet.key}`;
   const wash = FURNITURE_WASHES[f.sheet.key] ?? 'wood';
   if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
+  if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
   const height = f.stands === undefined ? DEFAULT_FURNITURE_HEIGHT : heightMetres(f.stands.height);
   return box(name, wash, footprint(rect), 0, height, f.solid);
 }

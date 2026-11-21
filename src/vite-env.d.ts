@@ -46,6 +46,14 @@ interface BonsaiTestHook {
   readonly viewer?: BonsaiViewerHook;
   /** Key of the room the world is showing, 'shed', 'garden', 'frontGarden', 'lounge', 'hallway', 'study' or 'greenhouse'; '' on the title. */
   readonly room: string;
+  /** World only: the 3D world (Settings, 3D world (preview)): `on` once Babylon is drawing, its `room` (null while off), the scene's mesh count and the capsule's feet in plan metres (x east, y south, z up). */
+  readonly world3d?: {
+    readonly on: boolean;
+    readonly room:
+      'shed' | 'garden' | 'frontGarden' | 'lounge' | 'hallway' | 'study' | 'greenhouse' | null;
+    readonly meshes: number;
+    readonly player: { readonly x: number; readonly y: number; readonly z: number } | null;
+  };
   /** World only: the current room's `bounds`, the outer edge of its wall ring (top-left and size, logical px); the floor is the band's 16 px inside it. */
   readonly roomBounds?: {
     readonly x: number;
@@ -195,7 +203,7 @@ interface BonsaiTestHook {
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant's
    * 'panel-select-<species>' (unselected cuttings), 'panel-select-seed-<species>' (unselected seeds), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
    * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), 'menu-sleep' and 'menu-sleep-week' (its Sleep (Z) and Sleep a week rows), and the Settings panel's 'panel-fullscreen' (only where the browser offers
-   * fullscreen), 'panel-weather', 'panel-sound', 'panel-music' and 'panel-close', in the world and on the title (whose menu button is 'settings').
+   * fullscreen), 'panel-weather', 'panel-sound', 'panel-music', 'panel-world3d' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    * `hit` is the control's tap target (the rect the scene gave Phaser's setInteractive) in logical px, top-left and
    * size: its text box grown to the UI metrics' `hit` (src/world/uiScale.ts) and kept inside the canvas.
    */

@@ -27,7 +27,13 @@ describe('audio', () => {
   });
 
   it('ignores the other settings', () => {
-    const settings = { fullscreen: true, weather: false, sound: true, music: false };
+    const settings = {
+      fullscreen: true,
+      weather: false,
+      sound: true,
+      music: false,
+      world3d: false,
+    };
     expect([audioAllowed(settings, 'sound'), audioAllowed(settings, 'music')]).toEqual([
       true,
       false,

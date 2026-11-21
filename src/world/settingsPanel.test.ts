@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../platform/settings';
-import { PANEL, PANEL_INSET, panelClose, panelTitleY } from './panels';
-import { settingsPanel } from './settingsPanel';
+import { PANEL_INSET, panelClose, panelTitleY } from './panels';
+import { SETTINGS_BOX, settingsPanel } from './settingsPanel';
 
 // At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 12 px tall): 6 px a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
@@ -12,18 +12,19 @@ const live = { available: true, active: false };
 describe('settings panel', () => {
   it('is titled Settings with Fullscreen, Weather effects, Sound and Music toggles', () => {
     const model = settingsPanel(DEFAULT_SETTINGS, live);
-    expect([model.key, model.title, model.box]).toEqual(['settings', 'Settings', undefined]);
+    expect([model.key, model.title, model.box]).toEqual(['settings', 'Settings', SETTINGS_BOX]);
     expect(model.rows.map((r) => [r.id, r.text, r.enabled ?? true])).toEqual([
       ['panel-fullscreen', 'Fullscreen: Off', true],
       ['panel-weather', 'Weather effects: On', true],
       ['panel-sound', 'Sound: On', true],
       ['panel-music', 'Music: On', true],
+      ['panel-world3d', '3D world (preview): Off', true],
     ]);
   });
 
   it('shows the live fullscreen state and the stored weather, sound and music flags', () => {
     const model = settingsPanel(
-      { fullscreen: false, weather: false, sound: false, music: false },
+      { fullscreen: false, weather: false, sound: false, music: false, world3d: true },
       { available: true, active: true },
     );
     expect(model.rows.map((r) => r.text)).toEqual([
@@ -31,6 +32,7 @@ describe('settings panel', () => {
       'Weather effects: Off',
       'Sound: Off',
       'Music: Off',
+      '3D world (preview): On',
     ]);
   });
 
@@ -53,18 +55,18 @@ describe('settings panel', () => {
 
   it('keeps every row inside the box, apart and above Close', () => {
     for (const available of [true, false]) {
-      const ys = [panelTitleY(PANEL)];
+      const ys = [panelTitleY(SETTINGS_BOX)];
       for (const row of settingsPanel(DEFAULT_SETTINGS, { available, active: true }).rows) {
-        expect(PANEL.x + PANEL_INSET + row.text.length * GLYPH_W).toBeLessThanOrEqual(
-          PANEL.x + PANEL.w,
+        expect(SETTINGS_BOX.x + PANEL_INSET + row.text.length * GLYPH_W).toBeLessThanOrEqual(
+          SETTINGS_BOX.x + SETTINGS_BOX.w,
         );
         ys.push(row.y);
       }
-      ys.push(panelClose(PANEL).y);
+      ys.push(panelClose(SETTINGS_BOX).y);
       for (let i = 1; i < ys.length; i += 1) {
         expect((ys[i] ?? 0) - (ys[i - 1] ?? 0)).toBeGreaterThanOrEqual(LINE_H);
       }
-      expect((ys.at(-1) ?? 0) + LINE_H / 2).toBeLessThanOrEqual(PANEL.y + PANEL.h);
+      expect((ys.at(-1) ?? 0) + LINE_H / 2).toBeLessThanOrEqual(SETTINGS_BOX.y + SETTINGS_BOX.h);
     }
   });
 });

@@ -20,6 +20,7 @@ const PANEL_CONTROLS = [
   'panel-weather',
   'panel-sound',
   'panel-music',
+  'panel-world3d',
   'panel-close',
 ];
 
@@ -47,6 +48,7 @@ test.describe('settings', () => {
       weather: true,
       sound: true,
       music: true,
+      world3d: false,
     });
     await openSettingsFromTitle(page);
     let h = await hook(page);
@@ -61,7 +63,13 @@ test.describe('settings', () => {
     await page.reload();
     await page.waitForFunction(() => window.__bonsai?.scene === 'title');
     h = await hook(page);
-    expect(h.settings).toEqual({ fullscreen: false, weather: false, sound: true, music: true });
+    expect(h.settings).toEqual({
+      fullscreen: false,
+      weather: false,
+      sound: true,
+      music: true,
+      world3d: false,
+    });
     expect(errors).toEqual([]);
   });
 
@@ -100,6 +108,7 @@ test.describe('settings', () => {
       weather: true,
       sound: false,
       music: true,
+      world3d: false,
     });
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
@@ -112,6 +121,7 @@ test.describe('settings', () => {
       weather: true,
       sound: false,
       music: true,
+      world3d: false,
     });
     await openSettingsFromTitle(page);
     const h = await hook(page);
@@ -132,6 +142,7 @@ test.describe('settings', () => {
       weather: true,
       sound: true,
       music: false,
+      world3d: false,
     });
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
@@ -144,6 +155,7 @@ test.describe('settings', () => {
       weather: true,
       sound: true,
       music: false,
+      world3d: false,
     });
     await openSettingsFromTitle(page);
     const h = await hook(page);

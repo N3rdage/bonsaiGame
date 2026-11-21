@@ -14,7 +14,7 @@ index.html
   src/scenes/            Phaser scenes: boot, title, world (every room)
   src/world/             pure room data (the shed, the back and front gardens, the house rooms, the greenhouse), player movement, input and HUD text for the world scene; resolution.ts, the canvas and camera scale
   src/sim/               pure simulation: tree, geometry, growth, seasons, scoring, species, styles, training, save
-  src/world3d/           pure 3D plan of a room, in metres, derived from the room data in src/world/
+  src/world3d/           Babylon.js 3D world: plan.ts (a room's 3D plan in metres, derived from src/world/) and meshes.ts are pure, renderer.ts draws with Babylon, world3d.ts is the world scene's adapter
   src/viewer/            Three.js tree viewer: scaffold, pot, trunk/branch/foliage/wire meshes, hotspots and modes, toolbar, actions, lifecycle
   e2e/                   Playwright browser tests
   public/                static assets, PWA icons, staticwebapp.config.json
@@ -25,7 +25,7 @@ The logical resolution is 480x270, fitted to the window with crisp text over pix
 ## Module rules
 
 - **`src/sim/` imports nothing from Phaser, Three or the DOM.** It takes plain data in and returns plain data out. This is what makes the game testable without a browser and is the main thing the rewrite buys.
-- **`src/world3d/` is derived from `src/world/`, never authored beside it.** `roomPlan3d` turns a `Room` into axis-aligned boxes and anchor points in metres (x east, y south, z up, 32 room px to the metre): the floor, the walls extruded to their height with door and window openings cut, the furniture over its footprint and the props as anchors. The 2D room data stays the single source of truth for layout, and movement and collision stay on the 2D plan: the plan's solid footprints plus its door openings equal the 2D collision rects exactly, which a unit test pins for every room. Like `src/sim/`, it imports no Phaser, Three or DOM, so a renderer only draws what it returns.
+- **`src/world3d/` is derived from `src/world/`, never authored beside it.** `roomPlan3d` turns a `Room` into axis-aligned boxes and anchor points in metres (x east, y south, z up, 32 room px to the metre): the floor, the walls extruded to their height with door and window openings cut, the furniture over its footprint and the props as anchors. The 2D room data stays the single source of truth for layout, and movement and collision stay on the 2D plan: the plan's solid footprints plus its door openings equal the 2D collision rects exactly, which a unit test pins for every room. `plan.ts` and `meshes.ts` are pure, importing no Phaser, Three, Babylon or DOM, and are unit-tested. `renderer.ts` is the Babylon.js side and is reached only through a dynamic `import()` from `world3d.ts`, the world scene's adapter, so Babylon sits in its own chunk and loads only while the 3D world setting is on.
 - **Scenes own rendering and input, never game rules.** A scene calls into `src/sim/` and draws the result. If a rule needs a number, the number lives in `src/sim/`.
 - **Test hook.** Scenes publish a minimal read-only snapshot to `window.__bonsai` (type `BonsaiTestHook` in `src/vite-env.d.ts`). Browser tests assert on it instead of inspecting canvas pixels. It is additive: add fields, never repurpose them.
 
