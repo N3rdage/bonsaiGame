@@ -8,10 +8,12 @@
 
 import type Phaser from 'phaser';
 import { SURROUND } from '../scenes/textStyle';
+import type { Season } from '../sim/seasons';
 import type { Room } from '../world/shedRoom';
 import { cameraRig } from './camera';
 import type { Renderer } from './renderer';
 import type { Picked } from './tap';
+import type { TreeStand } from './trees';
 
 /**
  * The game canvas's clear colour: the surround, opaque, or fully clear so
@@ -52,7 +54,13 @@ export class World3d {
   }
 
   /** Follows the setting: starts loading the renderer when it turns on, drops it when it turns off, and draws a frame while it is up. */
-  sync(on: boolean, room: Room, player: { readonly x: number; readonly y: number }): void {
+  sync(
+    on: boolean,
+    room: Room,
+    player: { readonly x: number; readonly y: number },
+    trees: readonly TreeStand[],
+    season: Season,
+  ): void {
     if (on && !this.renderer && !this.loading && !this.failed) {
       this.loading = true;
       const generation = this.generation;
@@ -70,7 +78,7 @@ export class World3d {
         });
     }
     if (!on) this.dispose();
-    this.renderer?.frame(room, player);
+    this.renderer?.frame(room, player, trees, season);
   }
 
   /** Lets the renderer and its canvas go, cancels a load in flight, and lets a failed load be tried again. */
@@ -89,6 +97,7 @@ export class World3d {
       on: this.renderer !== undefined,
       room: state?.room ?? null,
       meshes: state?.meshes ?? 0,
+      trees: state?.trees ?? 0,
       camera: state?.camera ?? {
         alpha: cameraRig.alpha,
         beta: cameraRig.beta,

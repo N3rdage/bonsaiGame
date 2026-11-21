@@ -50,15 +50,6 @@ export class TapTracker {
     this.tracks.delete(id);
     return track !== undefined && track.alone && isTap(track.travel, at - track.at);
   }
-
-  /** Forgets the press `id` without a verdict (it ended outside the game). */
-  cancel(id: number): void {
-    this.tracks.delete(id);
-  }
-
-  clear(): void {
-    this.tracks.clear();
-  }
 }
 
 /**

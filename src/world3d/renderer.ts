@@ -17,8 +17,11 @@ import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { CreateCapsule } from '@babylonjs/core/Meshes/Builders/capsuleBuilder';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
-import type { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { Mesh } from '@babylonjs/core/Meshes/mesh';
+import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Scene } from '@babylonjs/core/scene';
+import type { Season } from '../sim/seasons';
 import { PALETTE } from '../world/palette';
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import type { Room } from '../world/shedRoom';
@@ -35,6 +38,8 @@ import {
 } from './meshes';
 import type { Picked } from './tap';
 import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
+import { treeMeshData, type WorldMeshData } from './treeMeshes';
+import type { TreeStand } from './trees';
 
 /** The page's surround colour (SURROUND in src/scenes/textStyle.ts), behind the room. */
 const SURROUND = Color3.FromHexString('#3e3632');
@@ -43,6 +48,8 @@ const SURROUND = Color3.FromHexString('#3e3632');
 export interface RendererSnapshot {
   readonly room: Room['key'];
   readonly meshes: number;
+  /** The trees standing in the room, each a pot, a trunk and, in season, foliage. */
+  readonly trees: number;
   /** Where the camera is now, eased toward the rig. */
   readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
   /** The names of the pieces cut away to the skirting, sorted. */
@@ -55,6 +62,33 @@ export interface RendererSnapshot {
 
 /** The edge of the box on the capsule's front that shows which way it faces, metres. */
 const NOSE = 0.2;
+
+/** A standing tree: the node at its feet, the meshes parented to it and the key they were built for (`treeKey`). */
+interface Planted {
+  readonly root: TransformNode;
+  parts: Mesh[];
+  key: string;
+}
+
+/** The adapter from the viewer's mesh arrays to Babylon: a mesh of `data` under `parent`. */
+function meshOf(
+  name: string,
+  data: WorldMeshData,
+  parent: TransformNode,
+  material: StandardMaterial,
+): Mesh {
+  const mesh = new Mesh(name, parent.getScene());
+  const vertices = new VertexData();
+  vertices.positions = data.positions;
+  vertices.normals = data.normals;
+  vertices.colors = data.colors;
+  vertices.indices = data.indices;
+  vertices.applyToMesh(mesh);
+  mesh.material = material;
+  mesh.parent = parent;
+  mesh.isPickable = false;
+  return mesh;
+}
 
 /** A room piece's mesh and the heights its full box spans, in Babylon's y. */
 interface Piece {
@@ -79,6 +113,10 @@ export class Renderer {
   /** The invisible boxes taps pick props by, each under its prop's key. */
   private hotspots = new Map<AbstractMesh, string>();
   private cut: string[] = [];
+  /** The trees standing in the room, by tree id. */
+  private readonly trees = new Map<number, Planted>();
+  /** The one material of every tree part: white, so the vertex colours the viewer's builders give are what shows. */
+  private readonly treeMaterial: StandardMaterial;
   /** What the camera looks at, eased toward the player's middle. */
   private readonly focus = Vector3.Zero();
   private materials = new Map<WashKey, StandardMaterial>();
@@ -117,6 +155,8 @@ export class Renderer {
     nose.material = this.material('leafOrange');
     nose.parent = this.player;
     nose.position.set(0, PLAYER_HEIGHT / 4, PLAYER_RADIUS);
+    this.treeMaterial = new StandardMaterial('trees', this.scene);
+    this.treeMaterial.specularColor = Color3.Black();
   }
 
   /** The room shown and every mesh in the scene, the player's included. */
@@ -126,6 +166,7 @@ export class Renderer {
     return {
       room: this.room,
       meshes: this.scene.meshes.length,
+      trees: this.trees.size,
       camera: { alpha, beta, radius },
       cut: this.cut,
       facing: this.facing,
@@ -167,10 +208,20 @@ export class Renderer {
     return { x, y: -z, z: y - PLAYER_HEIGHT / 2 };
   }
 
-  /** Draws one frame of `room` with the player at `px` (room px), rebuilding the room's meshes if it changed. */
-  frame(room: Room, px: { readonly x: number; readonly y: number }): void {
+  /**
+   * Draws one frame of `room` with the player at `px` (room px) and `trees`
+   * standing, rebuilding the room's meshes if it changed and a tree's only
+   * when its key did.
+   */
+  frame(
+    room: Room,
+    px: { readonly x: number; readonly y: number },
+    trees: readonly TreeStand[],
+    season: Season,
+  ): void {
     const fresh = this.room !== room.key;
     if (fresh) this.build(room);
+    this.plant(trees, season);
     const plan = playerFeet(px);
     if (this.lastFeet && !fresh) {
       this.facing = facingOf(plan.x - this.lastFeet.x, plan.y - this.lastFeet.y, this.facing);
@@ -222,6 +273,33 @@ export class Renderer {
     }
   }
 
+  /** Stands `stands`' trees: one whose key changed gets new meshes, one that left is disposed, a new one is built. */
+  private plant(stands: readonly TreeStand[], season: Season): void {
+    const ids = new Set(stands.map((stand) => stand.tree.id));
+    for (const [id, planted] of this.trees) {
+      if (ids.has(id)) continue;
+      planted.root.dispose();
+      this.trees.delete(id);
+    }
+    for (const { tree, key, x, y, z } of stands) {
+      let planted = this.trees.get(tree.id);
+      if (!planted) {
+        const root = new TransformNode(`tree.${String(tree.id)}`, this.scene);
+        planted = { root, parts: [], key: '' };
+        this.trees.set(tree.id, planted);
+      }
+      const feet = toBabylon({ x, y, z });
+      planted.root.position.set(feet.x, feet.y, feet.z);
+      if (planted.key === key) continue;
+      for (const part of planted.parts) part.dispose();
+      const root = planted.root;
+      planted.parts = treeMeshData(tree, season).map(({ part, data }) =>
+        meshOf(`tree.${String(tree.id)}.${part}`, data, root, this.treeMaterial),
+      );
+      planted.key = key;
+    }
+  }
+
   /** Removes the canvas and everything on the GPU, and gives the game's canvas back its style. */
   dispose(): void {
     this.scene.dispose();
@@ -246,6 +324,8 @@ export class Renderer {
     this.pieces.clear();
     for (const mesh of this.hotspots.keys()) mesh.dispose();
     this.hotspots.clear();
+    for (const { root } of this.trees.values()) root.dispose();
+    this.trees.clear();
     this.cut = [];
     const plan = roomPlan3d(room);
     this.plan = plan;
