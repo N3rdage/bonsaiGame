@@ -386,6 +386,12 @@ test.describe('the 3D world', () => {
     await expect.poll(async () => (await world3d(page)).trees, POLL).toBe(3);
 
     if (test.info().project.name === 's22-landscape') {
+      // A quarter turn puts the pedestal and the shelf beside the player, not behind the capsule.
+      await page.keyboard.press('q');
+      await page.keyboard.press('q');
+      await expect
+        .poll(async () => (await world3d(page)).camera.alpha, POLL)
+        .toBeLessThan(-Math.PI + 0.05);
       await zoomIn(page, 1500, 6);
       await expect(page).toHaveScreenshot('world3d-bench-trees.png');
     }
