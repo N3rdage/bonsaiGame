@@ -7,21 +7,33 @@
  */
 
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
+import '@babylonjs/core/Culling/ray';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
-import { Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { CreateCapsule } from '@babylonjs/core/Meshes/Builders/capsuleBuilder';
+import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import { PALETTE } from '../world/palette';
+import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import type { Room } from '../world/shedRoom';
 import { cameraRig, cutNames, cutSpan, ease } from './camera';
 import { facingOf } from './move';
-import { PLAYER_HEIGHT, PLAYER_RADIUS, meshSpecs, playerFeet, toBabylon } from './meshes';
+import {
+  PLAYER_HEIGHT,
+  PLAYER_RADIUS,
+  hotspotSpecs,
+  meshSpecs,
+  playerFeet,
+  roomPx,
+  toBabylon,
+} from './meshes';
+import type { Picked } from './tap';
 import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
 
 /** The page's surround colour (SURROUND in src/scenes/textStyle.ts), behind the room. */
@@ -37,6 +49,8 @@ export interface RendererSnapshot {
   readonly cut: readonly string[];
   /** The way the capsule faces: its last step's heading in the plan, radians (0 east, pi/2 south). */
   readonly facing: number;
+  /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it. */
+  readonly hotspots: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }
 
 /** The edge of the box on the capsule's front that shows which way it faces, metres. */
@@ -62,6 +76,8 @@ export class Renderer {
   private room: Room['key'] | undefined;
   private plan: RoomPlan3d | undefined;
   private pieces = new Map<string, Piece>();
+  /** The invisible boxes taps pick props by, each under its prop's key. */
+  private hotspots = new Map<AbstractMesh, string>();
   private cut: string[] = [];
   /** What the camera looks at, eased toward the player's middle. */
   private readonly focus = Vector3.Zero();
@@ -113,7 +129,36 @@ export class Renderer {
       camera: { alpha, beta, radius },
       cut: this.cut,
       facing: this.facing,
+      hotspots: this.hotspotPoints(),
     };
+  }
+
+  /** The screen point of each hotspot's middle, in game px. */
+  private hotspotPoints(): RendererSnapshot['hotspots'] {
+    const width = this.engine.getRenderWidth();
+    const height = this.engine.getRenderHeight();
+    const view = this.camera.viewport.toGlobal(width, height);
+    const transform = this.scene.getTransformMatrix();
+    return [...this.hotspots].map(([mesh, id]) => {
+      const at = Vector3.Project(mesh.position, Matrix.IdentityReadOnly, transform, view);
+      return { id, x: (at.x / width) * GAME_WIDTH, y: (at.y / height) * GAME_HEIGHT };
+    });
+  }
+
+  /**
+   * What a tap at (`u`, `v`), fractions of the game canvas, lands on: a prop's
+   * hotspot box first, else the floor. `scene.pick` takes CSS px of the canvas,
+   * which lies exactly over the game's.
+   */
+  pick(u: number, v: number): Picked | undefined {
+    const x = u * this.canvas.clientWidth;
+    const y = v * this.canvas.clientHeight;
+    const prop = this.scene.pick(x, y, (mesh) => this.hotspots.has(mesh));
+    const hotspot = prop.pickedMesh ? this.hotspots.get(prop.pickedMesh) : undefined;
+    if (hotspot !== undefined) return { hotspot };
+    const floor = this.pieces.get('floor')?.mesh;
+    const ground = this.scene.pick(x, y, (mesh) => mesh === floor);
+    return ground.pickedPoint ? { floor: roomPx(ground.pickedPoint) } : undefined;
   }
 
   /** Where the capsule stands, in plan metres. */
@@ -199,6 +244,8 @@ export class Renderer {
   private build(room: Room): void {
     for (const { mesh } of this.pieces.values()) mesh.dispose();
     this.pieces.clear();
+    for (const mesh of this.hotspots.keys()) mesh.dispose();
+    this.hotspots.clear();
     this.cut = [];
     const plan = roomPlan3d(room);
     this.plan = plan;
@@ -215,6 +262,16 @@ export class Renderer {
         z0: spec.center.y - spec.height / 2,
         z1: spec.center.y + spec.height / 2,
       });
+    }
+    for (const spec of hotspotSpecs(plan)) {
+      const mesh = CreateBox(
+        `hotspot.${spec.key}`,
+        { width: spec.width, height: spec.height, depth: spec.depth },
+        this.scene,
+      );
+      mesh.position.set(spec.center.x, spec.center.y, spec.center.z);
+      mesh.isVisible = false;
+      this.hotspots.set(mesh, spec.key);
     }
     this.room = room.key;
   }
