@@ -5,7 +5,15 @@
  * axis mapping are unit-testable.
  */
 
-import { metres, type Box, type RoomPlan3d, type WashKey } from './plan';
+import {
+  DOOR_HEIGHT,
+  DOOR_WIDTH,
+  metres,
+  pixels,
+  type Box,
+  type RoomPlan3d,
+  type WashKey,
+} from './plan';
 
 export interface Vec3 {
   readonly x: number;
@@ -20,6 +28,11 @@ export interface Vec3 {
  */
 export function toBabylon(p: Vec3): Vec3 {
   return { x: p.x, y: p.z, z: -p.y };
+}
+
+/** The inverse of `toBabylon`: a point of Babylon's frame in the plan's. */
+export function fromBabylon(p: Vec3): Vec3 {
+  return { x: p.x, y: -p.z, z: p.y };
 }
 
 /** A box to draw: its centre and extents in Babylon's frame. */
@@ -73,4 +86,34 @@ export const PLAYER_RADIUS = 0.3;
 /** The player's feet in plan metres, from the 2D player's position in room px. */
 export function playerFeet(px: { readonly x: number; readonly y: number }): Vec3 {
   return { x: metres(px.x), y: metres(px.y), z: 0 };
+}
+
+/** The room px (the 2D player's position) of a floor point of Babylon's frame: the inverse of `toBabylon` then `playerFeet`. */
+export function roomPx(p: Vec3): { x: number; y: number } {
+  const plan = fromBabylon(p);
+  return { x: pixels(plan.x), y: pixels(plan.y) };
+}
+
+/** An invisible box a tap can hit: a prop, by the id the 2D world knows it by. */
+export interface HotspotSpec {
+  readonly key: string;
+  readonly center: Vec3;
+  readonly width: number;
+  readonly height: number;
+  readonly depth: number;
+}
+
+/**
+ * One box per prop (the plan's anchors, so the ids are the room data's): over
+ * its footprint, at least a door's width each way so a thin door or a spot on
+ * a pedestal is still a target, and a door's height tall.
+ */
+export function hotspotSpecs(plan: RoomPlan3d): HotspotSpec[] {
+  return plan.anchors.map((a) => ({
+    key: a.key,
+    center: toBabylon({ x: a.x, y: a.y, z: DOOR_HEIGHT / 2 }),
+    width: Math.max(a.width, DOOR_WIDTH),
+    height: DOOR_HEIGHT,
+    depth: Math.max(a.depth, DOOR_WIDTH),
+  }));
 }

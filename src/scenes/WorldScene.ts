@@ -208,6 +208,7 @@ import {
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig, pressRoute } from '../world3d/camera';
 import { cameraRelative } from '../world3d/move';
+import { TapTracker, routeInput } from '../world3d/tap';
 import { World3d, setSurround } from '../world3d/world3d';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
@@ -381,6 +382,10 @@ export class WorldScene extends Phaser.Scene {
   private world3d!: World3d;
   /** The pointers turning and zooming the 3D world's camera; empty while the 2D world draws. */
   private readonly cameraGesture = new CameraGesture(cameraRig);
+  /** The camera's presses followed down to up, to tell a tap from a drag. */
+  private readonly taps = new TapTracker();
+  /** The walk a tap in the 3D world set going, in the room's px: where to, and the prop to use there; ended by any key or stick, a panel, a new room or a wall. */
+  private goal: { room: Room['key']; x: number; y: number; key?: string } | undefined;
   private roomParts: Phaser.GameObjects.GameObject[] = [];
   /** The room's static art, baked on entry (bakeRoom); destroyed on leaving the room or the scene. */
   private roomTexture: Phaser.Textures.DynamicTexture | undefined;
@@ -422,6 +427,8 @@ export class WorldScene extends Phaser.Scene {
   private menuButton!: Phaser.GameObjects.Text;
   private interactButton!: Phaser.GameObjects.Text;
   private promptText!: Phaser.GameObjects.Text;
+  /** The prompt over the Interact button, on the HUD, while the 3D world draws and the world camera's promptText is not seen. */
+  private hudPrompt!: Phaser.GameObjects.Text;
   private carryText!: Phaser.GameObjects.Text;
   /** The tree sprites drawn now, redrawn whenever a location changes. */
   private treeParts: Phaser.GameObjects.GameObject[] = [];
@@ -582,6 +589,9 @@ export class WorldScene extends Phaser.Scene {
       1,
       hud,
     );
+    this.hudPrompt = this.text(INTERACT_BUTTON.right, INTERACT_BUTTON.bottom, '', hud)
+      .setOrigin(1, 1)
+      .setDepth(HUD_DEPTH);
     this.toast = this.text(TOAST_X, 2, '', hud).setDepth(HUD_DEPTH);
 
     const keyboard = this.input.keyboard;
@@ -690,22 +700,30 @@ export class WorldScene extends Phaser.Scene {
           const { x, y } = this.screenPoint(pointer);
           this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
         } else {
-          this.cameraGesture.down(pointer.id, pointer.x, pointer.y);
+          if (this.cameraGesture.down(pointer.id, pointer.x, pointer.y)) {
+            this.taps.down(pointer.id, pointer.x, pointer.y, performance.now());
+          }
         }
       },
     );
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       this.cameraGesture.move(pointer.id, pointer.x, pointer.y);
+      this.taps.move(pointer.id, pointer.x, pointer.y);
       if (pointer.id !== this.joystick?.id) return;
       const { x, y } = this.screenPoint(pointer);
       this.joystick.input = joystickInput(x - this.joystick.x, y - this.joystick.y);
     });
-    const release = (pointer: Phaser.Input.Pointer): void => {
+    const release = (pointer: Phaser.Input.Pointer): boolean => {
       this.cameraGesture.up(pointer.id);
       if (pointer.id === this.joystick?.id) this.joystick = undefined;
+      return this.taps.up(pointer.id, performance.now());
     };
-    this.input.on('pointerup', release);
-    this.input.on('pointerupoutside', release);
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (release(pointer) && this.cameraKeysLive()) this.tapWorld(pointer);
+    });
+    this.input.on('pointerupoutside', (pointer: Phaser.Input.Pointer) => {
+      release(pointer);
+    });
     this.input.on(
       'wheel',
       (_pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
@@ -840,6 +858,51 @@ export class WorldScene extends Phaser.Scene {
   /** No viewer and no modal panel: the room's own keys and buttons act. */
   private roomKeysLive(): boolean {
     return !this.viewer.isOpen && !this.panel?.modal;
+  }
+
+  /**
+   * A tap in the 3D world (a press the camera took and let go without a drag):
+   * a prop picked by Babylon sets the player walking to it and using it, bare
+   * floor sets the player walking there. The ids are the room data's, the same
+   * the 2D world's interactables carry.
+   */
+  private tapWorld(pointer: Phaser.Input.Pointer): void {
+    const hit = this.world3d.pick(pointer.x / this.scale.width, pointer.y / this.scale.height);
+    const room = this.room.key;
+    if (!hit) return;
+    if ('floor' in hit) {
+      this.goal = { room, ...hit.floor };
+      return;
+    }
+    const prop = this.targets.find((t) => t.key === hit.hotspot);
+    if (prop) this.goal = { room, x: prop.x, y: prop.y, key: prop.key };
+  }
+
+  /**
+   * One step of a tap's walk, as the player's input in place of the keys:
+   * undefined with no walk. The walk ends on arrival, when the target prop is
+   * in reach (the same `nearestInteractable` the prompt uses; the prop is then
+   * used), and when a panel opens or the room changes.
+   */
+  private walkStep(): MoveInput | undefined {
+    const goal = this.goal;
+    if (!goal) return undefined;
+    if (this.panel || goal.room !== this.room.key) {
+      this.goal = undefined;
+      return undefined;
+    }
+    if (goal.key !== undefined) {
+      const near = nearestInteractable(this.player, this.targets);
+      if (near?.key === goal.key) {
+        this.goal = undefined;
+        this.near = near;
+        this.interact();
+        return undefined;
+      }
+    }
+    const route = routeInput(this.player, goal);
+    if (route.arrived) this.goal = undefined;
+    return route.input;
   }
 
   /** Whether Q and E turn the 3D world's camera: the room has the keys and nothing (a panel, a ghost being placed) has a use for them. */
@@ -1955,6 +2018,14 @@ export class WorldScene extends Phaser.Scene {
     this.notebookButton.setVisible(!viewerOpen && !modal);
     this.promptText.setVisible(showInteract);
     this.interactButton.setVisible(showInteract);
+    const hudPrompt = showInteract && this.world3d.active;
+    this.hudPrompt
+      .setText(hudPrompt ? this.prompt() : '')
+      .setPosition(
+        INTERACT_BUTTON.right,
+        this.interactButton.y - this.interactButton.displayHeight - 2,
+      )
+      .setVisible(hudPrompt);
     this.ghost?.gfx.setVisible(!modal && !viewerOpen);
     this.weatherGfx.setVisible(!viewerOpen);
     if (viewerOpen) {
@@ -1969,11 +2040,17 @@ export class WorldScene extends Phaser.Scene {
     if (steps === 0) return;
     const raw = this.joystick?.input ?? this.keyboardMove();
     const input = this.world3d.active ? cameraRelative(raw, cameraRig.alpha) : raw;
+    // A key or the stick takes the player back from a tap's walk.
+    if (raw.x !== 0 || raw.y !== 0) this.goal = undefined;
     for (let i = 0; i < steps; i += 1) {
       // obj_player_2d/Step_0: no movement while a UI panel is open.
       if (!modal) {
         const prev = this.player.walkAnim;
-        this.player = stepPlayer(this.player, input, this.room);
+        const before = this.player;
+        const walk = this.walkStep();
+        this.player = stepPlayer(this.player, walk ?? input, this.room);
+        // A walk that went nowhere (a wall in the way) is given up.
+        if (walk && this.player.x === before.x && this.player.y === before.y) this.goal = undefined;
         if (footstepDue(prev, this.player.walkAnim)) this.sfx.play('footstep');
       }
       // The weather keeps moving under panels, as the prototype's did.

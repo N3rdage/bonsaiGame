@@ -35,6 +35,11 @@ export function metres(px: number): number {
   return px / 32;
 }
 
+/** Room px of a length in metres: the inverse of `metres`. */
+export function pixels(m: number): number {
+  return m * 32;
+}
+
 /**
  * Metres of a height in px: heights are the scale rule's 21.33 px to the
  * metre (`Furniture.stands`, roomArt's FENCE_HEIGHT), not the plan's 32.
@@ -142,6 +147,9 @@ export interface Anchor {
   readonly x: number;
   readonly y: number;
   readonly z: number;
+  /** The prop's footprint, east-west and north-south, metres: what a tap on it can hit. */
+  readonly width: number;
+  readonly depth: number;
   /** Doors only: the wall the door sits in. */
   readonly wall?: Wall;
 }
@@ -418,6 +426,8 @@ export function roomPlan3d(room: Room): RoomPlan3d {
       x: metres(prop.x),
       y: metres(prop.y),
       z: ANCHOR_HEIGHT,
+      width: metres(prop.w),
+      depth: metres(prop.h),
       ...(prop.wall === undefined ? {} : { wall: prop.wall }),
     })),
     playerStart: { x: metres(room.playerStart.x), y: metres(room.playerStart.y) },

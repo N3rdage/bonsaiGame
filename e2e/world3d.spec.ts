@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import {
   bootWorld,
+  clickLogical,
   collectErrors,
   dragLogical,
   expect,
@@ -192,6 +193,62 @@ test.describe('the 3D world', () => {
     await expect
       .poll(async () => (await world3d(page)).camera.alpha)
       .toBeLessThan(-Math.PI / 2 - 0.7);
+  });
+
+  test('a tap on a prop walks to it and uses it, a tap on the floor walks there, a drag does neither', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    expect((await world3d(page)).picked).toBeNull();
+
+    // A drag turns the camera and is no tap: nothing is picked and the player stays.
+    const start = (await world3d(page)).player;
+    await dragLogical(page, 100, 60, 40);
+    await page.waitForTimeout(400);
+    expect((await world3d(page)).picked).toBeNull();
+    expect((await world3d(page)).player).toEqual(start);
+
+    // A tap on bare floor, off the props, walks the player there.
+    const hotspots = (await world3d(page)).hotspots;
+    expect(hotspots.map((h) => h.id)).toContain('door_lounge');
+    const clear = [-60, -40, 40, 60]
+      .flatMap((dx) => [-30, 30, 50].map((dy) => ({ x: 240 + dx, y: 135 + dy })))
+      .find((p) => hotspots.every((h) => Math.hypot(h.x - p.x, h.y - p.y) > 50));
+    if (!clear) throw new Error('no bare floor on screen');
+    await clickLogical(page, clear.x, clear.y);
+    await expect
+      .poll(async () => {
+        const p = (await world3d(page)).player;
+        return Math.hypot((p?.x ?? 0) - (start?.x ?? 0), (p?.y ?? 0) - (start?.y ?? 0));
+      })
+      .toBeGreaterThan(0.5);
+    expect((await world3d(page)).picked).toBeNull();
+
+    // A tap on the lounge door picks its hotspot id, walks there and goes through it.
+    // The walk has ended and the camera has settled once the hotspots stop moving on screen.
+    let before = '';
+    await expect
+      .poll(async () => {
+        const now = JSON.stringify(
+          (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
+        );
+        const still = now === before;
+        before = now;
+        await page.waitForTimeout(250);
+        return still;
+      })
+      .toBe(true);
+    const door = (await world3d(page)).hotspots.find((h) => h.id === 'door_lounge');
+    if (!door) throw new Error('no lounge door hotspot');
+    await clickLogical(page, door.x, door.y);
+    await expect.poll(async () => (await world3d(page)).picked).toBe('door_lounge');
+    await waitForRoom(page, 'lounge');
+    expect(errors).toEqual([]);
   });
 
   test('draws the shed again from a turned heading', async ({ page }) => {

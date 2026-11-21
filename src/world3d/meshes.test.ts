@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
 import type { RoomKey } from '../world/shedRoom';
-import { meshSpecs, playerFeet, toBabylon } from './meshes';
+import { fromBabylon, hotspotSpecs, meshSpecs, playerFeet, roomPx, toBabylon } from './meshes';
 import { WALL_HEIGHT, roomPlan3d } from './plan';
 
 const KEYS = Object.keys(ROOMS) as RoomKey[];
@@ -62,5 +62,42 @@ describe('meshSpecs', () => {
 describe('playerFeet', () => {
   it('converts room px to plan metres on the floor', () => {
     expect(playerFeet({ x: 64, y: 96 })).toEqual({ x: 2, y: 3, z: 0 });
+  });
+});
+
+describe('roomPx', () => {
+  it('inverts toBabylon after playerFeet, to the pixel', () => {
+    for (const px of [
+      { x: 0, y: 0 },
+      { x: 64, y: 96 },
+      { x: 213.5, y: 37.25 },
+      { x: 480, y: 270 },
+    ]) {
+      const back = roomPx(toBabylon(playerFeet(px)));
+      expect(back.x).toBeCloseTo(px.x, 9);
+      expect(back.y).toBeCloseTo(px.y, 9);
+    }
+  });
+
+  it('inverts toBabylon in the plan frame', () => {
+    const p = { x: 1.5, y: -2, z: 3 };
+    expect(fromBabylon(toBabylon(p))).toEqual(p);
+  });
+});
+
+describe('hotspotSpecs', () => {
+  it.each(KEYS)('%s: one box per prop, under the prop key, at least a door wide', (key) => {
+    const specs = hotspotSpecs(roomPlan3d(ROOMS[key]));
+    expect(specs.map((s) => s.key)).toEqual(ROOMS[key].props.map((p) => p.key));
+    for (const s of specs) {
+      expect(s.width).toBeGreaterThanOrEqual(1);
+      expect(s.depth).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('centres the shed workbench over its prop', () => {
+    const bench = ROOMS.shed.props.find((p) => p.key === 'workbench');
+    const spec = hotspotSpecs(roomPlan3d(ROOMS.shed)).find((s) => s.key === 'workbench');
+    expect(spec && roomPx(spec.center)).toEqual({ x: bench?.x, y: bench?.y });
   });
 });

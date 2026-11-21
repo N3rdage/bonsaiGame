@@ -11,6 +11,7 @@ import { SURROUND } from '../scenes/textStyle';
 import type { Room } from '../world/shedRoom';
 import { cameraRig } from './camera';
 import type { Renderer } from './renderer';
+import type { Picked } from './tap';
 
 /**
  * The game canvas's clear colour: the surround, opaque, or fully clear so
@@ -33,7 +34,17 @@ export class World3d {
   /** Bumped by `dispose`; a load that finishes under an older number is discarded. */
   private generation = 0;
 
+  /** The last hotspot a tap picked, for the test hook. */
+  private picked: string | null = null;
+
   constructor(private readonly host: HTMLCanvasElement) {}
+
+  /** What a tap at (`u`, `v`), fractions of the game canvas, lands on; a prop is also remembered as the last picked. */
+  pick(u: number, v: number): Picked | undefined {
+    const hit = this.renderer?.pick(u, v);
+    if (hit && 'hotspot' in hit) this.picked = hit.hotspot;
+    return hit;
+  }
 
   /** True once the renderer is up, which is when the 2D world stops drawing. */
   get active(): boolean {
@@ -86,6 +97,8 @@ export class World3d {
       cut: state ? [...state.cut] : [],
       facing: state?.facing ?? 0,
       player: this.renderer ? this.renderer.playerAt() : null,
+      picked: this.picked,
+      hotspots: state ? [...state.hotspots] : [],
     };
   }
 }

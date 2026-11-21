@@ -41,6 +41,12 @@ async function toPage(page: Page, x: number, y: number): Promise<{ x: number; y:
   return { x: box.x + (x * box.width) / 480, y: box.y + (y * box.height) / 270 };
 }
 
+/** Clicks the mouse at a logical point on the 480x270 canvas: a press and release in place, which the 3D world reads as a tap. */
+export async function clickLogical(page: Page, x: number, y: number): Promise<void> {
+  const at = await toPage(page, x, y);
+  await page.mouse.click(at.x, at.y);
+}
+
 /**
  * Taps the Phaser control `id` from `window.__bonsai.controls` at its centre.
  * Touch projects tap with the touchscreen, the others click with the mouse.
