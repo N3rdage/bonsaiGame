@@ -1,14 +1,17 @@
 /**
  * The engine comparison's Three.js page (backlog #378, engine-three.html):
  * the shared scene (../scene.ts, ../meshData.ts, ../bonsai.ts) drawn with
- * toon-lit, ink-outlined meshes under one shadow-casting sun, the player as
- * the 2D game's Inked sprite on an upright quad turned to the camera, and
- * the occluders in front of the player faded. Input, walking, the camera,
- * the fades, the overlay, the benchmark and the test hook are the shared
- * session's (../session.ts); this file only draws.
+ * toon-lit, ink-outlined meshes under one shadow-casting sun whose shadow
+ * map covers the whole garden, the player and a crowd as one skinned glTF
+ * (../character.ts) cross-faded between its idle and walk clips by an
+ * AnimationMixer each, trees and hedges as InstancedMeshes, and the
+ * occluders in front of the player faded. Input, walking, the camera, the
+ * fades, the overlay, the benchmark, the stress run and the test hook are
+ * the shared session's (../session.ts); this file only draws.
  */
 
 import {
+  AnimationMixer,
   BackSide,
   BufferAttribute,
   BufferGeometry,
@@ -17,30 +20,35 @@ import {
   DataTexture,
   DirectionalLight,
   Float32BufferAttribute,
+  InstancedMesh,
   LineBasicMaterial,
   LineSegments,
   LinearFilter,
   LinearMipmapLinearFilter,
   LinearSRGBColorSpace,
   Mesh,
-  MeshBasicMaterial,
   MeshToonMaterial,
   MirroredRepeatWrapping,
   NearestFilter,
   NoColorSpace,
   PCFShadowMap,
   PerspectiveCamera,
-  PlaneGeometry,
   RedFormat,
   RepeatWrapping,
   Scene,
   ShaderMaterial,
+  SkinnedMesh,
   TextureLoader,
   Vector2,
   WebGLRenderer,
+  type AnimationAction,
+  type AnimationClip,
   type Material,
+  type Object3D,
   type Texture,
 } from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import barkUrl from '../../viewer/bark.png';
 import foliageUrl from '../../viewer/foliage.png';
 import type { Rgb } from '../../viewer/potPalette';
@@ -52,14 +60,17 @@ import {
   TOON_RAMP,
   toonRampBytes,
 } from '../../viewer/toon';
-import { SHEETS, playerFrame, sheetUrl } from '../../world/assets';
 import { bonsaiMeshes, type TreeMesh } from '../bonsai';
-import { HULL_VERTEX, INK_FRAGMENT, WASH_RGB, onPaper } from '../ink';
+import { buildCharacterGlb } from '../character';
+import { hedgeBody, treeCanopy, treeTrunk } from '../curved';
+import { HULL_VERTEX, HULL_VERTEX_INSTANCED, INK_FRAGMENT, WASH_RGB, onPaper } from '../ink';
 import { sceneBatches, type MeshArrays } from '../meshData';
 import { FADED_OPACITY } from '../occlusion';
 import { webglRendererName } from '../overlay';
-import { PLAYER_HEIGHT, buildScene, toRender, type MaterialKey, type OccluderKey } from '../scene';
-import { SpikeSession } from '../session';
+import { propMatrices } from '../props';
+import { buildScene, toRender, type MaterialKey, type OccluderKey } from '../scene';
+import { SpikeSession, type EngineDetails } from '../session';
+import { MAX_CROWD } from '../stress';
 import { tileCanvas } from '../tiles';
 
 /** Palette bytes reach the screen untouched, as in the viewer (outputColorSpace below). */
@@ -68,8 +79,9 @@ const raw = ({ r, g, b }: Rgb): Color =>
 
 /** How much a cast shadow darkens what it falls on, as the front garden spike's. */
 const SHADOW_STRENGTH = 0.3;
-/** Half the side of the square the sun's shadow map covers round the player, metres. */
-const SHADOW_HALF = 14;
+/** Half the side of the square the sun's shadow map covers, metres: the whole garden, about 18 x 23 m, around its centre. */
+const SHADOW_HALF = 22;
+const SHADOW_MAP = 2048;
 const FOV = 50;
 
 const canvasEl = document.getElementById('spike-canvas');
@@ -91,6 +103,18 @@ const session = new SpikeSession(data, {
   canvas,
   drawCalls: () => renderer.info.render.calls,
   rendererName: () => webglRendererName(renderer.getContext()),
+  details: (): EngineDetails => ({
+    character: character && {
+      clips: character.clips.map((clip) => clip.name),
+      joints: character.joints,
+    },
+    shadows: {
+      enabled: renderer.shadowMap.enabled && sun.castShadow,
+      kind: 'PCF directional map',
+      mapSize: sun.shadow.mapSize.x,
+      cascades: 1,
+    },
+  }),
 });
 
 const gradient = new DataTexture(toonRampBytes(), TOON_RAMP.length, 1, RedFormat);
@@ -136,6 +160,17 @@ const hullMaterial = (): ShaderMaterial =>
     fragmentShader: INK_FRAGMENT,
     side: BackSide,
   });
+// The same hull for InstancedMesh: three declares `instanceMatrix` for it.
+const instancedHullMaterial = new ShaderMaterial({
+  uniforms: {
+    uWidth: { value: outlineWidth },
+    uDepth: { value: OUTLINE_DEPTH },
+    uInk: { value: raw(INK_RGB) },
+  },
+  vertexShader: `#define INSTANCE_MODEL_VIEW (modelViewMatrix * instanceMatrix)\n${HULL_VERTEX_INSTANCED}`,
+  fragmentShader: INK_FRAGMENT,
+  side: BackSide,
+});
 
 /** Each occluder's meshes and materials, so it fades as one: fills turn see-through, ink hides. */
 const occluderParts = new Map<OccluderKey, { fills: Material[]; inks: (Mesh | LineSegments)[] }>();
@@ -163,7 +198,7 @@ for (const batch of batches.fills) {
   });
   fillMaterials.push({ material, key: batch.material });
   const mesh = new Mesh(geometry(batch.mesh), material);
-  mesh.receiveShadow = batch.ground;
+  mesh.receiveShadow = true;
   mesh.castShadow = !batch.ground;
   scene.add(mesh);
   if (batch.occluder) partsOf(batch.occluder).fills.push(material);
@@ -177,11 +212,19 @@ for (const batch of batches.inks) {
   if (batch.occluder) partsOf(batch.occluder).inks.push(hull, lines);
 }
 
-// The sun: the rooms' one light, fixed in the world; its shadow map follows the player.
+// The sun: the rooms' one light, fixed in the world, its shadow map one square over the whole garden.
 // Intensity pi cancels the toon BRDF's 1/pi, so the lit band is the palette colour, as in the viewer.
 const sun = new DirectionalLight(0xffffff, Math.PI);
+const gardenCentre = toRender({ x: 5.5, y: 4.5, z: 0 });
+const toSun = toRender(data.light);
+sun.position.set(
+  gardenCentre.x + toSun.x * 60,
+  gardenCentre.y + toSun.y * 60,
+  gardenCentre.z + toSun.z * 60,
+);
+sun.target.position.set(gardenCentre.x, gardenCentre.y, gardenCentre.z);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.set(SHADOW_MAP, SHADOW_MAP);
 sun.shadow.intensity = SHADOW_STRENGTH;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
@@ -191,10 +234,10 @@ Object.assign(sun.shadow.camera, {
   top: SHADOW_HALF,
   bottom: -SHADOW_HALF,
   near: 1,
-  far: 80,
+  far: 140,
 });
+sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun, sun.target);
-const toSun = toRender(data.light);
 
 // The bonsai: the viewer's meshes and materials, recreated here (TreeViewer keeps its own private).
 const bonsai = bonsaiMeshes(data);
@@ -214,20 +257,89 @@ for (const [mesh, material, inked] of [
   const g = geometry(mesh);
   const m = new Mesh(g, material);
   m.castShadow = true;
+  m.receiveShadow = true;
   scene.add(m);
   if (inked) scene.add(new Mesh(g, treeHull));
 }
 
-// The player: frame `playerFrame` of the Inked sheet (16 x 32 logical px, its feet on the
-// frame's bottom) on a 1 x 2 m quad standing on its feet, turned to face the camera.
-const playerMaterial = new MeshBasicMaterial({ alphaTest: 0.5 });
-const player = new Mesh(
-  new PlaneGeometry(PLAYER_HEIGHT / 2, PLAYER_HEIGHT).translate(0, PLAYER_HEIGHT / 2, 0),
-  playerMaterial,
+// Trees and hedges: curved meshes, each part one InstancedMesh with the ink hull instanced from
+// the same matrices. Frustum culling is off so every instance in the count is always drawn.
+const washMaterial = (wash: keyof typeof WASH_RGB): MeshToonMaterial =>
+  new MeshToonMaterial({ color: raw(onPaper(WASH_RGB[wash])), gradientMap: gradient });
+const propParts = (
+  parts: readonly (readonly [MeshArrays, MeshToonMaterial])[],
+  matrices: Float32Array,
+): InstancedMesh[] =>
+  parts.flatMap(([arrays, material]) => {
+    const g = geometry(arrays);
+    const fill = new InstancedMesh(g, material, matrices.length / 16);
+    fill.instanceMatrix.array.set(matrices);
+    fill.castShadow = true;
+    fill.receiveShadow = true;
+    fill.frustumCulled = false;
+    const ink = new InstancedMesh(g, instancedHullMaterial, matrices.length / 16);
+    ink.instanceMatrix = fill.instanceMatrix;
+    ink.frustumCulled = false;
+    scene.add(fill, ink);
+    return [fill, ink];
+  });
+const treeMeshes = propParts(
+  [
+    [treeTrunk(), washMaterial('wood')],
+    [treeCanopy(), washMaterial('foliage')],
+  ],
+  propMatrices('tree'),
 );
-player.castShadow = true;
-player.visible = false;
-scene.add(player);
+const hedgeMeshes = propParts([[hedgeBody(), washMaterial('foliage')]], propMatrices('hedge'));
+
+// The character: ../character.ts's glTF read by GLTFLoader; the player and every crowd member
+// is a SkeletonUtils clone with its own AnimationMixer, idle and walk both playing, blended by weight.
+const characterMaterial = new MeshToonMaterial({ vertexColors: true, gradientMap: gradient });
+interface Gardener {
+  readonly root: Object3D;
+  readonly mixer: AnimationMixer;
+  readonly idle: AnimationAction;
+  readonly walk: AnimationAction;
+}
+/** The glTF as loaded: its scene to clone, its clips and its skinned mesh. */
+let character: { scene: Object3D; clips: AnimationClip[]; joints: number } | undefined;
+const gardeners: Gardener[] = [];
+
+function addGardener(source: { scene: Object3D; clips: AnimationClip[] }): Gardener {
+  const root = cloneSkinned(source.scene);
+  root.traverse((o) => {
+    if (o instanceof SkinnedMesh) {
+      o.material = characterMaterial;
+      o.castShadow = true;
+      o.receiveShadow = true;
+      // The bind pose's bounds do not follow the bones.
+      o.frustumCulled = false;
+    }
+  });
+  const mixer = new AnimationMixer(root);
+  const idleClip = source.clips.find((c) => c.name === 'idle');
+  const walkClip = source.clips.find((c) => c.name === 'walk');
+  if (!idleClip || !walkClip) throw new Error('the character glTF has no idle and walk clips');
+  const idle = mixer.clipAction(idleClip).play();
+  const walk = mixer.clipAction(walkClip).play();
+  scene.add(root);
+  const gardener = { root, mixer, idle, walk };
+  gardeners.push(gardener);
+  return gardener;
+}
+
+function place(g: Gardener, site: { x: number; y: number; heading: number }): void {
+  const feet = toRender({ x: site.x, y: site.y, z: 0 });
+  g.root.position.set(feet.x, feet.y, feet.z);
+  g.root.rotation.y = Math.PI / 2 - site.heading;
+}
+
+function blend(g: Gardener, weight: number, rate: number, delta: number): void {
+  g.idle.setEffectiveWeight(1 - weight);
+  g.walk.setEffectiveWeight(weight);
+  g.walk.setEffectiveTimeScale(rate);
+  g.mixer.update(delta);
+}
 
 function resize(): void {
   const width = window.innerWidth;
@@ -264,15 +376,22 @@ function frame(now: number): void {
   camera.position.set(eye.x, eye.y, eye.z);
   camera.lookAt(target.x, target.y, target.z);
 
-  sun.target.position.set(target.x, 0, target.z);
-  sun.position.set(target.x + toSun.x * 40, toSun.y * 40, target.z + toSun.z * 40);
-
-  const feet = toRender({ x: view.player.x, y: view.player.y, z: 0 });
-  player.position.set(feet.x, feet.y, feet.z);
-  player.rotation.y = (view.orbit.yaw * Math.PI) / 180;
-  if (playerMaterial.map) {
-    playerMaterial.map.offset.x =
-      playerFrame(view.facing, view.player.walkAnim) / SHEETS.player.frames;
+  for (const m of treeMeshes) m.count = view.load.trees;
+  for (const m of hedgeMeshes) m.count = view.load.hedges;
+  if (character) {
+    const [player, ...crowd] = gardeners;
+    if (player) {
+      place(player, view.player);
+      blend(player, view.walk.weight, view.walk.rate, view.delta);
+    }
+    // The crowd walks at full weight; members past the load are hidden, not removed.
+    crowd.forEach((g, i) => {
+      const pose = view.crowd[i];
+      g.root.visible = pose !== undefined;
+      if (!pose) return;
+      place(g, pose);
+      blend(g, 1, 1, view.delta);
+    });
   }
 
   setFaded(view.faded);
@@ -281,7 +400,17 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
-// Ready once every tile, the bark, the leaves and the player's sheet are bound.
+/** Reads the glTF and makes the player's gardener and, hidden, the whole crowd's. */
+async function loadCharacter(): Promise<void> {
+  const gltf = await new GLTFLoader().parseAsync(buildCharacterGlb(), '');
+  const skinned = gltf.scene.getObjectByProperty('type', 'SkinnedMesh');
+  if (!(skinned instanceof SkinnedMesh)) throw new Error('the character glTF has no skinned mesh');
+  const source = { scene: gltf.scene, clips: gltf.animations };
+  for (let i = 0; i <= MAX_CROWD; i++) addGardener(source);
+  character = { ...source, joints: skinned.skeleton.bones.length };
+}
+
+// Ready once every tile, the bark, the leaves and the character are in.
 const loader = new TextureLoader();
 const base = import.meta.env.BASE_URL;
 const tiles = new Map<MaterialKey, Promise<Texture>>();
@@ -312,14 +441,7 @@ Promise.all([
     foliageMaterial.map = inkedTexture(t, RepeatWrapping);
     foliageMaterial.needsUpdate = true;
   }),
-  loader.loadAsync(sheetUrl(base, SHEETS.player)).then((t) => {
-    t.colorSpace = NoColorSpace;
-    t.magFilter = LinearFilter;
-    t.repeat.set(1 / SHEETS.player.frames, 1);
-    playerMaterial.map = t;
-    playerMaterial.needsUpdate = true;
-    player.visible = true;
-  }),
+  loadCharacter(),
 ]).then(
   () => {
     session.setReady();

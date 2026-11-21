@@ -1,11 +1,14 @@
 /**
  * The engine comparison's Babylon.js page (backlog #378, engine-babylon.html):
  * the same shared scene as the Three.js page (../scene.ts, ../meshData.ts,
- * ../bonsai.ts), drawn with toon-lit, ink-outlined meshes under one
- * shadow-casting sun, the player as the 2D game's Inked sprite on an upright
- * quad turned to the camera, and the occluders in front of the player faded.
- * Input, walking, the camera, the fades, the overlay, the benchmark and the
- * test hook are the shared session's (../session.ts); this file only draws.
+ * ../bonsai.ts), drawn with toon-lit, ink-outlined meshes under one sun
+ * casting cascaded shadows over the whole garden, the player and a crowd as
+ * one skinned glTF (../character.ts) read by the glTF loader plugin and
+ * cross-faded between its idle and walk animation groups, trees and hedges as
+ * thin instances, and the occluders in front of the player faded. Input,
+ * walking, the camera, the fades, the overlay, the benchmark, the stress run
+ * and the test hook are the shared session's (../session.ts); this file only
+ * draws.
  *
  * Babylon has no toon material in core, so the fills are StandardMaterials
  * with a material plugin that swaps their diffuse term for the viewer's
@@ -15,13 +18,19 @@
  * world units, not screen pixels, so it would not match the viewer's ink).
  */
 
+import '@babylonjs/core/Animations/animatable';
+import '@babylonjs/core/Meshes/thinInstanceMesh';
+import type { AnimationGroup } from '@babylonjs/core/Animations/animationGroup';
 import { Camera } from '@babylonjs/core/Cameras/camera';
 import { TargetCamera } from '@babylonjs/core/Cameras/targetCamera';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 // Importing the generator also registers its scene component, which draws the shadow maps.
+import { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascadedShadowGenerator';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
+import type { AssetContainer } from '@babylonjs/core/assetContainer';
 import { Material } from '@babylonjs/core/Materials/material';
 import type { MaterialDefines } from '@babylonjs/core/Materials/materialDefines';
 import { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
@@ -35,7 +44,9 @@ import { CreateLineSystem } from '@babylonjs/core/Meshes/Builders/linesBuilder';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import type { LinesMesh } from '@babylonjs/core/Meshes/linesMesh';
+import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Scene } from '@babylonjs/core/scene';
+import '@babylonjs/loaders/glTF/2.0/glTFLoader';
 import barkUrl from '../../viewer/bark.png';
 import foliageUrl from '../../viewer/foliage.png';
 import type { Rgb } from '../../viewer/potPalette';
@@ -46,14 +57,17 @@ import {
   SURROUND_RGB,
   TOON_RAMP,
 } from '../../viewer/toon';
-import { SHEETS, playerFrame, sheetUrl } from '../../world/assets';
 import { bonsaiMeshes, type TreeMesh } from '../bonsai';
-import { HULL_VERTEX, INK_FRAGMENT, WASH_RGB, onPaper } from '../ink';
+import { buildCharacterGlb } from '../character';
+import { hedgeBody, treeCanopy, treeTrunk } from '../curved';
+import { HULL_VERTEX, HULL_VERTEX_INSTANCED, INK_FRAGMENT, WASH_RGB, onPaper } from '../ink';
 import { sceneBatches, type MeshArrays } from '../meshData';
 import { FADED_OPACITY } from '../occlusion';
 import { webglRendererName } from '../overlay';
-import { PLAYER_HEIGHT, buildScene, toRender, type MaterialKey, type OccluderKey } from '../scene';
-import { SpikeSession } from '../session';
+import { propMatrices } from '../props';
+import { buildScene, toRender, type MaterialKey, type OccluderKey } from '../scene';
+import { SpikeSession, type EngineDetails } from '../session';
+import { MAX_CROWD } from '../stress';
 import { tileCanvas } from '../tiles';
 
 /** Palette bytes reach the screen untouched: Babylon's StandardMaterial does no colour space conversion. */
@@ -61,8 +75,10 @@ const raw = ({ r, g, b }: Rgb): Color3 => new Color3(r / 255, g / 255, b / 255);
 
 /** How much a cast shadow darkens what it falls on, as the Three page's. */
 const SHADOW_STRENGTH = 0.3;
-/** Half the side of the square the sun's shadow map covers round the player, metres. */
-const SHADOW_HALF = 14;
+const SHADOW_MAP = 2048;
+const SHADOW_CASCADES = 3;
+/** How far from the camera the cascades reach, metres: the whole garden from the camera's furthest orbit. */
+const SHADOW_REACH = 45;
 const FOV = 50;
 
 const canvasEl = document.getElementById('spike-canvas');
@@ -92,6 +108,18 @@ const session = new SpikeSession(data, {
   canvas,
   drawCalls: () => instrumentation.drawCallsCounter.current,
   rendererName: () => webglRendererName(engine._gl),
+  details: (): EngineDetails => ({
+    character: character && {
+      clips: character.animationGroups.map((g) => g.name),
+      joints: character.skeletons[0]?.bones.length ?? 0,
+    },
+    shadows: {
+      enabled: scene.shadowsEnabled && sun.shadowEnabled && shadows.getShadowMap() !== null,
+      kind: 'CascadedShadowGenerator, PCF',
+      mapSize: shadows.getShadowMap()?.getSize().width ?? 0,
+      cascades: shadows.numCascades,
+    },
+  }),
 });
 
 const toSun = toRender(data.light);
@@ -234,27 +262,22 @@ function partsOf(key: OccluderKey): { fills: StandardMaterial[]; inks: (Mesh | L
   return parts;
 }
 
-// The sun: the rooms' one light, fixed in the world; its shadow map follows the player.
+// The sun: the rooms' one light, fixed in the world. Its cascades are fitted to the camera's
+// frustum each frame by the generator, so they cover the whole garden with no extents set here.
 const sun = new DirectionalLight(
   'sun',
   new Vector3(-toSun.x, -toSun.y, -toSun.z).normalize(),
   scene,
 );
 sun.specular = Color3.Black();
-sun.autoUpdateExtends = false;
-sun.autoCalcShadowZBounds = false;
-sun.shadowOrthoScale = 0;
-sun.orthoLeft = -SHADOW_HALF;
-sun.orthoRight = SHADOW_HALF;
-sun.orthoTop = SHADOW_HALF;
-sun.orthoBottom = -SHADOW_HALF;
-sun.shadowMinZ = 1;
-sun.shadowMaxZ = 80;
-const shadows = new ShadowGenerator(2048, sun);
+const shadows = new CascadedShadowGenerator(SHADOW_MAP, sun);
+shadows.numCascades = SHADOW_CASCADES;
+shadows.shadowMaxZ = SHADOW_REACH;
+shadows.stabilizeCascades = true;
 shadows.usePercentageCloserFiltering = true;
 shadows.filteringQuality = ShadowGenerator.QUALITY_LOW;
 shadows.setDarkness(1 - SHADOW_STRENGTH);
-shadows.bias = 0.0005;
+shadows.bias = 0.002;
 shadows.normalBias = 0.02;
 // A faded occluder still casts, as on the Three page (Babylon skips see-through casters by default).
 shadows.transparencyShadow = true;
@@ -274,8 +297,8 @@ for (const batch of batches.fills) {
   fillMaterials.push({ material, key: batch.material });
   const mesh = buildMesh(batch.material, batch.mesh);
   mesh.material = material;
-  if (batch.ground) mesh.receiveShadows = true;
-  else shadows.addShadowCaster(mesh);
+  mesh.receiveShadows = true;
+  if (!batch.ground) shadows.addShadowCaster(mesh);
   if (batch.occluder) partsOf(batch.occluder).fills.push(material);
 }
 for (const batch of batches.inks) {
@@ -312,6 +335,7 @@ for (const [name, arrays, material, inked] of [
 ] as const) {
   const mesh = buildMesh(name, arrays);
   mesh.material = material;
+  mesh.receiveShadows = true;
   shadows.addShadowCaster(mesh);
   if (inked) {
     const hull = mesh.clone(`${name}-hull`);
@@ -319,33 +343,143 @@ for (const [name, arrays, material, inked] of [
   }
 }
 
-// The player: frame `playerFrame` of the Inked sheet (16 x 32 logical px, its feet on the
-// frame's bottom) on a 1 x 2 m quad standing on its feet, turned to face the camera.
-const playerMaterial = new StandardMaterial('player', scene);
-// Unlit, as MeshBasicMaterial: Babylon's unlit material is lit only by its emissive colour.
-playerMaterial.disableLighting = true;
-playerMaterial.emissiveColor = Color3.White();
-playerMaterial.backFaceCulling = false;
-playerMaterial.transparencyMode = Material.MATERIAL_ALPHATEST;
-playerMaterial.alphaCutOff = 0.5;
-playerMaterial.useAlphaFromDiffuseTexture = true;
-// The quad Three's PlaneGeometry would make, facing +z, its corners from their uvs.
-const corners = [0, 0, 1, 0, 1, 1, 0, 1];
-const player = buildMesh('player', {
-  positions: new Float32Array(
-    [0, 1, 2, 3].flatMap((i) => [
-      ((corners[i * 2] ?? 0) - 0.5) * (PLAYER_HEIGHT / 2),
-      (corners[i * 2 + 1] ?? 0) * PLAYER_HEIGHT,
-      0,
-    ]),
-  ),
-  normals: new Float32Array([0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1]),
-  uvs: new Float32Array(corners),
-  indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-});
-player.material = playerMaterial;
-player.isVisible = false;
-shadows.addShadowCaster(player);
+// Trees and hedges: curved meshes, each part one mesh with thin instances and the ink hull
+// instanced from the same matrices. Culling is off so every instance in the count is drawn.
+// The instanced hull reads the instance's world matrix from Babylon's world0..3 attributes.
+const BABYLON_INSTANCED_HULL_VERTEX = `precision highp float;
+attribute vec3 position;
+attribute vec3 normal;
+attribute vec4 world0;
+attribute vec4 world1;
+attribute vec4 world2;
+attribute vec4 world3;
+uniform mat4 view;
+uniform mat4 projection;
+#define projectionMatrix projection
+#define INSTANCE_MODEL_VIEW (view * mat4(world0, world1, world2, world3))
+${HULL_VERTEX_INSTANCED}`;
+function instancedHullMaterial(): ShaderMaterial {
+  const m = new ShaderMaterial(
+    'instancedHull',
+    scene,
+    { vertexSource: BABYLON_INSTANCED_HULL_VERTEX, fragmentSource: BABYLON_INK_FRAGMENT },
+    {
+      attributes: ['position', 'normal'],
+      uniforms: ['view', 'projection', 'uWidth', 'uDepth', 'uInk'],
+    },
+  );
+  m.setFloat('uDepth', OUTLINE_DEPTH);
+  m.setColor3('uInk', raw(INK_RGB));
+  m.setVector2('uWidth', outlineWidth);
+  m.cullBackFaces = false;
+  hullMaterials.push(m);
+  return m;
+}
+const instancedHull = instancedHullMaterial();
+const washMaterial = (name: string, wash: keyof typeof WASH_RGB): StandardMaterial =>
+  toonMaterial(name, raw(onPaper(WASH_RGB[wash])));
+function propParts(
+  parts: readonly (readonly [string, MeshArrays, StandardMaterial])[],
+  matrices: Float32Array,
+): Mesh[] {
+  return parts.flatMap(([name, arrays, material]) => {
+    const fill = buildMesh(name, arrays);
+    fill.material = material;
+    fill.receiveShadows = true;
+    shadows.addShadowCaster(fill);
+    const ink = buildMesh(`${name}-hull`, arrays);
+    ink.material = instancedHull;
+    return [fill, ink].map((mesh) => {
+      mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
+      mesh.alwaysSelectAsActiveMesh = true;
+      return mesh;
+    });
+  });
+}
+const treeMeshes = propParts(
+  [
+    ['trunk', treeTrunk(), washMaterial('trunk', 'wood')],
+    ['canopy', treeCanopy(), washMaterial('canopy', 'foliage')],
+  ],
+  propMatrices('tree'),
+);
+const hedgeMeshes = propParts(
+  [['hedge', hedgeBody(), washMaterial('hedge', 'foliage')]],
+  propMatrices('hedge'),
+);
+
+// The character: ../character.ts's glTF read by the glTF loader plugin into an asset container;
+// the player and every crowd member is an instantiation of it with its own skeleton and its own
+// idle and walk animation groups, both playing, blended by weight.
+const characterMaterial = toonMaterial('gardener', Color3.White());
+interface Gardener {
+  readonly holder: TransformNode;
+  readonly idle: AnimationGroup;
+  readonly walk: AnimationGroup;
+  /** Whether its animation groups are playing; a hidden crowd member's are stopped. */
+  active: boolean;
+}
+let character: AssetContainer | undefined;
+const gardeners: Gardener[] = [];
+
+function addGardener(source: AssetContainer): Gardener {
+  const entries = source.instantiateModelsToScene((name) => name, false, {
+    doNotInstantiate: true,
+  });
+  const holder = new TransformNode('gardener', scene);
+  holder.setEnabled(false);
+  for (const node of entries.rootNodes) node.parent = holder;
+  for (const mesh of holder.getChildMeshes()) {
+    mesh.material = characterMaterial;
+    mesh.receiveShadows = true;
+    shadows.addShadowCaster(mesh);
+    // The bind pose's bounds do not follow the bones.
+    mesh.alwaysSelectAsActiveMesh = true;
+  }
+  const idle = entries.animationGroups.find((g) => g.name === 'idle');
+  const walk = entries.animationGroups.find((g) => g.name === 'walk');
+  if (!idle || !walk) throw new Error('the character glTF has no idle and walk clips');
+  idle.stop();
+  walk.stop();
+  const gardener = { holder, idle, walk, active: false };
+  gardeners.push(gardener);
+  return gardener;
+}
+
+function place(g: Gardener, site: { x: number; y: number; heading: number }): void {
+  const feet = toRender({ x: site.x, y: site.y, z: 0 });
+  g.holder.position.set(feet.x, feet.y, feet.z);
+  g.holder.rotation.y = Math.PI / 2 - site.heading;
+}
+
+function blend(g: Gardener, weight: number, rate: number): void {
+  if (!g.active) {
+    g.active = true;
+    g.holder.setEnabled(true);
+    g.idle.start(true);
+    g.walk.start(true);
+  }
+  g.idle.setWeightForAllAnimatables(1 - weight);
+  g.walk.setWeightForAllAnimatables(weight);
+  g.walk.speedRatio = rate;
+}
+
+function hide(g: Gardener): void {
+  if (!g.active) return;
+  g.active = false;
+  g.holder.setEnabled(false);
+  g.idle.stop();
+  g.walk.stop();
+}
+
+/** Reads the glTF and makes the player's gardener and, hidden, the whole crowd's. */
+async function loadCharacter(): Promise<void> {
+  const container = await LoadAssetContainerAsync(new Uint8Array(buildCharacterGlb()), scene, {
+    pluginExtension: '.glb',
+  });
+  for (let i = 0; i <= MAX_CROWD; i++) hide(addGardener(container));
+  character = container;
+}
 
 function resize(): void {
   engine.resize();
@@ -380,14 +514,24 @@ function frame(now: number): void {
   camera.position.set(eye.x, eye.y, eye.z);
   camera.setTarget(targetV.set(target.x, target.y, target.z));
 
-  sun.position.set(target.x + toSun.x * 40, toSun.y * 40, target.z + toSun.z * 40);
-
-  const feet = toRender({ x: view.player.x, y: view.player.y, z: 0 });
-  player.position.set(feet.x, feet.y, feet.z);
-  player.rotation.y = (view.orbit.yaw * Math.PI) / 180;
-  const sheet = playerMaterial.diffuseTexture;
-  if (sheet instanceof Texture) {
-    sheet.uOffset = playerFrame(view.facing, view.player.walkAnim) / SHEETS.player.frames;
+  for (const m of treeMeshes) m.thinInstanceCount = view.load.trees;
+  for (const m of hedgeMeshes) m.thinInstanceCount = view.load.hedges;
+  if (character) {
+    const [player, ...crowd] = gardeners;
+    if (player) {
+      place(player, view.player);
+      blend(player, view.walk.weight, view.walk.rate);
+    }
+    // The crowd walks at full weight; members past the load are hidden, not removed.
+    crowd.forEach((g, i) => {
+      const pose = view.crowd[i];
+      if (!pose) {
+        hide(g);
+        return;
+      }
+      place(g, pose);
+      blend(g, 1, 1);
+    });
   }
 
   setFaded(view.faded);
@@ -396,7 +540,7 @@ function frame(now: number): void {
   requestAnimationFrame(frame);
 }
 
-// Ready once every tile, the bark, the leaves and the player's sheet are bound and every shader compiled.
+// Ready once every tile, the bark, the leaves and the character are in and every shader compiled.
 const base = import.meta.env.BASE_URL;
 const tiles = new Map<MaterialKey, Promise<DynamicTexture>>();
 function tileTexture(key: MaterialKey): Promise<DynamicTexture> | undefined {
@@ -426,13 +570,7 @@ Promise.all([
     t.hasAlpha = true;
     foliageMaterial.diffuseTexture = inkedTexture(t, Texture.WRAP_ADDRESSMODE);
   }),
-  loadTexture(sheetUrl(base, SHEETS.player)).then((t) => {
-    t.hasAlpha = true;
-    t.uScale = 1 / SHEETS.player.frames;
-    t.updateSamplingMode(Texture.BILINEAR_SAMPLINGMODE);
-    playerMaterial.diffuseTexture = t;
-    player.isVisible = true;
-  }),
+  loadCharacter(),
 ])
   .then(() => scene.whenReadyAsync())
   .then(
