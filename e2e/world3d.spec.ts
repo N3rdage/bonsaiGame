@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import type { Page } from '@playwright/test';
 import {
   bootWorld,
   clickLogical,
   collectErrors,
+  continueGame,
   dragLogical,
   expect,
   hook,
@@ -10,6 +13,7 @@ import {
   skipTutorial,
   tapControl,
   test,
+  toTitle,
 } from './drive';
 import { loungeToShed, shedToLounge } from './rooms';
 
@@ -231,23 +235,67 @@ test.describe('the 3D world', () => {
 
     // A tap on the lounge door picks its hotspot id, walks there and goes through it.
     // The walk has ended and the camera has settled once the hotspots stop moving on screen.
+    // On software GL beside another 3D test that can take longer than the default 5 s.
     let before = '';
     await expect
-      .poll(async () => {
-        const now = JSON.stringify(
-          (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
-        );
-        const still = now === before;
-        before = now;
-        await page.waitForTimeout(250);
-        return still;
-      })
+      .poll(
+        async () => {
+          const now = JSON.stringify(
+            (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
+          );
+          const still = now === before;
+          before = now;
+          await page.waitForTimeout(250);
+          return still;
+        },
+        { timeout: 30_000 },
+      )
       .toBe(true);
     const door = (await world3d(page)).hotspots.find((h) => h.id === 'door_lounge');
     if (!door) throw new Error('no lounge door hotspot');
     await clickLogical(page, door.x, door.y);
     await expect.poll(async () => (await world3d(page)).picked).toBe('door_lounge');
     await waitForRoom(page, 'lounge');
+    expect(errors).toEqual([]);
+  });
+
+  test("stands the room's trees on their spots, built from the tree viewer's meshes", async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    // The prototype's two trees, both set down on the shed floor.
+    const save = readFileSync(
+      path.join(import.meta.dirname, '../src/sim/__fixtures__/prototype-save-v1-day14.json'),
+      'utf8',
+    ).replace('displayed:shed_window', 'shed');
+    await page.goto('/');
+    await page.evaluate((text) => {
+      localStorage.setItem('bonsai.save.1', text);
+    }, save);
+    await toTitle(page);
+    await continueGame(page);
+    await waitForRoom(page, 'shed');
+    await expect.poll(async () => (await world3d(page)).trees).toBe(2);
+    const shed = await world3d(page);
+    expect(shed.meshes).toBeGreaterThan(shed.trees);
+
+    if (test.info().project.name === 's22-landscape') {
+      // Zoomed in, since a 25 cm tree in a 20 cm pot is small at the default distance.
+      await page.mouse.move(240, 135);
+      for (let i = 0; i < 4; i += 1) {
+        await page.mouse.wheel(0, -900);
+        await page.waitForTimeout(100);
+      }
+      await expect.poll(async () => (await world3d(page)).camera.radius).toBeLessThan(5);
+      await page.waitForTimeout(500);
+      await expect(page).toHaveScreenshot('world3d-trees.png');
+    }
+
+    // The lounge has no tree on its floor or spots in this save: its room draws none.
+    await shedToLounge(page);
+    await waitForRoom(page, 'lounge');
+    await expect.poll(async () => (await world3d(page)).trees).toBe(0);
     expect(errors).toEqual([]);
   });
 

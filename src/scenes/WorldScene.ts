@@ -209,6 +209,7 @@ import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig, pressRoute } from '../world3d/camera';
 import { cameraRelative } from '../world3d/move';
 import { TapTracker, routeInput } from '../world3d/tap';
+import { treeStands } from '../world3d/trees';
 import { World3d, setSurround } from '../world3d/world3d';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
@@ -2070,7 +2071,10 @@ export class WorldScene extends Phaser.Scene {
    * aside so it shows through, and the HUD and panels draw over it as ever.
    */
   private draw3d(): void {
-    this.world3d.sync(this.ctx.settings.world3d, this.room, this.player);
+    const { state, settings } = this.ctx;
+    const season = seasonForDay(state.day);
+    const trees = settings.world3d ? treeStands(state, this.liveRoom(), season) : [];
+    this.world3d.sync(settings.world3d, this.room, this.player, trees, season);
     const on = this.world3d.active;
     if (this.worldCamera.visible === !on) return;
     this.worldCamera.visible = !on;

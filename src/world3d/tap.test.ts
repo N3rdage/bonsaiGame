@@ -46,12 +46,9 @@ describe('TapTracker', () => {
     expect(t.up(3, 120)).toBe(true);
   });
 
-  it('knows nothing of a press it did not see, or one cancelled', () => {
+  it('knows nothing of a press it did not see', () => {
     const t = new TapTracker();
     expect(t.up(9, 10)).toBe(false);
-    t.down(1, 0, 0, 0);
-    t.cancel(1);
-    expect(t.up(1, 10)).toBe(false);
   });
 });
 

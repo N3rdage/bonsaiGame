@@ -52,6 +52,8 @@ interface BonsaiTestHook {
     readonly room:
       'shed' | 'garden' | 'frontGarden' | 'lounge' | 'hallway' | 'study' | 'greenhouse' | null;
     readonly meshes: number;
+    /** The trees standing in the room (each a pot, a trunk and, in season, foliage meshes), as many as the 2D world draws there; 0 while off. */
+    readonly trees: number;
     readonly player: { readonly x: number; readonly y: number; readonly z: number } | null;
     /** The camera's heading (alpha, radians; -pi/2 is south of the player), pitch from vertical (beta) and distance (radius, metres), eased toward what the player asked for; the session's own values while the renderer is not up. */
     readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
