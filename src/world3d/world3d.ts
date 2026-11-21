@@ -9,6 +9,7 @@
 import type Phaser from 'phaser';
 import { SURROUND } from '../scenes/textStyle';
 import type { Room } from '../world/shedRoom';
+import { cameraRig } from './camera';
 import type { Renderer } from './renderer';
 
 /**
@@ -77,6 +78,12 @@ export class World3d {
       on: this.renderer !== undefined,
       room: state?.room ?? null,
       meshes: state?.meshes ?? 0,
+      camera: state?.camera ?? {
+        alpha: cameraRig.alpha,
+        beta: cameraRig.beta,
+        radius: cameraRig.radius,
+      },
+      cut: state ? [...state.cut] : [],
       player: this.renderer ? this.renderer.playerAt() : null,
     };
   }

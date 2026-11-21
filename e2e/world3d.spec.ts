@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import {
   bootWorld,
   collectErrors,
+  dragLogical,
   expect,
   hook,
   openSettingsFromMenu,
@@ -100,5 +101,79 @@ test.describe('the 3D world', () => {
     await waitForRoom(page, 'lounge');
     expect((await world3d(page)).meshes).toBe(lounge.meshes);
     expect(errors).toEqual([]);
+  });
+
+  test('turns in steps on Q and E, zooms on the wheel and drags round on the mouse', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+
+    const start = await world3d(page);
+    expect(start.camera.alpha).toBeCloseTo(-Math.PI / 2, 1);
+    // Due south of the player, the south wall stands between.
+    expect(start.cut.length).toBeGreaterThan(0);
+
+    await page.keyboard.press('q');
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha)
+      .toBeLessThan(-Math.PI / 2 - 0.7);
+    const turned = await world3d(page);
+    expect(turned.cut).not.toEqual(start.cut);
+    expect(turned.cut.length).toBeGreaterThan(start.cut.length);
+
+    await page.keyboard.press('e');
+    await page.keyboard.press('e');
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha)
+      .toBeGreaterThan(-Math.PI / 2 + 0.7);
+
+    const radius = (await world3d(page)).camera.radius;
+    await page.mouse.move(400, 100);
+    await page.mouse.wheel(0, 300);
+    await expect.poll(async () => (await world3d(page)).camera.radius).toBeGreaterThan(radius + 1);
+
+    const before = (await world3d(page)).camera.alpha;
+    await dragLogical(page, 100, 60, 60);
+    await expect
+      .poll(async () => Math.abs((await world3d(page)).camera.alpha - before))
+      .toBeGreaterThan(0.2);
+  });
+
+  test('the Q that closes the tree viewer does not also turn the camera', async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+
+    await page.keyboard.press('v');
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === true);
+    await page.keyboard.press('q');
+    await page.waitForFunction(() => window.__bonsai?.viewer?.open === false);
+    // Longer than the camera's ease: a turn would have shown by now.
+    await page.waitForTimeout(800);
+    expect((await world3d(page)).camera.alpha).toBeCloseTo(-Math.PI / 2, 2);
+
+    // The next Q is a plain press again.
+    await page.keyboard.press('q');
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha)
+      .toBeLessThan(-Math.PI / 2 - 0.7);
+  });
+
+  test('draws the shed again from a turned heading', async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await page.keyboard.press('q');
+    await page.keyboard.press('q');
+    await expect.poll(async () => (await world3d(page)).camera.alpha).toBeLessThan(-Math.PI + 0.01);
+    await page.waitForTimeout(500);
+    await expect(page).toHaveScreenshot('world3d-shed-turned.png');
   });
 });

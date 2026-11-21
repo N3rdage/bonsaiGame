@@ -19,17 +19,9 @@ import type { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { Scene } from '@babylonjs/core/scene';
 import { PALETTE } from '../world/palette';
 import type { Room } from '../world/shedRoom';
-import {
-  CAMERA_ALPHA,
-  CAMERA_BETA,
-  PLAYER_HEIGHT,
-  PLAYER_RADIUS,
-  cameraFraming,
-  meshSpecs,
-  playerFeet,
-  toBabylon,
-} from './meshes';
-import { roomPlan3d, type WashKey } from './plan';
+import { cameraRig, cutNames, cutSpan, ease } from './camera';
+import { PLAYER_HEIGHT, PLAYER_RADIUS, meshSpecs, playerFeet, toBabylon } from './meshes';
+import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
 
 /** The page's surround colour (SURROUND in src/scenes/textStyle.ts), behind the room. */
 const SURROUND = Color3.FromHexString('#3e3632');
@@ -38,6 +30,17 @@ const SURROUND = Color3.FromHexString('#3e3632');
 export interface RendererSnapshot {
   readonly room: Room['key'];
   readonly meshes: number;
+  /** Where the camera is now, eased toward the rig. */
+  readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
+  /** The names of the pieces cut away to the skirting, sorted. */
+  readonly cut: readonly string[];
+}
+
+/** A room piece's mesh and the heights its full box spans, in Babylon's y. */
+interface Piece {
+  readonly mesh: Mesh;
+  readonly z0: number;
+  readonly z1: number;
 }
 
 export class Renderer {
@@ -47,9 +50,15 @@ export class Renderer {
   private readonly camera: ArcRotateCamera;
   private readonly player: Mesh;
   private room: Room['key'] | undefined;
-  private roomMeshes: Mesh[] = [];
+  private plan: RoomPlan3d | undefined;
+  private pieces = new Map<string, Piece>();
+  private cut: string[] = [];
+  /** What the camera looks at, eased toward the player's middle. */
+  private readonly focus = Vector3.Zero();
   private materials = new Map<WashKey, StandardMaterial>();
   private size = '';
+  /** When the last frame was drawn, ms; the scene is rendered by hand, so the engine keeps no delta of its own. */
+  private lastFrame = performance.now();
 
   /** Lays a canvas for the engine under `host`, the game's own, which it then rides above; outside `#game`, whose canvas the tests find. */
   constructor(private readonly host: HTMLCanvasElement) {
@@ -66,9 +75,9 @@ export class Renderer {
     sun.intensity = 0.6;
     this.camera = new ArcRotateCamera(
       'camera',
-      CAMERA_ALPHA,
-      CAMERA_BETA,
-      10,
+      cameraRig.alpha,
+      cameraRig.beta,
+      cameraRig.radius,
       Vector3.Zero(),
       this.scene,
     );
@@ -82,9 +91,14 @@ export class Renderer {
 
   /** The room shown and every mesh in the scene, the player's included. */
   snapshot(): RendererSnapshot | undefined {
-    return this.room === undefined
-      ? undefined
-      : { room: this.room, meshes: this.scene.meshes.length };
+    if (this.room === undefined) return undefined;
+    const { alpha, beta, radius } = this.camera;
+    return {
+      room: this.room,
+      meshes: this.scene.meshes.length,
+      camera: { alpha, beta, radius },
+      cut: this.cut,
+    };
   }
 
   /** Where the capsule stands, in plan metres. */
@@ -95,11 +109,50 @@ export class Renderer {
 
   /** Draws one frame of `room` with the player at `px` (room px), rebuilding the room's meshes if it changed. */
   frame(room: Room, px: { readonly x: number; readonly y: number }): void {
-    if (this.room !== room.key) this.build(room);
+    const fresh = this.room !== room.key;
+    if (fresh) this.build(room);
     const feet = toBabylon(playerFeet(px));
-    this.player.position.set(feet.x, feet.y + PLAYER_HEIGHT / 2, feet.z);
+    const middle = feet.y + PLAYER_HEIGHT / 2;
+    this.player.position.set(feet.x, middle, feet.z);
+    this.follow({ x: feet.x, y: middle, z: feet.z }, fresh);
+    this.cutAway(playerFeet(px));
     this.fit();
     this.scene.render();
+  }
+
+  /** Eases the camera toward the player and the session's rig; a new room snaps the look-at point to the player. */
+  private follow(goal: { x: number; y: number; z: number }, snap: boolean): void {
+    const now = performance.now();
+    const dt = snap ? Infinity : now - this.lastFrame;
+    this.lastFrame = now;
+    this.focus.set(
+      ease(this.focus.x, goal.x, dt),
+      ease(this.focus.y, goal.y, dt),
+      ease(this.focus.z, goal.z, dt),
+    );
+    this.camera.setTarget(this.focus, false, false, true);
+    this.camera.alpha = ease(this.camera.alpha, cameraRig.alpha, dt);
+    this.camera.beta = ease(this.camera.beta, cameraRig.beta, dt);
+    this.camera.radius = ease(this.camera.radius, cameraRig.radius, dt);
+  }
+
+  /** Lowers the pieces the camera's heading puts in the way (cutNames) to the skirting, and stands the rest, when the set changed. */
+  private cutAway(player: { x: number; y: number; z: number }): void {
+    if (!this.plan) return;
+    const { alpha, beta, radius } = this.camera;
+    const names = cutNames(this.plan, { alpha, beta, radius }, player)
+      .filter((name) => this.pieces.has(name))
+      .sort();
+    if (names.join() === this.cut.join()) return;
+    this.cut = names;
+    const cut = new Set(names);
+    for (const [name, piece] of this.pieces) {
+      const span = cut.has(name) ? cutSpan(piece.z0, piece.z1) : piece;
+      piece.mesh.setEnabled(span !== undefined);
+      if (!span) continue;
+      piece.mesh.scaling.y = (span.z1 - span.z0) / (piece.z1 - piece.z0);
+      piece.mesh.position.y = (span.z0 + span.z1) / 2;
+    }
   }
 
   /** Removes the canvas and everything on the GPU, and gives the game's canvas back its style. */
@@ -120,11 +173,13 @@ export class Renderer {
     return material;
   }
 
-  /** Disposes the last room's meshes and builds `room`'s, and points the camera at it. */
+  /** Disposes the last room's meshes and builds `room`'s. */
   private build(room: Room): void {
-    for (const mesh of this.roomMeshes) mesh.dispose();
-    this.roomMeshes = [];
+    for (const { mesh } of this.pieces.values()) mesh.dispose();
+    this.pieces.clear();
+    this.cut = [];
     const plan = roomPlan3d(room);
+    this.plan = plan;
     for (const spec of meshSpecs(plan)) {
       const mesh = CreateBox(
         spec.name,
@@ -133,13 +188,12 @@ export class Renderer {
       );
       mesh.position.set(spec.center.x, spec.center.y, spec.center.z);
       mesh.material = this.material(spec.wash);
-      this.roomMeshes.push(mesh);
+      this.pieces.set(spec.name, {
+        mesh,
+        z0: spec.center.y - spec.height / 2,
+        z1: spec.center.y + spec.height / 2,
+      });
     }
-    const { target, radius } = cameraFraming(plan);
-    this.camera.setTarget(new Vector3(target.x, target.y, target.z));
-    this.camera.alpha = CAMERA_ALPHA;
-    this.camera.beta = CAMERA_BETA;
-    this.camera.radius = radius;
     this.room = room.key;
   }
 

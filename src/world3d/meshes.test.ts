@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
 import type { RoomKey } from '../world/shedRoom';
-import { CAMERA_FOV, cameraFraming, meshSpecs, playerFeet, toBabylon } from './meshes';
+import { meshSpecs, playerFeet, toBabylon } from './meshes';
 import { WALL_HEIGHT, roomPlan3d } from './plan';
 
 const KEYS = Object.keys(ROOMS) as RoomKey[];
@@ -44,6 +44,11 @@ describe('meshSpecs', () => {
     }
   });
 
+  it.each(KEYS)('%s: gives every mesh its own name', (key) => {
+    const names = meshSpecs(roomPlan3d(ROOMS[key])).map((spec) => spec.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+
   it('draws the front garden faces at the wall height and hides the band wall beneath them', () => {
     const plan = roomPlan3d(ROOMS.frontGarden);
     const specs = meshSpecs(plan);
@@ -57,18 +62,5 @@ describe('meshSpecs', () => {
 describe('playerFeet', () => {
   it('converts room px to plan metres on the floor', () => {
     expect(playerFeet({ x: 64, y: 96 })).toEqual({ x: 2, y: 3, z: 0 });
-  });
-});
-
-describe('cameraFraming', () => {
-  it.each(KEYS)('%s: targets the floor centre and holds its diagonal', (key) => {
-    const plan = roomPlan3d(ROOMS[key]);
-    const { target, radius } = cameraFraming(plan);
-    const x0 = Math.min(...plan.floor.map((b) => b.x0));
-    const x1 = Math.max(...plan.floor.map((b) => b.x1));
-    const y0 = Math.min(...plan.floor.map((b) => b.y0));
-    const y1 = Math.max(...plan.floor.map((b) => b.y1));
-    expect(target).toEqual({ x: (x0 + x1) / 2, y: 0, z: -(y0 + y1) / 2 });
-    expect(radius * Math.tan(CAMERA_FOV / 2)).toBeCloseTo(Math.hypot(x1 - x0, y1 - y0) / 2);
   });
 });

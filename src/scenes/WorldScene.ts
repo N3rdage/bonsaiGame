@@ -206,6 +206,7 @@ import {
   type DeviceZoom,
 } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
+import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig, pressRoute } from '../world3d/camera';
 import { World3d, setSurround } from '../world3d/world3d';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
@@ -377,6 +378,8 @@ export class WorldScene extends Phaser.Scene {
   private view: WorldView = { zoom: 1, scrollX: 0, scrollY: 0 };
   /** The Babylon room under the game's canvas while the 3D world setting is on (src/world3d/world3d.ts). */
   private world3d!: World3d;
+  /** The pointers turning and zooming the 3D world's camera; empty while the 2D world draws. */
+  private readonly cameraGesture = new CameraGesture(cameraRig);
   private roomParts: Phaser.GameObjects.GameObject[] = [];
   /** The room's static art, baked on entry (bakeRoom); destroyed on leaving the room or the scene. */
   private roomTexture: Phaser.Textures.DynamicTexture | undefined;
@@ -473,6 +476,7 @@ export class WorldScene extends Phaser.Scene {
     this.accumulatorMs = 0;
     this.frames = 0;
     this.joystick = undefined;
+    this.cameraGesture.clear();
     this.panel = undefined;
     this.placing = undefined;
     this.ghost = undefined;
@@ -600,8 +604,12 @@ export class WorldScene extends Phaser.Scene {
     onKeyDown(keyboard, 'V', () => {
       this.openViewer();
     });
-    onKeyDown(keyboard, 'E', () => {
-      this.interact();
+    onKeyDown(keyboard, 'E', (event) => {
+      // With nothing in reach E has no other use, so in the 3D world it turns the camera,
+      // unless the press is the one that closed the viewer.
+      if (this.cameraKeysLive() && !this.near) {
+        if (event.timeStamp > this.viewerClosedAt) cameraRig.step(1);
+      } else this.interact();
     });
     onKeyDown(keyboard, 'J', () => {
       this.toggleNotebook();
@@ -645,7 +653,10 @@ export class WorldScene extends Phaser.Scene {
     // Q closes what Esc closes but never leaves the room, and is a letter in the rename box.
     onKeyDown(keyboard, 'Q', (event) => {
       if (document.activeElement instanceof HTMLInputElement) return;
-      closeOrLeave(event, false);
+      if (this.cameraKeysLive()) {
+        // The press that closed the viewer is spent: it does not also turn the camera.
+        if (event.timeStamp > this.viewerClosedAt) cameraRig.step(-1);
+      } else closeOrLeave(event, false);
     });
 
     this.input.on(
@@ -663,21 +674,45 @@ export class WorldScene extends Phaser.Scene {
           if (!over.some((o) => inside.includes(o))) this.closePanel();
           return;
         }
-        if (over.length > 0 || this.joystick) return;
-        const { x, y } = this.screenPoint(pointer);
-        this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
+        if (over.length > 0) return;
+        // In the 3D world a press on bare ground is the stick's only as the first touch on the left half
+        // of the screen; any other press (the mouse, a touch on the right half, a second finger) turns
+        // and zooms the camera, so a drag is never both.
+        const route = pressRoute({
+          world3d: this.world3d.active,
+          touch: pointer.wasTouch,
+          left: pointer.x < this.scale.width / 2,
+          stickHeld: this.joystick !== undefined,
+        });
+        if (route === 'stick') {
+          if (this.joystick) return;
+          const { x, y } = this.screenPoint(pointer);
+          this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
+        } else {
+          this.cameraGesture.down(pointer.id, pointer.x, pointer.y);
+        }
       },
     );
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      this.cameraGesture.move(pointer.id, pointer.x, pointer.y);
       if (pointer.id !== this.joystick?.id) return;
       const { x, y } = this.screenPoint(pointer);
       this.joystick.input = joystickInput(x - this.joystick.x, y - this.joystick.y);
     });
     const release = (pointer: Phaser.Input.Pointer): void => {
+      this.cameraGesture.up(pointer.id);
       if (pointer.id === this.joystick?.id) this.joystick = undefined;
     };
     this.input.on('pointerup', release);
     this.input.on('pointerupoutside', release);
+    this.input.on(
+      'wheel',
+      (_pointer: Phaser.Input.Pointer, _over: unknown, _dx: number, dy: number) => {
+        if (this.world3d.active && this.roomKeysLive() && !this.panel) {
+          cameraRig.zoom(Math.exp(dy * WHEEL_ZOOM_PER_UNIT));
+        }
+      },
+    );
 
     this.viewer = new TreeViewer(document.body);
     this.viewer.onRender = this.publishHook;
@@ -804,6 +839,11 @@ export class WorldScene extends Phaser.Scene {
   /** No viewer and no modal panel: the room's own keys and buttons act. */
   private roomKeysLive(): boolean {
     return !this.viewer.isOpen && !this.panel?.modal;
+  }
+
+  /** Whether Q and E turn the 3D world's camera: the room has the keys and nothing (a panel, a ghost being placed) has a use for them. */
+  private cameraKeysLive(): boolean {
+    return this.world3d.active && this.roomKeysLive() && !this.panel && !this.placing;
   }
 
   /** A panel's paper and frame (drawPanel), its title band `titleH` px tall; the paper is interactive, so a press on it reaches nothing beneath. */
