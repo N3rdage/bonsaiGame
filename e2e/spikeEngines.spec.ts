@@ -94,6 +94,82 @@ for (const engine of ENGINES) {
       process.stdout.write(`\n[${engine} ${test.info().project.name}]\n${text}\n`);
     });
 
+    test('loads the glTF character with its idle and walk clips and blends them by speed', async ({
+      page,
+    }) => {
+      test.setTimeout(60_000);
+      await open(page, engine, 'spawn=shedDoor&yaw=0&pitch=45&distance=8');
+      const standing = await page.evaluate(() => window.__spikeEngine?.character);
+      expect([...(standing?.clips ?? [])].sort()).toEqual(['idle', 'walk']);
+      expect(standing?.joints).toBe(7);
+      expect(standing?.weights.walk).toBe(0);
+      await page.keyboard.down('ArrowRight');
+      await page.waitForFunction(
+        () => (window.__spikeEngine?.character?.weights.walk ?? 0) === 1,
+        undefined,
+        {
+          timeout: 30_000,
+        },
+      );
+      await page.keyboard.up('ArrowRight');
+      await page.waitForFunction(
+        () => (window.__spikeEngine?.character?.weights.walk ?? 1) === 0,
+        undefined,
+        {
+          timeout: 30_000,
+        },
+      );
+    });
+
+    test('has shadows enabled over the garden and trees and hedges drawn', async ({ page }) => {
+      await open(page, engine, 'spawn=frontDoor');
+      const hook = await page.evaluate(() => window.__spikeEngine);
+      expect(hook?.shadows.enabled).toBe(true);
+      expect(hook?.shadows.mapSize).toBe(2048);
+      expect(hook?.shadows.cascades).toBeGreaterThanOrEqual(1);
+      expect(hook?.load.trees).toBeGreaterThan(0);
+      expect(hook?.load.hedges).toBeGreaterThan(0);
+      expect(hook?.load.characters).toBe(0);
+    });
+
+    test('runs a quick stress run and reports its steps', async ({ page }) => {
+      test.setTimeout(180_000);
+      // A budget no frame can pass, so the run is not cut short on a software renderer.
+      await open(page, engine, 'stress=quick&budget=100000');
+      await page.locator('#spike-stress').click();
+      await page.waitForFunction(() => window.__spikeEngine?.lastStress !== undefined, undefined, {
+        timeout: 150_000,
+      });
+      await expect(page.locator('#spike-result')).toBeVisible();
+      await expect(page.locator('#spike-result-text')).toContainText('held 60 fps up to step 2');
+      const result = await page.evaluate(() => window.__spikeEngine?.lastStress);
+      expect(result?.engine).toBe(engine);
+      expect(result?.steps.map((s) => s.step)).toEqual([0, 1, 2]);
+      expect(result?.heldStep).toBe(2);
+      const loads = result?.steps.map((s) => s.load.trees + s.load.hedges) ?? [];
+      expect(loads[1]).toBeGreaterThan(loads[0] ?? Infinity);
+      expect(loads[2]).toBeGreaterThan(loads[1] ?? Infinity);
+      for (const step of result?.steps ?? []) {
+        expect(step.frames).toBeGreaterThan(0);
+        expect(step.drawCalls).toBeGreaterThan(0);
+      }
+      expect(await page.evaluate(() => window.__spikeEngine?.stressRunning)).toBe(false);
+    });
+
+    test('stops a stress run at the first step that passes the budget', async ({ page }) => {
+      test.setTimeout(120_000);
+      // A budget no frame can hold: the run ends at step 0.
+      await open(page, engine, 'stress=quick&budget=0.001');
+      await page.locator('#spike-stress').click();
+      await page.waitForFunction(() => window.__spikeEngine?.lastStress !== undefined, undefined, {
+        timeout: 90_000,
+      });
+      const result = await page.evaluate(() => window.__spikeEngine?.lastStress);
+      expect(result?.steps).toHaveLength(1);
+      expect(result?.stoppedBy).toBe('budget');
+      expect(result?.heldStep).toBeUndefined();
+    });
+
     test('draws the front garden from a fixed camera', async ({ page }) => {
       test.setTimeout(60_000);
       await open(page, engine, 'spawn=frontDoor&yaw=155&pitch=35&distance=11');
