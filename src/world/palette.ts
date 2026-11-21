@@ -29,4 +29,22 @@ export const PALETTE = {
   mote: 0xe8e2c8,
   /** The cast shadows on every room's floor (roomArt's `castShadows`): WASHES.shadow. */
   shadow: 0x6e5e50,
+  /** The surfaces of the 3D plan (world3d/plan.ts): WASHES.wall, floor, wood, stone, soil. */
+  wall: 0xeee2c8,
+  floor: 0xba8c62,
+  wood: 0x966440,
+  stone: 0xc4c2bc,
+  soil: 0x78604e,
+  /** The gardens' lawn and the buildings seen from them: WASHES.outside, render, tile, paint, asphalt. */
+  outside: 0x96b876,
+  render: 0xd6c6b0,
+  tile: 0xb8745c,
+  paint: 0xccd0c8,
+  asphalt: 0x6c6c6e,
+  /** The house rooms' floors, wall coverings and runner: WASHES.carpet, wallpaper, runner, studyPaper, parquet. */
+  carpet: 0xa8806e,
+  wallpaper: 0xc4ceb2,
+  runner: 0x4c805c,
+  studyPaper: 0xb8c4d0,
+  parquet: 0xb27456,
 } as const;
