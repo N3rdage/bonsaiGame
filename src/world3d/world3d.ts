@@ -98,6 +98,7 @@ export class World3d {
       room: state?.room ?? null,
       meshes: state?.meshes ?? 0,
       trees: state?.trees ?? 0,
+      instances: state ? { ...state.instances } : {},
       camera: state?.camera ?? {
         alpha: cameraRig.alpha,
         beta: cameraRig.beta,

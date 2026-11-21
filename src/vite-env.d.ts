@@ -54,6 +54,8 @@ interface BonsaiTestHook {
     readonly meshes: number;
     /** The trees standing in the room (each a pot, a trunk and, in season, foliage meshes), as many as the 2D world draws there; 0 while off. */
     readonly trees: number;
+    /** The room's furniture drawn with thin instances: each model kind ('pedestal', 'floor_shelf', 'shelf', 'tools', 'watering_can', 'pot_stack', 'sack') and how many pieces of it stand; a kind with none is absent, and the record is empty while off. */
+    readonly instances: Readonly<Record<string, number>>;
     readonly player: { readonly x: number; readonly y: number; readonly z: number } | null;
     /** The camera's heading (alpha, radians; -pi/2 is south of the player), pitch from vertical (beta) and distance (radius, metres), eased toward what the player asked for; the session's own values while the renderer is not up. */
     readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };

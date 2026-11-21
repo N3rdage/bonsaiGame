@@ -22,6 +22,7 @@ import {
   type RoomKey,
   type Wall,
 } from '../world/shedRoom';
+import { MODELLED_SHEETS, type FurnitureKind } from './furnitureModels';
 
 /** An Inked wash: a key of `PALETTE`, each mirroring art/inked/style.mjs's WASHES. */
 export type WashKey = keyof typeof PALETTE;
@@ -121,6 +122,8 @@ export interface Box {
   readonly z1: number;
   /** Stops the player in the 2D plan; the plan's solid boxes cover exactly that collision. */
   readonly solid: boolean;
+  /** A piece of furniture drawn as this model (furnitureModels.ts) in place of the box. */
+  readonly model?: FurnitureKind;
 }
 
 /** A piece of wall, which side of the room it bounds so a camera can cut away those that face it. */
@@ -305,7 +308,7 @@ const FACE_SHEETS: ReadonlySet<string> = new Set([
  * `stands`, a slab if `flat`; a building's face is `WALL_HEIGHT` tall over its
  * rect's bottom band.
  */
-function furnitureBox(f: Furniture, index: number): Box {
+export function furnitureBox(f: Furniture, index: number): Box {
   const isFace = f.stands === undefined && FACE_SHEETS.has(f.sheet.key);
   const foot = isFace ? WALL_BAND : f.stands?.foot;
   const rect = foot === undefined ? f : { ...f, y: f.y + f.h - foot, h: foot };
@@ -314,7 +317,11 @@ function furnitureBox(f: Furniture, index: number): Box {
   if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
   const height = f.stands === undefined ? DEFAULT_FURNITURE_HEIGHT : heightMetres(f.stands.height);
-  return box(name, wash, footprint(rect), 0, height, f.solid);
+  const model = MODELLED_SHEETS[f.sheet.key];
+  return {
+    ...box(name, wash, footprint(rect), 0, height, f.solid),
+    ...(model === undefined ? {} : { model }),
+  };
 }
 
 /** True if no part of `r` is inside `bounds`: ground beyond the walkable floor, as the front garden's road. */

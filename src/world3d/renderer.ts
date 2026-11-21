@@ -7,18 +7,20 @@
  */
 
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
+import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import '@babylonjs/core/Culling/ray';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
-import { Matrix, Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { CreateCapsule } from '@babylonjs/core/Meshes/Builders/capsuleBuilder';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
+import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Scene } from '@babylonjs/core/scene';
 import type { Season } from '../sim/seasons';
@@ -26,6 +28,8 @@ import { PALETTE } from '../world/palette';
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import type { Room } from '../world/shedRoom';
 import { cameraRig, cutNames, cutSpan, ease } from './camera';
+import { furniturePieces, type FurniturePiece } from './furniture';
+import { FURNITURE_MODELS, type FurnitureKind } from './furnitureModels';
 import { facingOf } from './move';
 import {
   PLAYER_HEIGHT,
@@ -50,6 +54,8 @@ export interface RendererSnapshot {
   readonly meshes: number;
   /** The trees standing in the room, each a pot, a trunk and, in season, foliage. */
   readonly trees: number;
+  /** The furniture standing in the room, as instances of each kind's one model. */
+  readonly instances: Readonly<Record<string, number>>;
   /** Where the camera is now, eased toward the rig. */
   readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
   /** The names of the pieces cut away to the skirting, sorted. */
@@ -90,6 +96,33 @@ function meshOf(
   return mesh;
 }
 
+/** A furniture kind's model, one mesh drawn once per piece standing: the pieces' keys it was last set for, and how many. */
+interface Instanced {
+  readonly mesh: Mesh;
+  key: string;
+  count: number;
+}
+
+/** The Babylon colour of a palette wash. */
+function washColour(wash: WashKey): Color3 {
+  return Color3.FromHexString(`#${PALETTE[wash].toString(16).padStart(6, '0')}`);
+}
+
+/**
+ * The matrix that stands a piece's model on its footprint: the model's nominal
+ * size scaled to the piece's (Babylon's x, y and z are the plan's east-west,
+ * up and north-south), turned about the vertical, its feet at the floor.
+ */
+function instanceMatrix(piece: FurniturePiece): Matrix {
+  const { size } = FURNITURE_MODELS[piece.kind];
+  const feet = toBabylon({ x: piece.x, y: piece.y, z: 0 });
+  return Matrix.Compose(
+    new Vector3(piece.w / size.w, piece.h / size.h, piece.d / size.d),
+    Quaternion.RotationAxis(Vector3.Up(), piece.rotation),
+    new Vector3(feet.x, feet.y, feet.z),
+  );
+}
+
 /** A room piece's mesh and the heights its full box spans, in Babylon's y. */
 interface Piece {
   readonly mesh: Mesh;
@@ -112,11 +145,15 @@ export class Renderer {
   private pieces = new Map<string, Piece>();
   /** The invisible boxes taps pick props by, each under its prop's key. */
   private hotspots = new Map<AbstractMesh, string>();
+  /** The prop keys the hotspots were made for, so a placed item's spots add or drop theirs. */
+  private hotspotKey = '';
+  /** The furniture models in use, by kind. */
+  private readonly instanced = new Map<FurnitureKind, Instanced>();
   private cut: string[] = [];
   /** The trees standing in the room, by tree id. */
   private readonly trees = new Map<number, Planted>();
-  /** The one material of every tree part: white, so the vertex colours the viewer's builders give are what shows. */
-  private readonly treeMaterial: StandardMaterial;
+  /** The one material of every tree part and furniture model: white, so the vertex colours the builders give are what shows. */
+  private readonly colourMaterial: StandardMaterial;
   /** What the camera looks at, eased toward the player's middle. */
   private readonly focus = Vector3.Zero();
   private materials = new Map<WashKey, StandardMaterial>();
@@ -155,8 +192,8 @@ export class Renderer {
     nose.material = this.material('leafOrange');
     nose.parent = this.player;
     nose.position.set(0, PLAYER_HEIGHT / 4, PLAYER_RADIUS);
-    this.treeMaterial = new StandardMaterial('trees', this.scene);
-    this.treeMaterial.specularColor = Color3.Black();
+    this.colourMaterial = new StandardMaterial('colours', this.scene);
+    this.colourMaterial.specularColor = Color3.Black();
   }
 
   /** The room shown and every mesh in the scene, the player's included. */
@@ -167,6 +204,7 @@ export class Renderer {
       room: this.room,
       meshes: this.scene.meshes.length,
       trees: this.trees.size,
+      instances: Object.fromEntries([...this.instanced].map(([kind, { count }]) => [kind, count])),
       camera: { alpha, beta, radius },
       cut: this.cut,
       facing: this.facing,
@@ -221,6 +259,7 @@ export class Renderer {
   ): void {
     const fresh = this.room !== room.key;
     if (fresh) this.build(room);
+    this.furnish(room);
     this.plant(trees, season);
     const plan = playerFeet(px);
     if (this.lastFeet && !fresh) {
@@ -294,7 +333,7 @@ export class Renderer {
       for (const part of planted.parts) part.dispose();
       const root = planted.root;
       planted.parts = treeMeshData(tree, season).map(({ part, data }) =>
-        meshOf(`tree.${String(tree.id)}.${part}`, data, root, this.treeMaterial),
+        meshOf(`tree.${String(tree.id)}.${part}`, data, root, this.colourMaterial),
       );
       planted.key = key;
     }
@@ -312,7 +351,7 @@ export class Renderer {
     const known = this.materials.get(wash);
     if (known) return known;
     const material = new StandardMaterial(`wash.${wash}`, this.scene);
-    material.diffuseColor = Color3.FromHexString(`#${PALETTE[wash].toString(16).padStart(6, '0')}`);
+    material.diffuseColor = washColour(wash);
     material.specularColor = Color3.Black();
     this.materials.set(wash, material);
     return material;
@@ -322,8 +361,8 @@ export class Renderer {
   private build(room: Room): void {
     for (const { mesh } of this.pieces.values()) mesh.dispose();
     this.pieces.clear();
-    for (const mesh of this.hotspots.keys()) mesh.dispose();
-    this.hotspots.clear();
+    for (const { mesh } of this.instanced.values()) mesh.dispose();
+    this.instanced.clear();
     for (const { root } of this.trees.values()) root.dispose();
     this.trees.clear();
     this.cut = [];
@@ -343,6 +382,15 @@ export class Renderer {
         z1: spec.center.y + spec.height / 2,
       });
     }
+    this.setHotspots(room, plan);
+    this.room = room.key;
+  }
+
+  /** Makes the invisible box of each prop of `room`, in place of the last set. */
+  private setHotspots(room: Room, plan: RoomPlan3d): void {
+    for (const mesh of this.hotspots.keys()) mesh.dispose();
+    this.hotspots.clear();
+    this.hotspotKey = room.props.map((prop) => prop.key).join();
     for (const spec of hotspotSpecs(plan)) {
       const mesh = CreateBox(
         `hotspot.${spec.key}`,
@@ -353,7 +401,72 @@ export class Renderer {
       mesh.isVisible = false;
       this.hotspots.set(mesh, spec.key);
     }
-    this.room = room.key;
+  }
+
+  /**
+   * Stands `room`'s modelled furniture, which the live room changes as items
+   * are placed and picked up: a kind whose pieces' keys changed gets its
+   * instances reset, a kind with none left is disposed, and the hotspots are
+   * made again when the props changed. The room's boxes are not touched.
+   */
+  private furnish(room: Room): void {
+    if (room.props.map((prop) => prop.key).join() !== this.hotspotKey) {
+      this.setHotspots(room, roomPlan3d(room));
+    }
+    const byKind = new Map<FurnitureKind, FurniturePiece[]>();
+    for (const piece of furniturePieces(room)) {
+      byKind.set(piece.kind, [...(byKind.get(piece.kind) ?? []), piece]);
+    }
+    for (const [kind, known] of this.instanced) {
+      if (byKind.has(kind)) continue;
+      known.mesh.dispose();
+      this.instanced.delete(kind);
+    }
+    for (const [kind, pieces] of byKind) {
+      const key = pieces.map((piece) => piece.key).join(';');
+      const known = this.instanced.get(kind) ?? { mesh: this.modelMesh(kind), key: '', count: 0 };
+      this.instanced.set(kind, known);
+      if (known.key === key) continue;
+      known.key = key;
+      known.count = pieces.length;
+      const matrices = new Float32Array(pieces.length * 16);
+      pieces.forEach((piece, n) => {
+        instanceMatrix(piece).copyToArray(matrices, n * 16);
+      });
+      known.mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
+    }
+  }
+
+  /** The one source mesh of `kind`: its parts' boxes, vertex-coloured by their washes, merged into one at the origin. */
+  private modelMesh(kind: FurnitureKind): Mesh {
+    const boxes = FURNITURE_MODELS[kind].parts.map((part, n) => {
+      const box = CreateBox(
+        `model.${kind}.${String(n)}`,
+        { width: part.x1 - part.x0, height: part.z1 - part.z0, depth: part.y1 - part.y0 },
+        this.scene,
+      );
+      const centre = toBabylon({
+        x: (part.x0 + part.x1) / 2,
+        y: (part.y0 + part.y1) / 2,
+        z: (part.z0 + part.z1) / 2,
+      });
+      box.position.set(centre.x, centre.y, centre.z);
+      box.bakeCurrentTransformIntoVertices();
+      const { r, g, b } = washColour(part.wash);
+      const rgba = [r, g, b, 1];
+      box.setVerticesData(
+        VertexBuffer.ColorKind,
+        Float32Array.from({ length: box.getTotalVertices() * 4 }, (_, i) => rgba[i % 4] ?? 1),
+      );
+      return box;
+    });
+    const mesh = Mesh.MergeMeshes(boxes, true);
+    if (!mesh) throw new Error(`model ${kind} has no parts`);
+    mesh.name = `model.${kind}`;
+    mesh.material = this.colourMaterial;
+    mesh.isPickable = false;
+    mesh.alwaysSelectAsActiveMesh = true;
+    return mesh;
   }
 
   /** Lays the canvas over the game's and resizes the backing when the game's canvas moved or changed size. */
