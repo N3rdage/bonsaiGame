@@ -20,6 +20,7 @@ const PANEL_CONTROLS = [
   'panel-weather',
   'panel-sound',
   'panel-music',
+  'panel-world3d',
   'panel-close',
 ];
 

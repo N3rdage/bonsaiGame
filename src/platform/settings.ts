@@ -13,6 +13,8 @@ export interface Settings {
   sound: boolean;
   /** Music on or off, gated the same way. */
   music: boolean;
+  /** The 3D world (preview): Babylon draws the room under the 2D HUD. Off by default; the 2D game is the game. */
+  world3d: boolean;
 }
 
 /** init_settings: windowed, weather particles on; sound and music on (the prototype had no mixer). */
@@ -21,6 +23,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   weather: true,
   sound: true,
   music: true,
+  world3d: false,
 };
 
 /** Where the settings text lives; read gives undefined when there is none or it cannot be read. */
@@ -55,6 +58,6 @@ export function loadSettings(storage: SettingsStorage): Settings {
 
 /** save_settings. */
 export function saveSettings(storage: SettingsStorage, settings: Settings): void {
-  const { fullscreen, weather, sound, music } = settings;
-  storage.write(JSON.stringify({ fullscreen, weather, sound, music }));
+  const { fullscreen, weather, sound, music, world3d } = settings;
+  storage.write(JSON.stringify({ fullscreen, weather, sound, music, world3d }));
 }

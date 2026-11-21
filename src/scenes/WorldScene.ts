@@ -206,6 +206,7 @@ import {
   type DeviceZoom,
 } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
+import { World3d, setSurround } from '../world3d/world3d';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
 import { PlateEdges, drawPanel, underline } from './inkPanel';
@@ -374,6 +375,8 @@ export class WorldScene extends Phaser.Scene {
   private worldCamera!: Phaser.Cameras.Scene2D.Camera;
   /** What the world camera shows, in room units: the hook's `camera`. */
   private view: WorldView = { zoom: 1, scrollX: 0, scrollY: 0 };
+  /** The Babylon room under the game's canvas while the 3D world setting is on (src/world3d/world3d.ts). */
+  private world3d!: World3d;
   private roomParts: Phaser.GameObjects.GameObject[] = [];
   /** The room's static art, baked on entry (bakeRoom); destroyed on leaving the room or the scene. */
   private roomTexture: Phaser.Textures.DynamicTexture | undefined;
@@ -488,6 +491,7 @@ export class WorldScene extends Phaser.Scene {
     this.player = createPlayer(SHED_ROOM);
     // The scene's own camera becomes the world camera; the HUD's, added after it, draws on top.
     this.worldCamera = this.cameras.main;
+    this.world3d = new World3d(this.game.canvas);
     this.cameras.add(0, 0, undefined, undefined, true, 'hud');
     const toHud = (o: Phaser.GameObjects.GameObject): void => {
       this.worldCamera.ignore(o);
@@ -713,6 +717,8 @@ export class WorldScene extends Phaser.Scene {
       this.game.events.off(Phaser.Core.Events.RESUME, resumeMusic);
       this.panel?.dispose?.();
       this.viewer.destroy();
+      this.world3d.dispose();
+      setSurround(this.game, false);
       this.music.stop();
       this.roomTexture?.destroy();
       keyboard.removeCapture([K.F5, K.F9]);
@@ -1935,7 +1941,21 @@ export class WorldScene extends Phaser.Scene {
     this.drawWeather();
     this.drawPlayer();
     this.hud.setText(hudText(this.ctx.state));
+    this.draw3d();
     this.publishHook();
+  }
+
+  /**
+   * The 3D world setting (src/world3d/world3d.ts): while Babylon draws the
+   * room under the canvas, the world camera and the canvas's clear colour step
+   * aside so it shows through, and the HUD and panels draw over it as ever.
+   */
+  private draw3d(): void {
+    this.world3d.sync(this.ctx.settings.world3d, this.room, this.player);
+    const on = this.world3d.active;
+    if (this.worldCamera.visible === !on) return;
+    this.worldCamera.visible = !on;
+    setSurround(this.game, on);
   }
 
   /**
@@ -2133,6 +2153,7 @@ export class WorldScene extends Phaser.Scene {
       paused: state.paused,
       viewer: this.viewer.snapshot(),
       room: this.room.key,
+      world3d: this.world3d.snapshot(),
       roomBounds: { ...this.room.bounds },
       doors: this.room.props.flatMap(({ key, x, y, wall }) =>
         wall === undefined ? [] : [{ key, x, y, wall }],

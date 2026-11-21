@@ -12,33 +12,47 @@ class MemorySettingsStorage implements SettingsStorage {
 }
 
 describe('settings', () => {
-  it('defaults to windowed with weather, sound and music on, as init_settings', () => {
+  it('defaults to windowed with weather, sound and music on and the 3D world off', () => {
     expect(DEFAULT_SETTINGS).toEqual({
       fullscreen: false,
       weather: true,
       sound: true,
       music: true,
+      world3d: false,
     });
     expect(loadSettings(new MemorySettingsStorage())).toEqual(DEFAULT_SETTINGS);
   });
 
   it('round-trips all four keys through save and load', () => {
     const storage = new MemorySettingsStorage();
-    const settings = { fullscreen: true, weather: false, sound: false, music: true };
+    const settings = {
+      fullscreen: true,
+      weather: false,
+      sound: false,
+      music: true,
+      world3d: true,
+    };
     saveSettings(storage, settings);
     expect(JSON.parse(storage.text ?? '')).toEqual(settings);
     expect(loadSettings(storage)).toEqual(settings);
-    const quiet = { fullscreen: false, weather: true, sound: true, music: false };
+    const quiet = {
+      fullscreen: false,
+      weather: true,
+      sound: true,
+      music: false,
+      world3d: false,
+    };
     saveSettings(storage, quiet);
     expect(loadSettings(storage)).toEqual(quiet);
   });
 
-  it('loads settings saved before the audio switches with sound and music on', () => {
+  it('loads settings saved before the audio and 3D switches with the defaults', () => {
     expect(loadSettings(new MemorySettingsStorage('{"fullscreen":false,"weather":true}'))).toEqual({
       fullscreen: false,
       weather: true,
       sound: true,
       music: true,
+      world3d: false,
     });
   });
 
@@ -48,11 +62,17 @@ describe('settings', () => {
       weather: false,
     });
     const odd = new MemorySettingsStorage(
-      '{"scale":3,"fullscreen":"yes","weather":0,"sound":"yes","music":null,"x":true}',
+      '{"scale":3,"fullscreen":"yes","weather":0,"sound":"yes","music":null,"world3d":1,"x":true}',
     );
     const loaded = loadSettings(odd);
     expect(loaded).toEqual(DEFAULT_SETTINGS);
-    expect(Object.keys(loaded).sort()).toEqual(['fullscreen', 'music', 'sound', 'weather']);
+    expect(Object.keys(loaded).sort()).toEqual([
+      'fullscreen',
+      'music',
+      'sound',
+      'weather',
+      'world3d',
+    ]);
   });
 
   it('gives the defaults for malformed or non-object text', () => {

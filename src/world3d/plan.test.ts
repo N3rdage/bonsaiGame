@@ -227,6 +227,17 @@ describe('roomPlan3d furniture', () => {
   });
 });
 
+describe('roomPlan3d building faces', () => {
+  it('draws the front garden faces WALL_HEIGHT tall over the south band', () => {
+    const faces = roomPlan3d(ROOMS.frontGarden).furniture.filter((b) => b.name.endsWith('_face'));
+    expect(faces).toHaveLength(2);
+    for (const face of faces) {
+      expect(face).toMatchObject({ wash: 'render', z0: 0, z1: WALL_HEIGHT, solid: false });
+      expect(face.y1 - face.y0).toBe(0.5);
+    }
+  });
+});
+
 describe('roomPlan3d collision', () => {
   it.each(KEYS)('%s: the solid footprints and the door openings are the 2D collision', (key) => {
     const room = ROOMS[key];
