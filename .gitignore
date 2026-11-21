@@ -73,4 +73,12 @@ test-results/
 blob-report/
 .env
 .env.*
+# Keys and certificates
+*.pem
+*.key
+*.pfx
+*.p12
+*.jks
+*.keystore
+id_rsa*
 *.tsbuildinfo
