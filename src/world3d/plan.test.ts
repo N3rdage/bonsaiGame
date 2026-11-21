@@ -1,0 +1,248 @@
+import { describe, expect, it } from 'vitest';
+import { ROOMS } from '../world/gardenRoom';
+import { FENCE_HEIGHT, LOW_FENCE_HEIGHT } from '../world/roomArt';
+import { furnitureWalls, type RoomKey } from '../world/shedRoom';
+import {
+  DOOR_HEIGHT,
+  FENCE_HEIGHT_M,
+  LOW_FENCE_HEIGHT_M,
+  WALL_HEIGHT,
+  WINDOW_HEAD,
+  WINDOW_SILL,
+  heightMetres,
+  metres,
+  roomPlan3d,
+  type Box,
+} from './plan';
+
+const KEYS = Object.keys(ROOMS) as RoomKey[];
+
+/** A footprint, metres. */
+interface Foot {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
+const covers = (feet: readonly Foot[], x: number, y: number): boolean =>
+  feet.some((f) => x > f.x0 && x < f.x1 && y > f.y0 && y < f.y1);
+
+/** The first cell of the grid the two sets' edges make that one covers and the other does not, or undefined. */
+function firstDifference(a: readonly Foot[], b: readonly Foot[]): string | undefined {
+  const all = [...a, ...b];
+  const xs = [...new Set(all.flatMap((f) => [f.x0, f.x1]))].sort((p, q) => p - q);
+  const ys = [...new Set(all.flatMap((f) => [f.y0, f.y1]))].sort((p, q) => p - q);
+  for (let i = 0; i + 1 < xs.length; i += 1) {
+    for (let j = 0; j + 1 < ys.length; j += 1) {
+      const x = ((xs[i] ?? 0) + (xs[i + 1] ?? 0)) / 2;
+      const y = ((ys[j] ?? 0) + (ys[j + 1] ?? 0)) / 2;
+      if (covers(a, x, y) !== covers(b, x, y)) return `(${String(x)}, ${String(y)}) m`;
+    }
+  }
+  return undefined;
+}
+
+const wallBox = (key: RoomKey, name: string): Box => {
+  const found = roomPlan3d(ROOMS[key]).walls.find((w) => w.name === name);
+  if (found === undefined) throw new Error(`${key} has no ${name}`);
+  return found;
+};
+
+describe('roomPlan3d scale', () => {
+  it('draws 32 room px to the metre, and heights at the scale rule 21.33 px to the metre', () => {
+    expect(metres(32)).toBe(1);
+    expect(metres(16)).toBe(0.5);
+    expect(heightMetres(64)).toBe(3);
+    expect(heightMetres(FENCE_HEIGHT)).toBe(FENCE_HEIGHT_M);
+    expect(heightMetres(LOW_FENCE_HEIGHT)).toBeCloseTo(LOW_FENCE_HEIGHT_M, 1);
+  });
+
+  it('puts the player start in metres', () => {
+    expect(roomPlan3d(ROOMS.shed).playerStart).toEqual({ x: 7.5, y: 135 / 32 });
+  });
+});
+
+describe('roomPlan3d walls', () => {
+  // One uncut ring wall per room, by its numbers: the 2D rect in px is in the comment.
+  const cases: [RoomKey, string, Partial<Box> & { side: string }][] = [
+    // (384, 48, 16, 176)
+    ['shed', 'wall.3', { x0: 12, x1: 12.5, y0: 1.5, y1: 7, z1: WALL_HEIGHT, side: 'E' }],
+    // (448, 0, 16, 512)
+    ['garden', 'wall.3', { x0: 14, x1: 14.5, y0: 0, y1: 16, z1: FENCE_HEIGHT_M, side: 'E' }],
+    // (560, 96, 16, 128)
+    ['frontGarden', 'wall.3', { x0: 17.5, x1: 18, y0: 3, y1: 7, z1: FENCE_HEIGHT_M, side: 'E' }],
+    // (432, 48, 16, 176)
+    ['lounge', 'wall.3', { x0: 13.5, x1: 14, y0: 1.5, y1: 7, z1: WALL_HEIGHT, side: 'E' }],
+    // (176, 208, 128, 16)
+    ['hallway', 'wall.1', { x0: 5.5, x1: 9.5, y0: 6.5, y1: 7, z1: WALL_HEIGHT, side: 'S' }],
+    // (304, 48, 16, 176)
+    ['study', 'wall.3', { x0: 9.5, x1: 10, y0: 1.5, y1: 7, z1: WALL_HEIGHT, side: 'E' }],
+    // (320, 64, 16, 144)
+    ['greenhouse', 'wall.3', { x0: 10, x1: 10.5, y0: 2, y1: 6.5, z1: WALL_HEIGHT, side: 'E' }],
+  ];
+
+  it.each(cases)('%s: %s is the 2D rect extruded', (key, name, expected) => {
+    expect(wallBox(key, name)).toMatchObject({ z0: 0, solid: true, ...expected });
+  });
+
+  it("stands the front garden's low fence along its rows", () => {
+    expect(wallBox('frontGarden', 'wall.0')).toMatchObject({ z1: LOW_FENCE_HEIGHT_M, side: 'N' });
+  });
+
+  it('gives every room a floor and walls, and marks its ring by side', () => {
+    for (const key of KEYS) {
+      const plan = roomPlan3d(ROOMS[key]);
+      expect(plan.floor.length, key).toBeGreaterThan(0);
+      expect(plan.walls.length, key).toBeGreaterThan(0);
+      expect(plan.floor[0], key).toMatchObject({ name: 'floor', z1: 0 });
+      for (const side of ['N', 'S', 'E', 'W']) {
+        expect(
+          plan.walls.some((w) => w.side === side),
+          `${key} ${side}`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it('stands the garden buildings at 2.4 m against the edge they touch', () => {
+    expect(wallBox('garden', 'wall.4')).toMatchObject({ z1: WALL_HEIGHT, side: 'N' });
+    expect(wallBox('garden', 'wall.5')).toMatchObject({ z1: WALL_HEIGHT, side: 'W' });
+  });
+});
+
+describe('roomPlan3d openings', () => {
+  it("opens the shed's south wall for the door: 1 m wide, 2 m high, a lintel over it", () => {
+    const plan = roomPlan3d(ROOMS.shed);
+    expect(plan.openings.find((o) => o.name === 'door')).toEqual({
+      name: 'door',
+      kind: 'door',
+      x0: 7,
+      x1: 8,
+      y0: 6.5,
+      y1: 7,
+      z0: 0,
+      z1: DOOR_HEIGHT,
+    });
+    expect(wallBox('shed', 'wall.1.lintel.door')).toMatchObject({
+      x0: 7,
+      x1: 8,
+      z0: DOOR_HEIGHT,
+      z1: WALL_HEIGHT,
+      side: 'S',
+    });
+    const south = plan.walls.filter((w) => w.name.startsWith('wall.1'));
+    expect(south.filter((w) => w.z0 === 0).map((w) => [w.x0, w.x1])).toEqual([
+      [2.5, 7],
+      [8, 12.5],
+    ]);
+    // Nothing stands in the doorway between the floor and the lintel.
+    expect(south.some((w) => w.x0 <= 7.5 && w.x1 >= 7.5 && w.z0 < DOOR_HEIGHT)).toBe(false);
+  });
+
+  it("opens the front garden's low south wall for the front door and the gate", () => {
+    const plan = roomPlan3d(ROOMS.frontGarden);
+    expect(plan.openings.find((o) => o.name === 'door_house')).toMatchObject({
+      x0: 10,
+      x1: 11,
+      y0: 6.5,
+      y1: 7,
+      z0: 0,
+      z1: DOOR_HEIGHT,
+    });
+    expect(plan.openings.find((o) => o.name === 'gate')).toMatchObject({ x0: 16.5, x1: 17.5 });
+    // The wall there is the 0.5 m fence, under the door's head: the pieces leave it clear, no lintel.
+    expect(plan.walls.some((w) => w.name.includes('lintel'))).toBe(false);
+    const south = plan.walls.filter((w) => w.name.startsWith('wall.1'));
+    expect(south.some((w) => w.x0 < 10.5 && w.x1 > 10.5)).toBe(false);
+  });
+
+  it('cuts a window in the top wall from its sill to its head', () => {
+    const plan = roomPlan3d(ROOMS.shed);
+    expect(plan.openings.find((o) => o.kind === 'window')).toMatchObject({
+      x0: 8.25,
+      x1: 9.25,
+      y0: 1.5,
+      y1: 2,
+      z0: WINDOW_SILL,
+      z1: WINDOW_HEAD,
+    });
+    expect(wallBox('shed', 'wall.0.sill.window.0')).toMatchObject({ z0: 0, z1: WINDOW_SILL });
+    expect(wallBox('shed', 'wall.0.lintel.window.0')).toMatchObject({
+      z0: WINDOW_HEAD,
+      z1: WALL_HEIGHT,
+    });
+  });
+
+  it('cuts a door in a side wall along y, and none in a building the door stands against', () => {
+    const hallway = roomPlan3d(ROOMS.hallway);
+    expect(hallway.openings.find((o) => o.name === 'door_lounge')).toMatchObject({
+      x0: 5.5,
+      x1: 6,
+      y0: 5,
+      y1: 6,
+    });
+    const garden = roomPlan3d(ROOMS.garden);
+    expect(garden.openings.map((o) => o.name)).toEqual(['gate']);
+    expect(garden.anchors.map((a) => a.key)).toContain('door_study');
+  });
+
+  it('anchors every prop with its wall, in metres', () => {
+    const plan = roomPlan3d(ROOMS.shed);
+    expect(plan.anchors.find((a) => a.key === 'door')).toMatchObject({
+      x: 7.5,
+      y: 6.75,
+      wall: 'S',
+    });
+    expect(plan.anchors.find((a) => a.key === 'workbench')).not.toHaveProperty('wall');
+    expect(plan.anchors).toHaveLength(ROOMS.shed.props.length);
+  });
+});
+
+describe('roomPlan3d furniture', () => {
+  it('stands solid furniture at its height and keeps it solid', () => {
+    const solid = roomPlan3d(ROOMS.lounge).furniture.filter((f) => f.solid);
+    expect(solid.length).toBeGreaterThan(0);
+    expect(solid.map((f) => f.z1)).toContain(heightMetres(20));
+    expect(solid.every((f) => f.z0 === 0)).toBe(true);
+  });
+
+  it('lays flat furniture as a slab, and the road beyond the bounds as floor', () => {
+    const plan = roomPlan3d(ROOMS.frontGarden);
+    expect(plan.floor.find((f) => f.wash === 'asphalt')).toMatchObject({
+      x0: 0,
+      x1: 18,
+      y0: 0,
+      y1: 3,
+      z1: 0,
+    });
+    expect(plan.furniture.find((f) => f.wash === 'soil')).toMatchObject({ z0: 0, z1: 0.01 });
+  });
+
+  it('puts the shed clutter on its foot, not the whole frame', () => {
+    // spr_shelf: (208, 67, 24, 20), 12 px tall on the bottom 8 px.
+    const shelf = roomPlan3d(ROOMS.shed).furniture[0];
+    expect(shelf).toMatchObject({ x0: 6.5, x1: 7.25, y0: 79 / 32, y1: 87 / 32, solid: false });
+    expect(shelf?.z1).toBe(heightMetres(12));
+  });
+});
+
+describe('roomPlan3d collision', () => {
+  it.each(KEYS)('%s: the solid footprints and the door openings are the 2D collision', (key) => {
+    const room = ROOMS[key];
+    const plan = roomPlan3d(room);
+    const collision: Foot[] = [...room.walls, ...furnitureWalls(room.furniture)].map((r) => ({
+      x0: metres(r.x),
+      x1: metres(r.x + r.w),
+      y0: metres(r.y),
+      y1: metres(r.y + r.h),
+    }));
+    const solid = [...plan.walls, ...plan.furniture].filter((b) => b.solid);
+    const doors = plan.openings.filter((o) => o.kind === 'door');
+    // A door is a prop to interact with, not a gap to walk through: the 2D wall is solid across it,
+    // so the wall's pieces and the door's own opening together are the collision, no more and no less.
+    expect(firstDifference([...solid, ...doors], collision)).toBeUndefined();
+    // And every opening lies inside that collision: no door or window is walkable.
+    expect(firstDifference([...plan.openings, ...collision], collision)).toBeUndefined();
+  });
+});
