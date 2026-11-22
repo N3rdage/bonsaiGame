@@ -342,8 +342,9 @@ const BAR_H = 6;
  * all through the location helpers in src/sim/tree.ts.
  *
  * The day clock (src/world/clock.ts) runs from the frame loop while the viewer
- * is closed; `?timeScale=` speeds it up. Sleep (Z) and Sleep a week, from the
- * menu, advance it a day or seven at once (src/world/sleep.ts).
+ * is closed, moving the state's time of day; `?timeScale=` speeds it up. Sleep
+ * (Z) and Sleep a week, from the menu, advance it to the next morning or the
+ * seventh at once (src/world/sleep.ts).
  *
  * While the tutorial runs, its corner panel (src/world/tutorialPanel.ts) sits
  * in the HUD under the badge, redrawn on any publish after the step or the
@@ -400,8 +401,6 @@ export class WorldScene extends Phaser.Scene {
   /** The weather of the room shown, undefined while the setting is off; drawn into `weatherGfx`. */
   private weather: WeatherField | undefined;
   private weatherGfx!: Phaser.GameObjects.Graphics;
-  /** The day clock's accumulator in seconds (src/world/clock.ts); transient. */
-  private clockS = 0;
   private viewer!: TreeViewer;
   private slots: BonsaiTestHook['slots'] = [];
   private toast!: Phaser.GameObjects.Text;
@@ -489,7 +488,6 @@ export class WorldScene extends Phaser.Scene {
     this.panel = undefined;
     this.placing = undefined;
     this.ghost = undefined;
-    this.clockS = 0;
     this.room = SHED_ROOM;
     this.arrivedBeside = '';
     this.roomParts = [];
@@ -2091,8 +2089,7 @@ export class WorldScene extends Phaser.Scene {
   private runClock(deltaMs: number): void {
     const { state, overrides } = this.ctx;
     const timeScale = overrides.timeScale ?? BASE_TIME_SCALE;
-    const tick = tickClock(state, this.clockS, deltaMs / 1000, timeScale);
-    this.clockS = tick.accumulatorS;
+    const tick = tickClock(state, deltaMs / 1000, timeScale);
     this.daysPassed(tick.days, tick.revenue, false);
   }
 

@@ -24,7 +24,7 @@ const WINTER = 3 * DAYS_PER_SEASON + 1;
 const NEXT_WINTER = WINTER + DAYS_PER_SEASON * SEASONS.length;
 /** The day the saves below start on: summer, 40 days before winter, so the turn into autumn passes first. */
 const START = WINTER - 40;
-/** A day every 30 ms of play, so winter is about 1.2 s away and the next winter about 3.4 s past it. */
+/** A day every 90 ms of play, so winter is about 3.6 s away and the next winter about 10 s past it. */
 const FAST = '/?timeScale=10000';
 
 /**

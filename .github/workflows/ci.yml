@@ -16,6 +16,7 @@ concurrency:
 # browser suite against that one build, split across runners because it is the slow part: every
 # walk is paced by real frames on software GL, and the suite runs once on desktop and again by
 # touch on a phone. `checks` is the single required check; it passes only when both passed.
+# Tests tagged @walk are left out here and run on main from walk-tests.yml instead.
 jobs:
   static:
     name: Lint, typecheck, unit tests, build
@@ -106,7 +107,8 @@ jobs:
         env:
           E2E_ARGS: ${{ matrix.args }}
         # Unquoted on purpose: the value is this file's own matrix entry, several arguments.
-        run: npm run test:e2e -- $E2E_ARGS
+        # Tests tagged @walk (long real-time walks) run in walk-tests.yml on a schedule, not here.
+        run: npm run test:e2e -- $E2E_ARGS --grep-invert @walk
 
       - name: Upload Playwright report
         if: failure()

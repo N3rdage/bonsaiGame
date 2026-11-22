@@ -46,7 +46,7 @@ interface BonsaiTestHook {
   readonly viewer?: BonsaiViewerHook;
   /** Key of the room the world is showing, 'shed', 'garden', 'frontGarden', 'lounge', 'hallway', 'study' or 'greenhouse'; '' on the title. */
   readonly room: string;
-  /** World only: the 3D world (Settings, 3D world (preview)): `on` once Babylon is drawing, its `room` (null while off), the scene's mesh count and the capsule's feet in plan metres (x east, y south, z up). */
+  /** World only: the 3D world (Settings, 3D world (preview)): `on` once Babylon is drawing, its `room` (null while off), the scene's mesh count and the player's feet in plan metres (x east, y south, z up). */
   readonly world3d?: {
     readonly on: boolean;
     readonly room:
@@ -61,10 +61,32 @@ interface BonsaiTestHook {
     readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
     /** The names of the room's pieces cut away to the skirting for the camera's heading, sorted; empty while off. */
     readonly cut: readonly string[];
-    /** The way the capsule faces in the plan, radians (0 east, pi/2 south), from its last step; 0 while off. */
+    /** The way the player faces in the plan, radians (0 east, pi/2 south), from its last step; 0 while off. */
     readonly facing: number;
+    /** The model standing for the player ('character': the skinned gardener), null while off. */
+    readonly playerModel: 'character' | null;
+    /** How much of each clip the player's pose is made of now, 0 to 1 and summing to 1 (idle at rest, walk walking, between while they cross-fade); both 0 while off. */
+    readonly clips: { readonly idle: number; readonly walk: number };
     /** True while something casts a shadow onto the floor (the player always does); false while off. */
     readonly shadows: boolean;
+    /** The sun's shadow map: `fixed` while its frustum is the one fitted to the room (not refitted to the casters, so it cannot change as the camera or the player moves), its texel `size`, `bias` and `normalBias`, and the frustum's `window` (left, right, bottom, top, minZ, maxZ in metres); zeros while off. */
+    readonly shadowMap: {
+      readonly fixed: boolean;
+      readonly size: number;
+      readonly bias: number;
+      readonly normalBias: number;
+      readonly window: readonly [number, number, number, number, number, number];
+    };
+    /** The polygon offset the Inked floor and wall art draws with over the boxes it dresses (negative: toward the camera); 0 before the floor's art has loaded and while off. */
+    readonly artDepthOffset: number;
+    /** True while the lit meshes are lit through the viewer's stepped toon ramp and inked with its outline; false while off. */
+    readonly toon: boolean;
+    /** The key of the sheet the 3D floor's Inked tiles are cut from ('spr_floor_shed' in the shed), null until its texture has loaded and while off. */
+    readonly floorSheet: string | null;
+    /** The keys of the sheets the 3D walls, caps and fences are cut from that have loaded, sorted ('spr_shed_cap', 'spr_shed_cap_v', 'spr_shed_wall' in the shed); empty until then and while off. */
+    readonly wallSheets: readonly string[];
+    /** How many modelled details the room has of each kind (the shed's `{ door: 2, window: 1 }`, the garden's `{ door: 1, planting: 3 }`); empty while off. */
+    readonly details: Readonly<Record<string, number>>;
     /** The kind of weather drawn ('petals', 'fireflies', 'leaves' or 'snow': the season's, outdoors, with the weather setting on), null indoors, with the setting off, or while off. */
     readonly weather: string | null;
     /** The id of the last prop a tap or click picked (the same id the 2D world's interactables carry), null before any. */

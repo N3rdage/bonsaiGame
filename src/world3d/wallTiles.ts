@@ -1,0 +1,269 @@
+/**
+ * The 3D walls' Inked art: `wallRuns` (src/world/roomArt.ts) is the layout,
+ * the same sheet and frame per run the 2D room draws, and this lays each run
+ * on the plan box it belongs to, in metres, with each frame's UV rect, then
+ * turns the quads into one mesh's vertex arrays. A back wall's face goes on
+ * the north wall's inner face, the other walls' caps on their tops, and a
+ * fence's bands on both of its long faces. Pure data; the renderer loads the
+ * textures.
+ */
+
+import type { Sheet } from '../world/assets';
+import { ROOM_STYLES, wallRuns, type WallRun } from '../world/roomArt';
+import type { Room } from '../world/shedRoom';
+import type { QuadMeshData } from './floorTiles';
+import { toBabylon, type Vec3 } from './meshes';
+import { metres, type WallBox } from './plan';
+
+/** How far the art lies off the box's surface, so it never z-fights it. */
+export const WALL_LIFT = 0.003;
+
+const EPSILON = 1e-6;
+
+/** A plan wall box and the height its whole wall stands, which a piece cut by a window or door does not reach. */
+export interface WallPiece extends WallBox {
+  readonly height: number;
+}
+
+/** The wall a piece belongs to: `wall.3` for `wall.3.sill.window.0`. */
+function wallOf(name: string): string {
+  return name.split('.').slice(0, 2).join('.');
+}
+
+/** The walls' pieces, each with the full height of its wall (the tallest piece sharing its name's wall). */
+export function wallPieces(walls: readonly WallBox[]): WallPiece[] {
+  const heights = new Map<string, number>();
+  for (const wall of walls) {
+    heights.set(wallOf(wall.name), Math.max(heights.get(wallOf(wall.name)) ?? 0, wall.z1));
+  }
+  return walls.map((wall) => ({ ...wall, height: heights.get(wallOf(wall.name)) ?? wall.z1 }));
+}
+
+/** The runs the walls wear: the ring's, without the windows, which the plan cuts as openings. */
+function artRuns(room: Room): WallRun[] {
+  const window = ROOM_STYLES[room.key].window?.sheet.key;
+  return wallRuns(room).filter((run) => run.sheet.key !== window);
+}
+
+/** The distinct sheets the room's walls are drawn from, each loaded once. */
+export function wallSheets(room: Room): Sheet[] {
+  return [...new Map(artRuns(room).map((run) => [run.sheet.key, run.sheet])).values()];
+}
+
+/** One frame on one surface: its corners bottom-left, bottom-right, top-right, top-left seen from the normal's side, and the frame's UV rect (v up). */
+export interface WallQuad {
+  readonly frame: number;
+  readonly normal: Vec3;
+  readonly corners: readonly [Vec3, Vec3, Vec3, Vec3];
+  readonly u0: number;
+  readonly v0: number;
+  readonly u1: number;
+  readonly v1: number;
+}
+
+/** The quads laid on one wall piece. */
+export interface PieceQuads {
+  readonly piece: string;
+  readonly quads: readonly WallQuad[];
+}
+
+/** A run in plan metres. */
+interface Span {
+  readonly x0: number;
+  readonly x1: number;
+  readonly y0: number;
+  readonly y1: number;
+}
+
+type Kind = 'face' | 'cap' | 'band';
+
+/** Whether the piece's wall runs east-west: the north and south walls do, a piece cut short by a window or door still. */
+function alongX(piece: WallPiece): boolean {
+  if (piece.side === 'N' || piece.side === 'S') return true;
+  if (piece.side === 'W' || piece.side === 'E') return false;
+  return piece.x1 - piece.x0 >= piece.y1 - piece.y0;
+}
+
+/** The part of a run's axis a piece covers, [from, to]: the run's x for a piece along x, its y otherwise. */
+function overlap(span: Span, piece: WallPiece): readonly [number, number] {
+  return alongX(piece)
+    ? [Math.max(span.x0, piece.x0), Math.min(span.x1, piece.x1)]
+    : [Math.max(span.y0, piece.y0), Math.min(span.y1, piece.y1)];
+}
+
+/**
+ * Whether a run is laid on a piece: a face on a north piece; a cap or a band
+ * on a piece it lies across, its extent across the piece's length inside the
+ * piece's own, and sharing some of its length.
+ */
+function claims(kind: Kind, span: Span, piece: WallPiece): boolean {
+  const [from, to] = overlap(span, piece);
+  if (to - from <= EPSILON) return false;
+  if (kind === 'face') return piece.side === 'N';
+  const [lo, hi] = alongX(piece) ? [span.y0, span.y1] : [span.x0, span.x1];
+  const [a0, a1] = alongX(piece) ? [piece.y0, piece.y1] : [piece.x0, piece.x1];
+  return lo >= a0 - EPSILON && hi <= a1 + EPSILON;
+}
+
+/** A frame's UV rect for the fractions of it a quad shows (v up from the frame's bottom), inset half a texel. */
+function frameUv(
+  sheet: Sheet,
+  frame: number,
+  image: { readonly w: number; readonly h: number },
+  show: readonly [number, number, number, number],
+): Pick<WallQuad, 'u0' | 'v0' | 'u1' | 'v1'> {
+  const columns = Math.max(1, Math.floor(image.w / sheet.frameWidth));
+  const left = (frame % columns) * sheet.frameWidth;
+  const top = Math.floor(frame / columns) * sheet.frameHeight;
+  const [fu0, fv0, fu1, fv1] = show;
+  return {
+    u0: (left + fu0 * sheet.frameWidth) / image.w + 0.5 / image.w,
+    v0: 1 - (top + (1 - fv0) * sheet.frameHeight) / image.h + 0.5 / image.h,
+    u1: (left + fu1 * sheet.frameWidth) / image.w - 0.5 / image.w,
+    v1: 1 - (top + (1 - fv1) * sheet.frameHeight) / image.h - 0.5 / image.h,
+  };
+}
+
+/** The normals a band's art faces: both long faces of the piece. */
+function bandNormals(piece: WallPiece): Vec3[] {
+  return alongX(piece)
+    ? [
+        { x: 0, y: 1, z: 0 },
+        { x: 0, y: -1, z: 0 },
+      ]
+    : [
+        { x: 1, y: 0, z: 0 },
+        { x: -1, y: 0, z: 0 },
+      ];
+}
+
+/** A run's quad on a piece's vertical face with `normal`: the run clipped to the piece along its length and the piece's heights. */
+function standing(
+  span: Span,
+  piece: WallPiece,
+  normal: Vec3,
+): Pick<WallQuad, 'normal' | 'corners'> & {
+  readonly show: readonly [number, number, number, number];
+} {
+  const along = alongX(piece);
+  const [r0, r1] = along ? [span.x0, span.x1] : [span.y0, span.y1];
+  const [c0, c1] = overlap(span, piece);
+  const plane = along
+    ? normal.y > 0
+      ? piece.y1 + WALL_LIFT
+      : piece.y0 - WALL_LIFT
+    : normal.x > 0
+      ? piece.x1 + WALL_LIFT
+      : piece.x0 - WALL_LIFT;
+  // The viewer's right along the axis: (n.y, -n.x) in the plan.
+  const right = along ? normal.y : -normal.x;
+  const [left, rightEnd] = right > 0 ? [c0, c1] : [c1, c0];
+  const at = (s: number, z: number): Vec3 =>
+    along ? { x: s, y: plane, z } : { x: plane, y: s, z };
+  const length = r1 - r0;
+  const fu =
+    right > 0 ? [(c0 - r0) / length, (c1 - r0) / length] : [(r1 - c1) / length, (r1 - c0) / length];
+  return {
+    normal,
+    corners: [
+      at(left, piece.z0),
+      at(rightEnd, piece.z0),
+      at(rightEnd, piece.z1),
+      at(left, piece.z1),
+    ],
+    show: [fu[0] ?? 0, piece.z0 / piece.height, fu[1] ?? 1, piece.z1 / piece.height],
+  };
+}
+
+/**
+ * The quads of every run of `sheet` on the room's wall pieces, for an image of
+ * `imageWidth` x `imageHeight` px, grouped by piece. A run is laid on the
+ * pieces of the first wall that claims it, so a corner tile the north and west
+ * walls share is drawn once; each piece shows the part of the run it covers,
+ * and its height as that fraction of the frame. Every rect is inset half a
+ * texel so a nearest sample never reads the neighbouring frame.
+ */
+export function wallLayout(
+  room: Room,
+  pieces: readonly WallPiece[],
+  sheet: Sheet,
+  imageWidth: number,
+  imageHeight: number,
+): PieceQuads[] {
+  const style = ROOM_STYLES[room.key];
+  const image = { w: imageWidth, h: imageHeight };
+  const byPiece = new Map<string, WallQuad[]>();
+  for (const run of artRuns(room).filter((r) => r.sheet.key === sheet.key)) {
+    const frame = run.frame ?? 0;
+    const span: Span = {
+      x0: metres(run.x),
+      x1: metres(run.x + run.w),
+      y0: metres(run.y),
+      y1: metres(run.y + run.h),
+    };
+    const kind: Kind = !style.face
+      ? 'band'
+      : run.sheet.key === style.face.sheet.key
+        ? 'face'
+        : 'cap';
+    const claimed = pieces.filter((piece) => claims(kind, span, piece));
+    const first = claimed[0];
+    if (!first) continue;
+    for (const piece of claimed.filter((p) => wallOf(p.name) === wallOf(first.name))) {
+      const quads: WallQuad[] = [];
+      if (kind === 'cap') {
+        if (Math.abs(piece.z1 - piece.height) > EPSILON) continue;
+        const [x0, x1] = [Math.max(span.x0, piece.x0), Math.min(span.x1, piece.x1)];
+        const [y0, y1] = [Math.max(span.y0, piece.y0), Math.min(span.y1, piece.y1)];
+        const [w, h] = [span.x1 - span.x0, span.y1 - span.y0];
+        const z = piece.height + WALL_LIFT;
+        quads.push({
+          frame,
+          normal: { x: 0, y: 0, z: 1 },
+          corners: [
+            { x: x0, y: y1, z },
+            { x: x1, y: y1, z },
+            { x: x1, y: y0, z },
+            { x: x0, y: y0, z },
+          ],
+          ...frameUv(sheet, frame, image, [
+            (x0 - span.x0) / w,
+            (span.y1 - y1) / h,
+            (x1 - span.x0) / w,
+            (span.y1 - y0) / h,
+          ]),
+        });
+      } else {
+        const normals = kind === 'face' ? [{ x: 0, y: 1, z: 0 }] : bandNormals(piece);
+        for (const normal of normals) {
+          const { show, ...placed } = standing(span, piece, normal);
+          quads.push({ frame, ...placed, ...frameUv(sheet, frame, image, show) });
+        }
+      }
+      byPiece.set(piece.name, [...(byPiece.get(piece.name) ?? []), ...quads]);
+    }
+  }
+  return [...byPiece].map(([piece, quads]) => ({ piece, quads }));
+}
+
+/**
+ * The vertex arrays of one mesh holding every quad, wound to face its normal
+ * in Babylon's left-handed frame, positioned relative to `origin` (the piece's
+ * middle, in plan metres) so the mesh can ride its box's transform.
+ */
+export function wallMeshData(quads: readonly WallQuad[], origin: Vec3): QuadMeshData {
+  const data: QuadMeshData = { positions: [], normals: [], uvs: [], indices: [] };
+  quads.forEach((q, n) => {
+    const uvs = [q.u0, q.v0, q.u1, q.v0, q.u1, q.v1, q.u0, q.v1];
+    q.corners.forEach((c) => {
+      const at = toBabylon({ x: c.x - origin.x, y: c.y - origin.y, z: c.z - origin.z });
+      const normal = toBabylon(q.normal);
+      data.positions.push(at.x, at.y, at.z);
+      data.normals.push(normal.x, normal.y, normal.z);
+    });
+    data.uvs.push(...uvs);
+    const first = n * 4;
+    data.indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
+  });
+  return data;
+}

@@ -11,7 +11,9 @@
  * read as none from older saves; a duplicate placed id is refused and
  * `nextPlacedId` is raised above every placed id. Version 6 (`SaveFileV6`)
  * has version 5's shape; the greenhouse shrank to 5 x 3.5 m between them, so
- * a version-5 save passes through `migrateGreenhouseGrid`.
+ * a version-5 save passes through `migrateGreenhouseGrid`. Version 7
+ * (`SaveFileV7`) adds the time of day (`timeOfDayS`), read as morning (0)
+ * from older saves and from a value outside the day.
  * Storage is injected (MemorySaveStorage here, localStorage in src/platform)
  * so this module stays free of DOM APIs.
  */
@@ -20,6 +22,7 @@ import { onGreenhouseFloor } from './greenhouseFloor';
 import { createInventory, inventoryAdd } from './inventory';
 import { SPECIES_KEYS } from './species';
 import { STYLE_KEYS } from './styles';
+import { SECONDS_PER_DAY } from './timeOfDay';
 import { DISPLAYED_PREFIX, MAX_TREE_NAME_LENGTH, createTree } from './tree';
 import { tutorialStepFromSave } from './tutorial';
 import type {
@@ -40,7 +43,7 @@ import type {
   WireRecord,
 } from './types';
 
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 export const SAVE_SLOT_COUNT = 3;
 
 // Size caps on untrusted save text. A save over a count cap or the key cap is
@@ -63,15 +66,18 @@ export const MAX_SAVE_STYLE_TAGS = 32;
 export const MAX_SAVE_KEY_LENGTH = 64;
 
 /**
- * The shape `serializeState` writes. Version 5 was the same shape with its
- * greenhouse items laid out on the old 22x10 floor; version 4 was version 5
- * without `placed` and `nextPlacedId`; version 3 was version 4 with the old
- * display keys; version 2 was version 3 without `seasonTipShown`.
+ * The shape `serializeState` writes. Version 6 was this shape without
+ * `timeOfDayS`; version 5 was version 6 with its greenhouse items laid out on
+ * the old 22x10 floor; version 4 was version 5 without `placed` and
+ * `nextPlacedId`; version 3 was version 4 with the old display keys; version 2
+ * was version 3 without `seasonTipShown`.
  */
-export interface SaveFileV6 {
-  version: 6;
+export interface SaveFileV7 {
+  version: 7;
   savedAt: string;
   day: number;
+  /** Game seconds into the day, in [0, SECONDS_PER_DAY). */
+  timeOfDayS: number;
   money: number;
   inventory: Inventory;
   trees: BonsaiTree[];
@@ -130,12 +136,13 @@ export function formatSaveTimestamp(date: Date): string {
   );
 }
 
-/** Writes a version-6 save. `state.paused` is transient and never written; loads start unpaused. */
+/** Writes a version-7 save. `state.paused` is transient and never written; loads start unpaused. */
 export function serializeState(state: GameState, now: Date): string {
-  const file: SaveFileV6 = {
+  const file: SaveFileV7 = {
     version: SAVE_VERSION,
     savedAt: formatSaveTimestamp(now),
     day: state.day,
+    timeOfDayS: state.timeOfDayS,
     money: state.money,
     inventory: state.inventory,
     trees: state.trees,
@@ -172,6 +179,7 @@ export function deserializeSave(text: string): GameState {
   if (version === 4) return readV4Save(raw);
   if (version === 5) return migrateGreenhouseGrid(readPlacedSave(raw, 'Save v5'));
   if (version === 6) return readPlacedSave(raw, 'Save v6');
+  if (version === 7) return readV7Save(raw);
   throw new Error(`Unsupported save version: ${String(raw.version)}`);
 }
 
@@ -422,6 +430,8 @@ export function importPrototypeSave(raw: unknown): GameState {
   const trees = coerceTrees(camelizeKeys(raw.trees), 'Prototype save');
   return migrateDisplayKeys({
     day: int(raw.game_day, 0),
+    // The prototype's clock accumulator was never saved; the game wakes at morning.
+    timeOfDayS: 0,
     money: num(raw.money, 0),
     inventory: mergeInventory(raw.inventory),
     trees,
@@ -438,16 +448,18 @@ export function importPrototypeSave(raw: unknown): GameState {
 }
 
 // ---------------------------------------------------------------------------
-// Versions 2 to 6: this port's shape
+// Versions 2 to 7: this port's shape
 
 /**
  * A version-2 save: version 3's fields without `seasonTipShown`, which
  * migrates as false so the tip can still fire once. No version before 5 had
- * placed furniture, so they all load with none.
+ * placed furniture, so they all load with none; no version before 7 had the
+ * time of day, so they all wake at morning.
  */
 function readV2Save(raw: Record<string, unknown>, where = 'Save v2'): GameState {
   return {
     day: int(raw.day, 0),
+    timeOfDayS: 0,
     money: num(raw.money, 0),
     inventory: mergeInventory(raw.inventory),
     trees: coerceTrees(raw.trees, where),
@@ -477,7 +489,7 @@ function placeableKind(v: unknown, where: string): PlaceableKind {
   throw new Error(`${where}: unknown placed kind ${String(v)}`);
 }
 
-/** A version-5 or version-6 save, one shape: version 4 plus the placed furniture. */
+/** A version-5, version-6 or version-7 save's fields bar the time of day: version 4 plus the placed furniture. */
 function readPlacedSave(raw: Record<string, unknown>, where: string): GameState {
   const rawPlaced = Array.isArray(raw.placed)
     ? capped(raw.placed, MAX_SAVE_PLACED, `${where} placed`)
@@ -502,6 +514,18 @@ function readPlacedSave(raw: Record<string, unknown>, where: string): GameState 
     ...readV4Save(raw, where),
     placed,
     nextPlacedId: Math.max(int(raw.nextPlacedId, 0), maxId + 1),
+  };
+}
+
+/**
+ * A version-7 save: version 6 plus `timeOfDayS`. A time of day that is not a
+ * number or lies outside [0, SECONDS_PER_DAY) loads as morning (0).
+ */
+function readV7Save(raw: Record<string, unknown>): GameState {
+  const s = num(raw.timeOfDayS, 0);
+  return {
+    ...readPlacedSave(raw, 'Save v7'),
+    timeOfDayS: s >= 0 && s < SECONDS_PER_DAY ? s : 0,
   };
 }
 

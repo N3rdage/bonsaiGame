@@ -58,7 +58,7 @@ function expectIntegerIds(state: GameState): void {
 
 describe('constants', () => {
   it('match the spec', () => {
-    expect(SAVE_VERSION).toBe(6);
+    expect(SAVE_VERSION).toBe(7);
     expect(SAVE_SLOT_COUNT).toBe(3);
   });
 });
@@ -70,14 +70,15 @@ describe('formatSaveTimestamp', () => {
   });
 });
 
-describe('v6 round trip', () => {
+describe('v7 round trip', () => {
   it('is deep-equal and does not alias the original', () => {
     const state = createNewGameState();
     must(state.trees[0]).trunk.movement.push({ y: 5, angleDeg: 90 });
     const text = serializeState(state, NOW);
     expect(JSON.parse(text)).toMatchObject({
-      version: 6,
+      version: 7,
       savedAt: '2026-01-02 03:04',
+      timeOfDayS: 0,
       seasonTipShown: false,
       placed: [],
       nextPlacedId: 0,
@@ -115,6 +116,14 @@ describe('v6 round trip', () => {
   it('tolerates a trailing NUL byte', () => {
     const state = createNewGameState();
     expect(deserializeSave(serializeState(state, NOW) + '\0')).toEqual(state);
+  });
+
+  it('keeps the time of day', () => {
+    const state = createNewGameState();
+    state.timeOfDayS = 712.25;
+    const text = serializeState(state, NOW);
+    expect(JSON.parse(text)).toMatchObject({ timeOfDayS: 712.25 });
+    expect(deserializeSave(text)).toEqual(state);
   });
 
   it('keeps seasonTipShown once the tip has fired', () => {
@@ -156,7 +165,9 @@ describe('v6 round trip', () => {
       y: 80,
     });
     const dup = JSON.stringify({ ...file, placed: [at(1), at(1)], nextPlacedId: 2 });
-    expect(() => deserializeSave(dup)).toThrow('Save v6: duplicate placed id 1');
+    expect(() => deserializeSave(dup)).toThrow('Save v7: duplicate placed id 1');
+    const dupV6 = JSON.stringify({ ...file, version: 6, placed: [at(1), at(1)], nextPlacedId: 2 });
+    expect(() => deserializeSave(dupV6)).toThrow('Save v6: duplicate placed id 1');
     const dupV5 = JSON.stringify({ ...file, version: 5, placed: [at(1), at(1)], nextPlacedId: 2 });
     expect(() => deserializeSave(dupV5)).toThrow('Save v5: duplicate placed id 1');
     const load = (nextPlacedId: number) =>
@@ -195,10 +206,10 @@ describe('v5 -> v6 migration', () => {
     ]);
   });
 
-  it('writes version 6 and then round-trips unchanged', () => {
+  it('writes version 7 and then round-trips unchanged', () => {
     const loaded = deserializeSave(V5);
     const text = serializeState(loaded, NOW);
-    expect(JSON.parse(text)).toMatchObject({ version: 6 });
+    expect(JSON.parse(text)).toMatchObject({ version: 7 });
     expect(deserializeSave(text)).toEqual(loaded);
   });
 
@@ -241,6 +252,7 @@ function savedWith(version: number, ...locations: string[]): string {
   state.trees = locations.map((location, id) => ({ ...structuredClone(starter), id, location }));
   state.nextTreeId = locations.length;
   const file = JSON.parse(serializeState(state, NOW)) as Record<string, unknown>;
+  if (version < 7) delete file.timeOfDayS;
   if (version < 5) {
     delete file.placed;
     delete file.nextPlacedId;
@@ -329,7 +341,8 @@ describe('v3 -> v4 migration', () => {
     expect(JSON.parse(serializeState(loaded, NOW))).toEqual({
       ...file,
       inventory: { ...(file.inventory as object), pedestal: 0, floor_shelf: 0 },
-      version: 6,
+      version: 7,
+      timeOfDayS: 0,
       placed: [],
       nextPlacedId: 0,
     });
@@ -339,6 +352,49 @@ describe('v3 -> v4 migration', () => {
     expect(locationsOf(deserializeSave(savedWith(4, 'displayed:shed_main')))).toEqual([
       'displayed:shed_main',
     ]);
+  });
+});
+
+describe('v6 -> v7 migration', () => {
+  it.each([2, 3, 4, 5, 6])('wakes a version-%d save at morning', (version) => {
+    const text = savedWith(version, 'shed');
+    expect(JSON.parse(text)).not.toHaveProperty('timeOfDayS');
+    expect(deserializeSave(text).timeOfDayS).toBe(0);
+    // A stray time of day in a save from before version 7 predates the field.
+    const stray = { ...(JSON.parse(text) as object), timeOfDayS: 500 };
+    expect(deserializeSave(JSON.stringify(stray)).timeOfDayS).toBe(0);
+  });
+
+  it('wakes imported prototype saves at morning', () => {
+    expect(deserializeSave(DAY14).timeOfDayS).toBe(0);
+    expect(deserializeSave(DAY730).timeOfDayS).toBe(0);
+  });
+
+  it('reads the edges of the day and a numeric string as written', () => {
+    const file = JSON.parse(serializeState(createNewGameState(), NOW)) as Record<string, unknown>;
+    const load = (timeOfDayS: unknown) =>
+      deserializeSave(JSON.stringify({ ...file, timeOfDayS })).timeOfDayS;
+    expect(load(0)).toBe(0);
+    expect(load(899.5)).toBe(899.5);
+    expect(load('450')).toBe(450);
+  });
+
+  it.each([-1, -0.001, 900, 1e9, 'dusk', null, {}])(
+    'loads a time of day of %j as morning',
+    (timeOfDayS) => {
+      const file = JSON.parse(serializeState(createNewGameState(), NOW)) as Record<string, unknown>;
+      const loaded = deserializeSave(JSON.stringify({ ...file, timeOfDayS }));
+      expect(loaded.timeOfDayS).toBe(0);
+    },
+  );
+
+  it('loads a version-7 save without the field at morning', () => {
+    const { timeOfDayS, ...rest } = JSON.parse(serializeState(createNewGameState(), NOW)) as Record<
+      string,
+      unknown
+    >;
+    expect(timeOfDayS).toBe(0);
+    expect(deserializeSave(JSON.stringify(rest)).timeOfDayS).toBe(0);
   });
 });
 
@@ -367,7 +423,7 @@ describe('v2 -> v3 migration', () => {
 
 describe('deserializeSave version dispatch', () => {
   it('throws on an unknown version, naming it', () => {
-    expect(() => deserializeSave('{"version":7,"trees":[]}')).toThrow(/7/);
+    expect(() => deserializeSave('{"version":8,"trees":[]}')).toThrow(/8/);
     expect(() => deserializeSave('{"trees":[]}')).toThrow(/version/);
   });
 
@@ -597,7 +653,7 @@ describe('untrusted save text', () => {
         });
       expect(read(must(deserializeSave(filled(max)).trees[0]))).toHaveLength(max);
       expect(() => deserializeSave(filled(max + 1))).toThrow(
-        `Save v6 tree 0 ${name}: ${String(max + 1)} entries exceed the cap of ${String(max)}`,
+        `Save v7 tree 0 ${name}: ${String(max + 1)} entries exceed the cap of ${String(max)}`,
       );
     },
   );
@@ -608,7 +664,7 @@ describe('untrusted save text', () => {
     };
     expect(deserializeSave(v6With(trees(MAX_SAVE_TREES))).trees).toHaveLength(MAX_SAVE_TREES);
     expect(() => deserializeSave(v6With(trees(MAX_SAVE_TREES + 1)))).toThrow(
-      'Save v6 trees: 501 entries exceed the cap of 500',
+      'Save v7 trees: 501 entries exceed the cap of 500',
     );
     const v1 = { version: 1, trees: many(MAX_SAVE_TREES + 1, { species_key: 'pine' }) };
     expect(() => importPrototypeSave(v1)).toThrow('Prototype save trees: 501 entries exceed');
@@ -624,7 +680,7 @@ describe('untrusted save text', () => {
     };
     expect(deserializeSave(v6With(placed(MAX_SAVE_PLACED))).placed).toHaveLength(MAX_SAVE_PLACED);
     expect(() => deserializeSave(v6With(placed(MAX_SAVE_PLACED + 1)))).toThrow(
-      'Save v6 placed: 501 entries exceed the cap of 500',
+      'Save v7 placed: 501 entries exceed the cap of 500',
     );
   });
 
@@ -639,14 +695,14 @@ describe('untrusted save text', () => {
     const loaded = deserializeSave(v6With((_, t) => (t.location = at(MAX_SAVE_KEY_LENGTH))));
     expect(must(loaded.trees[0]).location).toBe(at(MAX_SAVE_KEY_LENGTH));
     expect(() => deserializeSave(v6With((_, t) => (t.location = at(65))))).toThrow(
-      'Save v6 tree 0 location: 65 characters exceed the cap of 64',
+      'Save v7 tree 0 location: 65 characters exceed the cap of 64',
     );
     const room = (r: string) => (file: Record<string, unknown>) => {
       file.placed = [{ id: 0, kind: 'pedestal', room: r }];
     };
     expect(deserializeSave(v6With(room(at(64)))).placed[0]?.room).toBe(at(64));
     expect(() => deserializeSave(v6With(room(at(65))))).toThrow(
-      'Save v6 placed 0 room: 65 characters exceed the cap of 64',
+      'Save v7 placed 0 room: 65 characters exceed the cap of 64',
     );
   });
 });
@@ -668,7 +724,7 @@ describe('slot metadata', () => {
       day: 0,
       money: 100,
       savedAt: '2026-01-02 03:04',
-      version: 6,
+      version: 7,
     });
     expect(saveSlotMetadata(storage, 3)).toBeUndefined();
   });
