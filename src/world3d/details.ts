@@ -135,7 +135,15 @@ function plantingParts(x: number, y: number): ModelPart[] {
   const stem = STEM.width / 2;
   const crown = CROWN.width / 2;
   return [
-    { wash: 'wood', x0: x - stem, x1: x + stem, y0: y - stem, y1: y + stem, z0: 0, z1: STEM.height },
+    {
+      wash: 'wood',
+      x0: x - stem,
+      x1: x + stem,
+      y0: y - stem,
+      y1: y + stem,
+      z0: 0,
+      z1: STEM.height,
+    },
     {
       wash: 'runner',
       x0: x - crown,
@@ -170,13 +178,11 @@ export function roomDetails(room: Room, plan: RoomPlan3d): Detail[] {
     .map((bed): Detail => ({ name: bed.name, kind: 'hedge', parts: hedgeParts(bed) }));
   const plantings = room.props
     .filter((prop) => prop.speciesKey !== undefined)
-    .map(
-      (prop): Detail => ({
-        name: prop.key,
-        kind: 'planting',
-        parts: plantingParts(metres(prop.x), metres(prop.y + prop.h / 2)),
-      }),
-    );
+    .map((prop): Detail => ({
+      name: prop.key,
+      kind: 'planting',
+      parts: plantingParts(metres(prop.x), metres(prop.y + prop.h / 2)),
+    }));
   return [...openings, ...hedges, ...plantings];
 }
 

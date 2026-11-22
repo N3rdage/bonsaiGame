@@ -75,6 +75,8 @@ interface BonsaiTestHook {
     readonly floorSheet: string | null;
     /** The keys of the sheets the 3D walls, caps and fences are cut from that have loaded, sorted ('spr_shed_cap', 'spr_shed_cap_v', 'spr_shed_wall' in the shed); empty until then and while off. */
     readonly wallSheets: readonly string[];
+    /** How many modelled details the room has of each kind (the shed's `{ door: 2, window: 1 }`, the garden's `{ door: 1, planting: 3 }`); empty while off. */
+    readonly details: Readonly<Record<string, number>>;
     /** The kind of weather drawn ('petals', 'fireflies', 'leaves' or 'snow': the season's, outdoors, with the weather setting on), null indoors, with the setting off, or while off. */
     readonly weather: string | null;
     /** The id of the last prop a tap or click picked (the same id the 2D world's interactables carry), null before any. */

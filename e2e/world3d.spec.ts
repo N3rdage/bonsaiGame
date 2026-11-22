@@ -4,6 +4,9 @@ import type { Page } from '@playwright/test';
 import { serializeState } from '../src/sim/save';
 import { createNewGameState } from '../src/sim/state';
 import { createTree } from '../src/sim/tree';
+import { ROOMS } from '../src/world/gardenRoom';
+import type { RoomKey } from '../src/world/shedRoom';
+import { wallSheets } from '../src/world3d/wallTiles';
 import {
   bootWorld,
   clickLogical,
@@ -37,17 +40,14 @@ async function world3d(page: Page): Promise<NonNullable<BonsaiTestHook['world3d'
   return state;
 }
 
-/** Every room these tests visit dresses its walls from three sheets: a face and two caps, or a fence, its sides and its corner posts. */
-const WALL_SHEET_COUNT = 3;
-
-/** Waits for the renderer to be up and drawing `room`, its floor tiles and wall art laid. */
-async function waitForRoom(page: Page, room: string): Promise<void> {
+/** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid. */
+async function waitForRoom(page: Page, room: RoomKey): Promise<void> {
   await page.waitForFunction(
     ([r, sheets]) =>
       window.__bonsai?.world3d?.room === r &&
       window.__bonsai.world3d.floorSheet !== null &&
       window.__bonsai.world3d.wallSheets.length === sheets,
-    [room, WALL_SHEET_COUNT] as const,
+    [room, wallSheets(ROOMS[room]).length] as const,
   );
 }
 
@@ -408,6 +408,16 @@ test.describe('the 3D world', () => {
       'spr_fence_corner',
       'spr_fence_v',
     ]);
+  });
+
+  test("models each room's doors, windows and plantings from its room data", async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    expect((await world3d(page)).details).toEqual({ door: 2, window: 1 });
+    await shedToGarden(page);
+    await waitForRoom(page, 'garden');
+    expect((await world3d(page)).details).toEqual({ door: 1, planting: 3 });
   });
 
   test('draws the garden with the player casting a shadow on the floor', async ({ page }) => {
