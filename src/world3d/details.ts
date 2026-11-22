@@ -29,8 +29,11 @@ const LEAF = 0.05;
 const GLASS = 0.03;
 /** Windows wider than this get a mullion down the middle, metres. */
 const MULLION_OVER = 1;
-/** A box hedge stands this tall on its bed (metres) and is inset from the bed's edge by `HEDGE_INSET`. */
-const HEDGE_HEIGHT = 0.6;
+/**
+ * A hedge is a low planted border, this tall (metres), so the player, who walks
+ * over the bed in the 2D plan, steps over it. It is inset from the bed's edge by `HEDGE_INSET`.
+ */
+const HEDGE_HEIGHT = 0.25;
 const HEDGE_INSET = 0.04;
 /** A source plant's shrub: a stem and a crown over its standing point (metres). */
 const STEM = { width: 0.08, height: 0.3 };
@@ -61,17 +64,20 @@ function bar(
     : { wash, x0: u0, x1: u1, y0: a0, y1: a1, z0, z1 };
 }
 
-/** A door in `o`: a frame of jambs and a head round a leaf. */
-function doorParts(o: Opening): ModelPart[] {
+/**
+ * A door in `o`: a frame of jambs and a head round a leaf. A door in a fence
+ * lower than the opening is a gate, as tall as its fence (`top`).
+ */
+function doorParts(o: Opening, top: number): ModelPart[] {
   const alongX = o.x1 - o.x0 >= o.y1 - o.y0;
   const [a0, a1] = alongX ? [o.x0, o.x1] : [o.y0, o.y1];
   const depth = alongX ? o.y1 - o.y0 : o.x1 - o.x0;
   const leaf = Math.min(1, LEAF / depth);
   return [
-    bar(o, 'wood', a0, a0 + BAR, o.z0, o.z1),
-    bar(o, 'wood', a1 - BAR, a1, o.z0, o.z1),
-    bar(o, 'wood', a0 + BAR, a1 - BAR, o.z1 - BAR, o.z1),
-    bar(o, 'floor', a0 + BAR, a1 - BAR, o.z0, o.z1 - BAR, leaf),
+    bar(o, 'wood', a0, a0 + BAR, o.z0, top),
+    bar(o, 'wood', a1 - BAR, a1, o.z0, top),
+    bar(o, 'wood', a0 + BAR, a1 - BAR, top - BAR, top),
+    bar(o, 'floor', a0 + BAR, a1 - BAR, o.z0, top - BAR, leaf),
   ];
 }
 
@@ -109,10 +115,10 @@ function touches(a: WallBox, o: Opening): boolean {
  * The wall piece an opening's detail hangs from: the lintel over it, which the
  * camera's cut takes away whole, else its sill, else any piece it touches.
  */
-function hostOf(o: Opening, walls: readonly WallBox[]): string | undefined {
+function hostOf(o: Opening, walls: readonly WallBox[]): WallBox | undefined {
   const named = (kind: string): WallBox | undefined =>
     walls.find((wall) => wall.name.endsWith(`.${kind}.${o.name}`));
-  return (named('lintel') ?? named('sill') ?? walls.find((wall) => touches(wall, o)))?.name;
+  return named('lintel') ?? named('sill') ?? walls.find((wall) => touches(wall, o));
 }
 
 /** A box hedge on a bed's footprint. */
@@ -168,8 +174,8 @@ export function roomDetails(room: Room, plan: RoomPlan3d): Detail[] {
     return {
       name: o.name,
       kind: o.kind,
-      ...(host === undefined ? {} : { host }),
-      parts: o.kind === 'door' ? doorParts(o) : windowParts(o),
+      ...(host === undefined ? {} : { host: host.name }),
+      parts: o.kind === 'door' ? doorParts(o, Math.min(o.z1, host?.z1 ?? o.z1)) : windowParts(o),
     };
   });
   const hedges = plan.floor
