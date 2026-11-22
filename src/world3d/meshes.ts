@@ -5,6 +5,7 @@
  * axis mapping are unit-testable.
  */
 
+import { CHARACTER_HEIGHT } from './character';
 import {
   DOOR_HEIGHT,
   DOOR_WIDTH,
@@ -81,9 +82,8 @@ export function meshSpecs(plan: RoomPlan3d): MeshSpec[] {
   return [...plan.floor, ...walls, ...boxes].map(specOf);
 }
 
-/** A capsule 1.6 m tall and 0.3 m in radius stands for the player until there is a model. */
-export const PLAYER_HEIGHT = 1.6;
-export const PLAYER_RADIUS = 0.3;
+/** The player's height, metres: the character's, which the camera looks at the middle of. */
+export const PLAYER_HEIGHT = CHARACTER_HEIGHT;
 
 /** The player's feet in plan metres, from the 2D player's position in room px. */
 export function playerFeet(px: { readonly x: number; readonly y: number }): Vec3 {
