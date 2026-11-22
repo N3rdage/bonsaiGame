@@ -343,7 +343,7 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-furniture.png');
   });
 
-  test('draws the garden with the shadows of the player and the furniture', async ({ page }) => {
+  test('draws the garden with the player casting a shadow on the floor', async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
     test.setTimeout(120_000);
     await bootWorld(page);

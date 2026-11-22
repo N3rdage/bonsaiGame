@@ -526,7 +526,7 @@ export class Renderer {
   private sky(field: WeatherField | undefined): void {
     this.weatherKind = weatherKind(field);
     if (!field) {
-      this.weatherMesh?.dispose();
+      this.weatherMesh?.dispose(false, true);
       this.weatherMesh = undefined;
       this.weatherParts = undefined;
       return;
