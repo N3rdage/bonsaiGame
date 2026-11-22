@@ -322,6 +322,95 @@ test.describe('the 3D world', () => {
   );
 
   test(
+    'a touch tap near a prop, off its box, uses the prop; one on open floor walks',
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(
+        test.info().project.name !== 's22-landscape',
+        'the touch target is measured on the S22',
+      );
+      test.setTimeout(120_000);
+      const errors = collectErrors(page);
+      await bootWorld(page);
+      await waitForRoom(page, 'shed');
+      await skipTutorial(page, true);
+      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      const canvas = await page.locator('#game canvas').boundingBox();
+      if (!canvas) throw new Error('no canvas');
+      const tapAt = async (x: number, y: number): Promise<void> => {
+        await page.touchscreen.tap(
+          canvas.x + (x * canvas.width) / 480,
+          canvas.y + (y * canvas.height) / 270,
+        );
+      };
+      const settle = async (): Promise<void> => {
+        let before = '';
+        await expect
+          .poll(async () => {
+            const now = JSON.stringify(
+              (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
+            );
+            const still = now === before;
+            before = now;
+            await page.waitForTimeout(250);
+            return still;
+          }, POLL)
+          .toBe(true);
+      };
+      await settle();
+
+      // A touch tap on open floor, more than twice the target from every prop, walks there.
+      const start = (await world3d(page)).player;
+      const bare = (await world3d(page)).hotspots;
+      const clear = [-150, -100, 100, 150]
+        .flatMap((dx) => [-50, 40, 60].map((dy) => ({ x: 240 + dx, y: 135 + dy })))
+        .find((p) => bare.every((h) => Math.hypot(h.x - p.x, h.y - p.y) > 62));
+      if (!clear) throw new Error('no bare floor on screen');
+      await tapAt(clear.x, clear.y);
+      await expect
+        .poll(async () => {
+          const p = (await world3d(page)).player;
+          return Math.hypot((p?.x ?? 0) - (start?.x ?? 0), (p?.y ?? 0) - (start?.y ?? 0));
+        }, POLL)
+        .toBeGreaterThan(0.5);
+      expect((await world3d(page)).picked).toBeNull();
+      await settle();
+
+      // The S22's tap target is 31 game px (44 CSS px at 1.42 CSS px each). A tap 26 px (37 CSS px)
+      // from the middle of a prop, outside every prop's box and nearest that prop's middle, is
+      // inside its target: the prop is picked, not the floor.
+      const spots = (await world3d(page)).hotspots;
+      const offset = 26;
+      const aim = spots
+        .filter((h) => h.id !== 'door_lounge')
+        .flatMap((h) =>
+          [
+            { dx: offset, dy: 0 },
+            { dx: -offset, dy: 0 },
+            { dx: 0, dy: offset },
+            { dx: 0, dy: -offset },
+          ].map(({ dx, dy }) => ({ id: h.id, x: h.x + dx, y: h.y + dy })),
+        )
+        .find(
+          (p) =>
+            p.x > 20 &&
+            p.x < 460 &&
+            p.y > 20 &&
+            p.y < 250 &&
+            spots.every(
+              (o) =>
+                (Math.abs(p.x - o.x) > o.w / 2 + 1 || Math.abs(p.y - o.y) > o.h / 2 + 1) &&
+                (o.id === p.id || Math.hypot(p.x - o.x, p.y - o.y) > offset + 2),
+            ),
+        );
+      if (!aim) throw new Error('no prop with clear floor beside it');
+      await tapAt(aim.x, aim.y);
+      await expect.poll(async () => (await world3d(page)).picked, POLL).toBe(aim.id);
+      expect(errors).toEqual([]);
+    },
+  );
+
+  test(
     "stands the room's trees on their spots, built from the tree viewer's meshes",
     { tag: '@walk' },
     async ({ page }) => {

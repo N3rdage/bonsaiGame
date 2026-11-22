@@ -64,7 +64,7 @@ import {
   roomPx,
   toBabylon,
 } from './meshes';
-import type { Picked } from './tap';
+import { nearestSpot, type Picked } from './tap';
 import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
 import { inkUnit, outlineWidthMetres } from './toon';
 import { toonLit } from './toonPlugin';
@@ -113,8 +113,14 @@ export interface RendererSnapshot {
   readonly details: Readonly<Record<string, number>>;
   /** The kind of weather drawn (petals, fireflies, leaves, snow), null where none is. */
   readonly weather: string | null;
-  /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it. */
-  readonly hotspots: readonly { readonly id: string; readonly x: number; readonly y: number }[];
+  /** Each prop's hotspot id, the screen point of its middle and the size of the rectangle its box covers, in game px (480 x 270), where a tap picks it. */
+  readonly hotspots: readonly {
+    readonly id: string;
+    readonly x: number;
+    readonly y: number;
+    readonly w: number;
+    readonly h: number;
+  }[];
 }
 
 /** What the test hook reads of the shadow map. */
@@ -431,28 +437,46 @@ export class Renderer {
     sun.forceProjectionMatrixCompute();
   }
 
-  /** The screen point of each hotspot's middle, in game px. */
+  /** The screen point of each hotspot's middle and the size of the rectangle its box covers, in game px. */
   private hotspotPoints(): RendererSnapshot['hotspots'] {
     const width = this.engine.getRenderWidth();
     const height = this.engine.getRenderHeight();
     const view = this.camera.viewport.toGlobal(width, height);
     const transform = this.scene.getTransformMatrix();
     return [...this.hotspots].map(([mesh, id]) => {
-      const at = Vector3.Project(mesh.position, Matrix.IdentityReadOnly, transform, view);
-      return { id, x: (at.x / width) * GAME_WIDTH, y: (at.y / height) * GAME_HEIGHT };
+      const to = (point: Vector3): Vector3 =>
+        Vector3.Project(point, Matrix.IdentityReadOnly, transform, view);
+      const at = to(mesh.position);
+      const corners = mesh.getBoundingInfo().boundingBox.vectorsWorld.map(to);
+      const xs = corners.map((c) => c.x);
+      const ys = corners.map((c) => c.y);
+      return {
+        id,
+        x: (at.x / width) * GAME_WIDTH,
+        y: (at.y / height) * GAME_HEIGHT,
+        w: ((Math.max(...xs) - Math.min(...xs)) / width) * GAME_WIDTH,
+        h: ((Math.max(...ys) - Math.min(...ys)) / height) * GAME_HEIGHT,
+      };
     });
   }
 
   /**
-   * What a tap at (`u`, `v`), fractions of the game canvas, lands on: a prop's
-   * hotspot box first, else the floor. `scene.pick` takes CSS px of the canvas,
-   * which lies exactly over the game's.
+   * What a tap at (`u`, `v`), fractions of the game canvas, lands on: a prop
+   * (the one whose hotspot box the tap hits, or the nearest whose middle is
+   * within `radius` game px of it), else the floor. `scene.pick` takes CSS px
+   * of the canvas, which lies exactly over the game's.
    */
-  pick(u: number, v: number): Picked | undefined {
+  pick(u: number, v: number, radius = 0): Picked | undefined {
     const x = u * this.canvas.clientWidth;
     const y = v * this.canvas.clientHeight;
     const prop = this.scene.pick(x, y, (mesh) => this.hotspots.has(mesh));
-    const hotspot = prop.pickedMesh ? this.hotspots.get(prop.pickedMesh) : undefined;
+    const direct = prop.pickedMesh ? this.hotspots.get(prop.pickedMesh) : undefined;
+    const hotspot = nearestSpot(
+      { x: u * GAME_WIDTH, y: v * GAME_HEIGHT },
+      this.hotspotPoints(),
+      radius,
+      direct,
+    );
     if (hotspot !== undefined) return { hotspot };
     const floor = this.pieces.get('floor')?.mesh;
     const ground = this.scene.pick(x, y, (mesh) => mesh === floor);
