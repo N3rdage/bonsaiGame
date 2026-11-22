@@ -374,8 +374,11 @@ test.describe('the 3D world', () => {
 
     await shedToGarden(page);
     await waitForRoom(page, 'garden');
+    // The garden's field is built a frame or two after the room is; wait for it.
+    await expect
+      .poll(async () => (await hook(page)).weather?.kind, POLL)
+      .toMatch(/^(petals|fireflies|leaves|snow)$/);
     const kind = (await hook(page)).weather?.kind;
-    expect(['petals', 'fireflies', 'leaves', 'snow']).toContain(kind);
     await expect.poll(async () => (await world3d(page)).weather, POLL).toBe(kind);
     await page.waitForTimeout(300);
     expect(errors).toEqual([]);
