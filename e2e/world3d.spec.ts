@@ -37,11 +37,17 @@ async function world3d(page: Page): Promise<NonNullable<BonsaiTestHook['world3d'
   return state;
 }
 
-/** Waits for the renderer to be up and drawing `room`, its floor tiles laid. */
+/** Every room these tests visit dresses its walls from three sheets: a face and two caps, or a fence, its sides and its corner posts. */
+const WALL_SHEET_COUNT = 3;
+
+/** Waits for the renderer to be up and drawing `room`, its floor tiles and wall art laid. */
 async function waitForRoom(page: Page, room: string): Promise<void> {
   await page.waitForFunction(
-    (r) => window.__bonsai?.world3d?.room === r && window.__bonsai.world3d.floorSheet !== null,
-    room,
+    ([r, sheets]) =>
+      window.__bonsai?.world3d?.room === r &&
+      window.__bonsai.world3d.floorSheet !== null &&
+      window.__bonsai.world3d.wallSheets.length === sheets,
+    [room, WALL_SHEET_COUNT] as const,
   );
 }
 
@@ -362,6 +368,24 @@ test.describe('the 3D world', () => {
     await shedToGarden(page);
     await waitForRoom(page, 'garden');
     await expect.poll(async () => (await world3d(page)).floorSheet, POLL).toBe('spr_floor_garden');
+  });
+
+  test("dresses each room's walls, caps and fences from its own Inked sheets", async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    expect((await world3d(page)).wallSheets).toEqual([
+      'spr_shed_cap',
+      'spr_shed_cap_v',
+      'spr_shed_wall',
+    ]);
+    await shedToGarden(page);
+    await waitForRoom(page, 'garden');
+    expect((await world3d(page)).wallSheets).toEqual([
+      'spr_fence',
+      'spr_fence_corner',
+      'spr_fence_v',
+    ]);
   });
 
   test('draws the garden with the player casting a shadow on the floor', async ({ page }) => {
