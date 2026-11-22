@@ -698,8 +698,6 @@ export class WorldScene extends Phaser.Scene {
           if (this.joystick) return;
           const { x, y } = this.screenPoint(pointer);
           this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
-          // A press on the stick that lifts without a drag is a tap like any other.
-          this.taps.down(pointer.id, pointer.x, pointer.y, performance.now());
         } else {
           if (this.cameraGesture.down(pointer.id, pointer.x, pointer.y)) {
             this.taps.down(pointer.id, pointer.x, pointer.y, performance.now());

@@ -64,7 +64,7 @@ import {
   roomPx,
   toBabylon,
 } from './meshes';
-import { nearestSpot, type Picked } from './tap';
+import { inFront, nearestSpot, type Picked, type ScreenSpot } from './tap';
 import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
 import { inkUnit, outlineWidthMetres } from './toon';
 import { toonLit } from './toonPlugin';
@@ -386,7 +386,9 @@ export class Renderer {
       wallSheets: [...this.wallArt.keys()].sort(),
       details: this.detailCounts,
       weather: this.weatherKind,
-      hotspots: this.hotspotPoints(),
+      hotspots: this.hotspotPoints()
+        .filter(inFront)
+        .map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
     };
   }
 
@@ -438,7 +440,7 @@ export class Renderer {
   }
 
   /** The screen point of each hotspot's middle and the size of the rectangle its box covers, in game px. */
-  private hotspotPoints(): RendererSnapshot['hotspots'] {
+  private hotspotPoints(): (ScreenSpot & { readonly w: number; readonly h: number })[] {
     const width = this.engine.getRenderWidth();
     const height = this.engine.getRenderHeight();
     const view = this.camera.viewport.toGlobal(width, height);
@@ -454,6 +456,7 @@ export class Renderer {
         id,
         x: (at.x / width) * GAME_WIDTH,
         y: (at.y / height) * GAME_HEIGHT,
+        z: at.z,
         w: ((Math.max(...xs) - Math.min(...xs)) / width) * GAME_WIDTH,
         h: ((Math.max(...ys) - Math.min(...ys)) / height) * GAME_HEIGHT,
       };

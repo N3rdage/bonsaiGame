@@ -4,8 +4,8 @@ import { TAP_MAX_MOVE_PX, TAP_MAX_MS, TapTracker, isTap, nearestSpot, routeInput
 
 describe('nearestSpot', () => {
   const spots = [
-    { id: 'tree', x: 100, y: 100 },
-    { id: 'bench', x: 130, y: 100 },
+    { id: 'tree', x: 100, y: 100, z: 0.5 },
+    { id: 'bench', x: 130, y: 100, z: 0.5 },
   ];
 
   it('takes the prop whose middle is within the radius of a near miss', () => {
@@ -28,6 +28,16 @@ describe('nearestSpot', () => {
 
   it('lets a nearer prop win over a direct hit on a box that reaches past its middle', () => {
     expect(nearestSpot({ x: 128, y: 100 }, spots, 31, 'tree')).toBe('bench');
+  });
+
+  it('skips a prop behind the camera or past the far plane, even on a direct hit', () => {
+    const unseen = [
+      { id: 'behind', x: 100, y: 100, z: -0.2 },
+      { id: 'far', x: 100, y: 100, z: 1.2 },
+      { id: 'bench', x: 130, y: 100, z: 0.5 },
+    ];
+    expect(nearestSpot({ x: 100, y: 100 }, unseen.slice(0, 2), 31, 'behind')).toBeUndefined();
+    expect(nearestSpot({ x: 100, y: 100 }, unseen, 31)).toBe('bench');
   });
 });
 
