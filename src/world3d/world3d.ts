@@ -2,7 +2,7 @@
  * The 3D world's adapter for the Phaser world scene: the one place game code
  * touches it. While the `world3d` setting is on, `sync` loads the Babylon
  * renderer (a dynamic import, its own chunk) and draws the room it is given
- * every frame; when the setting goes off it lets the renderer go. Movement,
+ * every frame, with the season's weather where the scene has one; when the setting goes off it lets the renderer go. Movement,
  * collision and the HUD stay in the scene.
  */
 
@@ -14,6 +14,7 @@ import { cameraRig } from './camera';
 import type { Renderer } from './renderer';
 import type { Picked } from './tap';
 import type { TreeStand } from './trees';
+import type { WeatherField } from './weather';
 
 /**
  * The game canvas's clear colour: the surround, opaque, or fully clear so
@@ -60,6 +61,7 @@ export class World3d {
     player: { readonly x: number; readonly y: number },
     trees: readonly TreeStand[],
     season: Season,
+    weather: WeatherField | undefined,
   ): void {
     if (on && !this.renderer && !this.loading && !this.failed) {
       this.loading = true;
@@ -78,7 +80,7 @@ export class World3d {
         });
     }
     if (!on) this.dispose();
-    this.renderer?.frame(room, player, trees, season);
+    this.renderer?.frame(room, player, trees, season, weather);
   }
 
   /** Lets the renderer and its canvas go, cancels a load in flight, and lets a failed load be tried again. */
@@ -106,6 +108,8 @@ export class World3d {
       },
       cut: state ? [...state.cut] : [],
       facing: state?.facing ?? 0,
+      shadows: state?.shadows ?? false,
+      weather: state?.weather ?? null,
       player: this.renderer ? this.renderer.playerAt() : null,
       picked: this.picked,
       hotspots: state ? [...state.hotspots] : [],

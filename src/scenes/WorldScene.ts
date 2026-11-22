@@ -2075,7 +2075,9 @@ export class WorldScene extends Phaser.Scene {
     const season = seasonForDay(state.day);
     const room = this.liveRoom();
     const trees = settings.world3d ? treeStands(state, room, season) : [];
-    this.world3d.sync(settings.world3d, room, this.player, trees, season);
+    // The 3D world draws the outdoor weather only; the indoor motes stay a 2D touch.
+    const weather = isIndoor(this.room) ? undefined : this.weather;
+    this.world3d.sync(settings.world3d, room, this.player, trees, season, weather);
     const on = this.world3d.active;
     if (this.worldCamera.visible === !on) return;
     this.worldCamera.visible = !on;

@@ -63,6 +63,10 @@ interface BonsaiTestHook {
     readonly cut: readonly string[];
     /** The way the capsule faces in the plan, radians (0 east, pi/2 south), from its last step; 0 while off. */
     readonly facing: number;
+    /** True while something casts a shadow onto the floor (the player always does); false while off. */
+    readonly shadows: boolean;
+    /** The kind of weather drawn ('petals', 'fireflies', 'leaves' or 'snow': the season's, outdoors, with the weather setting on), null indoors, with the setting off, or while off. */
+    readonly weather: string | null;
     /** The id of the last prop a tap or click picked (the same id the 2D world's interactables carry), null before any. */
     readonly picked: string | null;
     /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it; empty while off. */
