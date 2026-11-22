@@ -12,10 +12,13 @@ import '@babylonjs/core/Culling/ray';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
+import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
 import { CreateCapsule } from '@babylonjs/core/Meshes/Builders/capsuleBuilder';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
@@ -30,6 +33,7 @@ import type { Room } from '../world/shedRoom';
 import { cameraRig, cutNames, cutSpan, ease } from './camera';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind } from './furnitureModels';
+import { lightDirectionBabylon, shadowDarkness } from './light';
 import { facingOf } from './move';
 import {
   PLAYER_HEIGHT,
@@ -44,6 +48,7 @@ import type { Picked } from './tap';
 import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { TreeStand } from './trees';
+import { weatherKind, weatherSprites, type WeatherField } from './weather';
 
 /** The page's surround colour (SURROUND in src/scenes/textStyle.ts), behind the room. */
 const SURROUND = Color3.FromHexString('#3e3632');
@@ -62,6 +67,10 @@ export interface RendererSnapshot {
   readonly cut: readonly string[];
   /** The way the capsule faces: its last step's heading in the plan, radians (0 east, pi/2 south). */
   readonly facing: number;
+  /** True while something casts a shadow onto the floor. */
+  readonly shadows: boolean;
+  /** The kind of weather drawn (petals, fireflies, leaves, snow), null where none is. */
+  readonly weather: string | null;
   /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it. */
   readonly hotspots: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }
@@ -103,9 +112,14 @@ interface Instanced {
   count: number;
 }
 
+/** The Babylon colour of a 0xRRGGBB number. */
+function washHex(hex: number): Color3 {
+  return Color3.FromHexString(`#${hex.toString(16).padStart(6, '0')}`);
+}
+
 /** The Babylon colour of a palette wash. */
 function washColour(wash: WashKey): Color3 {
-  return Color3.FromHexString(`#${PALETTE[wash].toString(16).padStart(6, '0')}`);
+  return washHex(PALETTE[wash]);
 }
 
 /**
@@ -135,6 +149,7 @@ export class Renderer {
   private readonly engine: Engine;
   private readonly scene: Scene;
   private readonly camera: ArcRotateCamera;
+  private readonly shadows: ShadowGenerator;
   private readonly player: Mesh;
   /** The plan heading the capsule faces; a new session faces away from the default camera, north. */
   private facing = -Math.PI / 2;
@@ -150,6 +165,12 @@ export class Renderer {
   /** The furniture models in use, by kind. */
   private readonly instanced = new Map<FurnitureKind, Instanced>();
   private cut: string[] = [];
+  /** The weather's one plane, its particles' matrices and colours, and the particle array they were sized for. */
+  private weatherMesh: Mesh | undefined;
+  private weatherMatrices = new Float32Array(0);
+  private weatherColours = new Float32Array(0);
+  private weatherParts: readonly unknown[] | undefined;
+  private weatherKind: string | null = null;
   /** The trees standing in the room, by tree id. */
   private readonly trees = new Map<number, Planted>();
   /** The one material of every tree part and furniture model: white, so the vertex colours the builders give are what shows. */
@@ -172,8 +193,14 @@ export class Renderer {
     this.scene = new Scene(this.engine);
     this.scene.clearColor = Color4.FromColor3(SURROUND, 1);
     new HemisphericLight('sky', new Vector3(0, 1, 0), this.scene).intensity = 0.7;
-    const sun = new DirectionalLight('sun', new Vector3(1, -2, -1), this.scene);
+    const light = lightDirectionBabylon();
+    const sun = new DirectionalLight('sun', new Vector3(light.x, light.y, light.z), this.scene);
     sun.intensity = 0.6;
+    // One room at a time is a few metres across and the camera always sees all of it, so a single
+    // shadow map covers it at a fine texel size; cascades would only split that map for no gain.
+    this.shadows = new ShadowGenerator(2048, sun);
+    this.shadows.usePercentageCloserFiltering = true;
+    this.shadows.darkness = shadowDarkness();
     this.camera = new ArcRotateCamera(
       'camera',
       cameraRig.alpha,
@@ -188,6 +215,7 @@ export class Renderer {
       this.scene,
     );
     this.player.material = this.material('wood');
+    this.shadows.addShadowCaster(this.player);
     const nose = CreateBox('player.nose', { size: NOSE }, this.scene);
     nose.material = this.material('leafOrange');
     nose.parent = this.player;
@@ -208,6 +236,8 @@ export class Renderer {
       camera: { alpha, beta, radius },
       cut: this.cut,
       facing: this.facing,
+      shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
+      weather: this.weatherKind,
       hotspots: this.hotspotPoints(),
     };
   }
@@ -256,11 +286,13 @@ export class Renderer {
     px: { readonly x: number; readonly y: number },
     trees: readonly TreeStand[],
     season: Season,
+    weather: WeatherField | undefined,
   ): void {
     const fresh = this.room !== room.key;
     if (fresh) this.build(room);
     this.furnish(room);
     this.plant(trees, season);
+    this.sky(weather);
     const plan = playerFeet(px);
     if (this.lastFeet && !fresh) {
       this.facing = facingOf(plan.x - this.lastFeet.x, plan.y - this.lastFeet.y, this.facing);
@@ -317,7 +349,7 @@ export class Renderer {
     const ids = new Set(stands.map((stand) => stand.tree.id));
     for (const [id, planted] of this.trees) {
       if (ids.has(id)) continue;
-      planted.root.dispose();
+      this.discardTree(planted);
       this.trees.delete(id);
     }
     for (const { tree, key, x, y, z } of stands) {
@@ -330,11 +362,13 @@ export class Renderer {
       const feet = toBabylon({ x, y, z });
       planted.root.position.set(feet.x, feet.y, feet.z);
       if (planted.key === key) continue;
-      for (const part of planted.parts) part.dispose();
+      for (const part of planted.parts) this.discard(part);
       const root = planted.root;
-      planted.parts = treeMeshData(tree, season).map(({ part, data }) =>
-        meshOf(`tree.${String(tree.id)}.${part}`, data, root, this.colourMaterial),
-      );
+      planted.parts = treeMeshData(tree, season).map(({ part, data }) => {
+        const mesh = meshOf(`tree.${String(tree.id)}.${part}`, data, root, this.colourMaterial);
+        this.shadows.addShadowCaster(mesh);
+        return mesh;
+      });
       planted.key = key;
     }
   }
@@ -361,9 +395,9 @@ export class Renderer {
   private build(room: Room): void {
     for (const { mesh } of this.pieces.values()) mesh.dispose();
     this.pieces.clear();
-    for (const { mesh } of this.instanced.values()) mesh.dispose();
+    for (const { mesh } of this.instanced.values()) this.discard(mesh);
     this.instanced.clear();
-    for (const { root } of this.trees.values()) root.dispose();
+    for (const planted of this.trees.values()) this.discardTree(planted);
     this.trees.clear();
     this.cut = [];
     const plan = roomPlan3d(room);
@@ -376,6 +410,7 @@ export class Renderer {
       );
       mesh.position.set(spec.center.x, spec.center.y, spec.center.z);
       mesh.material = this.material(spec.wash);
+      mesh.receiveShadows = spec.name === 'floor';
       this.pieces.set(spec.name, {
         mesh,
         z0: spec.center.y - spec.height / 2,
@@ -419,7 +454,7 @@ export class Renderer {
     }
     for (const [kind, known] of this.instanced) {
       if (byKind.has(kind)) continue;
-      known.mesh.dispose();
+      this.discard(known.mesh);
       this.instanced.delete(kind);
     }
     for (const [kind, pieces] of byKind) {
@@ -464,6 +499,73 @@ export class Renderer {
     if (!mesh) throw new Error(`model ${kind} has no parts`);
     mesh.name = `model.${kind}`;
     mesh.material = this.colourMaterial;
+    mesh.isPickable = false;
+    mesh.alwaysSelectAsActiveMesh = true;
+    this.shadows.addShadowCaster(mesh);
+    return mesh;
+  }
+
+  /** Disposes a mesh that may cast a shadow, taking it off the shadow map's list first. */
+  private discard(mesh: Mesh): void {
+    this.shadows.removeShadowCaster(mesh);
+    mesh.dispose();
+  }
+
+  /** Disposes a standing tree and its parts. */
+  private discardTree(planted: Planted): void {
+    for (const part of planted.parts) this.shadows.removeShadowCaster(part);
+    planted.root.dispose();
+  }
+
+  /**
+   * Draws the weather field the 2D world steps, or none: one small unlit quad
+   * per particle, thin-instanced from one plane, turned to face the camera's
+   * heading and tinted (alpha included) by the instance colour. The field is
+   * the only model; this reads its particles each frame and keeps no physics.
+   */
+  private sky(field: WeatherField | undefined): void {
+    this.weatherKind = weatherKind(field);
+    if (!field) {
+      this.weatherMesh?.dispose();
+      this.weatherMesh = undefined;
+      this.weatherParts = undefined;
+      return;
+    }
+    const sprites = weatherSprites(field);
+    this.weatherMesh ??= this.weatherQuad();
+    const mesh = this.weatherMesh;
+    if (this.weatherParts !== field.parts) {
+      this.weatherParts = field.parts;
+      this.weatherMatrices = new Float32Array(sprites.length * 16);
+      this.weatherColours = new Float32Array(sprites.length * 4);
+      mesh.thinInstanceSetBuffer('matrix', this.weatherMatrices, 16, false);
+      mesh.thinInstanceSetBuffer('color', this.weatherColours, 4, false);
+    }
+    // A plane faces -z; turning it about the vertical by this puts that face toward the camera.
+    const yaw = Math.atan2(-Math.cos(this.camera.alpha), -Math.sin(this.camera.alpha));
+    sprites.forEach((sprite, n) => {
+      const at = toBabylon(sprite);
+      Matrix.Compose(
+        new Vector3(sprite.size, sprite.size, 1),
+        Quaternion.RotationYawPitchRoll(yaw, 0, sprite.roll),
+        new Vector3(at.x, at.y, at.z),
+      ).copyToArray(this.weatherMatrices, n * 16);
+      const { r, g, b } = washHex(sprite.colour);
+      this.weatherColours.set([r, g, b, sprite.alpha], n * 4);
+    });
+    mesh.thinInstanceBufferUpdated('matrix');
+    mesh.thinInstanceBufferUpdated('color');
+  }
+
+  /** The unit plane the weather's particles are instances of: unlit, white, blended by the instance colour's alpha, never a shadow caster. */
+  private weatherQuad(): Mesh {
+    const mesh = CreatePlane('weather', { size: 1 }, this.scene);
+    const material = new StandardMaterial('weather', this.scene);
+    material.disableLighting = true;
+    material.emissiveColor = Color3.White();
+    material.backFaceCulling = false;
+    mesh.material = material;
+    mesh.hasVertexAlpha = true;
     mesh.isPickable = false;
     mesh.alwaysSelectAsActiveMesh = true;
     return mesh;
