@@ -332,6 +332,14 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-shed-turned.png');
   });
 
+  test("lights and inks the room in the tree viewer's toon look", async ({ page }) => {
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await expect.poll(async () => (await world3d(page)).toon, POLL).toBe(true);
+    expect(errors).toEqual([]);
+  });
+
   test("draws the shed's furniture as models", async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
     test.setTimeout(120_000);
