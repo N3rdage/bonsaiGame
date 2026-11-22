@@ -58,8 +58,34 @@ describe('roomDetails', () => {
       x1: 9.5 - 0.04,
       y0: 3.5 + 0.04,
       y1: 4 - 0.04,
-      z1: 0.6,
+      z1: 0.25,
     });
+  });
+
+  it('keeps the hedges low enough to step over, as the plan lets the player walk over the beds', () => {
+    const plan = roomPlan3d(ROOMS.frontGarden);
+    const beds = plan.floor.concat(plan.furniture).filter((b) => b.name.endsWith('.spr_bed'));
+    expect(beds.length).toBeGreaterThan(0);
+    expect(beds.every((b) => !b.solid)).toBe(true);
+    for (const hedge of detailsOf('frontGarden').filter((d) => d.kind === 'hedge')) {
+      expect(extent(hedge).z1).toBeLessThanOrEqual(0.3);
+    }
+  });
+
+  it("sizes a fence's door to its fence, and keeps a building's door full height", () => {
+    for (const key of ['garden', 'frontGarden'] as const) {
+      const plan = roomPlan3d(ROOMS[key]);
+      const gates = detailsOf(key).filter((d) => d.kind === 'door');
+      expect(gates.length).toBeGreaterThan(0);
+      for (const gate of gates) {
+        const host = plan.walls.find((w) => w.name === gate.host);
+        const opening = plan.openings.find((o) => o.name === gate.name);
+        expect(host?.z1).toBeLessThan(opening?.z1 ?? 0);
+        expect(extent(gate).z1).toBe(host?.z1);
+      }
+    }
+    const shed = detailsOf('shed').find((d) => d.name === 'door');
+    expect(shed && extent(shed).z1).toBe(2);
   });
 
   it("stands a shrub on each of the garden's source plants", () => {
