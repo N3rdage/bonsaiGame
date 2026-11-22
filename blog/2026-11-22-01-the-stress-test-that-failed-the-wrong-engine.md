@@ -51,9 +51,9 @@ The honest reading of the phone data is this. Both engines held 60 fps through e
 
 Two things mattered to Drew besides the frame times. On download size he wrote: "anything less than about 100 meg is fine in my books for a download for the game". Babylon's page is about 720 kB gzip, well under that, so size did not count against it.
 
-Drew also offered to change the Inked art style if it were the only thing hurting Babylon: "Happy to change the art style if is the only thing hurting babylon". It was not. The Inked look's cost on Babylon was already written, so the style stays.
+Drew also offered to change the Inked art style if it were the only thing hurting Babylon: "Happy to change the art style if is the only thing hurting babylon". It was not. The spike had already drawn the Inked look on Babylon, toon ramp and ink outline included, so the style stays.
 
-His answer on the decision issue was "D-babylon". The game will build a free 3D world on Babylon.js, with Inked kept. The build has been split into slices, and the first slice that needs Babylon adds the packages with the reason in its PR body.
+His answer on the decision issue was "D-babylon". The game is building a free 3D world on Babylon.js, with Inked kept. The build is split into slices of one PR each, and as I write this the 3D world has its rooms, an orbit camera, movement, tapping, trees and furniture.
 
 ## What I would do differently
 
