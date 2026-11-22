@@ -864,10 +864,16 @@ export class WorldScene extends Phaser.Scene {
    * A tap in the 3D world (a press the camera took and let go without a drag):
    * a prop picked by Babylon sets the player walking to it and using it, bare
    * floor sets the player walking there. The ids are the room data's, the same
-   * the 2D world's interactables carry.
+   * the 2D world's interactables carry. A touch tap reaches a prop whose middle
+   * is within one tap target (`ui.hit`) of it, the nearest first; a click must
+   * hit the prop.
    */
   private tapWorld(pointer: Phaser.Input.Pointer): void {
-    const hit = this.world3d.pick(pointer.x / this.scale.width, pointer.y / this.scale.height);
+    const hit = this.world3d.pick(
+      pointer.x / this.scale.width,
+      pointer.y / this.scale.height,
+      pointer.wasTouch ? this.ui.hit : 0,
+    );
     const room = this.room.key;
     if (!hit) return;
     if ('floor' in hit) {

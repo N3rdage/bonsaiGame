@@ -42,9 +42,9 @@ export class World3d {
 
   constructor(private readonly host: HTMLCanvasElement) {}
 
-  /** What a tap at (`u`, `v`), fractions of the game canvas, lands on; a prop is also remembered as the last picked. */
-  pick(u: number, v: number): Picked | undefined {
-    const hit = this.renderer?.pick(u, v);
+  /** What a tap at (`u`, `v`), fractions of the game canvas, lands on, a prop reaching `radius` game px; a prop is also remembered as the last picked. */
+  pick(u: number, v: number, radius = 0): Picked | undefined {
+    const hit = this.renderer?.pick(u, v, radius);
     if (hit && 'hotspot' in hit) this.picked = hit.hotspot;
     return hit;
   }
