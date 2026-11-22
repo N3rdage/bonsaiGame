@@ -11,7 +11,7 @@
 import type { Sheet } from '../world/assets';
 import { ROOM_STYLES, wallRuns, type WallRun } from '../world/roomArt';
 import type { Room } from '../world/shedRoom';
-import type { FloorMeshData } from './floorTiles';
+import type { QuadMeshData } from './floorTiles';
 import { toBabylon, type Vec3 } from './meshes';
 import { metres, type WallBox } from './plan';
 
@@ -251,8 +251,8 @@ export function wallLayout(
  * in Babylon's left-handed frame, positioned relative to `origin` (the piece's
  * middle, in plan metres) so the mesh can ride its box's transform.
  */
-export function wallMeshData(quads: readonly WallQuad[], origin: Vec3): FloorMeshData {
-  const data: FloorMeshData = { positions: [], normals: [], uvs: [], indices: [] };
+export function wallMeshData(quads: readonly WallQuad[], origin: Vec3): QuadMeshData {
+  const data: QuadMeshData = { positions: [], normals: [], uvs: [], indices: [] };
   quads.forEach((q, n) => {
     const uvs = [q.u0, q.v0, q.u1, q.v0, q.u1, q.v1, q.u0, q.v1];
     q.corners.forEach((c) => {

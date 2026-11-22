@@ -35,7 +35,7 @@ import { floorTiles } from '../world/roomArt';
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import type { Room } from '../world/shedRoom';
 import { RADIUS_DEFAULT, cameraRig, cutNames, cutSpan, cuttable, ease } from './camera';
-import { floorLayout, floorMeshData, type FloorMeshData } from './floorTiles';
+import { floorLayout, floorMeshData, type QuadMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
@@ -681,7 +681,7 @@ export class Renderer {
   }
 
   /** An unpickable mesh of `data` (positions, normals, UVs, indices) with `material`. */
-  private texturedMesh(name: string, data: FloorMeshData, material: StandardMaterial): Mesh {
+  private texturedMesh(name: string, data: QuadMeshData, material: StandardMaterial): Mesh {
     const mesh = new Mesh(name, this.scene);
     const vertices = new VertexData();
     vertices.positions = data.positions;
