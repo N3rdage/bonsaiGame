@@ -91,8 +91,14 @@ interface BonsaiTestHook {
     readonly weather: string | null;
     /** The id of the last prop a tap or click picked (the same id the 2D world's interactables carry), null before any. */
     readonly picked: string | null;
-    /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it; empty while off. */
-    readonly hotspots: readonly { readonly id: string; readonly x: number; readonly y: number }[];
+    /** Each prop's hotspot id, the screen point of its middle and the size (w, h) of the rectangle its box covers, in game px (480 x 270); a tap in the box picks it, and so does a touch tap within the UI's tap target (`ui.hit`) of the middle; empty while off. */
+    readonly hotspots: readonly {
+      readonly id: string;
+      readonly x: number;
+      readonly y: number;
+      readonly w: number;
+      readonly h: number;
+    }[];
   };
   /** World only: the current room's `bounds`, the outer edge of its wall ring (top-left and size, logical px); the floor is the band's 16 px inside it. */
   readonly roomBounds?: {

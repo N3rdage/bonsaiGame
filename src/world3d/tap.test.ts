@@ -1,6 +1,45 @@
 import { describe, expect, it } from 'vitest';
 import { MOVE_SPEED } from '../world/player';
-import { TAP_MAX_MOVE_PX, TAP_MAX_MS, TapTracker, isTap, routeInput } from './tap';
+import { TAP_MAX_MOVE_PX, TAP_MAX_MS, TapTracker, isTap, nearestSpot, routeInput } from './tap';
+
+describe('nearestSpot', () => {
+  const spots = [
+    { id: 'tree', x: 100, y: 100, z: 0.5 },
+    { id: 'bench', x: 130, y: 100, z: 0.5 },
+  ];
+
+  it('takes the prop whose middle is within the radius of a near miss', () => {
+    expect(nearestSpot({ x: 100, y: 125 }, spots, 31)).toBe('tree');
+  });
+
+  it('leaves a tap beyond the radius to the floor', () => {
+    expect(nearestSpot({ x: 100, y: 140 }, spots, 31)).toBeUndefined();
+  });
+
+  it('takes the nearer of two overlapping targets', () => {
+    expect(nearestSpot({ x: 112, y: 100 }, spots, 31)).toBe('tree');
+    expect(nearestSpot({ x: 118, y: 100 }, spots, 31)).toBe('bench');
+  });
+
+  it('takes only a direct hit with no radius', () => {
+    expect(nearestSpot({ x: 100, y: 125 }, spots, 0)).toBeUndefined();
+    expect(nearestSpot({ x: 100, y: 125 }, spots, 0, 'tree')).toBe('tree');
+  });
+
+  it('lets a nearer prop win over a direct hit on a box that reaches past its middle', () => {
+    expect(nearestSpot({ x: 128, y: 100 }, spots, 31, 'tree')).toBe('bench');
+  });
+
+  it('skips a prop behind the camera or past the far plane, even on a direct hit', () => {
+    const unseen = [
+      { id: 'behind', x: 100, y: 100, z: -0.2 },
+      { id: 'far', x: 100, y: 100, z: 1.2 },
+      { id: 'bench', x: 130, y: 100, z: 0.5 },
+    ];
+    expect(nearestSpot({ x: 100, y: 100 }, unseen.slice(0, 2), 31, 'behind')).toBeUndefined();
+    expect(nearestSpot({ x: 100, y: 100 }, unseen, 31)).toBe('bench');
+  });
+});
 
 describe('isTap', () => {
   it('takes a short, still press', () => {

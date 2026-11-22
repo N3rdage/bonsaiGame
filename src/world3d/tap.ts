@@ -20,6 +20,48 @@ export function isTap(travel: number, ms: number): boolean {
 export type Picked =
   { readonly hotspot: string } | { readonly floor: { readonly x: number; readonly y: number } };
 
+/** A prop's middle on screen, in game px (480 x 270). */
+export interface ScreenSpot {
+  readonly id: string;
+  readonly x: number;
+  readonly y: number;
+  /** The projected depth, 0 at the near plane to 1 at the far: outside that range the prop is behind the camera or beyond view. */
+  readonly z: number;
+}
+
+/** Whether a prop is between the near and far planes, so its screen point is where it is drawn. */
+export function inFront(spot: Pick<ScreenSpot, 'z'>): boolean {
+  return spot.z >= 0 && spot.z <= 1;
+}
+
+/**
+ * The prop a tap at `at` (game px) acts on: the nearest prop whose middle is
+ * within `radius` of it, or the `direct` one the ray hit when it is nearer
+ * than the rest. A touch tap passes a radius of the UI's tap target size so a
+ * near miss still acts on the prop; a mouse click passes 0, so only a direct
+ * hit does. A prop whose depth `z` is outside [0, 1] is behind the camera,
+ * where its projection is mirrored, so it never qualifies. Undefined when no
+ * prop qualifies.
+ */
+export function nearestSpot(
+  at: { readonly x: number; readonly y: number },
+  spots: readonly ScreenSpot[],
+  radius: number,
+  direct?: string,
+): string | undefined {
+  let best: string | undefined;
+  let bestDist = Infinity;
+  for (const spot of spots) {
+    if (!inFront(spot)) continue;
+    const dist = Math.hypot(spot.x - at.x, spot.y - at.y);
+    if ((dist <= radius || spot.id === direct) && dist < bestDist) {
+      best = spot.id;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
+
 interface Track {
   readonly x: number;
   readonly y: number;
