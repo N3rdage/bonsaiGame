@@ -231,6 +231,11 @@ export interface PlacedItem {
 export interface GameState {
   /** Game day. A new game starts at 0, as in the prototype; `seasonForDay` treats 0 as day 1. */
   day: number;
+  /**
+   * Game seconds into the current day, in [0, SECONDS_PER_DAY) (timeOfDay.ts):
+   * 0 is morning, where a new game starts and every sleep ends. Saved from version 7.
+   */
+  timeOfDayS: number;
   money: number;
   inventory: Inventory;
   trees: BonsaiTree[];

@@ -11,6 +11,7 @@ import type { GameState } from './types';
 function makeState(money: number): GameState {
   return {
     day: 0,
+    timeOfDayS: 0,
     money,
     inventory: createInventory(),
     trees: [],

@@ -136,7 +136,7 @@ test.describe('garden screenshot', () => {
   });
 
   // The garden's scenery tinted by the season (seasonTint), on each season's
-  // first day at the base clock (a day is 300 s, so it cannot turn mid-capture).
+  // first day at the base clock (a day is 900 s, so it cannot turn mid-capture).
   for (const [index, season] of SEASONS.entries()) {
     test(`the garden in ${season}`, async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape baseline only');
@@ -185,7 +185,7 @@ async function mapleSeeds(page: Page): Promise<number | undefined> {
 test.describe('the day clock', () => {
   test('a displayed tree earns display revenue as the days pass', async ({ page }) => {
     const errors = collectErrors(page);
-    // A new game with Granny's juniper on the lounge's mantel, continued at 150x (a day every 2 s).
+    // A new game with Granny's juniper on the lounge's mantel, continued at 450x (a day every 2 s).
     const state = createNewGameState();
     const [starter] = state.trees;
     if (!starter) throw new Error('no starter');
@@ -198,7 +198,7 @@ test.describe('the day clock', () => {
       serializeState(state, new Date(2026, 10, 11, 0, 0)),
     );
 
-    await toTitle(page, '/?timeScale=150');
+    await toTitle(page, '/?timeScale=450');
     await continueGame(page);
     await page.waitForFunction(
       () => window.__bonsai?.ready === true && window.__bonsai.scene === 'world',
