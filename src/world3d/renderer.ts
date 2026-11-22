@@ -1,6 +1,6 @@
 /**
  * The Babylon side of the 3D world: an engine on its own canvas laid under the
- * game's, a scene of boxes from `meshSpecs` and a capsule for the player. The
+ * game's, a scene of boxes from `meshSpecs` and a skinned character for the player. The
  * only module that imports Babylon, and only world3d.ts reaches it, through a
  * dynamic import, so a player with the setting off downloads none of it. The
  * game stays the 2D game's Phaser scene: this draws what it is told.
@@ -18,9 +18,10 @@ import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
+import { Bone } from '@babylonjs/core/Bones/bone';
+import { Skeleton } from '@babylonjs/core/Bones/skeleton';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
-import { CreateCapsule } from '@babylonjs/core/Meshes/Builders/capsuleBuilder';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
@@ -38,10 +39,22 @@ import { floorLayout, floorMeshData, type FloorMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
+import {
+  JOINT_NAMES,
+  type ClipName,
+  type ClipWeights,
+  type JointName,
+  characterMesh,
+  clipDuration,
+  fadeWeights,
+  parentOf,
+  poseOf,
+  restOffset,
+  walkRate,
+} from './character';
 import { facingOf } from './move';
 import {
   PLAYER_HEIGHT,
-  PLAYER_RADIUS,
   type Vec3,
   hotspotSpecs,
   meshSpecs,
@@ -73,8 +86,12 @@ export interface RendererSnapshot {
   readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
   /** The names of the pieces cut away to the skirting, sorted. */
   readonly cut: readonly string[];
-  /** The way the capsule faces: its last step's heading in the plan, radians (0 east, pi/2 south). */
+  /** The way the player faces: its last step's heading in the plan, radians (0 east, pi/2 south). */
   readonly facing: number;
+  /** The kind of model standing for the player. */
+  readonly model: 'character';
+  /** How much of each clip the player's pose is made of now, summing to 1. */
+  readonly clips: ClipWeights;
   /** True while something casts a shadow onto the floor. */
   readonly shadows: boolean;
   /** True while the lit meshes are lit through the toon ramp and inked. */
@@ -89,8 +106,10 @@ export interface RendererSnapshot {
   readonly hotspots: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }
 
-/** The edge of the box on the capsule's front that shows which way it faces, metres. */
-const NOSE = 0.2;
+/** Seconds over which the measured speed of the player's feet settles, so the fixed steps' jitter does not flicker the blend. */
+const SPEED_SMOOTHING = 0.1;
+/** The longest frame the animation follows, seconds: a returning tab does not skip a clip's cycles, and a slow frame, in which the game moves the player by no more than its own step cap, is not read as a crawl. */
+const MAX_FRAME_SECONDS = 0.1;
 
 /** A standing tree: the node at its feet, the meshes parented to it and the key they were built for (`treeKey`). */
 interface Planted {
@@ -177,11 +196,21 @@ export class Renderer {
   private readonly scene: Scene;
   private readonly camera: ArcRotateCamera;
   private readonly shadows: ShadowGenerator;
+  /** The player's skinned body, its origin at the feet. */
   private readonly player: Mesh;
-  /** The plan heading the capsule faces; a new session faces away from the default camera, north. */
+  private readonly bones: Readonly<Record<JointName, Bone>>;
+  /** The plan heading the player faces; a new session faces away from the default camera, north. */
   private facing = -Math.PI / 2;
-  /** Where the capsule stood last frame, plan metres. */
+  /** Where the player stood last frame, plan metres. */
   private lastFeet: { x: number; y: number } | undefined;
+  /** The player's speed over the ground, metres a second, smoothed. */
+  private speed = 0;
+  /** How much of each clip shows, and where each clip's clock is, seconds. */
+  private clips: ClipWeights = { idle: 1, walk: 0 };
+  private readonly clocks: Record<ClipName, number> = { idle: 0, walk: 0 };
+  /** True when the browser asks for reduced motion: the idle clip then holds its first pose, so a player at rest is still. */
+  private readonly stillIdle = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  private readonly boneMatrix = new Matrix();
   private room: Room['key'] | undefined;
   private plan: RoomPlan3d | undefined;
   private pieces = new Map<string, Piece>();
@@ -244,22 +273,45 @@ export class Renderer {
       Vector3.Zero(),
       this.scene,
     );
-    this.player = CreateCapsule(
-      'player',
-      { height: PLAYER_HEIGHT, radius: PLAYER_RADIUS },
-      this.scene,
-    );
-    this.player.material = this.material('wood');
-    this.shadows.addShadowCaster(this.player);
-    this.ink(this.player);
-    const nose = CreateBox('player.nose', { size: NOSE }, this.scene);
-    nose.material = this.material('leafOrange');
-    nose.parent = this.player;
-    this.ink(nose);
-    nose.position.set(0, PLAYER_HEIGHT / 4, PLAYER_RADIUS);
     this.colourMaterial = new StandardMaterial('colours', this.scene);
     this.colourMaterial.specularColor = Color3.Black();
     toonLit(this.colourMaterial, this.toLight);
+    const skeleton = new Skeleton('player', 'player', this.scene);
+    const bones: Partial<Record<JointName, Bone>> = {};
+    for (const joint of JOINT_NAMES) {
+      const [x, y, z] = restOffset(joint);
+      const parent = parentOf(joint);
+      bones[joint] = new Bone(
+        joint,
+        skeleton,
+        parent ? (bones[parent] ?? null) : null,
+        Matrix.Translation(x, y, z),
+      );
+    }
+    this.bones = bones as Record<JointName, Bone>;
+    this.player = this.skinned(skeleton);
+    this.shadows.addShadowCaster(this.player);
+    this.ink(this.player);
+  }
+
+  /** The character's body as one mesh skinned to `skeleton`, whose bones are in `JOINT_NAMES` order. */
+  private skinned(skeleton: Skeleton): Mesh {
+    const body = characterMesh();
+    const mesh = new Mesh('player', this.scene);
+    const vertices = new VertexData();
+    vertices.positions = body.positions;
+    vertices.normals = body.normals;
+    vertices.colors = body.colors;
+    vertices.matricesIndices = body.joints;
+    vertices.matricesWeights = body.weights;
+    vertices.indices = body.indices;
+    vertices.applyToMesh(mesh);
+    mesh.skeleton = skeleton;
+    mesh.material = this.colourMaterial;
+    mesh.isPickable = false;
+    // The bounds are the bind pose's; a swinging limb must not be culled with them.
+    mesh.alwaysSelectAsActiveMesh = true;
+    return mesh;
   }
 
   /** The room shown and every mesh in the scene, the player's included. */
@@ -274,6 +326,8 @@ export class Renderer {
       camera: { alpha, beta, radius },
       cut: this.cut,
       facing: this.facing,
+      model: 'character',
+      clips: this.clips,
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       toon: true,
       floorSheet: this.floorArt?.sheet ?? null,
@@ -311,10 +365,10 @@ export class Renderer {
     return ground.pickedPoint ? { floor: roomPx(ground.pickedPoint) } : undefined;
   }
 
-  /** Where the capsule stands, in plan metres. */
+  /** Where the player's feet are, in plan metres. */
   playerAt(): { x: number; y: number; z: number } {
     const { x, y, z } = this.player.position;
-    return { x, y: -z, z: y - PLAYER_HEIGHT / 2 };
+    return { x, y: -z, z: y };
   }
 
   /**
@@ -335,26 +389,60 @@ export class Renderer {
     this.plant(trees, season);
     this.sky(weather);
     const plan = playerFeet(px);
+    const now = performance.now();
+    const elapsed = now - this.lastFrame;
+    this.lastFrame = now;
+    let moved = 0;
     if (this.lastFeet && !fresh) {
-      this.facing = facingOf(plan.x - this.lastFeet.x, plan.y - this.lastFeet.y, this.facing);
+      const dx = plan.x - this.lastFeet.x;
+      const dy = plan.y - this.lastFeet.y;
+      this.facing = facingOf(dx, dy, this.facing);
+      moved = Math.hypot(dx, dy);
     }
     this.lastFeet = { x: plan.x, y: plan.y };
-    // The nose sits on the capsule's local +z, which a turn of theta about y points along (sin, cos) in x and z.
+    this.animate(moved, fresh ? 0 : elapsed / 1000);
+    // The body faces its local +z, which a turn of theta about y points along (sin, cos) in x and z.
     this.player.rotation.y = this.facing + Math.PI / 2;
     const feet = toBabylon(plan);
-    const middle = feet.y + PLAYER_HEIGHT / 2;
-    this.player.position.set(feet.x, middle, feet.z);
-    this.follow({ x: feet.x, y: middle, z: feet.z }, fresh);
+    this.player.position.set(feet.x, feet.y, feet.z);
+    this.follow({ x: feet.x, y: feet.y + PLAYER_HEIGHT / 2, z: feet.z }, fresh, elapsed);
     this.cutAway(plan);
     this.fit();
     this.scene.render();
   }
 
+  /**
+   * Moves the player's pose on by `seconds`: its speed over the ground (the
+   * metres its feet moved this frame, smoothed) sets the clip weights and the
+   * walk clip's rate, and the bones take the blended pose.
+   */
+  private animate(moved: number, seconds: number): void {
+    // The game's own clock never advances a frame by more than this, so a slow frame is read as this long.
+    const dt = Math.min(seconds, MAX_FRAME_SECONDS);
+    if (dt > 0) {
+      this.speed += (moved / dt - this.speed) * Math.min(1, dt / SPEED_SMOOTHING);
+    } else {
+      this.speed = 0;
+    }
+    this.clips = fadeWeights(this.clips, this.speed, dt);
+    if (!this.stillIdle) this.clocks.idle = (this.clocks.idle + dt) % clipDuration('idle');
+    this.clocks.walk = (this.clocks.walk + dt * walkRate(this.speed)) % clipDuration('walk');
+    const pose = poseOf(this.clips, this.clocks);
+    for (const joint of JOINT_NAMES) {
+      const { rotation, translation } = pose[joint];
+      Matrix.ComposeToRef(
+        Vector3.OneReadOnly,
+        new Quaternion(...rotation),
+        new Vector3(...translation),
+        this.boneMatrix,
+      );
+      this.bones[joint].updateMatrix(this.boneMatrix, false);
+    }
+  }
+
   /** Eases the camera toward the player and the session's rig; a new room snaps the look-at point to the player. */
-  private follow(goal: { x: number; y: number; z: number }, snap: boolean): void {
-    const now = performance.now();
-    const dt = snap ? Infinity : now - this.lastFrame;
-    this.lastFrame = now;
+  private follow(goal: { x: number; y: number; z: number }, snap: boolean, elapsed: number): void {
+    const dt = snap ? Infinity : elapsed;
     this.focus.set(
       ease(this.focus.x, goal.x, dt),
       ease(this.focus.y, goal.y, dt),

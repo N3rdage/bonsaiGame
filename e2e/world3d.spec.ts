@@ -52,6 +52,9 @@ async function waitForRoom(page: Page, room: string): Promise<void> {
 }
 
 test.describe('the 3D world', () => {
+  // The idle clip sways the player; with reduced motion it holds still, so a screenshot is the same each run.
+  test.use({ reducedMotion: 'reduce' });
+
   test.beforeEach(async ({ page }) => {
     await page.addInitScript((settings) => {
       localStorage.setItem('bonsai.settings', settings);
@@ -205,6 +208,25 @@ test.describe('the 3D world', () => {
     expect(east.dx).toBeGreaterThan(0.1);
     expect(Math.abs(east.dx)).toBeGreaterThan(Math.abs(east.dy));
     await expect.poll(async () => (await world3d(page)).facing, POLL).toBeCloseTo(0, 1);
+  });
+
+  test('the player is a character that idles at rest, walks on the move and idles again', async ({
+    page,
+  }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+
+    expect((await world3d(page)).playerModel).toBe('character');
+    await expect.poll(async () => (await world3d(page)).clips.idle, POLL).toBeGreaterThan(0.99);
+
+    await page.keyboard.down('ArrowRight');
+    await expect.poll(async () => (await world3d(page)).clips.walk, POLL).toBeGreaterThan(0.99);
+    const walking = (await world3d(page)).clips;
+    expect(walking.idle + walking.walk).toBeCloseTo(1, 5);
+    await page.keyboard.up('ArrowRight');
+    await expect.poll(async () => (await world3d(page)).clips.idle, POLL).toBeGreaterThan(0.99);
   });
 
   test('the Q that closes the tree viewer does not also turn the camera', async ({ page }) => {
