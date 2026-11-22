@@ -46,7 +46,7 @@ interface BonsaiTestHook {
   readonly viewer?: BonsaiViewerHook;
   /** Key of the room the world is showing, 'shed', 'garden', 'frontGarden', 'lounge', 'hallway', 'study' or 'greenhouse'; '' on the title. */
   readonly room: string;
-  /** World only: the 3D world (Settings, 3D world (preview)): `on` once Babylon is drawing, its `room` (null while off), the scene's mesh count and the capsule's feet in plan metres (x east, y south, z up). */
+  /** World only: the 3D world (Settings, 3D world (preview)): `on` once Babylon is drawing, its `room` (null while off), the scene's mesh count and the player's feet in plan metres (x east, y south, z up). */
   readonly world3d?: {
     readonly on: boolean;
     readonly room:
@@ -61,8 +61,12 @@ interface BonsaiTestHook {
     readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
     /** The names of the room's pieces cut away to the skirting for the camera's heading, sorted; empty while off. */
     readonly cut: readonly string[];
-    /** The way the capsule faces in the plan, radians (0 east, pi/2 south), from its last step; 0 while off. */
+    /** The way the player faces in the plan, radians (0 east, pi/2 south), from its last step; 0 while off. */
     readonly facing: number;
+    /** The model standing for the player ('character': the skinned gardener), null while off. */
+    readonly playerModel: 'character' | null;
+    /** How much of each clip the player's pose is made of now, 0 to 1 and summing to 1 (idle at rest, walk walking, between while they cross-fade); both 0 while off. */
+    readonly clips: { readonly idle: number; readonly walk: number };
     /** True while something casts a shadow onto the floor (the player always does); false while off. */
     readonly shadows: boolean;
     /** True while the lit meshes are lit through the viewer's stepped toon ramp and inked with its outline; false while off. */
