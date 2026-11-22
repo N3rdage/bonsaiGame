@@ -69,6 +69,16 @@ interface BonsaiTestHook {
     readonly clips: { readonly idle: number; readonly walk: number };
     /** True while something casts a shadow onto the floor (the player always does); false while off. */
     readonly shadows: boolean;
+    /** The sun's shadow map: `fixed` while its frustum is the one fitted to the room (not refitted to the casters, so it cannot change as the camera or the player moves), its texel `size`, `bias` and `normalBias`, and the frustum's `window` (left, right, bottom, top, minZ, maxZ in metres); zeros while off. */
+    readonly shadowMap: {
+      readonly fixed: boolean;
+      readonly size: number;
+      readonly bias: number;
+      readonly normalBias: number;
+      readonly window: readonly [number, number, number, number, number, number];
+    };
+    /** The polygon offset the Inked floor and wall art draws with over the boxes it dresses (negative: toward the camera); 0 before the floor's art has loaded and while off. */
+    readonly artDepthOffset: number;
     /** True while the lit meshes are lit through the viewer's stepped toon ramp and inked with its outline; false while off. */
     readonly toon: boolean;
     /** The key of the sheet the 3D floor's Inked tiles are cut from ('spr_floor_shed' in the shed), null until its texture has loaded and while off. */
