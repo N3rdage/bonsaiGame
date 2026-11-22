@@ -207,6 +207,7 @@ import {
 } from './crisp';
 import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig, pressRoute } from '../world3d/camera';
+import { DOOR_RULES, doorWalkedInto } from '../world3d/doorWalk';
 import { cameraRelative } from '../world3d/move';
 import { TapTracker, routeInput } from '../world3d/tap';
 import { treeStands } from '../world3d/trees';
@@ -2051,6 +2052,16 @@ export class WorldScene extends Phaser.Scene {
         // A walk that went nowhere (a wall in the way) is given up.
         if (walk && this.player.x === before.x && this.player.y === before.y) this.goal = undefined;
         if (footstepDue(prev, this.player.walkAnim)) this.sfx.play('footstep');
+        // The 3D world's doors are walked through: into the doorway, no Interact.
+        const through =
+          DOOR_RULES.walkThrough && this.world3d.active && !this.placing
+            ? doorWalkedInto(this.player, walk ?? input, this.room)
+            : undefined;
+        if (through) {
+          this.goal = undefined;
+          this.enterRoom(through);
+          break;
+        }
       }
       // The weather keeps moving under panels, as the prototype's did.
       if (this.weather) stepParticles(this.weather.parts, this.weather.profile, this.weather.area);

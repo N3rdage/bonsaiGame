@@ -29,13 +29,15 @@ export interface Landing {
 }
 
 /** Facing into the room from each wall, and the unit step inward (+y down). */
-const INWARD: Record<Wall, { readonly facing: Facing; readonly dx: number; readonly dy: number }> =
-  {
-    N: { facing: 'down', dx: 0, dy: 1 },
-    S: { facing: 'up', dx: 0, dy: -1 },
-    E: { facing: 'left', dx: -1, dy: 0 },
-    W: { facing: 'right', dx: 1, dy: 0 },
-  };
+export const INWARD: Record<
+  Wall,
+  { readonly facing: Facing; readonly dx: number; readonly dy: number }
+> = {
+  N: { facing: 'down', dx: 0, dy: 1 },
+  S: { facing: 'up', dx: 0, dy: -1 },
+  E: { facing: 'left', dx: -1, dy: 0 },
+  W: { facing: 'right', dx: 1, dy: 0 },
+};
 
 /** The inner edge of `wall`'s band in the room's ring, along the axis perpendicular to it. */
 function ringEdge(room: Room, wall: Wall): number {

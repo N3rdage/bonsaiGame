@@ -187,7 +187,7 @@ type Goal =
   | { until: 'row'; row: number; down: boolean }
   /** Until `x` reaches `column`. */
   | { until: 'column'; column: number; right: boolean }
-  /** Until `near` is `key`. */
+  /** Until `near` is `key`, or the room changes. */
   | { until: 'near'; key: string };
 
 interface Stop {
@@ -248,6 +248,7 @@ async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<
           };
           const start = performance.now();
           let before = at() ?? { x: NaN, y: NaN, near: '', room: '' };
+          const startRoom = before.room;
           let sameFrames = 0;
           let sameSince = start;
           send('keydown');
@@ -259,8 +260,11 @@ async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<
               requestAnimationFrame(tick);
               return;
             }
+            // A door walked through in the 3D world ends the leg too, before it walks on through the next.
+            const through = pos.room !== startRoom;
             const reached =
-              a.goal.until === 'row'
+              through ||
+              (a.goal.until === 'row'
                 ? a.goal.down
                   ? pos.y >= a.goal.row
                   : pos.y <= a.goal.row
@@ -268,7 +272,7 @@ async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<
                   ? a.goal.right
                     ? pos.x >= a.goal.column
                     : pos.x <= a.goal.column
-                  : pos.near === a.goal.key;
+                  : pos.near === a.goal.key);
             if (pos.x === before.x && pos.y === before.y) {
               sameFrames += 1;
             } else {
@@ -355,6 +359,10 @@ export async function walkTo(
       down,
     });
     at = vertical.stop;
+    if (at.room !== h.room) {
+      record(rowOvershoot);
+      return;
+    }
     if (!vertical.reached) throw fail(`never reached row ${String(y)}`, at);
     rowOvershoot = down ? at.y - y : y - at.y;
   }
@@ -365,6 +373,10 @@ export async function walkTo(
 
   const along = await leg(page, dx === 'left' ? 'ArrowLeft' : 'ArrowRight', { until: 'near', key });
   at = along.stop;
+  if (at.room !== h.room) {
+    record(rowOvershoot);
+    return;
+  }
   if (!along.reached) throw fail(`never came in reach walking ${dx}`, at);
   if (at.near !== key) throw fail(`carried out of reach walking ${dx}`, at);
   record(rowOvershoot, Math.abs(at.x - along.before.x));
@@ -409,9 +421,13 @@ export type Arrow = 'ArrowUp' | 'ArrowDown' | 'ArrowLeft' | 'ArrowRight';
  * past its target; these walks were written to avoid that.)
  */
 export async function holdUntilNear(page: Page, arrow: Arrow, key: string): Promise<void> {
-  if ((await hook(page)).near === key) return;
+  const { near, room } = await hook(page);
+  if (near === key) return;
   await page.keyboard.down(arrow);
-  await page.waitForFunction((k) => window.__bonsai?.near === k, key);
+  await page.waitForFunction(
+    ([k, r]) => window.__bonsai?.near === k || window.__bonsai?.room !== r,
+    [key, room] as const,
+  );
   await page.keyboard.up(arrow);
 }
 
@@ -422,11 +438,12 @@ export async function holdUntilAtMost(
   axis: 'x' | 'y',
   max: number,
 ): Promise<void> {
+  const { room } = await hook(page);
   await page.keyboard.down(arrow);
-  await page.waitForFunction(([a, limit]) => (window.__bonsai?.player[a] ?? NaN) <= limit, [
-    axis,
-    max,
-  ] as const);
+  await page.waitForFunction(
+    ([a, limit, r]) => (window.__bonsai?.player[a] ?? NaN) <= limit || window.__bonsai?.room !== r,
+    [axis, max, room] as const,
+  );
   await page.keyboard.up(arrow);
 }
 
@@ -437,11 +454,13 @@ export async function holdUntilAtLeast(
   axis: 'x' | 'y',
   min: number,
 ): Promise<void> {
+  const { room } = await hook(page);
   await page.keyboard.down(arrow);
-  await page.waitForFunction(([a, limit]) => (window.__bonsai?.player[a] ?? -Infinity) >= limit, [
-    axis,
-    min,
-  ] as const);
+  await page.waitForFunction(
+    ([a, limit, r]) =>
+      (window.__bonsai?.player[a] ?? -Infinity) >= limit || window.__bonsai?.room !== r,
+    [axis, min, room] as const,
+  );
   await page.keyboard.up(arrow);
 }
 
