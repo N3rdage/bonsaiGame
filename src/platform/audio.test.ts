@@ -8,7 +8,7 @@ import {
   SOUND_KEYS,
   trackFor,
 } from './audio';
-import { DEFAULT_SETTINGS } from './settings';
+import { DEFAULT_SETTINGS, type Settings } from './settings';
 
 describe('audio', () => {
   it('allows both kinds with the default settings', () => {
@@ -27,12 +27,13 @@ describe('audio', () => {
   });
 
   it('ignores the other settings', () => {
-    const settings = {
+    const settings: Settings = {
       fullscreen: true,
       weather: false,
       sound: true,
       music: false,
       world3d: false,
+      timeSpeed: 1,
     };
     expect([audioAllowed(settings, 'sound'), audioAllowed(settings, 'music')]).toEqual([
       true,

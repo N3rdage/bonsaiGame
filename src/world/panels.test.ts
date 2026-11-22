@@ -30,9 +30,11 @@ import { skipConfirmPanel } from './tutorialPanel';
 import {
   DESKTOP_UI,
   PHONE_UI,
+  cssPerLogical,
   estimatedBox,
   hitRect,
   rectsOverlap,
+  uiMetrics,
   type UiMetrics,
 } from './uiScale';
 
@@ -205,6 +207,38 @@ describe('fitRows', () => {
     }
   });
 
+  it('lays Settings out in two columns on the short phone, every row and Close on the canvas', () => {
+    const ui = uiMetrics(cssPerLogical(711, 273), true);
+    expect(ui.hit).toBeGreaterThan(40);
+    const model = fitRows(settingsPanel(DEFAULT_SETTINGS, { available: true, active: false }), ui);
+    const box = model.box ?? PANEL;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.h).toBeLessThanOrEqual(270);
+    const close = panelClose(box);
+    const closeHit = hitRect(
+      estimatedBox(panelCloseLabel('Esc'), close.x, close.y, 0.5, 0.5, ui),
+      ui.hit,
+    );
+    expect(closeHit.y).toBeGreaterThanOrEqual(box.y);
+    expect(closeHit.y + closeHit.h).toBeLessThanOrEqual(270);
+    const controls = model.rows.filter((r) => r.y !== close.y);
+    expect(controls).toHaveLength(6);
+    expect(new Set(controls.map((r) => r.x ?? box.x + PANEL_INSET)).size).toBe(2);
+    const hits = [closeHit];
+    for (const row of controls) {
+      const x = row.x ?? box.x + PANEL_INSET;
+      expect(x + row.text.length * GLYPH_W).toBeLessThanOrEqual(box.x + box.w);
+      const hit = hitRect(estimatedBox(row.text, x, row.y, 0, 0.5, ui), ui.hit);
+      expect(row.y - LINE_H / 2).toBeGreaterThanOrEqual(panelTitleY(box) + LINE_H / 2);
+      expect(hit.y).toBeGreaterThanOrEqual(0);
+      expect(hit.y + hit.h).toBeLessThanOrEqual(closeHit.y);
+      hits.push(hit);
+    }
+    hits.forEach((a, i) => {
+      for (const b of hits.slice(i + 1)) expect(rectsOverlap(a, b)).toBe(false);
+    });
+  });
+
   it('gives control lines the tap target as pitch, grows the box and recentres it', () => {
     const fitted = fitRows(loadSlotsPanel([widest, widest, widest]), PHONE_UI);
     expect(fitted.rows.map((r) => r.y)).toEqual([96, 127, 158]);
@@ -215,20 +249,21 @@ describe('fitRows', () => {
     expect(shop.box).toEqual({ ...SHOP_PANEL, y: 3, h: 264 });
     expect([...new Set(shop.rows.map((r) => r.y))]).toEqual([39, 65, 96, 127, 158, 189, 220, 251]);
     expect(panelClose(SHOP_PANEL).y).not.toBe(251);
-    // Settings' four switches: PANEL grows to 176 tall, recentred, Close's line at 207.
+    // Settings' six rows: PANEL grows to 238 tall, recentred, Close's line at 238.
     const settings = fitRows(
       settingsPanel(DEFAULT_SETTINGS, { available: true, active: false }),
       PHONE_UI,
     );
-    expect(settings.box).toEqual({ ...PANEL, y: 31, h: 207 });
+    expect(settings.box).toEqual({ ...PANEL, y: 16, h: 238 });
     expect(settings.rows.map((r) => [r.id, r.y])).toEqual([
-      ['panel-fullscreen', 67],
-      ['panel-weather', 98],
-      ['panel-sound', 129],
-      ['panel-music', 160],
-      ['panel-world3d', 191],
+      ['panel-fullscreen', 52],
+      ['panel-weather', 83],
+      ['panel-sound', 114],
+      ['panel-music', 145],
+      ['panel-world3d', 176],
+      ['panel-timespeed', 207],
     ]);
-    expect(panelClose(settings.box ?? PANEL).y).toBe(222);
+    expect(panelClose(settings.box ?? PANEL).y).toBe(238);
   });
 });
 

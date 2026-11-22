@@ -30,6 +30,8 @@ export const MENU_ROW_SPACING = 16;
 
 /** Top-right anchor of the `Carrying: <label>` line under the badge (text origin 1, 0). */
 export const CARRY_TEXT = { right: 472, top: 14 } as const;
+/** Top-right anchor of the time-of-day line under the carry line (text origin 1, 0). */
+export const TIME_TEXT = { right: 472, top: 26 } as const;
 
 export type MenuItemId =
   | 'putdown'

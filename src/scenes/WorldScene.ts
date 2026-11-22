@@ -25,11 +25,13 @@ import type { BonsaiTree, GameState, PlaceableKind } from '../sim/types';
 import { TreeViewer } from '../viewer/TreeViewer';
 import { closeKeyName, escapeReachesPage } from '../world/closeKey';
 import { keyLabel } from '../world/keyHints';
-import { hudText } from '../world/hud';
+import { timeOfDay } from '../sim/timeOfDay';
+import { hudText, timeText } from '../world/hud';
 import { nearestInteractable, promptFor } from '../world/interactables';
 import {
   CARRY_TEXT,
   HUD_BADGE,
+  TIME_TEXT,
   INTERACT_BUTTON,
   MENU_BUTTON,
   NOTEBOOK_BUTTON,
@@ -94,7 +96,7 @@ import {
   type SourcePlantState,
 } from '../sim/sourcePlant';
 import type { SpeciesKey } from '../sim/types';
-import { BASE_TIME_SCALE, tickClock } from '../world/clock';
+import { effectiveTimeScale, tickClock } from '../world/clock';
 import { SLEEP_WEEK_DAYS, sleep } from '../world/sleep';
 import { ROOMS } from '../world/gardenRoom';
 import { landing, wallDoor } from '../world/doors';
@@ -431,6 +433,7 @@ export class WorldScene extends Phaser.Scene {
   /** The prompt over the Interact button, on the HUD, while the 3D world draws and the world camera's promptText is not seen. */
   private hudPrompt!: Phaser.GameObjects.Text;
   private carryText!: Phaser.GameObjects.Text;
+  private timeLine!: Phaser.GameObjects.Text;
   /** The tree sprites drawn now, redrawn whenever a location changes. */
   private treeParts: Phaser.GameObjects.GameObject[] = [];
   /** Props and floor trees, what E can reach. */
@@ -538,6 +541,14 @@ export class WorldScene extends Phaser.Scene {
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
     this.carryText = this.text(CARRY_TEXT.right, CARRY_TEXT.top, '', hud)
+      .setOrigin(1, 0)
+      .setDepth(HUD_DEPTH);
+    this.timeLine = this.text(
+      TIME_TEXT.right,
+      TIME_TEXT.top,
+      timeText(data.state.timeOfDayS, data.settings.timeSpeed),
+      hud,
+    )
       .setOrigin(1, 0)
       .setDepth(HUD_DEPTH);
     this.treeParts = [];
@@ -2017,6 +2028,7 @@ export class WorldScene extends Phaser.Scene {
     const showInteract =
       (this.near !== undefined || this.placing !== undefined) && !viewerOpen && !modal;
     this.hud.setVisible(!viewerOpen);
+    this.timeLine.setVisible(!viewerOpen);
     // An empty line would still draw its plate.
     this.carryText.setVisible(!viewerOpen && this.carryText.text !== '');
     this.toast.setVisible(this.toast.text !== '');
@@ -2104,10 +2116,12 @@ export class WorldScene extends Phaser.Scene {
    * modal panels or not; a passing day toasts the display revenue it paid.
    */
   private runClock(deltaMs: number): void {
-    const { state, overrides } = this.ctx;
-    const timeScale = overrides.timeScale ?? BASE_TIME_SCALE;
+    const { state, overrides, settings } = this.ctx;
+    const timeScale = effectiveTimeScale(overrides.timeScale, settings.timeSpeed);
     const tick = tickClock(state, deltaMs / 1000, timeScale);
     this.daysPassed(tick.days, tick.revenue, false);
+    const line = timeText(state.timeOfDayS, settings.timeSpeed);
+    if (this.timeLine.text !== line) this.timeLine.setText(line);
   }
 
   /** Sleep and Sleep a week (src/world/sleep.ts), from the room only: the world advances `days` and toasts the new day. */
@@ -2188,6 +2202,7 @@ export class WorldScene extends Phaser.Scene {
     this.music.play(trackFor('viewer'));
     this.hud.setVisible(false);
     this.carryText.setVisible(false);
+    this.timeLine.setVisible(false);
     this.menuButton.setVisible(false);
     this.notebookButton.setVisible(false);
     this.promptText.setVisible(false);
@@ -2318,6 +2333,10 @@ export class WorldScene extends Phaser.Scene {
           : undefined,
       placingVisible: this.ghost !== undefined && !this.viewer.isOpen && this.panel?.modal !== true,
       hud: hudText(state),
+      timeLine: this.timeLine.text,
+      timeOfDay: timeOfDay(state.timeOfDayS).fraction,
+      phase: timeOfDay(state.timeOfDayS).phase,
+      timeSpeed: this.ctx.settings.timeSpeed,
       frames: this.frames,
     };
   };

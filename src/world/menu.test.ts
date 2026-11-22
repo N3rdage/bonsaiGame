@@ -8,6 +8,7 @@ import {
   MENU_PANEL,
   MENU_ROW_SPACING,
   NOTEBOOK_BUTTON,
+  TIME_TEXT,
   TOAST_X,
   VIEW_BUTTON,
   menuItems,
@@ -135,6 +136,12 @@ describe('world HUD menu layout', () => {
     const left = CARRY_TEXT.right - 'Carrying: Japanese Maple #12'.length * GLYPH_W;
     expect(left).toBeGreaterThan(panelRight);
     expect(CARRY_TEXT.top).toBeGreaterThanOrEqual(2 + LINE_H);
+  });
+
+  it('puts the time line under the carry line, clear of the menu panel', () => {
+    expect(TIME_TEXT.right).toBe(HUD_BADGE.right);
+    expect(TIME_TEXT.top).toBeGreaterThanOrEqual(CARRY_TEXT.top + LINE_H);
+    expect(TIME_TEXT.right - 'Night  4x'.length * GLYPH_W).toBeGreaterThan(panelRight);
   });
 
   it('opens the panel under the Menu button, clear of the toast', () => {
