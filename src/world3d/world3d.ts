@@ -109,6 +109,7 @@ export class World3d {
       cut: state ? [...state.cut] : [],
       facing: state?.facing ?? 0,
       shadows: state?.shadows ?? false,
+      toon: state?.toon ?? false,
       weather: state?.weather ?? null,
       player: this.renderer ? this.renderer.playerAt() : null,
       picked: this.picked,

@@ -11,9 +11,9 @@ import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import '@babylonjs/core/Culling/ray';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
-import { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
+import '@babylonjs/core/Rendering/outlineRenderer';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -30,7 +30,7 @@ import type { Season } from '../sim/seasons';
 import { PALETTE } from '../world/palette';
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import type { Room } from '../world/shedRoom';
-import { cameraRig, cutNames, cutSpan, ease } from './camera';
+import { RADIUS_DEFAULT, cameraRig, cutNames, cutSpan, ease } from './camera';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
@@ -38,6 +38,7 @@ import { facingOf } from './move';
 import {
   PLAYER_HEIGHT,
   PLAYER_RADIUS,
+  type Vec3,
   hotspotSpecs,
   meshSpecs,
   playerFeet,
@@ -46,6 +47,8 @@ import {
 } from './meshes';
 import type { Picked } from './tap';
 import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
+import { inkUnit, outlineWidthMetres } from './toon';
+import { toonLit } from './toonPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { TreeStand } from './trees';
 import { weatherKind, weatherSprites, type WeatherField } from './weather';
@@ -69,6 +72,8 @@ export interface RendererSnapshot {
   readonly facing: number;
   /** True while something casts a shadow onto the floor. */
   readonly shadows: boolean;
+  /** True while the lit meshes are lit through the toon ramp and inked. */
+  readonly toon: boolean;
   /** The kind of weather drawn (petals, fireflies, leaves, snow), null where none is. */
   readonly weather: string | null;
   /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it. */
@@ -175,6 +180,10 @@ export class Renderer {
   private readonly trees = new Map<number, Planted>();
   /** The one material of every tree part and furniture model: white, so the vertex colours the builders give are what shows. */
   private readonly colourMaterial: StandardMaterial;
+  /** Toward the sun in Babylon's frame, the direction the ramp reads N.L against. */
+  private readonly toLight: Vec3;
+  /** The ink outline's width in metres: OUTLINE_WIDTH_PX at the default camera radius on the canvas as it is sized. */
+  private outlineWidth = 0;
   /** What the camera looks at, eased toward the player's middle. */
   private readonly focus = Vector3.Zero();
   private materials = new Map<WashKey, StandardMaterial>();
@@ -192,10 +201,9 @@ export class Renderer {
     this.engine = new Engine(this.canvas, true, { adaptToDeviceRatio: true });
     this.scene = new Scene(this.engine);
     this.scene.clearColor = Color4.FromColor3(SURROUND, 1);
-    new HemisphericLight('sky', new Vector3(0, 1, 0), this.scene).intensity = 0.7;
     const light = lightDirectionBabylon();
+    this.toLight = { x: -light.x, y: -light.y, z: -light.z };
     const sun = new DirectionalLight('sun', new Vector3(light.x, light.y, light.z), this.scene);
-    sun.intensity = 0.6;
     // One room at a time is a few metres across and the camera always sees all of it, so a single
     // shadow map covers it at a fine texel size; cascades would only split that map for no gain.
     this.shadows = new ShadowGenerator(2048, sun);
@@ -216,12 +224,15 @@ export class Renderer {
     );
     this.player.material = this.material('wood');
     this.shadows.addShadowCaster(this.player);
+    this.ink(this.player);
     const nose = CreateBox('player.nose', { size: NOSE }, this.scene);
     nose.material = this.material('leafOrange');
     nose.parent = this.player;
+    this.ink(nose);
     nose.position.set(0, PLAYER_HEIGHT / 4, PLAYER_RADIUS);
     this.colourMaterial = new StandardMaterial('colours', this.scene);
     this.colourMaterial.specularColor = Color3.Black();
+    toonLit(this.colourMaterial, this.toLight);
   }
 
   /** The room shown and every mesh in the scene, the player's included. */
@@ -237,6 +248,7 @@ export class Renderer {
       cut: this.cut,
       facing: this.facing,
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
+      toon: true,
       weather: this.weatherKind,
       hotspots: this.hotspotPoints(),
     };
@@ -367,6 +379,7 @@ export class Renderer {
       planted.parts = treeMeshData(tree, season).map(({ part, data }) => {
         const mesh = meshOf(`tree.${String(tree.id)}.${part}`, data, root, this.colourMaterial);
         this.shadows.addShadowCaster(mesh);
+        this.ink(mesh);
         return mesh;
       });
       planted.key = key;
@@ -387,6 +400,7 @@ export class Renderer {
     const material = new StandardMaterial(`wash.${wash}`, this.scene);
     material.diffuseColor = washColour(wash);
     material.specularColor = Color3.Black();
+    toonLit(material, this.toLight);
     this.materials.set(wash, material);
     return material;
   }
@@ -411,6 +425,7 @@ export class Renderer {
       mesh.position.set(spec.center.x, spec.center.y, spec.center.z);
       mesh.material = this.material(spec.wash);
       mesh.receiveShadows = spec.name === 'floor';
+      if (spec.name.startsWith('furniture.')) this.ink(mesh);
       this.pieces.set(spec.name, {
         mesh,
         z0: spec.center.y - spec.height / 2,
@@ -502,7 +517,16 @@ export class Renderer {
     mesh.isPickable = false;
     mesh.alwaysSelectAsActiveMesh = true;
     this.shadows.addShadowCaster(mesh);
+    this.ink(mesh);
     return mesh;
+  }
+
+  /** Draws `mesh` with the ink outline (`INK_RGB`) in the width the canvas's size gives; Babylon outlines thin instances in the same one draw. */
+  private ink(mesh: AbstractMesh): void {
+    const { r, g, b } = inkUnit();
+    mesh.renderOutline = true;
+    mesh.outlineColor = new Color3(r, g, b);
+    mesh.outlineWidth = this.outlineWidth;
   }
 
   /** Disposes a mesh that may cast a shadow, taking it off the shadow map's list first. */
@@ -584,5 +608,9 @@ export class Renderer {
       height: `${String(rect.height)}px`,
     });
     this.engine.resize();
+    this.outlineWidth = outlineWidthMetres(RADIUS_DEFAULT, this.camera.fov, rect.height);
+    for (const mesh of this.scene.meshes) {
+      if (mesh.renderOutline) mesh.outlineWidth = this.outlineWidth;
+    }
   }
 }
