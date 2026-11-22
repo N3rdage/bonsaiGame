@@ -2073,8 +2073,9 @@ export class WorldScene extends Phaser.Scene {
   private draw3d(): void {
     const { state, settings } = this.ctx;
     const season = seasonForDay(state.day);
-    const trees = settings.world3d ? treeStands(state, this.liveRoom(), season) : [];
-    this.world3d.sync(settings.world3d, this.room, this.player, trees, season);
+    const room = this.liveRoom();
+    const trees = settings.world3d ? treeStands(state, room, season) : [];
+    this.world3d.sync(settings.world3d, room, this.player, trees, season);
     const on = this.world3d.active;
     if (this.worldCamera.visible === !on) return;
     this.worldCamera.visible = !on;
