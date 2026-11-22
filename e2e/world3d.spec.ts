@@ -37,9 +37,12 @@ async function world3d(page: Page): Promise<NonNullable<BonsaiTestHook['world3d'
   return state;
 }
 
-/** Waits for the renderer to be up and drawing `room`. */
+/** Waits for the renderer to be up and drawing `room`, its floor tiles laid. */
 async function waitForRoom(page: Page, room: string): Promise<void> {
-  await page.waitForFunction((r) => window.__bonsai?.world3d?.room === r, room);
+  await page.waitForFunction(
+    (r) => window.__bonsai?.world3d?.room === r && window.__bonsai.world3d.floorSheet !== null,
+    room,
+  );
 }
 
 test.describe('the 3D world', () => {
@@ -349,6 +352,16 @@ test.describe('the 3D world', () => {
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
     await zoomIn(page, 900, 7.5);
     await expect(page).toHaveScreenshot('world3d-furniture.png');
+  });
+
+  test("lays each room's own Inked floor tiles", async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await expect.poll(async () => (await world3d(page)).floorSheet, POLL).toBe('spr_floor_shed');
+    await shedToGarden(page);
+    await waitForRoom(page, 'garden');
+    await expect.poll(async () => (await world3d(page)).floorSheet, POLL).toBe('spr_floor_garden');
   });
 
   test('draws the garden with the player casting a shadow on the floor', async ({ page }) => {

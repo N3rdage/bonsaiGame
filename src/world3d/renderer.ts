@@ -15,6 +15,7 @@ import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator'
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
@@ -28,9 +29,12 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Scene } from '@babylonjs/core/scene';
 import type { Season } from '../sim/seasons';
 import { PALETTE } from '../world/palette';
+import { sheetUrl } from '../world/assets';
+import { floorTiles } from '../world/roomArt';
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import type { Room } from '../world/shedRoom';
 import { RADIUS_DEFAULT, cameraRig, cutNames, cutSpan, ease } from './camera';
+import { floorLayout, floorMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
@@ -74,6 +78,8 @@ export interface RendererSnapshot {
   readonly shadows: boolean;
   /** True while the lit meshes are lit through the toon ramp and inked. */
   readonly toon: boolean;
+  /** The key of the sheet the floor's tiles are cut from, null until its texture has loaded. */
+  readonly floorSheet: string | null;
   /** The kind of weather drawn (petals, fireflies, leaves, snow), null where none is. */
   readonly weather: string | null;
   /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it. */
@@ -108,6 +114,13 @@ function meshOf(
   mesh.parent = parent;
   mesh.isPickable = false;
   return mesh;
+}
+
+/** The floor's tile mesh with the texture and material only it uses, disposed together. */
+interface FloorArt {
+  readonly mesh: Mesh;
+  readonly material: StandardMaterial;
+  readonly sheet: string;
 }
 
 /** A furniture kind's model, one mesh drawn once per piece standing: the pieces' keys it was last set for, and how many. */
@@ -163,6 +176,7 @@ export class Renderer {
   private room: Room['key'] | undefined;
   private plan: RoomPlan3d | undefined;
   private pieces = new Map<string, Piece>();
+  private floorArt: FloorArt | undefined;
   /** The invisible boxes taps pick props by, each under its prop's key. */
   private hotspots = new Map<AbstractMesh, string>();
   /** The prop keys the hotspots were made for, so a placed item's spots add or drop theirs. */
@@ -249,6 +263,7 @@ export class Renderer {
       facing: this.facing,
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       toon: true,
+      floorSheet: this.floorArt?.sheet ?? null,
       weather: this.weatherKind,
       hotspots: this.hotspotPoints(),
     };
@@ -388,6 +403,7 @@ export class Renderer {
 
   /** Removes the canvas and everything on the GPU, and gives the game's canvas back its style. */
   dispose(): void {
+    this.clearFloor();
     this.scene.dispose();
     this.engine.dispose();
     this.canvas.remove();
@@ -409,6 +425,7 @@ export class Renderer {
   private build(room: Room): void {
     for (const { mesh } of this.pieces.values()) mesh.dispose();
     this.pieces.clear();
+    this.clearFloor();
     for (const { mesh } of this.instanced.values()) this.discard(mesh);
     this.instanced.clear();
     for (const planted of this.trees.values()) this.discardTree(planted);
@@ -434,6 +451,54 @@ export class Renderer {
     }
     this.setHotspots(room, plan);
     this.room = room.key;
+    this.tile(room);
+  }
+
+  /** Disposes the floor's tile mesh, its material and the texture only they use. */
+  private clearFloor(): void {
+    this.floorArt?.mesh.dispose();
+    this.floorArt?.material.dispose(false, true);
+    this.floorArt = undefined;
+  }
+
+  /**
+   * Lays `room`'s Inked floor tiles just over the floor box's top once the
+   * sheet's PNG (the one Phaser loads) has loaded: one merged quad mesh,
+   * nearest filtered with no mipmaps, toon lit and shadowed like the floor
+   * under it. A texture that arrives after the room changed is dropped.
+   */
+  private tile(room: Room): void {
+    const sheet = floorTiles(room).sheet;
+    const texture = new Texture(sheetUrl(import.meta.env.BASE_URL, sheet), this.scene, {
+      noMipmap: true,
+      samplingMode: Texture.NEAREST_SAMPLINGMODE,
+      onLoad: () => {
+        if (this.room !== room.key || this.floorArt) {
+          texture.dispose();
+          return;
+        }
+        const { width, height } = texture.getSize();
+        const data = floorMeshData(floorLayout(room, width, height).quads);
+        const mesh = new Mesh('floor.tiles', this.scene);
+        const vertices = new VertexData();
+        vertices.positions = data.positions;
+        vertices.normals = data.normals;
+        vertices.uvs = data.uvs;
+        vertices.indices = data.indices;
+        vertices.applyToMesh(mesh);
+        const material = new StandardMaterial('floor.tiles', this.scene);
+        material.diffuseTexture = texture;
+        material.specularColor = Color3.Black();
+        material.backFaceCulling = false;
+        toonLit(material, this.toLight);
+        mesh.material = material;
+        mesh.receiveShadows = true;
+        mesh.isPickable = false;
+        this.floorArt = { mesh, material, sheet: sheet.key };
+      },
+    });
+    texture.wrapU = Texture.CLAMP_ADDRESSMODE;
+    texture.wrapV = Texture.CLAMP_ADDRESSMODE;
   }
 
   /** Makes the invisible box of each prop of `room`, in place of the last set. */
