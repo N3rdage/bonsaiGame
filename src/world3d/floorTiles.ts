@@ -69,7 +69,7 @@ export function floorLayout(room: Room, imageWidth: number, imageHeight: number)
 }
 
 /** The arrays of one mesh of the quads, in Babylon's frame, normals up, each quad's corners NW, NE, SE, SW. */
-export interface FloorMeshData {
+export interface QuadMeshData {
   readonly positions: number[];
   readonly normals: number[];
   readonly uvs: number[];
@@ -77,8 +77,8 @@ export interface FloorMeshData {
 }
 
 /** The vertex arrays of one mesh holding every quad, lifted `FLOOR_LIFT` above the floor. */
-export function floorMeshData(quads: readonly FloorQuad[]): FloorMeshData {
-  const data: FloorMeshData = { positions: [], normals: [], uvs: [], indices: [] };
+export function floorMeshData(quads: readonly FloorQuad[]): QuadMeshData {
+  const data: QuadMeshData = { positions: [], normals: [], uvs: [], indices: [] };
   quads.forEach((q, n) => {
     const corners = [
       { x: q.x0, y: q.y0, u: q.u0, v: q.v1 },

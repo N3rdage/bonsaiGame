@@ -35,9 +35,10 @@ import { floorTiles } from '../world/roomArt';
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import type { Room } from '../world/shedRoom';
 import { RADIUS_DEFAULT, cameraRig, cutNames, cutSpan, cuttable, ease } from './camera';
-import { floorLayout, floorMeshData, type FloorMeshData } from './floorTiles';
+import { countDetails, roomDetails, type Detail } from './details';
+import { floorLayout, floorMeshData, type QuadMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
-import { FURNITURE_MODELS, type FurnitureKind } from './furnitureModels';
+import { FURNITURE_MODELS, type FurnitureKind, type ModelPart } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
 import {
   JOINT_NAMES,
@@ -74,6 +75,9 @@ import { weatherKind, weatherSprites, type WeatherField } from './weather';
 /** The page's surround colour (SURROUND in src/scenes/textStyle.ts), behind the room. */
 const SURROUND = Color3.FromHexString('#3e3632');
 
+/** The plan's origin, where a model's parts and a room's standing details are placed. */
+const ORIGIN: Vec3 = { x: 0, y: 0, z: 0 };
+
 /** What the scene reports to the test hook. */
 export interface RendererSnapshot {
   readonly room: Room['key'];
@@ -100,6 +104,8 @@ export interface RendererSnapshot {
   readonly floorSheet: string | null;
   /** The keys of the sheets the walls' art is cut from that have loaded, sorted. */
   readonly wallSheets: readonly string[];
+  /** How many modelled details the room has of each kind ('door', 'window', 'hedge', 'planting'). */
+  readonly details: Readonly<Record<string, number>>;
   /** The kind of weather drawn (petals, fireflies, leaves, snow), null where none is. */
   readonly weather: string | null;
   /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it. */
@@ -226,6 +232,9 @@ export class Renderer {
   /** The furniture models in use, by kind. */
   private readonly instanced = new Map<FurnitureKind, Instanced>();
   private cut: string[] = [];
+  /** The room's modelled details: one merged mesh per wall piece they hang from, one for those standing on the floor. */
+  private detailMeshes: Mesh[] = [];
+  private detailCounts: Readonly<Record<string, number>> = {};
   /** The weather's one plane, its particles' matrices and colours, and the particle array they were sized for. */
   private weatherMesh: Mesh | undefined;
   private weatherMatrices = new Float32Array(0);
@@ -332,6 +341,7 @@ export class Renderer {
       toon: true,
       floorSheet: this.floorArt?.sheet ?? null,
       wallSheets: [...this.wallArt.keys()].sort(),
+      details: this.detailCounts,
       weather: this.weatherKind,
       hotspots: this.hotspotPoints(),
     };
@@ -528,6 +538,8 @@ export class Renderer {
   private build(room: Room): void {
     this.epoch += 1;
     this.clearWalls();
+    for (const mesh of this.detailMeshes) this.discard(mesh);
+    this.detailMeshes = [];
     for (const { mesh } of this.pieces.values()) mesh.dispose();
     this.pieces.clear();
     this.clearFloor();
@@ -554,6 +566,7 @@ export class Renderer {
         z1: spec.center.y + spec.height / 2,
       });
     }
+    this.furnishDetails(roomDetails(room, plan), plan);
     this.setHotspots(room, plan);
     this.room = room.key;
     this.tile(room);
@@ -681,7 +694,7 @@ export class Renderer {
   }
 
   /** An unpickable mesh of `data` (positions, normals, UVs, indices) with `material`. */
-  private texturedMesh(name: string, data: FloorMeshData, material: StandardMaterial): Mesh {
+  private texturedMesh(name: string, data: QuadMeshData, material: StandardMaterial): Mesh {
     const mesh = new Mesh(name, this.scene);
     const vertices = new VertexData();
     vertices.positions = data.positions;
@@ -747,16 +760,62 @@ export class Renderer {
 
   /** The one source mesh of `kind`: its parts' boxes, vertex-coloured by their washes, merged into one at the origin. */
   private modelMesh(kind: FurnitureKind): Mesh {
-    const boxes = FURNITURE_MODELS[kind].parts.map((part, n) => {
+    const mesh = this.partsMesh(`model.${kind}`, FURNITURE_MODELS[kind].parts, ORIGIN);
+    this.shadows.addShadowCaster(mesh);
+    this.ink(mesh);
+    return mesh;
+  }
+
+  /**
+   * Stands the room's modelled doors, windows, hedges and plantings. Those
+   * hung from a wall piece (a door, a window) are one merged mesh parented to
+   * that piece's box, so the camera's cut takes them away with it, lit like
+   * the walls and not outlined; the rest (a hedge, a planting) are one merged
+   * mesh on the floor, which casts a shadow and is inked as furniture is.
+   */
+  private furnishDetails(details: readonly Detail[], plan: RoomPlan3d): void {
+    this.detailCounts = countDetails(details);
+    const hung = (host: string | undefined): host is string =>
+      host !== undefined && this.pieces.has(host);
+    const hosts = new Set(details.map((d) => d.host).filter(hung));
+    for (const host of hosts) {
+      const wall = plan.walls.find((w) => w.name === host);
+      const parent = this.pieces.get(host)?.mesh;
+      if (!wall || !parent) continue;
+      const origin = {
+        x: (wall.x0 + wall.x1) / 2,
+        y: (wall.y0 + wall.y1) / 2,
+        z: (wall.z0 + wall.z1) / 2,
+      };
+      const parts = details.filter((d) => d.host === host).flatMap((d) => d.parts);
+      const mesh = this.partsMesh(`details.${host}`, parts, origin);
+      mesh.parent = parent;
+      this.detailMeshes.push(mesh);
+    }
+    const standing = details.filter((d) => !hung(d.host)).flatMap((d) => d.parts);
+    if (standing.length === 0) return;
+    const mesh = this.partsMesh('details.standing', standing, ORIGIN);
+    this.shadows.addShadowCaster(mesh);
+    this.ink(mesh);
+    this.detailMeshes.push(mesh);
+  }
+
+  /**
+   * One mesh of `parts` (boxes in plan metres), each vertex-coloured by its
+   * wash and positioned relative to `origin` so it can ride a box centred
+   * there, on the shared colour material.
+   */
+  private partsMesh(name: string, parts: readonly ModelPart[], origin: Vec3): Mesh {
+    const boxes = parts.map((part, n) => {
       const box = CreateBox(
-        `model.${kind}.${String(n)}`,
+        `${name}.${String(n)}`,
         { width: part.x1 - part.x0, height: part.z1 - part.z0, depth: part.y1 - part.y0 },
         this.scene,
       );
       const centre = toBabylon({
-        x: (part.x0 + part.x1) / 2,
-        y: (part.y0 + part.y1) / 2,
-        z: (part.z0 + part.z1) / 2,
+        x: (part.x0 + part.x1) / 2 - origin.x,
+        y: (part.y0 + part.y1) / 2 - origin.y,
+        z: (part.z0 + part.z1) / 2 - origin.z,
       });
       box.position.set(centre.x, centre.y, centre.z);
       box.bakeCurrentTransformIntoVertices();
@@ -769,13 +828,11 @@ export class Renderer {
       return box;
     });
     const mesh = Mesh.MergeMeshes(boxes, true);
-    if (!mesh) throw new Error(`model ${kind} has no parts`);
-    mesh.name = `model.${kind}`;
+    if (!mesh) throw new Error(`${name} has no parts`);
+    mesh.name = name;
     mesh.material = this.colourMaterial;
     mesh.isPickable = false;
     mesh.alwaysSelectAsActiveMesh = true;
-    this.shadows.addShadowCaster(mesh);
-    this.ink(mesh);
     return mesh;
   }
 
