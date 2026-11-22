@@ -30,7 +30,7 @@ describe('settings', () => {
     expect(loadSettings(new MemorySettingsStorage())).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('round-trips all four keys through save and load', () => {
+  it('round-trips every key through save and load', () => {
     const storage = new MemorySettingsStorage();
     const settings: Settings = {
       fullscreen: true,
