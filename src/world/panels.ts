@@ -99,12 +99,47 @@ export function needsFit(box: PanelBox, ui: UiMetrics): boolean {
  * `rowSpacing`, a text line keeps it, each gap growing by half of each
  * neighbour's extra; the rows on Close's line stay on it. The box grows to
  * hold the lines above Close's tap target and is recentred on the canvas;
- * `x` and `w` stay. At or under `rowSpacing` the model is returned as is.
+ * `x` and `w` stay. At or under `rowSpacing` the model is returned as is. A
+ * single column of plain rows that would still overflow the canvas is split
+ * into two columns first.
  */
 export function fitRows(model: PanelModel, ui: UiMetrics): PanelModel {
+  if (!needsFit(model.box ?? PANEL, ui)) return model;
+  const single = fitLines(model, ui);
+  const columns = (single.box?.h ?? 0) > GAME_HEIGHT ? twoColumns(model) : undefined;
+  return columns ? fitLines(columns, ui) : single;
+}
+
+/**
+ * `model` with its single column of plain rows (no `x`, one per line, Close
+ * apart) split into two side-by-side columns, the left one the longer, so a
+ * list too tall for the canvas at a large tap target takes half the lines.
+ * Undefined when the rows are not such a column.
+ */
+function twoColumns(model: PanelModel): PanelModel | undefined {
+  const box = model.box ?? PANEL;
+  const closeY = panelClose(box).y;
+  const list = model.rows.filter((r) => r.y !== closeY);
+  if (list.length < 2 || list.some((r) => r.x !== undefined || r.align !== undefined))
+    return undefined;
+  if (new Set(list.map((r) => r.y)).size !== list.length) return undefined;
+  const lines = Math.ceil(list.length / 2);
+  return {
+    ...model,
+    rows: model.rows.map((r) => {
+      const i = list.indexOf(r);
+      if (i < 0) return r;
+      return i < lines
+        ? { ...r, y: rowY(box, i) }
+        : { ...r, y: rowY(box, i - lines), x: box.x + box.w / 2 + PANEL_INSET };
+    }),
+  };
+}
+
+/** The one-line-per-pitch layout of `fitRows`, for a model that needs fitting. */
+function fitLines(model: PanelModel, ui: UiMetrics): PanelModel {
   const box = model.box ?? PANEL;
   const spacing = box.rowSpacing;
-  if (!needsFit(box, ui)) return model;
   const closeY = panelClose(box).y;
   const lineYs = [...new Set(model.rows.map((r) => r.y))]
     .filter((y) => y !== closeY)

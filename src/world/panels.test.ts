@@ -30,9 +30,11 @@ import { skipConfirmPanel } from './tutorialPanel';
 import {
   DESKTOP_UI,
   PHONE_UI,
+  cssPerLogical,
   estimatedBox,
   hitRect,
   rectsOverlap,
+  uiMetrics,
   type UiMetrics,
 } from './uiScale';
 
@@ -203,6 +205,38 @@ describe('fitRows', () => {
         for (const b of hits.slice(i + 1)) expect(rectsOverlap(a, b), model.key).toBe(false);
       });
     }
+  });
+
+  it('lays Settings out in two columns on the short phone, every row and Close on the canvas', () => {
+    const ui = uiMetrics(cssPerLogical(711, 273), true);
+    expect(ui.hit).toBeGreaterThan(40);
+    const model = fitRows(settingsPanel(DEFAULT_SETTINGS, { available: true, active: false }), ui);
+    const box = model.box ?? PANEL;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.h).toBeLessThanOrEqual(270);
+    const close = panelClose(box);
+    const closeHit = hitRect(
+      estimatedBox(panelCloseLabel('Esc'), close.x, close.y, 0.5, 0.5, ui),
+      ui.hit,
+    );
+    expect(closeHit.y).toBeGreaterThanOrEqual(box.y);
+    expect(closeHit.y + closeHit.h).toBeLessThanOrEqual(270);
+    const controls = model.rows.filter((r) => r.y !== close.y);
+    expect(controls).toHaveLength(6);
+    expect(new Set(controls.map((r) => r.x ?? box.x + PANEL_INSET)).size).toBe(2);
+    const hits = [closeHit];
+    for (const row of controls) {
+      const x = row.x ?? box.x + PANEL_INSET;
+      expect(x + row.text.length * GLYPH_W).toBeLessThanOrEqual(box.x + box.w);
+      const hit = hitRect(estimatedBox(row.text, x, row.y, 0, 0.5, ui), ui.hit);
+      expect(row.y - LINE_H / 2).toBeGreaterThanOrEqual(panelTitleY(box) + LINE_H / 2);
+      expect(hit.y).toBeGreaterThanOrEqual(0);
+      expect(hit.y + hit.h).toBeLessThanOrEqual(closeHit.y);
+      hits.push(hit);
+    }
+    hits.forEach((a, i) => {
+      for (const b of hits.slice(i + 1)) expect(rectsOverlap(a, b)).toBe(false);
+    });
   });
 
   it('gives control lines the tap target as pitch, grows the box and recentres it', () => {
