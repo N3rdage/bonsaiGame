@@ -40,6 +40,7 @@ import { floorLayout, floorMeshData, type QuadMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind, type ModelPart } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
+import { shadowFrustum } from './shadowFrustum';
 import {
   JOINT_NAMES,
   type ClipName,
@@ -98,6 +99,10 @@ export interface RendererSnapshot {
   readonly clips: ClipWeights;
   /** True while something casts a shadow onto the floor. */
   readonly shadows: boolean;
+  /** The sun's shadow map: its bias settings and its fixed window, the room's. */
+  readonly shadowMap: ShadowMapState;
+  /** The polygon offset the Inked art's materials draw with over the boxes they lie on. */
+  readonly artDepthOffset: number;
   /** True while the lit meshes are lit through the toon ramp and inked. */
   readonly toon: boolean;
   /** The key of the sheet the floor's tiles are cut from, null until its texture has loaded. */
@@ -111,6 +116,28 @@ export interface RendererSnapshot {
   /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it. */
   readonly hotspots: readonly { readonly id: string; readonly x: number; readonly y: number }[];
 }
+
+/** What the test hook reads of the shadow map. */
+export interface ShadowMapState {
+  /** True while the frustum is the one fitted to the room, not refitted to the casters each frame. */
+  readonly fixed: boolean;
+  readonly size: number;
+  readonly bias: number;
+  readonly normalBias: number;
+  /** The orthographic window and depth range now in use: left, right, bottom, top, minZ, maxZ, metres. */
+  readonly window: readonly [number, number, number, number, number, number];
+}
+
+const SHADOW_MAP_SIZE = 2048;
+/** Babylon's depth bias and the metres a receiver's lookup moves along its normal: enough that a lit floor is not its own shadow, too little to lift a shadow off its caster's foot. */
+const SHADOW_BIAS = 0.0005;
+const SHADOW_NORMAL_BIAS = 0.02;
+/** The frustum always reaches this high, metres, so a tree taller than the room's walls still casts. */
+const SHADOW_CEILING = 4;
+/** Anisotropic samples for the art on walls and floor, which the camera sees at a grazing angle. */
+const ANISOTROPY = 4;
+/** Polygon offset of the Inked art's materials, negative toward the camera. */
+const ART_DEPTH_OFFSET = -2;
 
 /** Seconds over which the measured speed of the player's feet settles, so the fixed steps' jitter does not flicker the blend. */
 const SPEED_SMOOTHING = 0.1;
@@ -202,6 +229,7 @@ export class Renderer {
   private readonly scene: Scene;
   private readonly camera: ArcRotateCamera;
   private readonly shadows: ShadowGenerator;
+  private readonly sun: DirectionalLight;
   /** The player's skinned body, its origin at the feet. */
   private readonly player: Mesh;
   private readonly bones: Readonly<Record<JointName, Bone>>;
@@ -269,10 +297,17 @@ export class Renderer {
     const light = lightDirectionBabylon();
     this.toLight = { x: -light.x, y: -light.y, z: -light.z };
     const sun = new DirectionalLight('sun', new Vector3(light.x, light.y, light.z), this.scene);
+    this.sun = sun;
     // One room at a time is a few metres across and the camera always sees all of it, so a single
     // shadow map covers it at a fine texel size; cascades would only split that map for no gain.
-    this.shadows = new ShadowGenerator(2048, sun);
+    // The frustum is fitted to the room once (`fitShadows`), not to the casters each frame, so the
+    // map's texels never slide as the player moves; the biases keep a lit floor from shadowing itself.
+    sun.autoUpdateExtends = false;
+    sun.shadowOrthoScale = 0;
+    this.shadows = new ShadowGenerator(SHADOW_MAP_SIZE, sun);
     this.shadows.usePercentageCloserFiltering = true;
+    this.shadows.bias = SHADOW_BIAS;
+    this.shadows.normalBias = SHADOW_NORMAL_BIAS;
     this.shadows.darkness = shadowDarkness();
     this.camera = new ArcRotateCamera(
       'camera',
@@ -338,6 +373,8 @@ export class Renderer {
       model: 'character',
       clips: this.clips,
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
+      shadowMap: this.shadowMapState(),
+      artDepthOffset: this.floorArt?.material.zOffset ?? 0,
       toon: true,
       floorSheet: this.floorArt?.sheet ?? null,
       wallSheets: [...this.wallArt.keys()].sort(),
@@ -345,6 +382,53 @@ export class Renderer {
       weather: this.weatherKind,
       hotspots: this.hotspotPoints(),
     };
+  }
+
+  private shadowMapState(): ShadowMapState {
+    const { sun } = this;
+    return {
+      fixed: !sun.autoUpdateExtends,
+      size: SHADOW_MAP_SIZE,
+      bias: this.shadows.bias,
+      normalBias: this.shadows.normalBias,
+      window: [
+        sun.orthoLeft,
+        sun.orthoRight,
+        sun.orthoBottom,
+        sun.orthoTop,
+        sun.shadowMinZ,
+        sun.shadowMaxZ,
+      ],
+    };
+  }
+
+  /** Fits the sun's frustum to `plan`'s boxes, and to a tree's height, once, as the room is built. */
+  private fitShadows(plan: RoomPlan3d): void {
+    const boxes = [...plan.floor, ...plan.walls, ...plan.furniture];
+    const frustum = shadowFrustum(
+      {
+        min: {
+          x: Math.min(...boxes.map((b) => b.x0)),
+          y: Math.min(...boxes.map((b) => b.z0)),
+          z: -Math.max(...boxes.map((b) => b.y1)),
+        },
+        max: {
+          x: Math.max(...boxes.map((b) => b.x1)),
+          y: Math.max(SHADOW_CEILING, ...boxes.map((b) => b.z1)),
+          z: -Math.min(...boxes.map((b) => b.y0)),
+        },
+      },
+      lightDirectionBabylon(),
+    );
+    const { sun } = this;
+    sun.position.set(frustum.position.x, frustum.position.y, frustum.position.z);
+    sun.orthoLeft = frustum.left;
+    sun.orthoRight = frustum.right;
+    sun.orthoBottom = frustum.bottom;
+    sun.orthoTop = frustum.top;
+    sun.shadowMinZ = frustum.minZ;
+    sun.shadowMaxZ = frustum.maxZ;
+    sun.forceProjectionMatrixCompute();
   }
 
   /** The screen point of each hotspot's middle, in game px. */
@@ -550,6 +634,7 @@ export class Renderer {
     this.cut = [];
     const plan = roomPlan3d(room);
     this.plan = plan;
+    this.fitShadows(plan);
     for (const spec of meshSpecs(plan)) {
       const mesh = CreateBox(
         spec.name,
@@ -583,7 +668,7 @@ export class Renderer {
   /**
    * Lays `room`'s Inked floor tiles just over the floor box's top once the
    * sheet's PNG (the one Phaser loads) has loaded: one merged quad mesh,
-   * nearest filtered with no mipmaps, toon lit and shadowed like the floor
+   * mipmapped, toon lit and shadowed like the floor
    * under it. A texture that arrives after the room changed is dropped.
    */
   private tile(room: Room): void {
@@ -617,7 +702,7 @@ export class Renderer {
    * lowers the box, takes its art with it (one mesh over several pieces could
    * not follow their separate cuts); the pieces that stand for good, a
    * garden's fences, share one merged mesh per sheet. A sheet's meshes share
-   * one material, nearest filtered, mipmap-free, toon lit, with no outline and
+   * one material, mipmapped, toon lit, with no outline and
    * no shadows, as the boxes are.
    */
   private clothe(room: Room, plan: RoomPlan3d): void {
@@ -662,15 +747,18 @@ export class Renderer {
   }
 
   /**
-   * Loads `sheet`'s PNG (the one Phaser loads) as a nearest-filtered,
-   * mipmap-free, clamped texture and hands it to `ready`, unless the room
-   * changed meanwhile, which drops it, or the load failed, which disposes it.
+   * Loads `sheet`'s PNG (the one Phaser loads) as a mipmapped, anisotropic,
+   * clamped texture and hands it to `ready`, unless the room changed
+   * meanwhile, which drops it, or the load failed, which disposes it. A
+   * texture sampled nearest with no mipmaps shows a different texel of the
+   * art in each pixel it is shrunk to, which crawls as the camera moves; the
+   * mipmaps average them. A pixel-art sheet still magnifies nearest, crisp.
    */
   private loadSheet(sheet: Sheet, ready: (texture: Texture) => void): void {
     const epoch = this.epoch;
     const texture = new Texture(sheetUrl(import.meta.env.BASE_URL, sheet), this.scene, {
-      noMipmap: true,
-      samplingMode: Texture.NEAREST_SAMPLINGMODE,
+      samplingMode:
+        sheet.art === 'pixel' ? Texture.NEAREST_LINEAR_MIPLINEAR : Texture.TRILINEAR_SAMPLINGMODE,
       onLoad: () => {
         if (this.epoch === epoch) ready(texture);
         else texture.dispose();
@@ -681,6 +769,7 @@ export class Renderer {
     });
     texture.wrapU = Texture.CLAMP_ADDRESSMODE;
     texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+    texture.anisotropicFilteringLevel = ANISOTROPY;
   }
 
   /** A toon-lit material showing `texture`; with `oneSided`, only on the side its quads' normals face. */
@@ -689,6 +778,11 @@ export class Renderer {
     material.diffuseTexture = texture;
     material.specularColor = Color3.Black();
     material.backFaceCulling = oneSided;
+    // The art lies a few millimetres off the box face it dresses, which a phone's 16-bit depth
+    // buffer cannot always tell from the face; a polygon offset pulls it toward the camera at any
+    // depth precision and any angle.
+    material.zOffset = ART_DEPTH_OFFSET;
+    material.zOffsetUnits = ART_DEPTH_OFFSET;
     toonLit(material, this.toLight);
     return material;
   }

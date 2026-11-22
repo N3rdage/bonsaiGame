@@ -111,6 +111,10 @@ export class World3d {
       playerModel: state?.model ?? null,
       clips: state ? { ...state.clips } : { idle: 0, walk: 0 },
       shadows: state?.shadows ?? false,
+      shadowMap: state?.shadowMap
+        ? { ...state.shadowMap, window: [...state.shadowMap.window] }
+        : { fixed: false, size: 0, bias: 0, normalBias: 0, window: [0, 0, 0, 0, 0, 0] },
+      artDepthOffset: state?.artDepthOffset ?? 0,
       toon: state?.toon ?? false,
       floorSheet: state?.floorSheet ?? null,
       wallSheets: state ? [...state.wallSheets] : [],
