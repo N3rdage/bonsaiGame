@@ -360,6 +360,112 @@ test.describe('the 3D world', () => {
     },
   );
 
+  test("a touch tap near a tree's pedestal, off its box, opens the tree; one on open floor walks", async ({
+    page,
+  }) => {
+    test.skip(
+      test.info().project.name !== 's22-landscape',
+      'the touch target is measured on the S22',
+    );
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    // A pedestal set down in the shed with a tree on it: its hotspot id is the display spot's key.
+    const state = createNewGameState();
+    state.placed = [{ id: 0, kind: 'pedestal', room: 'shed', x: 336, y: 128 }];
+    state.nextPlacedId = 1;
+    state.trees = [{ ...createTree('juniper', 'cutting', 0), location: 'displayed:placed_0' }];
+    await page.goto('/');
+    await page.evaluate(
+      (text) => {
+        localStorage.setItem('bonsai.save.1', text);
+      },
+      serializeState(state, new Date(2026, 10, 11, 0, 0)),
+    );
+    await toTitle(page);
+    await continueGame(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    const canvas = await page.locator('#game canvas').boundingBox();
+    if (!canvas) throw new Error('no canvas');
+    const tapAt = async (x: number, y: number): Promise<void> => {
+      await page.touchscreen.tap(
+        canvas.x + (x * canvas.width) / 480,
+        canvas.y + (y * canvas.height) / 270,
+      );
+    };
+    const settle = async (): Promise<void> => {
+      let before = '';
+      await expect
+        .poll(async () => {
+          const now = JSON.stringify(
+            (await world3d(page)).hotspots.map((h) => [h.id, Math.round(h.x), Math.round(h.y)]),
+          );
+          const still = now === before;
+          before = now;
+          await page.waitForTimeout(250);
+          return still;
+        }, POLL)
+        .toBe(true);
+    };
+    await settle();
+
+    // A touch tap on open floor in the right half (the left half is the stick), more than twice the target from every prop, walks there.
+    const start = (await world3d(page)).player;
+    const bare = (await world3d(page)).hotspots;
+    const clear = [40, 80, 120]
+      .flatMap((dx) => [10, 40, 55].map((dy) => ({ x: 240 + dx, y: 135 + dy })))
+      .find((p) => bare.every((h) => Math.hypot(h.x - p.x, h.y - p.y) > 62));
+    if (!clear) throw new Error('no bare floor on screen');
+    await tapAt(clear.x, clear.y);
+    await expect
+      .poll(async () => {
+        const p = (await world3d(page)).player;
+        return Math.hypot((p?.x ?? 0) - (start?.x ?? 0), (p?.y ?? 0) - (start?.y ?? 0));
+      }, POLL)
+      .toBeGreaterThan(0.5);
+    expect((await world3d(page)).picked).toBeNull();
+
+    // Zoomed out, so the pedestal's box is smaller than the tap target.
+    await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+    for (let i = 0; i < 6; i += 1) {
+      await page.mouse.wheel(0, 900);
+      await page.waitForTimeout(100);
+    }
+    await settle();
+
+    // The S22's tap target is 31 game px (44 CSS px at 1.42 CSS px each). A tap 26 px (37 CSS px)
+    // from the middle of the tree's pedestal, outside every prop's box and nearer that middle
+    // than any other, is inside its target: not the floor but the tree, whose inspector opens
+    // once the player has walked up.
+    const spots = (await world3d(page)).hotspots;
+    const tree = spots.find((h) => h.id === 'placed_0');
+    if (!tree) throw new Error('no hotspot on the tree pedestal');
+    const offset = 26;
+    const aim = [
+      { x: tree.x + offset, y: tree.y },
+      { x: tree.x - offset, y: tree.y },
+      { x: tree.x, y: tree.y + offset },
+      { x: tree.x, y: tree.y - offset },
+    ].find(
+      (p) =>
+        p.x > 20 &&
+        p.x < 460 &&
+        p.y > 20 &&
+        p.y < 250 &&
+        spots.every(
+          (o) =>
+            (Math.abs(p.x - o.x) > o.w / 2 + 1 || Math.abs(p.y - o.y) > o.h / 2 + 1) &&
+            (o.id === tree.id || Math.hypot(p.x - o.x, p.y - o.y) > offset + 2),
+        ),
+    );
+    if (!aim) throw new Error('no clear floor beside the tree pedestal');
+    await tapAt(aim.x, aim.y);
+    await expect.poll(async () => (await hook(page)).panel, POLL).toMatch(/^tree:/);
+    expect((await world3d(page)).picked).toBe('placed_0');
+    expect(errors).toEqual([]);
+  });
+
   test(
     "stands the room's trees on their spots, built from the tree viewer's meshes",
     { tag: '@walk' },

@@ -19,12 +19,20 @@ describe('settings panel', () => {
       ['panel-sound', 'Sound: On', true],
       ['panel-music', 'Music: On', true],
       ['panel-world3d', '3D world (preview): Off', true],
+      ['panel-timespeed', 'Time speed: 1x', true],
     ]);
   });
 
   it('shows the live fullscreen state and the stored weather, sound and music flags', () => {
     const model = settingsPanel(
-      { fullscreen: false, weather: false, sound: false, music: false, world3d: true },
+      {
+        fullscreen: false,
+        weather: false,
+        sound: false,
+        music: false,
+        world3d: true,
+        timeSpeed: 2,
+      },
       { available: true, active: true },
     );
     expect(model.rows.map((r) => r.text)).toEqual([
@@ -33,6 +41,7 @@ describe('settings panel', () => {
       'Sound: Off',
       'Music: Off',
       '3D world (preview): On',
+      'Time speed: 2x',
     ]);
   });
 

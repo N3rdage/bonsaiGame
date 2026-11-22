@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, type SettingsStorage } from './settings';
+import {
+  DEFAULT_SETTINGS,
+  loadSettings,
+  saveSettings,
+  type Settings,
+  type SettingsStorage,
+} from './settings';
 
 class MemorySettingsStorage implements SettingsStorage {
   constructor(public text?: string) {}
@@ -19,28 +25,31 @@ describe('settings', () => {
       sound: true,
       music: true,
       world3d: false,
+      timeSpeed: 1,
     });
     expect(loadSettings(new MemorySettingsStorage())).toEqual(DEFAULT_SETTINGS);
   });
 
-  it('round-trips all four keys through save and load', () => {
+  it('round-trips every key through save and load', () => {
     const storage = new MemorySettingsStorage();
-    const settings = {
+    const settings: Settings = {
       fullscreen: true,
       weather: false,
       sound: false,
       music: true,
       world3d: true,
+      timeSpeed: 4,
     };
     saveSettings(storage, settings);
     expect(JSON.parse(storage.text ?? '')).toEqual(settings);
     expect(loadSettings(storage)).toEqual(settings);
-    const quiet = {
+    const quiet: Settings = {
       fullscreen: false,
       weather: true,
       sound: true,
       music: false,
       world3d: false,
+      timeSpeed: 1,
     };
     saveSettings(storage, quiet);
     expect(loadSettings(storage)).toEqual(quiet);
@@ -53,6 +62,7 @@ describe('settings', () => {
       sound: true,
       music: true,
       world3d: false,
+      timeSpeed: 1,
     });
   });
 
@@ -62,7 +72,7 @@ describe('settings', () => {
       weather: false,
     });
     const odd = new MemorySettingsStorage(
-      '{"scale":3,"fullscreen":"yes","weather":0,"sound":"yes","music":null,"world3d":1,"x":true}',
+      '{"scale":3,"fullscreen":"yes","weather":0,"sound":"yes","music":null,"world3d":1,"timeSpeed":3,"x":true}',
     );
     const loaded = loadSettings(odd);
     expect(loaded).toEqual(DEFAULT_SETTINGS);
@@ -70,6 +80,7 @@ describe('settings', () => {
       'fullscreen',
       'music',
       'sound',
+      'timeSpeed',
       'weather',
       'world3d',
     ]);
@@ -85,5 +96,17 @@ describe('settings', () => {
     const settings = loadSettings(new MemorySettingsStorage());
     settings.weather = false;
     expect(DEFAULT_SETTINGS.weather).toBe(true);
+  });
+
+  it('saves and loads the time speeds 1, 2 and 4 and rejects anything else', () => {
+    for (const timeSpeed of [1, 2, 4] as const) {
+      const storage = new MemorySettingsStorage();
+      saveSettings(storage, { ...DEFAULT_SETTINGS, timeSpeed });
+      expect(loadSettings(storage).timeSpeed).toBe(timeSpeed);
+    }
+    for (const bad of ['2', 3, 0, 8, null]) {
+      const text = JSON.stringify({ timeSpeed: bad });
+      expect(loadSettings(new MemorySettingsStorage(text)).timeSpeed).toBe(1);
+    }
   });
 });

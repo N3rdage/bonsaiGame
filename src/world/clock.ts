@@ -7,7 +7,7 @@
  * with the game.
  */
 
-import { SECONDS_PER_DAY } from '../sim/timeOfDay';
+import { SECONDS_PER_DAY, type TimeSpeed } from '../sim/timeOfDay';
 import { advanceDayAllTrees } from '../sim/world';
 import type { GameState, Rng } from '../sim/types';
 
@@ -24,6 +24,14 @@ export const MAX_TIME_SCALE = 10_000;
 export function parseTimeScale(raw: string | null): number | undefined {
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? Math.min(n, MAX_TIME_SCALE) : undefined;
+}
+
+/**
+ * The clock's rate: the `?timeScale=` override (or BASE_TIME_SCALE) times the
+ * player's time speed, so the two multiply.
+ */
+export function effectiveTimeScale(override: number | undefined, speed: TimeSpeed): number {
+  return (override ?? BASE_TIME_SCALE) * speed;
 }
 
 export interface ClockTick {

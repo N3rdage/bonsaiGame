@@ -21,6 +21,7 @@ const PANEL_CONTROLS = [
   'panel-sound',
   'panel-music',
   'panel-world3d',
+  'panel-timespeed',
   'panel-close',
 ];
 
@@ -49,6 +50,7 @@ test.describe('settings', () => {
       sound: true,
       music: true,
       world3d: false,
+      timeSpeed: 1,
     });
     await openSettingsFromTitle(page);
     let h = await hook(page);
@@ -69,6 +71,7 @@ test.describe('settings', () => {
       sound: true,
       music: true,
       world3d: false,
+      timeSpeed: 1,
     });
     expect(errors).toEqual([]);
   });
@@ -109,6 +112,7 @@ test.describe('settings', () => {
       sound: false,
       music: true,
       world3d: false,
+      timeSpeed: 1,
     });
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
@@ -122,6 +126,7 @@ test.describe('settings', () => {
       sound: false,
       music: true,
       world3d: false,
+      timeSpeed: 1,
     });
     await openSettingsFromTitle(page);
     const h = await hook(page);
@@ -143,6 +148,7 @@ test.describe('settings', () => {
       sound: true,
       music: false,
       world3d: false,
+      timeSpeed: 1,
     });
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
@@ -156,6 +162,7 @@ test.describe('settings', () => {
       sound: true,
       music: false,
       world3d: false,
+      timeSpeed: 1,
     });
     await openSettingsFromTitle(page);
     const h = await hook(page);

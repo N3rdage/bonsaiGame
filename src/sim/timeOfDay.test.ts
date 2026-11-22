@@ -1,5 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { DAY_PHASES, DAY_PHASE_STARTS, SECONDS_PER_DAY, timeOfDay } from './timeOfDay';
+import {
+  DAY_PHASES,
+  DAY_PHASE_STARTS,
+  SECONDS_PER_DAY,
+  TIME_SPEEDS,
+  nextTimeSpeed,
+  parseTimeSpeed,
+  realSecondsPerDay,
+  timeOfDay,
+} from './timeOfDay';
+
+describe('time speed', () => {
+  it('offers 1x, 2x and 4x, cycling back to 1x', () => {
+    expect(TIME_SPEEDS).toEqual([1, 2, 4]);
+    expect(TIME_SPEEDS.map(nextTimeSpeed)).toEqual([2, 4, 1]);
+  });
+
+  it('takes 900, 450 and 225 real seconds a day', () => {
+    expect(TIME_SPEEDS.map(realSecondsPerDay)).toEqual([900, 450, 225]);
+  });
+
+  it('parses only the offered speeds', () => {
+    expect([1, 2, 4].map(parseTimeSpeed)).toEqual([1, 2, 4]);
+    expect([0, 3, '2', null].map(parseTimeSpeed)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+  });
+});
 
 describe('timeOfDay', () => {
   it('a day is 900 game seconds, 15 real minutes at the base time scale', () => {
