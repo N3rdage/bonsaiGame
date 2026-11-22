@@ -41,3 +41,22 @@ export function timeOfDay(seconds: number): TimeOfDay {
   for (const p of DAY_PHASES) if (s >= DAY_PHASE_STARTS[p]) phase = p;
   return { fraction: s / SECONDS_PER_DAY, phase };
 }
+
+/** The time-speed choices: the day clock runs this many times faster than real time. */
+export const TIME_SPEEDS = [1, 2, 4] as const;
+export type TimeSpeed = (typeof TIME_SPEEDS)[number];
+
+/** The speed after `speed` in TIME_SPEEDS, wrapping from the last back to 1x. */
+export function nextTimeSpeed(speed: TimeSpeed): TimeSpeed {
+  return TIME_SPEEDS[(TIME_SPEEDS.indexOf(speed) + 1) % TIME_SPEEDS.length] ?? 1;
+}
+
+/** `value` as a TimeSpeed, or undefined when it is not one of TIME_SPEEDS. */
+export function parseTimeSpeed(value: unknown): TimeSpeed | undefined {
+  return TIME_SPEEDS.find((s) => s === value);
+}
+
+/** Real seconds one day takes at `speed` (900 s at 1x). */
+export function realSecondsPerDay(speed: TimeSpeed): number {
+  return SECONDS_PER_DAY / speed;
+}

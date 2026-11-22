@@ -144,6 +144,14 @@ interface BonsaiTestHook {
   readonly placingVisible?: boolean;
   /** The world HUD badge text (it is drawn only while the viewer is closed). */
   readonly hud: string;
+  /** World only: the small time-of-day line under the HUD badge ('Dusk', or 'Dusk  2x' above 1x speed). */
+  readonly timeLine?: string;
+  /** World only: how far through the day it is, in [0, 1); 0 is morning. */
+  readonly timeOfDay?: number;
+  /** World only: the phase of the day, 'dawn', 'day', 'dusk' or 'night'. */
+  readonly phase?: string;
+  /** World only: the Settings panel's time speed (1, 2 or 4), the multiplier on the day clock. */
+  readonly timeSpeed?: number;
   /** Fixed 60 Hz world steps run so far; the world does not step while the viewer is open. */
   readonly frames: number;
   /** Save slot the world saves to (F5) and loads from (F9); 0 on the title. */
@@ -169,6 +177,7 @@ interface BonsaiTestHook {
     readonly weather: boolean;
     readonly sound: boolean;
     readonly music: boolean;
+    readonly timeSpeed: number;
   };
   /** Both scenes: the last sound effect key the scene's SoundPlayer asked Phaser to play after the Sound gate, or ''. It does not prove audio came out (the e2e suite has no audio device). */
   readonly lastSound: string;
@@ -243,7 +252,7 @@ interface BonsaiTestHook {
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant's
    * 'panel-select-<species>' (unselected cuttings), 'panel-select-seed-<species>' (unselected seeds), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
    * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), 'menu-sleep' and 'menu-sleep-week' (its Sleep (Z) and Sleep a week rows), and the Settings panel's 'panel-fullscreen' (only where the browser offers
-   * fullscreen), 'panel-weather', 'panel-sound', 'panel-music', 'panel-world3d' and 'panel-close', in the world and on the title (whose menu button is 'settings').
+   * fullscreen), 'panel-weather', 'panel-sound', 'panel-music', 'panel-world3d', 'panel-timespeed' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    * `hit` is the control's tap target (the rect the scene gave Phaser's setInteractive) in logical px, top-left and
    * size: its text box grown to the UI metrics' `hit` (src/world/uiScale.ts) and kept inside the canvas.
    */

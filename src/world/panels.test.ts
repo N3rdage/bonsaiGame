@@ -215,20 +215,21 @@ describe('fitRows', () => {
     expect(shop.box).toEqual({ ...SHOP_PANEL, y: 3, h: 264 });
     expect([...new Set(shop.rows.map((r) => r.y))]).toEqual([39, 65, 96, 127, 158, 189, 220, 251]);
     expect(panelClose(SHOP_PANEL).y).not.toBe(251);
-    // Settings' four switches: PANEL grows to 176 tall, recentred, Close's line at 207.
+    // Settings' six rows: PANEL grows to 238 tall, recentred, Close's line at 238.
     const settings = fitRows(
       settingsPanel(DEFAULT_SETTINGS, { available: true, active: false }),
       PHONE_UI,
     );
-    expect(settings.box).toEqual({ ...PANEL, y: 31, h: 207 });
+    expect(settings.box).toEqual({ ...PANEL, y: 16, h: 238 });
     expect(settings.rows.map((r) => [r.id, r.y])).toEqual([
-      ['panel-fullscreen', 67],
-      ['panel-weather', 98],
-      ['panel-sound', 129],
-      ['panel-music', 160],
-      ['panel-world3d', 191],
+      ['panel-fullscreen', 52],
+      ['panel-weather', 83],
+      ['panel-sound', 114],
+      ['panel-music', 145],
+      ['panel-world3d', 176],
+      ['panel-timespeed', 207],
     ]);
-    expect(panelClose(settings.box ?? PANEL).y).toBe(222);
+    expect(panelClose(settings.box ?? PANEL).y).toBe(238);
   });
 });
 

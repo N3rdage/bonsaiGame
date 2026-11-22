@@ -1,7 +1,7 @@
 /**
  * The Settings panel (obj_ui_settings) as a PanelModel in the standard PANEL:
  * `Fullscreen: On|Off`, `Weather effects: On|Off`, `Sound: On|Off`,
- * `Music: On|Off` and `3D world (preview): On|Off`, each a toggle, then Close (fitRows grows the box to hold
+ * `Music: On|Off`, `3D world (preview): On|Off` and `Time speed: 1x|2x|4x`, each a toggle, then Close (fitRows grows the box to hold
  * them at phone tap targets). Pure; the title and the world draw it, apply a toggle, save and
  * reopen it. The prototype's Window scale row is not ported.
  */
@@ -12,7 +12,7 @@ import { PANEL, rows, type PanelModel } from './panels';
 export const SETTINGS_KEY = 'settings';
 
 /** The box: PANEL grown by the extra row, still centred on the canvas. */
-export const SETTINGS_BOX = { ...PANEL, y: 49, h: 172 } as const;
+export const SETTINGS_BOX = { ...PANEL, y: 38, h: 194 } as const;
 
 /** Whether the browser offers fullscreen at all, and whether the page is in it now. */
 export interface FullscreenState {
@@ -41,6 +41,7 @@ export function settingsPanel(settings: Settings, fullscreen: FullscreenState): 
         { text: `Sound: ${onOff(settings.sound)}`, id: 'panel-sound' },
         { text: `Music: ${onOff(settings.music)}`, id: 'panel-music' },
         { text: `3D world (preview): ${onOff(settings.world3d)}`, id: 'panel-world3d' },
+        { text: `Time speed: ${String(settings.timeSpeed)}x`, id: 'panel-timespeed' },
       ],
       SETTINGS_BOX,
     ),

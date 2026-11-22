@@ -4,7 +4,13 @@ import { SECONDS_PER_DAY } from '../sim/timeOfDay';
 import { createTree } from '../sim/tree';
 import type { GameState } from '../sim/types';
 import { advanceDayAllTrees } from '../sim/world';
-import { BASE_TIME_SCALE, MAX_TIME_SCALE, parseTimeScale, tickClock } from './clock';
+import {
+  BASE_TIME_SCALE,
+  MAX_TIME_SCALE,
+  effectiveTimeScale,
+  parseTimeScale,
+  tickClock,
+} from './clock';
 
 /** Never triggers natural branch spawns, so two runs grow the same. */
 const rng = () => 0.999;
@@ -66,6 +72,27 @@ describe('day clock', () => {
     expect(tick).toEqual({ days: 2, revenue: want });
     expect(want).toBeGreaterThan(0);
     expect([state.day, state.money, state.timeOfDayS]).toEqual([expected.day, expected.money, 0]);
+  });
+});
+
+describe('time speed', () => {
+  it('multiplies the ?timeScale= override, which defaults to the base scale of 1', () => {
+    expect(effectiveTimeScale(undefined, 1)).toBe(1);
+    expect(effectiveTimeScale(undefined, 4)).toBe(4);
+    expect(effectiveTimeScale(150, 2)).toBe(300);
+  });
+
+  it('turns the 900 s day over in 900, 450 and 225 real seconds at 1x, 2x and 4x', () => {
+    for (const [speed, real] of [
+      [1, 900],
+      [2, 450],
+      [4, 225],
+    ] as const) {
+      const state = createNewGameState();
+      const scale = effectiveTimeScale(undefined, speed);
+      expect(tickClock(state, real - 1, scale).days).toBe(0);
+      expect(tickClock(state, 1, scale).days).toBe(1);
+    }
   });
 });
 
