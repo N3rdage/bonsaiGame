@@ -74,140 +74,146 @@ async function menuRows(page: Page): Promise<string[]> {
 }
 
 test.describe('placement mode', () => {
-  test('puts a pedestal down in the greenhouse, displays a tree on it that earns, and survives a reload', async ({
-    page,
-  }) => {
-    // Three rooms' walks, the menu taps and a save and reload take about a minute on the S22's tap route.
-    test.setTimeout(120_000);
-    const errors = collectErrors(page);
-    await seedAndContinue(page);
-    expect(await menuRows(page)).not.toContain('menu-place');
-    await shedToGarden(page);
-    expect(await menuRows(page)).not.toContain('menu-place');
-    await gardenToGreenhouse(page);
-    expect(await menuRows(page)).toContain('menu-place');
+  test(
+    'puts a pedestal down in the greenhouse, displays a tree on it that earns, and survives a reload',
+    { tag: '@walk' },
+    async ({ page }) => {
+      // Three rooms' walks, the menu taps and a save and reload take about a minute on the S22's tap route.
+      test.setTimeout(120_000);
+      const errors = collectErrors(page);
+      await seedAndContinue(page);
+      expect(await menuRows(page)).not.toContain('menu-place');
+      await shedToGarden(page);
+      expect(await menuRows(page)).not.toContain('menu-place');
+      await gardenToGreenhouse(page);
+      expect(await menuRows(page)).toContain('menu-place');
 
-    // P (or Place item) starts with the first kind in stock; Next cycles through the stock and wraps.
-    await startPlacing(page);
-    expect((await hook(page)).placing?.kind).toBe('pedestal');
-    await nextPlacingKind(page);
-    expect((await hook(page)).placing?.kind).toBe('floor_shelf');
-    await nextPlacingKind(page);
-    expect((await hook(page)).placing?.kind).toBe('pedestal');
+      // P (or Place item) starts with the first kind in stock; Next cycles through the stock and wraps.
+      await startPlacing(page);
+      expect((await hook(page)).placing?.kind).toBe('pedestal');
+      await nextPlacingKind(page);
+      expect((await hook(page)).placing?.kind).toBe('floor_shelf');
+      await nextPlacingKind(page);
+      expect((await hook(page)).placing?.kind).toBe('pedestal');
 
-    // The player came in facing up. A step up and back down to y 164..170.25, facing down:
-    // the ghost is the floor's bottom row below the landing, inside the door's clearance ring.
-    await walkToRow(page, 158);
-    await walkToRow(page, 164);
-    await settle(page);
-    let h = await hook(page);
-    expect(h.player.facing).toBe('down');
-    expect(h.placing).toEqual({
-      kind: 'pedestal',
-      x: 240,
-      y: 176,
-      w: 16,
-      h: 16,
-      check: 'blocks the door',
-    });
-    expect(h.prompt).toBe('Blocks the door');
-    expect(h.placingVisible).toBe(true);
-    await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Blocks the door');
-    expect((await hook(page)).placed).toEqual([]);
+      // The player came in facing up. A step up and back down to y 164..170.25, facing down:
+      // the ghost is the floor's bottom row below the landing, inside the door's clearance ring.
+      await walkToRow(page, 158);
+      await walkToRow(page, 164);
+      await settle(page);
+      let h = await hook(page);
+      expect(h.player.facing).toBe('down');
+      expect(h.placing).toEqual({
+        kind: 'pedestal',
+        x: 240,
+        y: 176,
+        w: 16,
+        h: 16,
+        check: 'blocks the door',
+      });
+      expect(h.prompt).toBe('Blocks the door');
+      expect(h.placingVisible).toBe(true);
+      await interact(page);
+      await page.waitForFunction(() => window.__bonsai?.toast === 'Blocks the door');
+      expect((await hook(page)).placed).toEqual([]);
 
-    // Under the Inventory the mode holds but the ghost is not drawn; closed, it is back.
-    await openMenu(page);
-    await tapControl(page, 'menu-inventory');
-    await page.waitForFunction(() => window.__bonsai?.panel === 'inventory');
-    h = await hook(page);
-    expect(h.placing?.kind).toBe('pedestal');
-    expect(h.placingVisible).toBe(false);
-    await closePanel(page);
-    await page.waitForFunction(() => window.__bonsai?.panel === '');
-    expect((await hook(page)).placingVisible).toBe(true);
+      // Under the Inventory the mode holds but the ghost is not drawn; closed, it is back.
+      await openMenu(page);
+      await tapControl(page, 'menu-inventory');
+      await page.waitForFunction(() => window.__bonsai?.panel === 'inventory');
+      h = await hook(page);
+      expect(h.placing?.kind).toBe('pedestal');
+      expect(h.placingVisible).toBe(false);
+      await closePanel(page);
+      await page.waitForFunction(() => window.__bonsai?.panel === '');
+      expect((await hook(page)).placingVisible).toBe(true);
 
-    // Against the bottom wall facing down, the ghost is over the door's tile, below row 7 in the wall band.
-    await holdUntilAtLeast(page, 'ArrowDown', 'y', 191);
-    await settle(page);
-    h = await hook(page);
-    expect(h.player.facing).toBe('down');
-    expect(h.placing).toEqual({
-      kind: 'pedestal',
-      x: 240,
-      y: 192,
-      w: 16,
-      h: 16,
-      check: 'off the floor',
-    });
-    expect(h.prompt).toBe('Off the floor');
-    // Placing suppresses the door: E toasts the refusal and stays in the greenhouse.
-    expect(h.near).toBe('');
-    await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Off the floor');
-    h = await hook(page);
-    expect(h.room).toBe('greenhouse');
-    expect(h.placed).toEqual([]);
+      // Against the bottom wall facing down, the ghost is over the door's tile, below row 7 in the wall band.
+      await holdUntilAtLeast(page, 'ArrowDown', 'y', 191);
+      await settle(page);
+      h = await hook(page);
+      expect(h.player.facing).toBe('down');
+      expect(h.placing).toEqual({
+        kind: 'pedestal',
+        x: 240,
+        y: 192,
+        w: 16,
+        h: 16,
+        check: 'off the floor',
+      });
+      expect(h.prompt).toBe('Off the floor');
+      // Placing suppresses the door: E toasts the refusal and stays in the greenhouse.
+      expect(h.near).toBe('');
+      await interact(page);
+      await page.waitForFunction(() => window.__bonsai?.toast === 'Off the floor');
+      h = await hook(page);
+      expect(h.room).toBe('greenhouse');
+      expect(h.placed).toEqual([]);
 
-    // Up onto open floor: the ghost on the tile above the player is green.
-    await holdUntilAtMost(page, 'ArrowUp', 'y', 158);
-    await settle(page);
-    h = await hook(page);
-    const ghost = h.placing;
-    if (!ghost) throw new Error('not placing');
-    expect(ghost.check).toBe('ok');
-    expect(h.prompt).toBe('E: Place Pedestal');
-    await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Placed Pedestal');
-    h = await hook(page);
-    expect(h.placed).toEqual([
-      { id: 0, kind: 'pedestal', x: ghost.x, y: ghost.y, w: 16, h: 16, spots: ['placed_0'] },
-    ]);
-    expect(h.inventory.pedestal).toBe(0);
-    // The pedestals ran out, the shelf is still in stock: the mode carries on with it, refused over the pedestal.
-    expect(h.placing).toMatchObject({
-      kind: 'floor_shelf',
-      x: ghost.x,
-      y: ghost.y,
-      check: 'in the way',
-    });
-    expect(h.prompt).toBe('In the way');
+      // Up onto open floor: the ghost on the tile above the player is green.
+      await holdUntilAtMost(page, 'ArrowUp', 'y', 158);
+      await settle(page);
+      h = await hook(page);
+      const ghost = h.placing;
+      if (!ghost) throw new Error('not placing');
+      expect(ghost.check).toBe('ok');
+      expect(h.prompt).toBe('E: Place Pedestal');
+      await interact(page);
+      await page.waitForFunction(() => window.__bonsai?.toast === 'Placed Pedestal');
+      h = await hook(page);
+      expect(h.placed).toEqual([
+        { id: 0, kind: 'pedestal', x: ghost.x, y: ghost.y, w: 16, h: 16, spots: ['placed_0'] },
+      ]);
+      expect(h.inventory.pedestal).toBe(0);
+      // The pedestals ran out, the shelf is still in stock: the mode carries on with it, refused over the pedestal.
+      expect(h.placing).toMatchObject({
+        kind: 'floor_shelf',
+        x: ghost.x,
+        y: ghost.y,
+        check: 'in the way',
+      });
+      expect(h.prompt).toBe('In the way');
 
-    await stopPlacing(page);
-    h = await hook(page);
-    expect(h.scene).toBe('world');
-    expect(h.placing).toBeUndefined();
-    expect(h.inventory.floor_shelf).toBe(1);
+      await stopPlacing(page);
+      h = await hook(page);
+      expect(h.scene).toBe('world');
+      expect(h.placing).toBeUndefined();
+      expect(h.inventory.floor_shelf).toBe(1);
 
-    // To the new pedestal, display Granny's juniper on it, and a night pays for it.
-    await walkTo(page, ghost.y + 8, 'right', 'placed_0');
-    expect((await hook(page)).prompt).toContain('Display');
-    await placeTree(page);
-    h = await hook(page);
-    expect(h.treeLocations).toEqual([{ id: 0, name: "Granny's", location: 'displayed:placed_0' }]);
-    const { day, money } = h;
-    await sleepOneNight(page);
-    await page.waitForFunction((d) => (window.__bonsai?.day ?? 0) > d, day);
-    expect((await hook(page)).money).toBeGreaterThan(money);
+      // To the new pedestal, display Granny's juniper on it, and a night pays for it.
+      await walkTo(page, ghost.y + 8, 'right', 'placed_0');
+      expect((await hook(page)).prompt).toContain('Display');
+      await placeTree(page);
+      h = await hook(page);
+      expect(h.treeLocations).toEqual([
+        { id: 0, name: "Granny's", location: 'displayed:placed_0' },
+      ]);
+      const { day, money } = h;
+      await sleepOneNight(page);
+      await page.waitForFunction((d) => (window.__bonsai?.day ?? 0) > d, day);
+      expect((await hook(page)).money).toBeGreaterThan(money);
 
-    // Saved and loaded: back in the greenhouse the pedestal and its tree are as left.
-    await saveGame(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
-    await page.waitForFunction(() => window.__bonsai?.panel === '');
-    await loadGame(page);
-    await page.waitForFunction(
-      () => window.__bonsai?.ready === true && window.__bonsai.room === 'shed',
-    );
-    await shedToGarden(page);
-    await gardenToGreenhouse(page);
-    h = await hook(page);
-    expect(h.placed).toEqual([
-      { id: 0, kind: 'pedestal', x: ghost.x, y: ghost.y, w: 16, h: 16, spots: ['placed_0'] },
-    ]);
-    expect(h.treeLocations).toEqual([{ id: 0, name: "Granny's", location: 'displayed:placed_0' }]);
-    expect(h.placing).toBeUndefined();
-    expect(errors).toEqual([]);
-  });
+      // Saved and loaded: back in the greenhouse the pedestal and its tree are as left.
+      await saveGame(page);
+      await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
+      await page.waitForFunction(() => window.__bonsai?.panel === '');
+      await loadGame(page);
+      await page.waitForFunction(
+        () => window.__bonsai?.ready === true && window.__bonsai.room === 'shed',
+      );
+      await shedToGarden(page);
+      await gardenToGreenhouse(page);
+      h = await hook(page);
+      expect(h.placed).toEqual([
+        { id: 0, kind: 'pedestal', x: ghost.x, y: ghost.y, w: 16, h: 16, spots: ['placed_0'] },
+      ]);
+      expect(h.treeLocations).toEqual([
+        { id: 0, name: "Granny's", location: 'displayed:placed_0' },
+      ]);
+      expect(h.placing).toBeUndefined();
+      expect(errors).toEqual([]);
+    },
+  );
 
   test('Q leaves placement mode', async ({ page }) => {
     test.setTimeout(120_000);

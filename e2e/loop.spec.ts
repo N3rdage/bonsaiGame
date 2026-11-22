@@ -88,33 +88,35 @@ function expectCrossing({ from, to }: Crossing, fromRoom: string, toRoom: string
 }
 
 test.describe('the full loop', () => {
-  test('every door from the shed round the house, the front garden and the back garden lands facing into the room', async ({
-    page,
-  }) => {
-    // Twelve doors' walks on software GL: well past the default budget.
-    test.setTimeout(240_000);
-    const errors = collectErrors(page);
-    await bootWorld(page);
-    const start = await hook(page);
-    expect([start.room, start.arrivedBeside]).toEqual(['shed', '']);
+  test(
+    'every door from the shed round the house, the front garden and the back garden lands facing into the room',
+    { tag: '@walk' },
+    async ({ page }) => {
+      // Twelve doors' walks on software GL: well past the default budget.
+      test.setTimeout(240_000);
+      const errors = collectErrors(page);
+      await bootWorld(page);
+      const start = await hook(page);
+      expect([start.room, start.arrivedBeside]).toEqual(['shed', '']);
 
-    const legs: [string, string, (p: typeof page) => Promise<Crossing>][] = [
-      ['shed', 'lounge', shedToLounge],
-      ['lounge', 'hallway', loungeToHallway],
-      ['hallway', 'frontGarden', hallwayToFront],
-      ['frontGarden', 'garden', frontToGate],
-      ['garden', 'study', passageToStudy],
-      ['study', 'hallway', studyToHallway],
-      ['hallway', 'lounge', hallwayToLounge],
-      ['lounge', 'shed', loungeToShed],
-      ['shed', 'garden', shedToGarden],
-      ['garden', 'greenhouse', gardenToGreenhouse],
-      ['greenhouse', 'garden', greenhouseToGarden],
-      ['garden', 'shed', gardenToShed],
-    ];
-    for (const [from, to, walk] of legs) {
-      expectCrossing(await walk(page), from, to);
-    }
-    expect(errors).toEqual([]);
-  });
+      const legs: [string, string, (p: typeof page) => Promise<Crossing>][] = [
+        ['shed', 'lounge', shedToLounge],
+        ['lounge', 'hallway', loungeToHallway],
+        ['hallway', 'frontGarden', hallwayToFront],
+        ['frontGarden', 'garden', frontToGate],
+        ['garden', 'study', passageToStudy],
+        ['study', 'hallway', studyToHallway],
+        ['hallway', 'lounge', hallwayToLounge],
+        ['lounge', 'shed', loungeToShed],
+        ['shed', 'garden', shedToGarden],
+        ['garden', 'greenhouse', gardenToGreenhouse],
+        ['greenhouse', 'garden', greenhouseToGarden],
+        ['garden', 'shed', gardenToShed],
+      ];
+      for (const [from, to, walk] of legs) {
+        expectCrossing(await walk(page), from, to);
+      }
+      expect(errors).toEqual([]);
+    },
+  );
 });

@@ -52,74 +52,80 @@ async function seedAndContinue(page: Page): Promise<void> {
 }
 
 test.describe('placed furniture', () => {
-  test('a placed pedestal displays a tree that earns, survives a reload, and an empty shelf is picked back up', async ({
-    page,
-  }) => {
-    const errors = collectErrors(page);
-    await seedAndContinue(page);
-    expect((await hook(page)).carrying).toBe("Granny's");
-    // None drawn outside the greenhouse.
-    expect((await hook(page)).placed).toEqual([]);
-    await shedToGarden(page);
-    await gardenToGreenhouse(page);
+  test(
+    'a placed pedestal displays a tree that earns, survives a reload, and an empty shelf is picked back up',
+    { tag: '@walk' },
+    async ({ page }) => {
+      const errors = collectErrors(page);
+      await seedAndContinue(page);
+      expect((await hook(page)).carrying).toBe("Granny's");
+      // None drawn outside the greenhouse.
+      expect((await hook(page)).placed).toEqual([]);
+      await shedToGarden(page);
+      await gardenToGreenhouse(page);
 
-    let h = await hook(page);
-    expect(h.placed).toEqual([
-      { id: 0, kind: 'pedestal', x: 240, y: 128, w: 16, h: 16, spots: ['placed_0'] },
-      {
-        id: 1,
-        kind: 'floor_shelf',
-        x: 288,
-        y: 128,
-        w: 32,
-        h: 16,
-        spots: ['placed_1', 'placed_1_2'],
-      },
-    ]);
+      let h = await hook(page);
+      expect(h.placed).toEqual([
+        { id: 0, kind: 'pedestal', x: 240, y: 128, w: 16, h: 16, spots: ['placed_0'] },
+        {
+          id: 1,
+          kind: 'floor_shelf',
+          x: 288,
+          y: 128,
+          w: 32,
+          h: 16,
+          spots: ['placed_1', 'placed_1_2'],
+        },
+      ]);
 
-    // Up from the landing to the pedestal; carrying, its spot offers the pedestal flow.
-    await holdUntilNear(page, 'ArrowUp', 'placed_0');
-    expect((await hook(page)).prompt).toContain('Display');
-    await placeTree(page);
-    h = await hook(page);
-    expect(h.treeLocations).toEqual([{ id: 0, name: "Granny's", location: 'displayed:placed_0' }]);
-    expect(h.carrying).toBe('');
+      // Up from the landing to the pedestal; carrying, its spot offers the pedestal flow.
+      await holdUntilNear(page, 'ArrowUp', 'placed_0');
+      expect((await hook(page)).prompt).toContain('Display');
+      await placeTree(page);
+      h = await hook(page);
+      expect(h.treeLocations).toEqual([
+        { id: 0, name: "Granny's", location: 'displayed:placed_0' },
+      ]);
+      expect(h.carrying).toBe('');
 
-    // A night's sleep pays the displayed tree.
-    const day = h.day;
-    await page.keyboard.press('z');
-    await page.waitForFunction((d) => (window.__bonsai?.day ?? 0) > d, day);
-    expect((await hook(page)).toast).toContain('Display revenue');
+      // A night's sleep pays the displayed tree.
+      const day = h.day;
+      await page.keyboard.press('z');
+      await page.waitForFunction((d) => (window.__bonsai?.day ?? 0) > d, day);
+      expect((await hook(page)).toast).toContain('Display revenue');
 
-    // Saved and loaded: the load starts in the shed; back in the greenhouse all is as left.
-    await saveGame(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
-    await page.waitForFunction(() => window.__bonsai?.panel === '');
-    await loadGame(page);
-    await page.waitForFunction(
-      () => window.__bonsai?.ready === true && window.__bonsai.room === 'shed',
-    );
-    await shedToGarden(page);
-    await gardenToGreenhouse(page);
-    h = await hook(page);
-    expect(h.treeLocations).toEqual([{ id: 0, name: "Granny's", location: 'displayed:placed_0' }]);
-    expect(h.placed?.map((p) => p.kind)).toEqual(['pedestal', 'floor_shelf']);
+      // Saved and loaded: the load starts in the shed; back in the greenhouse all is as left.
+      await saveGame(page);
+      await page.waitForFunction(() => window.__bonsai?.toast === 'Saved to slot 1');
+      await page.waitForFunction(() => window.__bonsai?.panel === '');
+      await loadGame(page);
+      await page.waitForFunction(
+        () => window.__bonsai?.ready === true && window.__bonsai.room === 'shed',
+      );
+      await shedToGarden(page);
+      await gardenToGreenhouse(page);
+      h = await hook(page);
+      expect(h.treeLocations).toEqual([
+        { id: 0, name: "Granny's", location: 'displayed:placed_0' },
+      ]);
+      expect(h.placed?.map((p) => p.kind)).toEqual(['pedestal', 'floor_shelf']);
 
-    // Empty-handed at the shelf's empty first spot: Pick up puts it back in the inventory.
-    await walkTo(page, 136, 'right', 'placed_1');
-    expect((await hook(page)).prompt).toContain('Pick up');
-    await interact(page);
-    await page.waitForFunction(() => window.__bonsai?.toast === 'Picked up Floor shelf');
-    h = await hook(page);
-    expect(h.placed).toEqual([
-      { id: 0, kind: 'pedestal', x: 240, y: 128, w: 16, h: 16, spots: ['placed_0'] },
-    ]);
+      // Empty-handed at the shelf's empty first spot: Pick up puts it back in the inventory.
+      await walkTo(page, 136, 'right', 'placed_1');
+      expect((await hook(page)).prompt).toContain('Pick up');
+      await interact(page);
+      await page.waitForFunction(() => window.__bonsai?.toast === 'Picked up Floor shelf');
+      h = await hook(page);
+      expect(h.placed).toEqual([
+        { id: 0, kind: 'pedestal', x: 240, y: 128, w: 16, h: 16, spots: ['placed_0'] },
+      ]);
 
-    await openMenu(page);
-    await tapControl(page, 'menu-inventory');
-    await page.waitForFunction(() => window.__bonsai?.panel === 'inventory');
-    const furniture = (await hook(page)).inventorySections?.find((s) => s.title === 'Furniture');
-    expect(furniture?.entries).toContainEqual({ label: 'Floor shelves', count: 1 });
-    expect(errors).toEqual([]);
-  });
+      await openMenu(page);
+      await tapControl(page, 'menu-inventory');
+      await page.waitForFunction(() => window.__bonsai?.panel === 'inventory');
+      const furniture = (await hook(page)).inventorySections?.find((s) => s.title === 'Furniture');
+      expect(furniture?.entries).toContainEqual({ label: 'Floor shelves', count: 1 });
+      expect(errors).toEqual([]);
+    },
+  );
 });
