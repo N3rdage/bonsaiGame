@@ -60,8 +60,8 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 | View tree button or V | Open the 3D viewer on the first tree |
 | Notebook button or J | Open or close Granny's notebook: one page per tutorial step, Prev and Next to turn |
 | Menu button → Inventory, or I | Open or close the inventory: resources, seeds and cuttings with their counts |
-| Menu button → Sleep, or Z | Sleep through a day: the whole world advances one day, as if the clock had run |
-| Menu button → Sleep a week | Sleep through seven days |
+| Menu button → Sleep, or Z | Sleep until the next morning: the whole world advances one day, as if the clock had run |
+| Menu button → Sleep a week | Sleep through seven days, waking on the seventh morning |
 | Tutorial panel → Skip | Skip the tutorial (asks first) |
 | Tutorial panel → More / Less | On a short touch screen, open the compact box out to its full text, or fold it back |
 | Menu button → Save, or F5 | Save game |
@@ -100,7 +100,7 @@ Each tree has a **species** (juniper, maple, pine), an **age** in simulated days
 
 ### Time
 
-Time passes in **game days**. One game day passes every five real minutes, and the clock stops while the 3D viewer is open. Trees simulate silently in the background — their water level drops, their vitality responds, they sometimes sprout new branches. **Sleep** (Z, or Menu → Sleep; Menu → Sleep a week for seven) moves the whole world on a day at a time, exactly as the clock would: every tree drinks, grows and ages, displayed trees earn their revenue, and nothing is charged for the sleep itself. You can also spend fertilizer to skip time for a specific tree, letting you grow one tree quickly without fast-forwarding the rest of the world.
+Time passes in **game days**. One game day passes every fifteen real minutes, and the clock stops while the 3D viewer is open. Each day runs from morning through dawn, day, dusk and night, and the time of day is saved with the game; it changes nothing about growth, watering or revenue, which happen once a day as the day turns over at morning. Trees simulate silently in the background — their water level drops, their vitality responds, they sometimes sprout new branches. **Sleep** (Z, or Menu → Sleep; Menu → Sleep a week for seven) sleeps until the next morning, moving the whole world on a day at a time exactly as the clock would: every tree drinks, grows and ages, displayed trees earn their revenue, and nothing is charged for the sleep itself. You can also spend fertilizer to skip time for a specific tree, letting you grow one tree quickly without fast-forwarding the rest of the world.
 
 ### The growth loop
 

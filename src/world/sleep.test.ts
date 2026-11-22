@@ -90,6 +90,16 @@ describe('sleep', () => {
     expect(tree.vitality).toBe(66);
   });
 
+  it.each([0, 450, 899.5])('wakes at morning after sleeping from %d s into the day', (seconds) => {
+    const state = stateWith('shed');
+    state.timeOfDayS = seconds;
+    expect(sleep(state, 1, rng)).toEqual({ days: 1, revenue: 0 });
+    expect([state.day, state.timeOfDayS]).toEqual([11, 0]);
+    state.timeOfDayS = seconds;
+    sleep(state, SLEEP_WEEK_DAYS, rng);
+    expect([state.day, state.timeOfDayS]).toEqual([18, 0]);
+  });
+
   it('debits no consumable and no money for the sleep itself', () => {
     const state = stateWith('shed');
     state.inventory.fertilizer = 3;

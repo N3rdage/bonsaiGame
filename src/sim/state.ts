@@ -5,6 +5,7 @@
  * - day 0, money 100, nextTreeId 0: lines 23, 24, 26
  *   (`global.game_day = 0`, `global.money = 100`, `global.next_tree_id = 0`).
  *   Day 0 is kept as-is; seasonForDay clamps it to day 1 (spring).
+ * - time of day 0, morning (new in the port; see timeOfDay.ts).
  * - inventory: line 10, `init_inventory()` (see inventory.ts).
  * - starter tree: lines 55-67, Granny's juniper, `new BonsaiTree("juniper",
  *   "seed")` (so id 0 and seed defaults), then name "Granny's", trunk 25 cm /
@@ -20,6 +21,7 @@ import type { GameState } from './types';
 export function createNewGameState(): GameState {
   const state: GameState = {
     day: 0,
+    timeOfDayS: 0,
     money: 100,
     inventory: createInventory(),
     trees: [],
