@@ -1,0 +1,71 @@
+name: Walk tests
+
+# The browser tests tagged @walk: long walks paced by real frames on software GL. They are too
+# slow and too close to their time limits to gate every pull request, so the required check in
+# ci.yml skips them and this workflow runs them on main instead.
+#
+# Schedule: at the end of each orchestrator run's budget, so the result is ready when the next
+# run starts and no run's working time is spent waiting. The orchestrator runs start every four
+# hours on the hour (UTC 00, 04, 08, ...) with a 3 h 40 min budget, so this fires at :40 past
+# 03, 07, 11, 15, 19 and 23 UTC. If the orchestrator's cadence changes, change this cron in the
+# same sitting. A run reads the latest result of this workflow when it starts and fixes a
+# failure before anything else. It can also be started by hand.
+
+on:
+  schedule:
+    - cron: '40 3,7,11,15,19,23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: walk-tests
+  cancel-in-progress: false
+
+jobs:
+  walk:
+    name: Walk tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: chromium
+            args: --project=chromium
+          - name: s22-landscape
+            args: --project=s22-landscape
+          - name: parity
+            args: --project=s22-landscape-parity --no-deps
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Walk tests
+        env:
+          E2E_ARGS: ${{ matrix.args }}
+        # Unquoted on purpose: the value is this file's own matrix entry, several arguments.
+        # --pass-with-no-tests: a project with no @walk test is a pass, not an error.
+        run: npm run test:e2e -- $E2E_ARGS --grep @walk --pass-with-no-tests
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: walk-report-${{ matrix.name }}
+          path: playwright-report/
+          retention-days: 7
