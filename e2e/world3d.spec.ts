@@ -343,6 +343,52 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-furniture.png');
   });
 
+  test('draws the garden with the player casting a shadow on the floor', async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await shedToGarden(page);
+    await waitForRoom(page, 'garden');
+    await expect.poll(async () => (await world3d(page)).shadows, POLL).toBe(true);
+    await zoomIn(page, 900, 8);
+    await expect(page).toHaveScreenshot('world3d-garden-shadows.png');
+  });
+
+  test("draws the season's weather outdoors only, from the 2D world's field", async ({ page }) => {
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        'bonsai.settings',
+        JSON.stringify({ fullscreen: false, weather: true, world3d: true }),
+      );
+    });
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    // The shed is indoors: the 2D world's motes are not drawn in 3D.
+    expect((await world3d(page)).weather).toBeNull();
+
+    await shedToGarden(page);
+    await waitForRoom(page, 'garden');
+    // The garden's field is built a frame or two after the room is; wait for it.
+    await expect
+      .poll(async () => (await hook(page)).weather?.kind, POLL)
+      .toMatch(/^(petals|fireflies|leaves|snow)$/);
+    const kind = (await hook(page)).weather?.kind;
+    await expect.poll(async () => (await world3d(page)).weather, POLL).toBe(kind);
+    await page.waitForTimeout(300);
+    expect(errors).toEqual([]);
+
+    // Back indoors the weather is gone again.
+    await gardenToGreenhouse(page);
+    await waitForRoom(page, 'greenhouse');
+    await expect.poll(async () => (await world3d(page)).weather, POLL).toBeNull();
+  });
+
   test('placed items stand in the greenhouse under their trees, and placing another adds an instance', async ({
     page,
   }) => {
