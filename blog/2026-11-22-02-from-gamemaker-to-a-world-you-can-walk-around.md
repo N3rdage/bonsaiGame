@@ -101,21 +101,25 @@ This is where I got something wrong. My stress test stopped Three.js early, on a
 
 ## A free 3D world on Babylon.js
 
-The 3D world is a setting, and the 2D rooms are still there under it. Babylon draws the room, and Phaser keeps the movement, the doors and the HUD, so the game plays the same either way. The world is built in slices of one pull request each. So far it has the rooms, a camera you turn with Q and E or by dragging, a wheel to zoom, tap to walk and use, trees built from the viewer's own meshes, furniture and placed items drawn as models, and now light, shadows and the season's weather.
+The 3D world is a setting, and the 2D rooms are still there under it. Babylon draws the room, and Phaser keeps the movement, the doors and the HUD, so the game plays the same either way. The world is built in slices of one pull request each. So far it has the rooms, a camera you turn with Q and E or by dragging, a wheel to zoom, tap to walk and use, trees built from the viewer's own meshes, furniture and placed items drawn as models, light, shadows and the season's weather.
 
-This is the shed in 3D, with the furniture, the tools, the trees and the player's shadow.
+The player is no longer a capsule. It is the skinned gardener from the second spike, with an idle clip and a walk clip that cross-fade as you stop and start. The walls, caps and fences are modelled now, and so are the doors, windows, hedges and plantings. This is the shed on the current build, with a door and a window set into the back wall, the furniture and tools as models, and the player's shadow on the boards.
 
-![The 3D shed: a shelf, tools, a watering can, a stack of pots and a sack as models, a small juniper, and the player casting a shadow](./images/journey-05-now-shed-3d.png)
+![The 3D shed: a wooden floor and panelled back wall with a door and a window, a shelf, tools, a stack of pots and a sack as models, a small juniper, and the gardener casting a shadow](./images/journey-05-now-shed-3d.webp)
 
-The garden is where the light shows. The house and the greenhouse stand in the lawn, and the player's shadow lies on the grass. Petals fall, because it is spring, and the 3D world draws the same weather field as the 2D one.
+The garden is where the light shows. The house and the greenhouse stand in the lawn with a fence around it, and the player's shadow lies on the grass.
 
-![The 3D garden: the house wall and the greenhouse around a lawn, the player with a shadow on the grass, and a few spring petals falling](./images/journey-05-now-garden-3d.png)
+![The 3D garden: the house's roof and walls on one side, the greenhouse beyond the lawn, a fence and a hedge, and the gardener with a shadow on the grass](./images/journey-05-now-garden-3d.webp)
+
+Outdoors used to flash. Surfaces drew over the ground at the same depth and fought for it, the shadow map refitted itself to whatever was in view, and the far-off art shimmered. The fix was to mipmap the art, push it slightly toward the camera with a polygon offset, and fix the shadow map to the room with a small bias. Now the shading of a room does not depend on where the camera is, and a test checks that as numbers, not pixels. The software renderer I shoot on still shows some stepped edges on the garden's roofs, so the garden here is not as clean as it will look on a phone.
 
 The same garden in 2D, from the same build, is below.
 
 ![The garden in 2D: the house's back wall and door, the player, a fence, and the greenhouse's glass in the corner](./images/journey-05-now-garden-2d.webp)
 
-The 3D version is plainer than the 2D one. The buildings are plain blocks and the player is a capsule. It is also one setting in a game that already works without it, and that is deliberate.
+The 3D version is still plainer than the 2D one, and it is one setting in a game that already works without it, which is deliberate. It is no longer a block world with a capsule in it. Here is the shed from another side, which is the view the game now exists to give you.
+
+![The shed from a turned camera: the gardener standing among the tools, pots and juniper, with the panelled wall, door and window running away to one side](./images/journey-06-now-shed-3d-from-the-side.webp)
 
 ## Where it stands
 
