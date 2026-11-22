@@ -81,27 +81,31 @@ test.describe('the 3D world shading', () => {
     expect(after.shadowMap).toEqual(before.shadowMap);
   });
 
-  test('the back garden, outdoors, keeps its shadow window as the camera orbits and the player walks', async ({
-    page,
-  }) => {
-    test.setTimeout(180_000);
-    await bootWorld(page);
-    await waitForRoom(page, 'shed');
-    await skipTutorial(page, true);
-    await shedToGarden(page);
-    await waitForRoom(page, 'garden');
+  test(
+    'the back garden, outdoors, keeps its shadow window as the camera orbits and the player walks',
+    {
+      tag: '@walk',
+    },
+    async ({ page }) => {
+      test.setTimeout(180_000);
+      await bootWorld(page);
+      await waitForRoom(page, 'shed');
+      await skipTutorial(page, true);
+      await shedToGarden(page);
+      await waitForRoom(page, 'garden');
 
-    const before = await world3d(page);
-    expect(before.shadowMap.fixed).toBe(true);
-    expect(before.artDepthOffset).toBeLessThan(0);
-    await turnOnce(page);
-    await page.keyboard.down('ArrowRight');
-    await expect
-      .poll(async () => (await world3d(page)).player?.x ?? 0, POLL)
-      .toBeGreaterThan((before.player?.x ?? 0) + 0.5);
-    await page.keyboard.up('ArrowRight');
-    await turnOnce(page);
-    const after = await world3d(page);
-    expect(after.shadowMap).toEqual(before.shadowMap);
-  });
+      const before = await world3d(page);
+      expect(before.shadowMap.fixed).toBe(true);
+      expect(before.artDepthOffset).toBeLessThan(0);
+      await turnOnce(page);
+      await page.keyboard.down('ArrowRight');
+      await expect
+        .poll(async () => (await world3d(page)).player?.x ?? 0, POLL)
+        .toBeGreaterThan((before.player?.x ?? 0) + 0.5);
+      await page.keyboard.up('ArrowRight');
+      await turnOnce(page);
+      const after = await world3d(page);
+      expect(after.shadowMap).toEqual(before.shadowMap);
+    },
+  );
 });
