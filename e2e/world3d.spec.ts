@@ -14,6 +14,8 @@ import {
   continueGame,
   dragLogical,
   expect,
+  holdUntilAtLeast,
+  holdUntilAtMost,
   hook,
   interact,
   openSettingsFromMenu,
@@ -139,6 +141,43 @@ test.describe('the 3D world', () => {
       expect(errors).toEqual([]);
     },
   );
+
+  test('walks through a doorway into the next room without Interact', async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+
+    // The shed's start is in line with the lounge door in its top wall: straight up, no E.
+    expect((await hook(page)).room).toBe('shed');
+    await page.keyboard.down('ArrowUp');
+    await page.waitForFunction(() => window.__bonsai?.room === 'lounge', undefined, POLL);
+    await page.keyboard.up('ArrowUp');
+    const lounge = await hook(page);
+    expect(lounge.arrivedBeside).toBe('door');
+    // The landing is beside the far door, facing into the room, and walking on does not bounce back.
+    expect(lounge.player.y).toBeGreaterThan(150);
+    await page.waitForTimeout(400);
+    expect((await hook(page)).room).toBe('lounge');
+  });
+
+  test('does not take a doorway walked past along its wall', async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+
+    // Out of the door's lane, up to the top wall, then along it past the door and back.
+    await holdUntilAtMost(page, 'ArrowLeft', 'x', 200);
+    await holdUntilAtMost(page, 'ArrowUp', 'y', 66);
+    await holdUntilAtLeast(page, 'ArrowRight', 'x', 280);
+    await holdUntilAtMost(page, 'ArrowLeft', 'x', 200);
+    const after = await hook(page);
+    expect(after.room).toBe('shed');
+    expect(after.player.y).toBeLessThan(80);
+  });
 
   test('turns in steps on Q and E, zooms on the wheel and drags round on the mouse', async ({
     page,

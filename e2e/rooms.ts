@@ -83,10 +83,25 @@ export interface Crossing {
   readonly to: BonsaiTestHook;
 }
 
-/** Uses the door in reach and waits for `room`; returns the hook on either side of the door. */
+/**
+ * How long a walk's last step in the 3D world is given to carry the player
+ * through the door it stopped at the doorway of, before Interact is pressed.
+ */
+const WALK_THROUGH_MS = 500;
+
+/** Uses the door in reach (the 3D world's, unless the walk took it) and waits for `room`; returns the hook on either side of the door. */
 export async function throughDoor(page: Page, room: string): Promise<Crossing> {
   const from = await hook(page);
-  await interact(page);
+  const walked =
+    from.room === room ||
+    (from.world3d?.on === true &&
+      (await page
+        .waitForFunction((r) => window.__bonsai?.room === r, room, { timeout: WALK_THROUGH_MS })
+        .then(
+          () => true,
+          () => false,
+        )));
+  if (!walked) await interact(page);
   await page.waitForFunction((r) => window.__bonsai?.room === r, room);
   return { from, to: await hook(page) };
 }
@@ -98,6 +113,8 @@ export async function throughDoor(page: Page, room: string): Promise<Crossing> {
  */
 export async function shedToLounge(page: Page): Promise<Crossing> {
   await holdUntilAtMost(page, 'ArrowUp', 'y', 66);
+  // From the shed's start the walk up is in line with the door, and the 3D world takes it.
+  if ((await hook(page)).room === 'lounge') return throughDoor(page, 'lounge');
   const fromLeft = (await hook(page)).player.x < 240;
   await holdUntilNear(page, fromLeft ? 'ArrowRight' : 'ArrowLeft', 'door_lounge');
   await holdUntilNear(page, fromLeft ? 'ArrowLeft' : 'ArrowRight', 'door_lounge');
