@@ -205,6 +205,11 @@ export function segmentCrossesBox(a: Vec3, b: Vec3, box: Box): boolean {
 /** The rooms with no roof or ceiling in the way: their buildings' faces are cut only where they hide the player. */
 const OUTDOORS: ReadonlySet<RoomPlan3d['key']> = new Set(['garden', 'frontGarden']);
 
+/** Whether `piece` can ever be cut away: any wall indoors, only a tall piece outdoors, so a garden's fences stand for good. */
+export function cuttable(plan: RoomPlan3d, piece: Box): boolean {
+  return !OUTDOORS.has(plan.key) || piece.z1 - piece.z0 > OUTDOOR_CUT_MIN_HEIGHT;
+}
+
 /**
  * The names of the plan's pieces to cut away to the skirting for a camera in
  * `view` round the player standing at `player` (feet, plan metres). Indoors
@@ -220,9 +225,6 @@ export function cutNames(plan: RoomPlan3d, view: CameraView, player: Vec3): stri
   const middle = { ...player, z: player.z + PLAYER_HEIGHT / 2 };
   const eye = cameraPosition(view, middle);
   return [...plan.walls, ...plan.furniture]
-    .filter(
-      (piece) =>
-        piece.z1 - piece.z0 > OUTDOOR_CUT_MIN_HEIGHT && segmentCrossesBox(eye, middle, piece),
-    )
+    .filter((piece) => cuttable(plan, piece) && segmentCrossesBox(eye, middle, piece))
     .map((piece) => piece.name);
 }

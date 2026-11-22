@@ -111,6 +111,7 @@ export class World3d {
       shadows: state?.shadows ?? false,
       toon: state?.toon ?? false,
       floorSheet: state?.floorSheet ?? null,
+      wallSheets: state ? [...state.wallSheets] : [],
       weather: state?.weather ?? null,
       player: this.renderer ? this.renderer.playerAt() : null,
       picked: this.picked,

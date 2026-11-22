@@ -29,12 +29,12 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { Scene } from '@babylonjs/core/scene';
 import type { Season } from '../sim/seasons';
 import { PALETTE } from '../world/palette';
-import { sheetUrl } from '../world/assets';
+import { sheetUrl, type Sheet } from '../world/assets';
 import { floorTiles } from '../world/roomArt';
 import { GAME_HEIGHT, GAME_WIDTH } from '../world/resolution';
 import type { Room } from '../world/shedRoom';
-import { RADIUS_DEFAULT, cameraRig, cutNames, cutSpan, ease } from './camera';
-import { floorLayout, floorMeshData } from './floorTiles';
+import { RADIUS_DEFAULT, cameraRig, cutNames, cutSpan, cuttable, ease } from './camera';
+import { floorLayout, floorMeshData, type FloorMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
@@ -55,6 +55,7 @@ import { inkUnit, outlineWidthMetres } from './toon';
 import { toonLit } from './toonPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { TreeStand } from './trees';
+import { wallLayout, wallMeshData, wallPieces, wallSheets } from './wallTiles';
 import { weatherKind, weatherSprites, type WeatherField } from './weather';
 
 /** The page's surround colour (SURROUND in src/scenes/textStyle.ts), behind the room. */
@@ -80,6 +81,8 @@ export interface RendererSnapshot {
   readonly toon: boolean;
   /** The key of the sheet the floor's tiles are cut from, null until its texture has loaded. */
   readonly floorSheet: string | null;
+  /** The keys of the sheets the walls' art is cut from that have loaded, sorted. */
+  readonly wallSheets: readonly string[];
   /** The kind of weather drawn (petals, fireflies, leaves, snow), null where none is. */
   readonly weather: string | null;
   /** Each prop's hotspot id and the screen point of its middle in game px (480 x 270), where a tap picks it. */
@@ -121,6 +124,12 @@ interface FloorArt {
   readonly mesh: Mesh;
   readonly material: StandardMaterial;
   readonly sheet: string;
+}
+
+/** One sheet's wall meshes, one per wall piece, and the material and texture they share. */
+interface WallArt {
+  readonly meshes: readonly Mesh[];
+  readonly material: StandardMaterial;
 }
 
 /** A furniture kind's model, one mesh drawn once per piece standing: the pieces' keys it was last set for, and how many. */
@@ -177,6 +186,10 @@ export class Renderer {
   private plan: RoomPlan3d | undefined;
   private pieces = new Map<string, Piece>();
   private floorArt: FloorArt | undefined;
+  /** The walls' textured meshes and material, by sheet key. */
+  private readonly wallArt = new Map<string, WallArt>();
+  /** Counts the rooms built, so a texture that loads for an earlier one is dropped. */
+  private epoch = 0;
   /** The invisible boxes taps pick props by, each under its prop's key. */
   private hotspots = new Map<AbstractMesh, string>();
   /** The prop keys the hotspots were made for, so a placed item's spots add or drop theirs. */
@@ -264,6 +277,7 @@ export class Renderer {
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       toon: true,
       floorSheet: this.floorArt?.sheet ?? null,
+      wallSheets: [...this.wallArt.keys()].sort(),
       weather: this.weatherKind,
       hotspots: this.hotspotPoints(),
     };
@@ -404,6 +418,7 @@ export class Renderer {
   /** Removes the canvas and everything on the GPU, and gives the game's canvas back its style. */
   dispose(): void {
     this.clearFloor();
+    this.clearWalls();
     this.scene.dispose();
     this.engine.dispose();
     this.canvas.remove();
@@ -423,6 +438,8 @@ export class Renderer {
 
   /** Disposes the last room's meshes and builds `room`'s. */
   private build(room: Room): void {
+    this.epoch += 1;
+    this.clearWalls();
     for (const { mesh } of this.pieces.values()) mesh.dispose();
     this.pieces.clear();
     this.clearFloor();
@@ -452,6 +469,7 @@ export class Renderer {
     this.setHotspots(room, plan);
     this.room = room.key;
     this.tile(room);
+    this.clothe(room, plan);
   }
 
   /** Disposes the floor's tile mesh, its material and the texture only they use. */
@@ -469,36 +487,123 @@ export class Renderer {
    */
   private tile(room: Room): void {
     const sheet = floorTiles(room).sheet;
+    this.loadSheet(sheet, (texture) => {
+      const { width, height } = texture.getSize();
+      const material = this.sheetMaterial('floor.tiles', texture, false);
+      const mesh = this.texturedMesh(
+        'floor.tiles',
+        floorMeshData(floorLayout(room, width, height).quads),
+        material,
+      );
+      mesh.receiveShadows = true;
+      this.floorArt = { mesh, material, sheet: sheet.key };
+    });
+  }
+
+  /** Disposes every wall mesh, material and the textures only they use. */
+  private clearWalls(): void {
+    for (const { meshes, material } of this.wallArt.values()) {
+      for (const mesh of meshes) mesh.dispose();
+      material.dispose(false, true);
+    }
+    this.wallArt.clear();
+  }
+
+  /**
+   * Dresses `plan`'s walls in the Inked art of the 2D room's runs, once each
+   * sheet's PNG has loaded. A piece the camera can cut away (`cuttable`) gets
+   * one mesh per sheet parented to its box, so the cut, which scales and
+   * lowers the box, takes its art with it (one mesh over several pieces could
+   * not follow their separate cuts); the pieces that stand for good, a
+   * garden's fences, share one merged mesh per sheet. A sheet's meshes share
+   * one material, nearest filtered, mipmap-free, toon lit, with no outline and
+   * no shadows, as the boxes are.
+   */
+  private clothe(room: Room, plan: RoomPlan3d): void {
+    const pieces = wallPieces(plan.walls).filter((piece) => this.pieces.has(piece.name));
+    const movable = new Set(pieces.filter((p) => cuttable(plan, p)).map((p) => p.name));
+    for (const sheet of wallSheets(room)) {
+      this.loadSheet(sheet, (texture) => {
+        const { width, height } = texture.getSize();
+        const material = this.sheetMaterial(`wall.${sheet.key}`, texture, true);
+        const layout = wallLayout(room, pieces, sheet, width, height);
+        const meshes = layout
+          .filter(({ piece }) => movable.has(piece))
+          .flatMap(({ piece, quads }) => {
+            const box = pieces.find((p) => p.name === piece);
+            const parent = this.pieces.get(piece)?.mesh;
+            if (!box || !parent) return [];
+            const origin = {
+              x: (box.x0 + box.x1) / 2,
+              y: (box.y0 + box.y1) / 2,
+              z: (box.z0 + box.z1) / 2,
+            };
+            const mesh = this.texturedMesh(
+              `${piece}.${sheet.key}`,
+              wallMeshData(quads, origin),
+              material,
+            );
+            mesh.parent = parent;
+            return [mesh];
+          });
+        const fixed = layout.filter(({ piece }) => !movable.has(piece));
+        if (fixed.length > 0) {
+          const data = wallMeshData(
+            fixed.flatMap(({ quads }) => quads),
+            { x: 0, y: 0, z: 0 },
+          );
+          meshes.push(this.texturedMesh(`walls.${sheet.key}`, data, material));
+        }
+        if (meshes.length === 0) material.dispose(false, true);
+        else this.wallArt.set(sheet.key, { meshes, material });
+      });
+    }
+  }
+
+  /**
+   * Loads `sheet`'s PNG (the one Phaser loads) as a nearest-filtered,
+   * mipmap-free, clamped texture and hands it to `ready`, unless the room
+   * changed meanwhile, which drops it, or the load failed, which disposes it.
+   */
+  private loadSheet(sheet: Sheet, ready: (texture: Texture) => void): void {
+    const epoch = this.epoch;
     const texture = new Texture(sheetUrl(import.meta.env.BASE_URL, sheet), this.scene, {
       noMipmap: true,
       samplingMode: Texture.NEAREST_SAMPLINGMODE,
       onLoad: () => {
-        if (this.room !== room.key || this.floorArt) {
-          texture.dispose();
-          return;
-        }
-        const { width, height } = texture.getSize();
-        const data = floorMeshData(floorLayout(room, width, height).quads);
-        const mesh = new Mesh('floor.tiles', this.scene);
-        const vertices = new VertexData();
-        vertices.positions = data.positions;
-        vertices.normals = data.normals;
-        vertices.uvs = data.uvs;
-        vertices.indices = data.indices;
-        vertices.applyToMesh(mesh);
-        const material = new StandardMaterial('floor.tiles', this.scene);
-        material.diffuseTexture = texture;
-        material.specularColor = Color3.Black();
-        material.backFaceCulling = false;
-        toonLit(material, this.toLight);
-        mesh.material = material;
-        mesh.receiveShadows = true;
-        mesh.isPickable = false;
-        this.floorArt = { mesh, material, sheet: sheet.key };
+        if (this.epoch === epoch) ready(texture);
+        else texture.dispose();
+      },
+      onError: () => {
+        texture.dispose();
       },
     });
     texture.wrapU = Texture.CLAMP_ADDRESSMODE;
     texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+  }
+
+  /** A toon-lit material showing `texture`; with `oneSided`, only on the side its quads' normals face. */
+  private sheetMaterial(name: string, texture: Texture, oneSided: boolean): StandardMaterial {
+    const material = new StandardMaterial(name, this.scene);
+    material.diffuseTexture = texture;
+    material.specularColor = Color3.Black();
+    material.backFaceCulling = oneSided;
+    toonLit(material, this.toLight);
+    return material;
+  }
+
+  /** An unpickable mesh of `data` (positions, normals, UVs, indices) with `material`. */
+  private texturedMesh(name: string, data: FloorMeshData, material: StandardMaterial): Mesh {
+    const mesh = new Mesh(name, this.scene);
+    const vertices = new VertexData();
+    vertices.positions = data.positions;
+    vertices.normals = data.normals;
+    vertices.uvs = data.uvs;
+    vertices.indices = data.indices;
+    vertices.applyToMesh(mesh);
+    mesh.material = material;
+    mesh.isPickable = false;
+    return mesh;
   }
 
   /** Makes the invisible box of each prop of `room`, in place of the last set. */
