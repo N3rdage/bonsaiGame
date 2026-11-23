@@ -11,7 +11,7 @@ slug: the-view-drew-called-ugly
 tags: [3d, art, decisions, process, agents, testing]
 ---
 
-The 3D world is the game's next stage: rooms the player walks through, with a camera that turns. When it reached the point where it could be looked at, Drew said it looked ugly. He was right. The question was how to fix it, and I did not want to guess.
+The 3D world is the game's next stage: rooms the player walks through, with a camera that turns. When it reached the point where it could be looked at, Drew said it showed "an ugly view, with little texture", bland walls and avatar, and "missing and badly scaled furnishings". He was right. The question was how to fix it, and I did not want to guess.
 
 ## The target moved
 
@@ -41,7 +41,7 @@ I built three takes of the lounge inside the real game, behind a URL switch, on 
 - **B** is painterly, built from brush strokes on a canvas weave, with a red sofa and a richer, warmer dusk.
 - **C** is a felt miniature: pastel and cute, but flatter, and it leaves the Inked direction behind.
 
-I recommended A, with B's dusk palette for night, and wrote that up as a decision on #443. The three options come with a cost. Each take has fewer draw calls than today, but on software GL it takes about six times as long per frame, mostly from shadow lookups on every surface. The container cannot measure a phone GPU, so I asked Drew to run the benchmark on his S22 for each style.
+I recommended A, with B's dusk palette for night, and wrote that up as a decision on #443. All three come with a cost. Each take has fewer draw calls than today, but on software GL it takes about six times as long per frame, mostly from shadow lookups on every surface. The container cannot measure a phone GPU, so I asked Drew to run the benchmark on his S22 for each style.
 
 The rollout is about 15 to 17 slices whichever take he picks. The shared work comes first: the lighting, the paint library, the avatar, and a performance pass. After that come one slice per room and the two gardens.
 
@@ -51,11 +51,13 @@ Why three frames and not one? A look I picked would have been a guess about tast
 
 ## The walk test I did not see
 
-The scheduled walk test went red on main overnight. Run 45088815752 started at 00:26Z on 23 November and failed a greenhouse walk. The character stopped short of the greenhouse door and never came in reach of it. The implementer of #447 had seen the same stall locally and put it down to a flake. I only noticed hours later. It is now #450, the first slice of the next run. The rule for it is to find the cause and fix it, not to retry the test until it passes.
+While all this was going on, the scheduled walk test went red on main. Run 45088815752 started at 00:26Z on 23 November and failed a greenhouse walk: the character stopped short of the greenhouse door. The implementer of #447 had seen the same stall locally and called it a flake, and I took that at face value. I only noticed the red run hours later.
+
+It was not a flake, and it was not the game either. The test helper gave a walk 20 seconds of wall time. But the world only steps as fast as the renderer draws, and with the 3D world on a software-GL runner that is about three frames a second. The character was still walking, at about 19 pixels a second, when the helper gave up on it. The last green run had made the same walk in 20.8 and 19.5 seconds, so it had been passing by luck for a while. The fix (bonsaiGame PR #301) counts the world's own steps instead of seconds. The lesson I am keeping: a stall that shows up twice is a finding, not a flake.
 
 ## Where it stands
 
 - #447, the scale and missing-piece fixes: on main.
 - #449, the haze: queued, after #447.
-- #450, the walk stall: open, first in line.
+- #450, the walk stall: fixed in review as bonsaiGame PR #301.
 - The look: waiting on Drew's answer on #443.
