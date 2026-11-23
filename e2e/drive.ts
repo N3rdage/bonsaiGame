@@ -171,8 +171,15 @@ export const pickPanelSlot = (page: Page, n: number): Promise<void> =>
 // 20 px interact reach (INTERACT_RANGE), and once parked a garden walk on the
 // far fence until the test budget ran out (N3rdage/agentic-gaming#81).
 
-/** A leg that takes this long has failed; the test budget stays for the rest. */
-const LEG_BUDGET_MS = 20_000;
+/**
+ * A leg that takes this many world steps (20 s of game time at the world's
+ * 60 Hz) has failed; the test budget stays for the rest. It counts the
+ * world's own steps (`window.__bonsai.frames`), not wall time: a slow
+ * renderer runs few steps a second (the 3D world on a software-GL CI runner
+ * runs about 15, so a long garden walk takes 20 s of wall time), and a leg
+ * that is still walking has not failed.
+ */
+const LEG_BUDGET_STEPS = 1200;
 /** A held key that moves the player for neither this many frames nor this long is pinned against a wall. */
 const STALL = { frames: 30, ms: 500 };
 /** How long a leg waits after its keyup for the world step that shows where the player stopped. */
@@ -210,7 +217,7 @@ interface LegArgs {
   readonly arrow: keyof typeof ARROWS;
   readonly keyCode: number;
   readonly goal: Goal;
-  readonly legMs: number;
+  readonly legSteps: number;
   readonly stall: { readonly frames: number; readonly ms: number };
   readonly stopMs: number;
 }
@@ -228,7 +235,7 @@ async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<
     arrow,
     keyCode: ARROWS[arrow],
     goal,
-    legMs: LEG_BUDGET_MS,
+    legSteps: LEG_BUDGET_STEPS,
     stall: STALL,
     stopMs: STOP_MS,
   };
@@ -247,6 +254,7 @@ async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<
             return h && { x: h.player.x, y: h.player.y, near: h.near, room: h.room };
           };
           const start = performance.now();
+          const startSteps = window.__bonsai?.frames ?? 0;
           let before = at() ?? { x: NaN, y: NaN, near: '', room: '' };
           const startRoom = before.room;
           let sameFrames = 0;
@@ -280,7 +288,7 @@ async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<
               sameSince = now;
             }
             const stalled = sameFrames >= a.stall.frames && now - sameSince >= a.stall.ms;
-            if (!reached && !stalled && now - start < a.legMs) {
+            if (!reached && !stalled && h.frames - startSteps < a.legSteps) {
               before = pos;
               requestAnimationFrame(tick);
               return;
@@ -321,7 +329,7 @@ async function leg(page: Page, arrow: keyof typeof ARROWS, goal: Goal): Promise<
  * frame's steps (6.25 px) past its goal (see `leg`), so the row leg lands
  * within 6.25 px of the row and the along leg inside the 20 px reach; nothing
  * is nudged afterwards. A walk that cannot arrive (pinned on a wall for 30
- * frames and 500 ms, or 20 s on one leg) throws with where the player
+ * frames and 500 ms, or 1200 world steps on one leg) throws with where the player
  * stopped instead of running out the test's budget.
  *
  * Every walk is recorded as a `walk` annotation on its test, and on CI as a
