@@ -1,0 +1,16 @@
+{
+  "take": "before",
+  "gl": "software (container SwiftShader)",
+  "done": true,
+  "frames": 98,
+  "fps": 8.1,
+  "medianMs": 130.4,
+  "p95Ms": 150,
+  "worstMs": 175.3,
+  "drawCalls": 54,
+  "drawCallsMax": 56,
+  "width": 1920,
+  "height": 1080,
+  "dpr": 2.8125,
+  "userAgent": "Mozilla/5.0 (Linux; Android 14; SM-S908B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/158.0.8127.18 Mobile Safari/537.36"
+}
