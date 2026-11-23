@@ -696,25 +696,24 @@ export class WorldScene extends Phaser.Scene {
           if (!over.some((o) => inside.includes(o))) this.closePanel();
           return;
         }
-        if (over.length > 0) return;
-        // In the 3D world a press on bare ground is the stick's only as the first touch on the left half
-        // of the screen; any other press (the mouse, a touch on the right half, a second finger) turns
-        // and zooms the camera, so a drag is never both.
+        // A second finger is a pinch wherever it lands, even on a button.
+        if (over.length > 0 && !this.cameraGesture.held) return;
+        if (!this.world3d.active) {
+          if (!this.joystick) this.startStick(pointer);
+          return;
+        }
+        // In the 3D world a press on bare ground is the stick's only as a touch on the left half of the
+        // screen, else it turns the camera; a second finger anywhere makes both a pinch that only zooms.
         const route = pressRoute({
-          world3d: this.world3d.active,
+          world3d: true,
           touch: pointer.wasTouch,
           left: pointer.x < this.scale.width / 2,
-          stickHeld: this.joystick !== undefined,
         });
-        if (route === 'stick') {
-          if (this.joystick) return;
-          const { x, y } = this.screenPoint(pointer);
-          this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
-        } else {
-          if (this.cameraGesture.down(pointer.id, pointer.x, pointer.y)) {
-            this.taps.down(pointer.id, pointer.x, pointer.y, performance.now());
-          }
-        }
+        const down = this.cameraGesture.down(pointer.id, pointer.x, pointer.y, route === 'stick');
+        if (down === 'stick') this.startStick(pointer);
+        else if (down === 'drag')
+          this.taps.down(pointer.id, pointer.x, pointer.y, performance.now());
+        else if (down === 'pinch') this.joystick = undefined;
       },
     );
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
@@ -725,9 +724,9 @@ export class WorldScene extends Phaser.Scene {
       this.joystick.input = joystickInput(x - this.joystick.x, y - this.joystick.y);
     });
     const release = (pointer: Phaser.Input.Pointer): boolean => {
-      this.cameraGesture.up(pointer.id);
+      const kind = this.cameraGesture.up(pointer.id);
       if (pointer.id === this.joystick?.id) this.joystick = undefined;
-      return this.taps.up(pointer.id, performance.now());
+      return this.taps.up(pointer.id, performance.now()) && kind === 'drag';
     };
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       if (release(pointer) && this.cameraKeysLive()) this.tapWorld(pointer);
@@ -810,6 +809,12 @@ export class WorldScene extends Phaser.Scene {
     o.cameraFilter = this.cameras.main.id;
     if (o instanceof Phaser.GameObjects.Text) o.setResolution(textZoom(this, o));
     return o;
+  }
+
+  /** Starts the stick at the press `pointer` made. */
+  private startStick(pointer: Phaser.Input.Pointer): void {
+    const { x, y } = this.screenPoint(pointer);
+    this.joystick = { id: pointer.id, x, y, input: { x: 0, y: 0 } };
   }
 
   /** A pointer in logical screen px through the HUD camera, so the joystick's dead zone and radius ignore the world zoom. */

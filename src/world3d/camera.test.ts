@@ -109,39 +109,71 @@ describe('ease', () => {
 });
 
 describe('CameraGesture', () => {
-  it('turns by a one-pointer drag and takes no more than two pointers', () => {
+  const setup = (): { rig: CameraRig; gesture: CameraGesture } => {
     const rig = new CameraRig();
-    const gesture = new CameraGesture(rig);
+    return { rig, gesture: new CameraGesture(rig) };
+  };
+
+  it('turns by a one-finger drag', () => {
+    const { rig, gesture } = setup();
     const start = rig.alpha;
-    expect(gesture.down(1, 100, 100)).toBe(true);
+    expect(gesture.down(1, 100, 100, false)).toBe('drag');
     gesture.move(1, 150, 100);
     expect(rig.alpha).toBeLessThan(start);
     const beta = rig.beta;
     gesture.move(1, 150, 140);
     expect(rig.beta).toBeLessThan(beta);
-    expect(gesture.down(2, 0, 0)).toBe(true);
-    expect(gesture.down(3, 0, 0)).toBe(false);
-    gesture.up(1);
-    gesture.up(2);
-    expect(gesture.has(1)).toBe(false);
+    expect(gesture.up(1)).toBe('drag');
+    expect(gesture.held).toBe(false);
   });
 
-  it('zooms by a pinch and does not turn', () => {
-    const rig = new CameraRig();
-    const gesture = new CameraGesture(rig);
-    gesture.down(1, 100, 100);
-    gesture.down(2, 200, 100);
-    const alpha = rig.alpha;
+  it('leaves the camera alone while a finger is the stick', () => {
+    const { rig, gesture } = setup();
+    expect(gesture.down(1, 100, 100, true)).toBe('stick');
+    gesture.move(1, 150, 140);
+    expect(rig.alpha).toBe(new CameraRig().alpha);
+    expect(rig.beta).toBe(new CameraRig().beta);
+    expect(gesture.up(1)).toBe('stick');
+  });
+
+  it.each([
+    ['one finger on each half', true, false],
+    ['both on the right', false, false],
+    ['both on the left', true, true],
+  ])('zooms by a pinch and does not turn: %s', (_name, firstStick, secondStick) => {
+    const { rig, gesture } = setup();
+    gesture.down(1, 100, 100, firstStick);
+    expect(gesture.down(2, 200, 100, secondStick)).toBe('pinch');
+    const { alpha, beta } = rig;
     gesture.move(2, 300, 100);
     expect(rig.radius).toBeCloseTo(RADIUS_DEFAULT / 2);
-    expect(rig.alpha).toBe(alpha);
     gesture.move(2, 150, 100);
     expect(rig.radius).toBeGreaterThan(RADIUS_DEFAULT / 2);
+    gesture.move(1, 90, 300);
+    expect(rig.alpha).toBe(alpha);
+    expect(rig.beta).toBe(beta);
   });
 
-  it('ignores a pointer it does not hold', () => {
-    const rig = new CameraRig();
-    new CameraGesture(rig).move(7, 10, 10);
+  it('stays a pinch, with nothing turned or tapped, until every finger is up', () => {
+    const { rig, gesture } = setup();
+    gesture.down(1, 100, 100, false);
+    gesture.down(2, 200, 100, false);
+    expect(gesture.up(1)).toBe('pinch');
+    gesture.move(2, 260, 180);
+    expect(rig.alpha).toBe(new CameraRig().alpha);
+    expect(gesture.down(1, 100, 100, false)).toBe('ignored');
+    expect(gesture.up(2)).toBe('pinch');
+    expect(gesture.up(1)).toBeUndefined();
+    expect(gesture.down(3, 10, 10, false)).toBe('drag');
+  });
+
+  it('ignores a third finger and a pointer it does not hold', () => {
+    const { rig, gesture } = setup();
+    gesture.down(1, 0, 0, false);
+    gesture.down(2, 100, 0, false);
+    expect(gesture.down(3, 0, 0, false)).toBe('ignored');
+    expect(gesture.up(3)).toBeUndefined();
+    gesture.move(7, 10, 10);
     expect(rig.alpha).toBeCloseTo(-Math.PI / 2);
   });
 });
@@ -230,19 +262,14 @@ describe('cutNames', () => {
 });
 
 describe('pressRoute', () => {
-  const press = { world3d: true, touch: true, left: true, stickHeld: false };
+  const press = { world3d: true, touch: true, left: true };
 
   it('is the stick in the 2D world, whatever the press', () => {
     expect(pressRoute({ ...press, world3d: false, touch: false, left: false })).toBe('stick');
-    expect(pressRoute({ ...press, world3d: false, stickHeld: true })).toBe('stick');
   });
 
-  it('makes the first touch on the left half the stick', () => {
+  it('makes a touch on the left half the stick', () => {
     expect(pressRoute(press)).toBe('stick');
-  });
-
-  it('gives a left-half touch to the camera while the stick is held', () => {
-    expect(pressRoute({ ...press, stickHeld: true })).toBe('camera');
   });
 
   it('gives a touch on the right half and the mouse to the camera', () => {

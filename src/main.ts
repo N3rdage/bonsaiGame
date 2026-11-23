@@ -49,6 +49,8 @@ const game = new Phaser.Game({
   // An alpha channel so the 3D world's canvas can show through; setSurround clears it to the surround, opaque.
   transparent: true,
   pixelArt: true,
+  // The mouse and one touch by default; the second finger of a pinch needs a pointer of its own.
+  input: { activePointers: 2 },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,

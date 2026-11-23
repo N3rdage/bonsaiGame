@@ -91,63 +91,82 @@ export interface Press {
   readonly touch: boolean;
   /** Whether the press is on the left half of the screen. */
   readonly left: boolean;
-  readonly stickHeld: boolean;
 }
 
 /**
  * Where a press on bare ground goes. In the 2D world it is the stick's. In the
- * 3D world it is the stick's only as a touch on the left half while no stick
- * is held; every other press (the mouse, the right half, a second finger) is
- * the camera's, so a drag is never both.
+ * 3D world it is the stick's only as a touch on the left half; every other
+ * press (the mouse, the right half) is the camera's, so a drag is never both.
+ * A second finger is neither, whichever half it lands in: `CameraGesture`
+ * makes the two a pinch.
  */
 export function pressRoute(press: Press): 'stick' | 'camera' {
   if (!press.world3d) return 'stick';
-  return press.touch && press.left && !press.stickHeld ? 'stick' : 'camera';
+  return press.touch && press.left ? 'stick' : 'camera';
 }
 
+/** What `CameraGesture.down` made of a press: the stick's, a camera drag, the second finger that starts a pinch, or a press it ignores. */
+export type GestureDown = 'stick' | 'drag' | 'pinch' | 'ignored';
+
 /**
- * The pointers that move the camera: one turns it by the drag, two zoom it
- * by the change of the distance between them. The caller decides which
- * presses become camera pointers (the stick's and the buttons' never do).
+ * The pointers on bare ground in the 3D world: one is the stick or turns the
+ * camera by its drag, two are a pinch that zooms it by the change of the
+ * distance between them and does nothing else. The second finger makes the
+ * first one's stick, drag or tap part of a pinch, wherever each lands; the
+ * pinch lasts until every finger is up, so a finger that stays down or a
+ * third that joins turns and taps nothing.
  */
 export class CameraGesture {
-  private readonly points = new Map<number, { x: number; y: number }>();
+  private readonly points = new Map<number, { x: number; y: number; stick: boolean }>();
+  private pinching = false;
 
   constructor(private readonly rig: CameraRig) {}
 
-  /** Whether the pointer `id` is one of the camera's. */
-  has(id: number): boolean {
-    return this.points.has(id);
+  /** Whether any pointer is held, so a second finger counts wherever it lands. */
+  get held(): boolean {
+    return this.points.size > 0;
   }
 
-  /** Takes the pointer `id` at (`x`, `y`) unless two are already held; says whether it did. */
-  down(id: number, x: number, y: number): boolean {
-    if (this.points.size >= 2) return false;
-    this.points.set(id, { x, y });
-    return true;
+  /** Takes the pointer `id` at (`x`, `y`), as the stick's when `stick` is set; says what the press is. */
+  down(id: number, x: number, y: number, stick: boolean): GestureDown {
+    if (this.pinching || this.points.has(id)) return 'ignored';
+    const first = this.points.size === 0;
+    this.points.set(id, { x, y, stick });
+    if (first) return stick ? 'stick' : 'drag';
+    this.pinching = true;
+    return 'pinch';
   }
 
   move(id: number, x: number, y: number): void {
     const point = this.points.get(id);
     if (!point) return;
     const other = [...this.points.entries()].find(([key]) => key !== id)?.[1];
-    if (other) {
-      const before = Math.hypot(point.x - other.x, point.y - other.y);
-      const after = Math.hypot(x - other.x, y - other.y);
-      if (before > 0 && after > 0) this.rig.zoom(before / after);
-    } else {
+    if (this.pinching) {
+      if (other) {
+        const before = Math.hypot(point.x - other.x, point.y - other.y);
+        const after = Math.hypot(x - other.x, y - other.y);
+        if (before > 0 && after > 0) this.rig.zoom(before / after);
+      }
+    } else if (!point.stick) {
       this.rig.turn(-(x - point.x) * DRAG_RADIANS_PER_PX, -(y - point.y) * DRAG_RADIANS_PER_PX);
     }
     point.x = x;
     point.y = y;
   }
 
-  up(id: number): void {
+  /** Lets go of the pointer `id`; says what its press was, undefined if it was not held. */
+  up(id: number): Exclude<GestureDown, 'ignored'> | undefined {
+    const point = this.points.get(id);
+    if (!point) return undefined;
+    const kind = this.pinching ? 'pinch' : point.stick ? 'stick' : 'drag';
     this.points.delete(id);
+    if (this.points.size === 0) this.pinching = false;
+    return kind;
   }
 
   clear(): void {
     this.points.clear();
+    this.pinching = false;
   }
 }
 
