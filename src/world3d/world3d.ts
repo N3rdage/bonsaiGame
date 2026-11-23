@@ -17,16 +17,22 @@ import type { TreeStand } from './trees';
 import type { WeatherField } from './weather';
 
 /**
- * The game canvas's clear colour: the surround, opaque, or fully clear so
- * what lies under the canvas shows. The canvas always has an alpha channel
- * (main.ts), and an opaque clear colour draws exactly as a canvas without one.
+ * The game canvas's clear colour: the surround, opaque, or transparent black so
+ * the 3D world under the canvas shows untouched. The canvas always has an alpha
+ * channel (main.ts), and an opaque clear colour draws exactly as a canvas
+ * without one. The canvas is composited premultiplied, so any non-zero rgb at
+ * alpha 0 would be added over the 3D world as haze.
  */
 export function setSurround(game: Phaser.Game, clear: boolean): void {
+  if (clear) {
+    game.config.backgroundColor.setTo(0, 0, 0, 0);
+    return;
+  }
   game.config.backgroundColor.setTo(
     (SURROUND >> 16) & 0xff,
     (SURROUND >> 8) & 0xff,
     SURROUND & 0xff,
-    clear ? 0 : 255,
+    255,
   );
 }
 
