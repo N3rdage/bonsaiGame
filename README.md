@@ -48,7 +48,7 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 | Input | Action |
 |-------|--------|
 | Drag anywhere (joystick) or WASD / arrows | Move player |
-| 3D world (Settings): Q and E, mouse drag or a finger on the right half of the screen, wheel or pinch | Turn the camera round the player in steps, turn it freely, and zoom; movement follows the camera, so up and the stick's up walk away from it; walls between the camera and the room drop to a skirting (on a touchscreen the first finger on the left half is the joystick; any other finger turns or pinches the camera) |
+| 3D world (Settings): Q and E, mouse drag or a finger on the right half of the screen, wheel or pinch | Turn the camera round the player in steps, turn it freely, and zoom; movement follows the camera, so up and the stick's up walk away from it; walls between the camera and the room drop to a skirting (on a touchscreen a finger on the left half is the joystick and one on the right turns the camera; two fingers anywhere are a pinch that only zooms, and the zoom is kept from room to room) |
 | 3D world (Settings): tap or click | A tap on a door, furniture or prop walks the player there and uses it, as Interact would on arrival; a tap on bare floor walks there. A press that moves more than a few pixels or is held a moment is a drag that turns the camera, never a tap; a key or the stick takes the walk back, and the Interact prompt shows above the Interact button |
 | 3D world (Settings): walk into a doorway | Walking toward a door takes you through it with no Interact press; walking along its wall past it does not |
 | Interact button or E | Interact with the nearest object |
