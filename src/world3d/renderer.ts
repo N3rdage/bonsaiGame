@@ -27,7 +27,9 @@ import { Mesh } from '@babylonjs/core/Meshes/mesh';
 import { VertexData } from '@babylonjs/core/Meshes/mesh.vertexData';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
+import { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 import { Scene } from '@babylonjs/core/scene';
+import { Bench, type BenchResult } from './bench';
 import type { Season } from '../sim/seasons';
 import { PALETTE } from '../world/palette';
 import { sheetUrl, type Sheet } from '../world/assets';
@@ -125,6 +127,8 @@ export interface RendererSnapshot {
   }[];
   /** The latest changes of room, oldest first, with the time each took to draw. */
   readonly roomChanges: readonly RoomChange[];
+  /** The benchmark run: on now, and its result once in. */
+  readonly bench: { readonly running: boolean; readonly result: BenchResult | null };
 }
 
 /** What the test hook reads of the shadow map. */
@@ -326,6 +330,9 @@ export class Renderer {
   private size = '';
   /** When the last frame was drawn, ms; the scene is rendered by hand, so the engine keeps no delta of its own. */
   private lastFrame = performance.now();
+  /** The benchmark run in progress or last finished, and the draw-call counter it reads while it runs. */
+  private bench: Bench | undefined;
+  private instrumentation: SceneInstrumentation | undefined;
 
   /** Lays a canvas for the engine under `host`, the game's own, which it then rides above; outside `#game`, whose canvas the tests find. */
   constructor(private readonly host: HTMLCanvasElement) {
@@ -401,6 +408,18 @@ export class Renderer {
     return mesh;
   }
 
+  /** Starts a benchmark run in the room shown (src/world3d/bench.ts), dropping any earlier one. */
+  startBench(): void {
+    this.instrumentation?.dispose();
+    this.instrumentation = new SceneInstrumentation(this.scene);
+    this.bench = new Bench();
+  }
+
+  /** The benchmark's state for the test hook: running now, and its result once in. */
+  benchState(): { running: boolean; result: BenchResult | null } {
+    return { running: this.bench?.running ?? false, result: this.bench?.result ?? null };
+  }
+
   /** The room shown and every enabled mesh in the scene: the room's own, the player's and the standing furniture's, not those of the rooms kept hidden. */
   snapshot(): RendererSnapshot | undefined {
     if (this.room === undefined) return undefined;
@@ -427,6 +446,7 @@ export class Renderer {
         .filter(inFront)
         .map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
       roomChanges: this.roomChanges,
+      bench: this.benchState(),
     };
   }
 
@@ -571,6 +591,7 @@ export class Renderer {
     this.cutAway(plan);
     this.fit();
     this.scene.render();
+    this.recordBench(now, elapsed, room.key);
     if (fresh) {
       const change: RoomChange = { room: room.key, first: built, ms: performance.now() - started };
       this.roomChanges = logChange(this.roomChanges, change);
@@ -580,6 +601,21 @@ export class Renderer {
         if (set.laidAt !== undefined) change.dressedMs = set.laidAt - started;
       }
     }
+  }
+
+  /** Counts the frame just drawn into the benchmark run, if one is on, and lets go of the counter when it ends. */
+  private recordBench(now: number, ms: number, room: Room['key']): void {
+    const calls = this.instrumentation?.drawCallsCounter.current ?? 0;
+    const finished = this.bench?.record(now, ms, calls, {
+      width: this.engine.getRenderWidth(),
+      height: this.engine.getRenderHeight(),
+      dpr: window.devicePixelRatio,
+      userAgent: navigator.userAgent,
+      room,
+    });
+    if (!finished) return;
+    this.instrumentation?.dispose();
+    this.instrumentation = undefined;
   }
 
   /**
@@ -616,6 +652,13 @@ export class Renderer {
       ease(this.focus.z, goal.z, dt),
     );
     this.camera.setTarget(this.focus, false, false, true);
+    const path = this.bench?.camera(performance.now());
+    if (path) {
+      this.camera.alpha = path.alpha;
+      this.camera.beta = path.beta;
+      this.camera.radius = path.radius;
+      return;
+    }
     this.camera.alpha = ease(this.camera.alpha, cameraRig.alpha, dt);
     this.camera.beta = ease(this.camera.beta, cameraRig.beta, dt);
     this.camera.radius = ease(this.camera.radius, cameraRig.radius, dt);
