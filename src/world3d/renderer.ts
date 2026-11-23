@@ -40,7 +40,7 @@ import { floorLayout, floorMeshData, type QuadMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind, type ModelPart } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
-import { logChange, type RoomChange } from './roomCache';
+import { logChange, roomSignature, type RoomChange } from './roomCache';
 import { shadowFrustum } from './shadowFrustum';
 import {
   JOINT_NAMES,
@@ -193,6 +193,46 @@ interface WallArt {
   readonly material: StandardMaterial;
 }
 
+/** A room's set waiting on a sheet's texture: what to do when it has loaded, and when it has failed. */
+interface Waiter {
+  readonly laid: (texture: Texture) => void;
+  readonly failed: () => void;
+}
+
+/** A sheet's texture, shared by every room that wears it, and the sets waiting for it to load. */
+interface SheetTexture {
+  readonly texture: Texture;
+  loaded: boolean;
+  readonly waiting: Waiter[];
+}
+
+/**
+ * One room's built meshes, parented to `root` so hiding the root hides them
+ * all: the boxes of its plan, its details, floor tiles and wall art (which
+ * lie in once their sheets have loaded), and the materials only they use.
+ */
+interface RoomSet {
+  /** What the room was built from (`roomSignature`); a room that no longer matches is built again. */
+  readonly signature: string;
+  readonly root: TransformNode;
+  readonly plan: RoomPlan3d;
+  readonly pieces: Map<string, Piece>;
+  /** The meshes that cast a shadow, which come off the shadow map's list with the set: the details standing on the floor. */
+  readonly casters: Mesh[];
+  detailCounts: Readonly<Record<string, number>>;
+  floorArt: FloorArt | undefined;
+  /** The walls' textured meshes and material, by sheet key. */
+  readonly wallArt: Map<string, WallArt>;
+  /** True once the set was disposed, so a texture that loads after it is not laid on it. */
+  disposed: boolean;
+  /** Sheets whose art is yet to be laid (or to fail); the set is dressed at 0. */
+  pending: number;
+  /** When the frame that built the set began, ms, and the change that frame logged. */
+  readonly started: number;
+  change: RoomChange | undefined;
+  laidAt: number | undefined;
+}
+
 /** A furniture kind's model, one mesh drawn once per piece standing: the pieces' keys it was last set for, and how many. */
 interface Instanced {
   readonly mesh: Mesh;
@@ -256,24 +296,20 @@ export class Renderer {
   private readonly boneMatrix = new Matrix();
   private room: Room['key'] | undefined;
   private roomChanges: RoomChange[] = [];
-  private readonly visited = new Set<string>();
-  private plan: RoomPlan3d | undefined;
-  private pieces = new Map<string, Piece>();
-  private floorArt: FloorArt | undefined;
-  /** The walls' textured meshes and material, by sheet key. */
-  private readonly wallArt = new Map<string, WallArt>();
-  /** Counts the rooms built, so a texture that loads for an earlier one is dropped. */
-  private epoch = 0;
+  /** Each room's built set, kept for the renderer's life; only `shown`'s is enabled. */
+  private readonly sets = new Map<Room['key'], RoomSet>();
+  private shown: RoomSet | undefined;
+  /** Every sheet's texture, by URL: loaded once and shared by the rooms that use it. */
+  private readonly sheets = new Map<string, SheetTexture>();
   /** The invisible boxes taps pick props by, each under its prop's key. */
   private hotspots = new Map<AbstractMesh, string>();
   /** The prop keys the hotspots were made for, so a placed item's spots add or drop theirs. */
   private hotspotKey = '';
-  /** The furniture models in use, by kind. */
+  /** Each furniture kind's one source mesh, made when a room first needs it and kept; hidden while the room shown has none. */
+  private readonly models = new Map<FurnitureKind, Mesh>();
+  /** The furniture models in use in the room shown, by kind. */
   private readonly instanced = new Map<FurnitureKind, Instanced>();
   private cut: string[] = [];
-  /** The room's modelled details: one merged mesh per wall piece they hang from, one for those standing on the floor. */
-  private detailMeshes: Mesh[] = [];
-  private detailCounts: Readonly<Record<string, number>> = {};
   /** The weather's one plane, its particles' matrices and colours, and the particle array they were sized for. */
   private weatherMesh: Mesh | undefined;
   private weatherMatrices = new Float32Array(0);
@@ -369,13 +405,13 @@ export class Renderer {
     return mesh;
   }
 
-  /** The room shown and every mesh in the scene, the player's included. */
+  /** The room shown and every enabled mesh in the scene: the room's own, the player's and the standing furniture's, not those of the rooms kept hidden. */
   snapshot(): RendererSnapshot | undefined {
     if (this.room === undefined) return undefined;
     const { alpha, beta, radius } = this.camera;
     return {
       room: this.room,
-      meshes: this.scene.meshes.length,
+      meshes: this.scene.meshes.filter((mesh) => mesh.isEnabled()).length,
       trees: this.trees.size,
       instances: Object.fromEntries([...this.instanced].map(([kind, { count }]) => [kind, count])),
       camera: { alpha, beta, radius },
@@ -385,11 +421,11 @@ export class Renderer {
       clips: this.clips,
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       shadowMap: this.shadowMapState(),
-      artDepthOffset: this.floorArt?.material.zOffset ?? 0,
+      artDepthOffset: this.shown?.floorArt?.material.zOffset ?? 0,
       toon: true,
-      floorSheet: this.floorArt?.sheet ?? null,
-      wallSheets: [...this.wallArt.keys()].sort(),
-      details: this.detailCounts,
+      floorSheet: this.shown?.floorArt?.sheet ?? null,
+      wallSheets: [...(this.shown?.wallArt.keys() ?? [])].sort(),
+      details: this.shown?.detailCounts ?? {},
       weather: this.weatherKind,
       hotspots: this.hotspotPoints()
         .filter(inFront)
@@ -487,7 +523,7 @@ export class Renderer {
       direct,
     );
     if (hotspot !== undefined) return { hotspot };
-    const floor = this.pieces.get('floor')?.mesh;
+    const floor = this.shown?.pieces.get('floor')?.mesh;
     const ground = this.scene.pick(x, y, (mesh) => mesh === floor);
     return ground.pickedPoint ? { floor: roomPx(ground.pickedPoint) } : undefined;
   }
@@ -500,8 +536,9 @@ export class Renderer {
 
   /**
    * Draws one frame of `room` with the player at `px` (room px) and `trees`
-   * standing, rebuilding the room's meshes if it changed and a tree's only
-   * when its key did.
+   * standing, showing the room's kept meshes (built the first time, or when
+   * the room's data changed) if the room changed and rebuilding a tree's only
+   * when its key did. A change of room is logged with the time it took.
    */
   frame(
     room: Room,
@@ -512,11 +549,7 @@ export class Renderer {
   ): void {
     const started = performance.now();
     const fresh = this.room !== room.key;
-    const first = fresh && !this.visited.has(room.key);
-    if (fresh) {
-      this.visited.add(room.key);
-      this.build(room);
-    }
+    const built = fresh && this.enter(room, started);
     this.furnish(room);
     this.plant(trees, season);
     this.sky(weather);
@@ -542,11 +575,13 @@ export class Renderer {
     this.fit();
     this.scene.render();
     if (fresh) {
-      this.roomChanges = logChange(this.roomChanges, {
-        room: room.key,
-        first,
-        ms: performance.now() - started,
-      });
+      const change: RoomChange = { room: room.key, first: built, ms: performance.now() - started };
+      this.roomChanges = logChange(this.roomChanges, change);
+      const set = this.shown;
+      if (built && set) {
+        set.change = change;
+        if (set.laidAt !== undefined) change.dressedMs = set.laidAt - started;
+      }
     }
   }
 
@@ -595,15 +630,16 @@ export class Renderer {
 
   /** Lowers the pieces the camera's heading puts in the way (cutNames) to the skirting, and stands the rest, when the set changed. */
   private cutAway(player: { x: number; y: number; z: number }): void {
-    if (!this.plan) return;
+    if (!this.shown) return;
+    const { plan, pieces } = this.shown;
     const { alpha, beta, radius } = this.camera;
-    const names = cutNames(this.plan, { alpha, beta, radius }, player)
-      .filter((name) => this.pieces.has(name))
+    const names = cutNames(plan, { alpha, beta, radius }, player)
+      .filter((name) => pieces.has(name))
       .sort();
     if (names.join() === this.cut.join()) return;
     this.cut = names;
     const cut = new Set(names);
-    for (const [name, piece] of this.pieces) {
+    for (const [name, piece] of pieces) {
       const span = cut.has(name) ? cutSpan(piece.z0, piece.z1) : piece;
       piece.mesh.setEnabled(span !== undefined);
       if (!span) continue;
@@ -644,8 +680,11 @@ export class Renderer {
 
   /** Removes the canvas and everything on the GPU, and gives the game's canvas back its style. */
   dispose(): void {
-    this.clearFloor();
-    this.clearWalls();
+    for (const set of this.sets.values()) this.release(set);
+    this.sets.clear();
+    this.shown = undefined;
+    for (const { texture } of this.sheets.values()) texture.dispose();
+    this.sheets.clear();
     this.scene.dispose();
     this.engine.dispose();
     this.canvas.remove();
@@ -663,62 +702,112 @@ export class Renderer {
     return material;
   }
 
-  /** Disposes the last room's meshes and builds `room`'s. */
-  private build(room: Room): void {
-    this.epoch += 1;
-    this.clearWalls();
-    for (const mesh of this.detailMeshes) this.discard(mesh);
-    this.detailMeshes = [];
-    for (const { mesh } of this.pieces.values()) mesh.dispose();
-    this.pieces.clear();
-    this.clearFloor();
-    for (const { mesh } of this.instanced.values()) this.discard(mesh);
+  /**
+   * Shows `room`: hides the set of the room shown, then shows `room`'s kept
+   * set (every piece standing at full height again, the shadow frustum
+   * refitted) or, if it has none or it was built from other data, builds it.
+   * Returns true when it built. The furniture models and trees of the room
+   * left are let go; the models stay for the next room that has them.
+   */
+  private enter(room: Room, started: number): boolean {
+    this.shown?.root.setEnabled(false);
+    for (const { mesh } of this.instanced.values()) mesh.setEnabled(false);
     this.instanced.clear();
     for (const planted of this.trees.values()) this.discardTree(planted);
     this.trees.clear();
     this.cut = [];
+    const signature = roomSignature(room);
+    let set = this.sets.get(room.key);
+    if (set && set.signature !== signature) {
+      this.release(set);
+      set = undefined;
+    }
+    const built = set === undefined;
+    if (!set) {
+      set = this.build(room, signature, started);
+      this.sets.set(room.key, set);
+    } else {
+      for (const piece of set.pieces.values()) {
+        piece.mesh.setEnabled(true);
+        piece.mesh.scaling.y = 1;
+        piece.mesh.position.y = (piece.z0 + piece.z1) / 2;
+      }
+      set.root.setEnabled(true);
+    }
+    this.shown = set;
+    this.room = room.key;
+    this.fitShadows(set.plan);
+    this.setHotspots(room, set.plan);
+    return built;
+  }
+
+  /** Builds `room`'s set: its boxes, details and, once their sheets have loaded, its floor and wall art. */
+  private build(room: Room, signature: string, started: number): RoomSet {
     const plan = roomPlan3d(room);
-    this.plan = plan;
-    this.fitShadows(plan);
+    const set: RoomSet = {
+      signature,
+      root: new TransformNode(`room.${room.key}`, this.scene),
+      plan,
+      pieces: new Map(),
+      casters: [],
+      detailCounts: {},
+      floorArt: undefined,
+      wallArt: new Map(),
+      disposed: false,
+      pending: 1 + wallSheets(room).length,
+      started,
+      change: undefined,
+      laidAt: undefined,
+    };
     for (const spec of meshSpecs(plan)) {
       const mesh = CreateBox(
         spec.name,
         { width: spec.width, height: spec.height, depth: spec.depth },
         this.scene,
       );
+      mesh.parent = set.root;
       mesh.position.set(spec.center.x, spec.center.y, spec.center.z);
       mesh.material = this.material(spec.wash);
       mesh.receiveShadows = spec.name === 'floor';
       if (spec.name.startsWith('furniture.')) this.ink(mesh);
-      this.pieces.set(spec.name, {
+      set.pieces.set(spec.name, {
         mesh,
         z0: spec.center.y - spec.height / 2,
         z1: spec.center.y + spec.height / 2,
       });
     }
-    this.furnishDetails(roomDetails(room, plan), plan);
-    this.setHotspots(room, plan);
-    this.room = room.key;
-    this.tile(room);
-    this.clothe(room, plan);
+    this.furnishDetails(set, roomDetails(room, plan));
+    this.tile(set, room);
+    this.clothe(set, room);
+    return set;
   }
 
-  /** Disposes the floor's tile mesh, its material and the texture only they use. */
-  private clearFloor(): void {
-    this.floorArt?.mesh.dispose();
-    this.floorArt?.material.dispose(false, true);
-    this.floorArt = undefined;
+  /** Disposes a set's meshes, taking its casters off the shadow map's list, and the materials only it uses; the shared textures stay. */
+  private release(set: RoomSet): void {
+    set.disposed = true;
+    for (const mesh of set.casters) this.shadows.removeShadowCaster(mesh);
+    set.root.dispose();
+    set.floorArt?.material.dispose(false, false);
+    for (const { material } of set.wallArt.values()) material.dispose(false, false);
+  }
+
+  /** Notes that one of `set`'s sheets has been laid, or failed; when the last has, the set is dressed. */
+  private settle(set: RoomSet): void {
+    set.pending -= 1;
+    if (set.pending > 0) return;
+    set.laidAt = performance.now();
+    if (set.change) set.change.dressedMs = set.laidAt - set.started;
   }
 
   /**
    * Lays `room`'s Inked floor tiles just over the floor box's top once the
    * sheet's PNG (the one Phaser loads) has loaded: one merged quad mesh,
    * mipmapped, toon lit and shadowed like the floor
-   * under it. A texture that arrives after the room changed is dropped.
+   * under it.
    */
-  private tile(room: Room): void {
+  private tile(set: RoomSet, room: Room): void {
     const sheet = floorTiles(room).sheet;
-    this.loadSheet(sheet, (texture) => {
+    this.loadSheet(set, sheet, (texture) => {
       const { width, height } = texture.getSize();
       const material = this.sheetMaterial('floor.tiles', texture, false);
       const mesh = this.texturedMesh(
@@ -726,18 +815,10 @@ export class Renderer {
         floorMeshData(floorLayout(room, width, height).quads),
         material,
       );
+      mesh.parent = set.root;
       mesh.receiveShadows = true;
-      this.floorArt = { mesh, material, sheet: sheet.key };
+      set.floorArt = { mesh, material, sheet: sheet.key };
     });
-  }
-
-  /** Disposes every wall mesh, material and the textures only they use. */
-  private clearWalls(): void {
-    for (const { meshes, material } of this.wallArt.values()) {
-      for (const mesh of meshes) mesh.dispose();
-      material.dispose(false, true);
-    }
-    this.wallArt.clear();
   }
 
   /**
@@ -750,11 +831,12 @@ export class Renderer {
    * one material, mipmapped, toon lit, with no outline and
    * no shadows, as the boxes are.
    */
-  private clothe(room: Room, plan: RoomPlan3d): void {
-    const pieces = wallPieces(plan.walls).filter((piece) => this.pieces.has(piece.name));
+  private clothe(set: RoomSet, room: Room): void {
+    const { plan } = set;
+    const pieces = wallPieces(plan.walls).filter((piece) => set.pieces.has(piece.name));
     const movable = new Set(pieces.filter((p) => cuttable(plan, p)).map((p) => p.name));
     for (const sheet of wallSheets(room)) {
-      this.loadSheet(sheet, (texture) => {
+      this.loadSheet(set, sheet, (texture) => {
         const { width, height } = texture.getSize();
         const material = this.sheetMaterial(`wall.${sheet.key}`, texture, true);
         const layout = wallLayout(room, pieces, sheet, width, height);
@@ -762,7 +844,7 @@ export class Renderer {
           .filter(({ piece }) => movable.has(piece))
           .flatMap(({ piece, quads }) => {
             const box = pieces.find((p) => p.name === piece);
-            const parent = this.pieces.get(piece)?.mesh;
+            const parent = set.pieces.get(piece)?.mesh;
             if (!box || !parent) return [];
             const origin = {
               x: (box.x0 + box.x1) / 2,
@@ -783,38 +865,65 @@ export class Renderer {
             fixed.flatMap(({ quads }) => quads),
             { x: 0, y: 0, z: 0 },
           );
-          meshes.push(this.texturedMesh(`walls.${sheet.key}`, data, material));
+          const whole = this.texturedMesh(`walls.${sheet.key}`, data, material);
+          whole.parent = set.root;
+          meshes.push(whole);
         }
-        if (meshes.length === 0) material.dispose(false, true);
-        else this.wallArt.set(sheet.key, { meshes, material });
+        if (meshes.length === 0) material.dispose(false, false);
+        else set.wallArt.set(sheet.key, { meshes, material });
       });
     }
   }
 
   /**
-   * Loads `sheet`'s PNG (the one Phaser loads) as a mipmapped, anisotropic,
-   * clamped texture and hands it to `ready`, unless the room changed
-   * meanwhile, which drops it, or the load failed, which disposes it. A
-   * texture sampled nearest with no mipmaps shows a different texel of the
-   * art in each pixel it is shrunk to, which crawls as the camera moves; the
-   * mipmaps average them. A pixel-art sheet still magnifies nearest, crisp.
+   * Hands `sheet`'s texture to `ready` once it has loaded, for `set`: the
+   * texture, the PNG Phaser loads, is made once as a mipmapped, anisotropic,
+   * clamped texture and shared by every room that wears the sheet, so a room
+   * seen again loads nothing. A texture sampled nearest with no mipmaps shows
+   * a different texel of the art in each pixel it is shrunk to, which crawls
+   * as the camera moves; the mipmaps average them. A pixel-art sheet still
+   * magnifies nearest, crisp. A texture that arrives after `set` was disposed
+   * is not laid on it, and one that fails to load is disposed and tried again
+   * by the next room that wants it.
    */
-  private loadSheet(sheet: Sheet, ready: (texture: Texture) => void): void {
-    const epoch = this.epoch;
-    const texture = new Texture(sheetUrl(import.meta.env.BASE_URL, sheet), this.scene, {
+  private loadSheet(set: RoomSet, sheet: Sheet, ready: (texture: Texture) => void): void {
+    const waiter: Waiter = {
+      laid: (texture) => {
+        if (!set.disposed) ready(texture);
+        this.settle(set);
+      },
+      failed: () => {
+        this.settle(set);
+      },
+    };
+    const url = sheetUrl(import.meta.env.BASE_URL, sheet);
+    const known = this.sheets.get(url);
+    if (known?.loaded) {
+      waiter.laid(known.texture);
+      return;
+    }
+    if (known) {
+      known.waiting.push(waiter);
+      return;
+    }
+    const texture = new Texture(url, this.scene, {
       samplingMode:
         sheet.art === 'pixel' ? Texture.NEAREST_LINEAR_MIPLINEAR : Texture.TRILINEAR_SAMPLINGMODE,
       onLoad: () => {
-        if (this.epoch === epoch) ready(texture);
-        else texture.dispose();
+        entry.loaded = true;
+        for (const { laid } of entry.waiting.splice(0)) laid(texture);
       },
       onError: () => {
         texture.dispose();
+        this.sheets.delete(url);
+        for (const { failed } of entry.waiting.splice(0)) failed();
       },
     });
     texture.wrapU = Texture.CLAMP_ADDRESSMODE;
     texture.wrapV = Texture.CLAMP_ADDRESSMODE;
     texture.anisotropicFilteringLevel = ANISOTROPY;
+    const entry: SheetTexture = { texture, loaded: false, waiting: [waiter] };
+    this.sheets.set(url, entry);
   }
 
   /** A toon-lit material showing `texture`; with `oneSided`, only on the side its quads' normals face. */
@@ -866,8 +975,9 @@ export class Renderer {
   /**
    * Stands `room`'s modelled furniture, which the live room changes as items
    * are placed and picked up: a kind whose pieces' keys changed gets its
-   * instances reset, a kind with none left is disposed, and the hotspots are
-   * made again when the props changed. The room's boxes are not touched.
+   * instances reset, a kind with none left is hidden (its source mesh is kept
+   * for the next room that has it), and the hotspots are made again when the
+   * props changed. The room's boxes are not touched.
    */
   private furnish(room: Room): void {
     if (room.props.map((prop) => prop.key).join() !== this.hotspotKey) {
@@ -879,12 +989,13 @@ export class Renderer {
     }
     for (const [kind, known] of this.instanced) {
       if (byKind.has(kind)) continue;
-      this.discard(known.mesh);
+      known.mesh.setEnabled(false);
       this.instanced.delete(kind);
     }
     for (const [kind, pieces] of byKind) {
       const key = pieces.map((piece) => piece.key).join(';');
       const known = this.instanced.get(kind) ?? { mesh: this.modelMesh(kind), key: '', count: 0 };
+      known.mesh.setEnabled(true);
       this.instanced.set(kind, known);
       if (known.key === key) continue;
       known.key = key;
@@ -897,11 +1008,14 @@ export class Renderer {
     }
   }
 
-  /** The one source mesh of `kind`: its parts' boxes, vertex-coloured by their washes, merged into one at the origin. */
+  /** The one source mesh of `kind`, made the first time a room needs it: its parts' boxes, vertex-coloured by their washes, merged into one at the origin. */
   private modelMesh(kind: FurnitureKind): Mesh {
+    const known = this.models.get(kind);
+    if (known) return known;
     const mesh = this.partsMesh(`model.${kind}`, FURNITURE_MODELS[kind].parts, ORIGIN);
     this.shadows.addShadowCaster(mesh);
     this.ink(mesh);
+    this.models.set(kind, mesh);
     return mesh;
   }
 
@@ -912,14 +1026,15 @@ export class Renderer {
    * the walls and not outlined; the rest (a hedge, a planting) are one merged
    * mesh on the floor, which casts a shadow and is inked as furniture is.
    */
-  private furnishDetails(details: readonly Detail[], plan: RoomPlan3d): void {
-    this.detailCounts = countDetails(details);
+  private furnishDetails(set: RoomSet, details: readonly Detail[]): void {
+    const { plan } = set;
+    set.detailCounts = countDetails(details);
     const hung = (host: string | undefined): host is string =>
-      host !== undefined && this.pieces.has(host);
+      host !== undefined && set.pieces.has(host);
     const hosts = new Set(details.map((d) => d.host).filter(hung));
     for (const host of hosts) {
       const box = [...plan.walls, ...plan.furniture].find((w) => w.name === host);
-      const parent = this.pieces.get(host)?.mesh;
+      const parent = set.pieces.get(host)?.mesh;
       if (!box || !parent) continue;
       const origin = {
         x: (box.x0 + box.x1) / 2,
@@ -929,14 +1044,14 @@ export class Renderer {
       const parts = details.filter((d) => d.host === host).flatMap((d) => d.parts);
       const mesh = this.partsMesh(`details.${host}`, parts, origin);
       mesh.parent = parent;
-      this.detailMeshes.push(mesh);
     }
     const standing = details.filter((d) => !hung(d.host)).flatMap((d) => d.parts);
     if (standing.length === 0) return;
     const mesh = this.partsMesh('details.standing', standing, ORIGIN);
+    mesh.parent = set.root;
     this.shadows.addShadowCaster(mesh);
     this.ink(mesh);
-    this.detailMeshes.push(mesh);
+    set.casters.push(mesh);
   }
 
   /**
