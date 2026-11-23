@@ -4,16 +4,21 @@ name: Walk tests
 # slow and too close to their time limits to gate every pull request, so the required check in
 # ci.yml skips them and this workflow runs them on main instead.
 #
-# Schedule: at the end of each orchestrator run's budget, so the result is ready when the next
-# run starts and no run's working time is spent waiting. The orchestrator runs start every four
-# hours on the hour (UTC 00, 04, 08, ...) with a 3 h 40 min budget, so this fires at :40 past
-# 03, 07, 11, 15, 19 and 23 UTC. If the orchestrator's cadence changes, change this cron in the
-# same sitting. A run reads the latest result of this workflow when it starts and fixes a
+# When: after every push to main, so each merge gets its own result on its own commit; a newer
+# push cancels a run still going for an older one. GitHub's scheduler started only two of the
+# first six scheduled runs, hours late, so the schedule is a nightly backstop and nothing more.
+# An orchestrator run reads the latest result of this workflow when it starts and fixes a
 # failure before anything else. It can also be started by hand.
 
 on:
+  push:
+    branches: [main]
+    # Text-only pushes cannot change a walk.
+    paths-ignore:
+      - 'blog/**'
+      - '**/*.md'
   schedule:
-    - cron: '40 3,7,11,15,19,23 * * *'
+    - cron: '40 15 * * *'
   workflow_dispatch:
 
 permissions:
@@ -21,7 +26,7 @@ permissions:
 
 concurrency:
   group: walk-tests
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   walk:
