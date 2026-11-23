@@ -15,10 +15,6 @@ describe('LOOK', () => {
     expect(LOOK.shadowFill).toBe(0.75);
     expect(LOOK.exposure).toBe(1.05);
     expect(LOOK.contrast).toBe(1.1);
-    expect(LOOK.vignetteWeight).toBe(1.8);
-    expect(LOOK.vignetteColour).toBe(0x2a1a14);
-    expect(LOOK.vignetteStretch).toBe(0.4);
-    expect(LOOK.vignetteFov).toBe(0.8);
   });
 
   it('has a ramp that rises from dark to lit', () => {

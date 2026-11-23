@@ -341,11 +341,6 @@ export class Renderer {
     processing.isEnabled = true;
     processing.exposure = LOOK.exposure;
     processing.contrast = LOOK.contrast;
-    processing.vignetteEnabled = true;
-    processing.vignetteWeight = LOOK.vignetteWeight;
-    processing.vignetteStretch = LOOK.vignetteStretch;
-    processing.vignetteCameraFov = LOOK.vignetteFov;
-    processing.vignetteColor = new Color4(...unitRgb(LOOK.vignetteColour), 1);
     const light = lightDirectionBabylon();
     this.toLight = { x: -light.x, y: -light.y, z: -light.z };
     const sun = new DirectionalLight('sun', new Vector3(light.x, light.y, light.z), this.scene);

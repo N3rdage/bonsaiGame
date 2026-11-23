@@ -37,10 +37,6 @@ export const LOOK = {
   shadowFill: 0.75,
   exposure: 1.05,
   contrast: 1.1,
-  vignetteWeight: 1.8,
-  vignetteColour: 0x2a1a14,
-  vignetteStretch: 0.4,
-  vignetteFov: 0.8,
 } as const;
 
 /** The light's colours as the shader takes them: 0..1 triples, power folded in. */
