@@ -64,6 +64,41 @@ async function world3d(page: Page): Promise<NonNullable<BonsaiTestHook['world3d'
   return state;
 }
 
+/** Boots the 3D shed with the tutorial off; `at` is a finger at fraction (`u`, `v`) of the canvas, `menu` one on the Menu button's centre. */
+async function bootShed(page: Page): Promise<{
+  at: (id: number, u: number, v?: number) => Finger;
+  menu: (id: number) => Promise<Finger>;
+}> {
+  await bootWorld(page);
+  await page.waitForFunction(
+    (sheets) =>
+      window.__bonsai?.world3d?.room === 'shed' &&
+      window.__bonsai.world3d.floorSheet !== null &&
+      window.__bonsai.world3d.wallSheets.length === sheets,
+    wallSheets(ROOMS.shed).length,
+  );
+  await skipTutorial(page, true);
+  await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+  const canvas = await page.locator('#game canvas').boundingBox();
+  if (!canvas) throw new Error('no canvas');
+  return {
+    at: (id, u, v = 0.55) => ({
+      id,
+      x: canvas.x + canvas.width * u,
+      y: canvas.y + canvas.height * v,
+    }),
+    menu: async (id) => {
+      const control = (await hook(page)).controls.find((c) => c.id === 'menu');
+      if (!control) throw new Error('no menu control');
+      return {
+        id,
+        x: canvas.x + (control.x * canvas.width) / 480,
+        y: canvas.y + (control.y * canvas.height) / 270,
+      };
+    },
+  };
+}
+
 test.describe('pinch zoom in the 3D world', () => {
   test.use({ reducedMotion: 'reduce' });
   test.skip(({ hasTouch }) => !hasTouch, 'touch screens only');
@@ -85,23 +120,7 @@ test.describe('pinch zoom in the 3D world', () => {
     test(`${c.name}: zooms and nothing else happens`, async ({ page }) => {
       test.setTimeout(120_000);
       const errors = collectErrors(page);
-      await bootWorld(page);
-      await page.waitForFunction(
-        (sheets) =>
-          window.__bonsai?.world3d?.room === 'shed' &&
-          window.__bonsai.world3d.floorSheet !== null &&
-          window.__bonsai.world3d.wallSheets.length === sheets,
-        wallSheets(ROOMS.shed).length,
-      );
-      await skipTutorial(page, true);
-      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
-      const canvas = await page.locator('#game canvas').boundingBox();
-      if (!canvas) throw new Error('no canvas');
-      const at = (id: number, u: number, v = 0.55): Finger => ({
-        id,
-        x: canvas.x + canvas.width * u,
-        y: canvas.y + canvas.height * v,
-      });
+      const { at } = await bootShed(page);
 
       const before = await world3d(page);
       const touches = new Touches(await page.context().newCDPSession(page));
@@ -115,6 +134,41 @@ test.describe('pinch zoom in the 3D world', () => {
         .poll(async () => (await world3d(page)).camera.radius, { timeout: 30_000 })
         .toBeLessThan(before.camera.radius - 1);
       // Long enough for a stick or a tap's walk to have moved the player.
+      await page.waitForTimeout(800);
+      const after = await world3d(page);
+      expect(after.player).toEqual(before.player);
+      expect(after.facing).toBe(before.facing);
+      expect(after.camera.alpha).toBe(before.camera.alpha);
+      expect(after.camera.beta).toBe(before.camera.beta);
+      expect((await hook(page)).panel).toBe('');
+      expect(errors).toEqual([]);
+    });
+  }
+
+  // A pinch with a finger on a HUD button presses nothing, at the start or as the fingers lift.
+  const buttonCases = [
+    { name: 'a second finger on Menu', menuFirst: false },
+    { name: 'a first finger on Menu', menuFirst: true },
+  ];
+
+  for (const c of buttonCases) {
+    test(`${c.name}: zooms and presses nothing`, async ({ page }) => {
+      test.setTimeout(120_000);
+      const errors = collectErrors(page);
+      const { at, menu } = await bootShed(page);
+      const before = await world3d(page);
+      const touches = new Touches(await page.context().newCDPSession(page));
+      const ground = at(c.menuFirst ? 2 : 1, 0.7, 0.8);
+      const onMenu = await menu(c.menuFirst ? 1 : 2);
+      await touches.down(...(c.menuFirst ? [onMenu, ground] : [ground, onMenu]));
+      // Only the ground finger moves, away from every button.
+      await touches.move({ ...ground, x: ground.x + 120, y: ground.y - 20 });
+      await touches.up(ground.id);
+      await touches.up(onMenu.id);
+
+      await expect
+        .poll(async () => (await world3d(page)).camera.radius, { timeout: 30_000 })
+        .not.toBe(before.camera.radius);
       await page.waitForTimeout(800);
       const after = await world3d(page);
       expect(after.player).toEqual(before.player);

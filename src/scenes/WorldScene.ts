@@ -696,20 +696,24 @@ export class WorldScene extends Phaser.Scene {
           if (!over.some((o) => inside.includes(o))) this.closePanel();
           return;
         }
-        // A second finger is a pinch wherever it lands, even on a button.
-        if (over.length > 0 && !this.cameraGesture.held) return;
+        const button = over.length > 0;
         if (!this.world3d.active) {
+          if (button) return;
           if (!this.joystick) this.startStick(pointer);
           return;
         }
-        // In the 3D world a press on bare ground is the stick's only as a touch on the left half of the
-        // screen, else it turns the camera; a second finger anywhere makes both a pinch that only zooms.
-        const route = pressRoute({
-          world3d: true,
-          touch: pointer.wasTouch,
-          left: pointer.x < this.scale.width / 2,
-        });
-        const down = this.cameraGesture.down(pointer.id, pointer.x, pointer.y, route === 'stick');
+        // In the 3D world a press on a HUD button is held by the gesture, so a second finger anywhere,
+        // on a button or not, makes both a pinch that only zooms and presses nothing as they lift.
+        // A press on bare ground is the stick's only as a touch on the left half of the screen,
+        // else it turns the camera.
+        const role = button
+          ? 'button'
+          : pressRoute({
+              world3d: true,
+              touch: pointer.wasTouch,
+              left: pointer.x < this.scale.width / 2,
+            });
+        const down = this.cameraGesture.down(pointer.id, pointer.x, pointer.y, role);
         if (down === 'stick') this.startStick(pointer);
         else if (down === 'drag')
           this.taps.down(pointer.id, pointer.x, pointer.y, performance.now());
@@ -856,6 +860,8 @@ export class WorldScene extends Phaser.Scene {
       .setOrigin(originX, originY)
       .setDepth(HUD_DEPTH);
     setHitArea(button, this.ui.hit).on('pointerup', () => {
+      // Phaser emits this before the scene's pointerup, so a finger lifting over the button in a pinch lands here.
+      if (this.cameraGesture.pinching) return;
       this.sfx.tap(onTap);
     });
     return button;

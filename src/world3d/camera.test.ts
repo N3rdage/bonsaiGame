@@ -117,7 +117,7 @@ describe('CameraGesture', () => {
   it('turns by a one-finger drag', () => {
     const { rig, gesture } = setup();
     const start = rig.alpha;
-    expect(gesture.down(1, 100, 100, false)).toBe('drag');
+    expect(gesture.down(1, 100, 100, 'camera')).toBe('drag');
     gesture.move(1, 150, 100);
     expect(rig.alpha).toBeLessThan(start);
     const beta = rig.beta;
@@ -129,7 +129,7 @@ describe('CameraGesture', () => {
 
   it('leaves the camera alone while a finger is the stick', () => {
     const { rig, gesture } = setup();
-    expect(gesture.down(1, 100, 100, true)).toBe('stick');
+    expect(gesture.down(1, 100, 100, 'stick')).toBe('stick');
     gesture.move(1, 150, 140);
     expect(rig.alpha).toBe(new CameraRig().alpha);
     expect(rig.beta).toBe(new CameraRig().beta);
@@ -137,13 +137,15 @@ describe('CameraGesture', () => {
   });
 
   it.each([
-    ['one finger on each half', true, false],
-    ['both on the right', false, false],
-    ['both on the left', true, true],
-  ])('zooms by a pinch and does not turn: %s', (_name, firstStick, secondStick) => {
+    ['one finger on each half', 'stick', 'camera'],
+    ['both on the right', 'camera', 'camera'],
+    ['both on the left', 'stick', 'stick'],
+    ['a button first, ground second', 'button', 'camera'],
+    ['a button second', 'camera', 'button'],
+  ] as const)('zooms by a pinch and does not turn: %s', (_name, first, second) => {
     const { rig, gesture } = setup();
-    gesture.down(1, 100, 100, firstStick);
-    expect(gesture.down(2, 200, 100, secondStick)).toBe('pinch');
+    gesture.down(1, 100, 100, first);
+    expect(gesture.down(2, 200, 100, second)).toBe('pinch');
     const { alpha, beta } = rig;
     gesture.move(2, 300, 100);
     expect(rig.radius).toBeCloseTo(RADIUS_DEFAULT / 2);
@@ -156,22 +158,57 @@ describe('CameraGesture', () => {
 
   it('stays a pinch, with nothing turned or tapped, until every finger is up', () => {
     const { rig, gesture } = setup();
-    gesture.down(1, 100, 100, false);
-    gesture.down(2, 200, 100, false);
+    gesture.down(1, 100, 100, 'camera');
+    gesture.down(2, 200, 100, 'camera');
     expect(gesture.up(1)).toBe('pinch');
     gesture.move(2, 260, 180);
     expect(rig.alpha).toBe(new CameraRig().alpha);
-    expect(gesture.down(1, 100, 100, false)).toBe('ignored');
+    expect(gesture.down(1, 100, 100, 'camera')).toBe('ignored');
     expect(gesture.up(2)).toBe('pinch');
     expect(gesture.up(1)).toBeUndefined();
-    expect(gesture.down(3, 10, 10, false)).toBe('drag');
+    expect(gesture.down(3, 10, 10, 'camera')).toBe('drag');
+  });
+
+  it('holds a press on a button without turning the camera or being the stick', () => {
+    const { rig, gesture } = setup();
+    expect(gesture.down(1, 100, 100, 'button')).toBe('button');
+    expect(gesture.held).toBe(true);
+    gesture.move(1, 200, 200);
+    expect(rig.alpha).toBe(new CameraRig().alpha);
+    expect(rig.beta).toBe(new CameraRig().beta);
+    expect(gesture.pinching).toBe(false);
+    expect(gesture.up(1)).toBe('button');
+  });
+
+  it('makes a button and a finger on bare ground a pinch until both are up', () => {
+    const { rig, gesture } = setup();
+    expect(gesture.down(1, 100, 100, 'button')).toBe('button');
+    expect(gesture.pinching).toBe(false);
+    expect(gesture.down(2, 200, 100, 'camera')).toBe('pinch');
+    expect(gesture.pinching).toBe(true);
+    gesture.move(2, 300, 100);
+    expect(rig.radius).toBeCloseTo(RADIUS_DEFAULT / 2);
+    expect(gesture.up(2)).toBe('pinch');
+    expect(gesture.pinching).toBe(true);
+    expect(gesture.up(1)).toBe('pinch');
+    expect(gesture.pinching).toBe(false);
+  });
+
+  it('is not pinching for a lone drag or stick', () => {
+    const { gesture } = setup();
+    gesture.down(1, 0, 0, 'camera');
+    gesture.move(1, 10, 10);
+    expect(gesture.pinching).toBe(false);
+    gesture.up(1);
+    gesture.down(2, 0, 0, 'stick');
+    expect(gesture.pinching).toBe(false);
   });
 
   it('ignores a third finger and a pointer it does not hold', () => {
     const { rig, gesture } = setup();
-    gesture.down(1, 0, 0, false);
-    gesture.down(2, 100, 0, false);
-    expect(gesture.down(3, 0, 0, false)).toBe('ignored');
+    gesture.down(1, 0, 0, 'camera');
+    gesture.down(2, 100, 0, 'camera');
+    expect(gesture.down(3, 0, 0, 'camera')).toBe('ignored');
     expect(gesture.up(3)).toBeUndefined();
     gesture.move(7, 10, 10);
     expect(rig.alpha).toBeCloseTo(-Math.PI / 2);
