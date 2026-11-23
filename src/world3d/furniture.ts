@@ -9,7 +9,7 @@
 
 import type { Room } from '../world/shedRoom';
 import type { FurnitureKind } from './furnitureModels';
-import { furnitureBox } from './plan';
+import { furnitureBox, isBoxed, propBox, type Box } from './plan';
 
 /** A piece of furniture to stand: the middle of its footprint, its size and its turn about the vertical. */
 export interface FurniturePiece {
@@ -31,8 +31,11 @@ const FRONT_ON = 0;
 
 /** Every modelled piece of `room`'s furniture, in the room's order. */
 export function furniturePieces(room: Room): FurniturePiece[] {
-  return room.furniture.flatMap((furniture, index) => {
-    const { model, x0, x1, y0, y1, z1 } = furnitureBox(furniture, index);
+  const boxes: Box[] = [
+    ...room.furniture.flatMap((f, index) => (isBoxed(f) ? [furnitureBox(f, index)] : [])),
+    ...room.props.flatMap((prop) => propBox(prop) ?? []),
+  ];
+  return boxes.flatMap(({ model, x0, x1, y0, y1, z1 }) => {
     if (model === undefined) return [];
     const piece = {
       kind: model,

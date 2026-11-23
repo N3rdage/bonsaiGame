@@ -10,6 +10,7 @@
  * up from the floor, the floor's top at z 0.
  */
 
+import { SHEETS, sheetPxPerLogical, type Sheet } from '../world/assets';
 import type { PALETTE } from '../world/palette';
 import { BACK_WALL_FACE, FENCE_HEIGHT, LOW_FENCE_HEIGHT, ROOM_STYLES } from '../world/roomArt';
 import {
@@ -17,6 +18,7 @@ import {
   furnitureWalls,
   ringWalls,
   type Furniture,
+  type Prop,
   type Rect,
   type Room,
   type RoomKey,
@@ -65,8 +67,8 @@ export const DOOR_HEIGHT = 2;
 /** A window's sill and head above the floor: roomArt's 20 px (0.94 m) sill and 44 px (2.06 m) top, to the nearest 0.1 m. */
 export const WINDOW_SILL = 0.9;
 export const WINDOW_HEAD = 2;
-/** The height of a piece of furniture with no `stands` that is not `flat`: art standing for a face or a cap. */
-export const DEFAULT_FURNITURE_HEIGHT = 0.5;
+/** How far a window's frame or the roller door stands proud of the building's face, on each side of it, metres. */
+export const FACE_RELIEF = 0.04;
 /** Where a prop's anchor point sits above the floor, about where a hand reaches. */
 export const ANCHOR_HEIGHT = 1;
 
@@ -105,6 +107,32 @@ const FURNITURE_WASHES: Readonly<Record<string, WashKey>> = {
   spr_greenhouse_roof: 'paint',
   spr_greenhouse_cap: 'paint',
   spr_greenhouse_cap_v: 'paint',
+  spr_roller_door: 'paint',
+  spr_shed_rug: 'tile',
+};
+
+/** The sheet of the windows set in a building's face: drawn as a window detail (details.ts), not a box. */
+export const WINDOW_SHEET = 'spr_house_window';
+/** The garage's door, which stands against its face. */
+const ROLLER_DOOR_SHEET = 'spr_roller_door';
+
+/**
+ * A wall's cap (`spr_*_cap`, `spr_*_cap_v`) is the 0.25 m top of a wall seen
+ * edge-on in 2D: the wall it caps is already a box of the plan, so a cap is
+ * drawn as no box of its own.
+ */
+const isCap = (f: Furniture): boolean => /_cap(_v)?$/.test(f.sheet.key);
+
+/** Whether the plan draws `f` as a box or model of its own: not a cap, and not a window, which is a detail set in the face. */
+export const isBoxed = (f: Furniture): boolean => !isCap(f) && f.sheet.key !== WINDOW_SHEET;
+
+/** The shed's working furniture, props that stand as a model over their footprint, as tall as their 2D frame. */
+const PROP_MODELS: Readonly<
+  Record<string, { readonly sheet: Sheet; readonly model: FurnitureKind }>
+> = {
+  workbench: { sheet: SHEETS.workbench, model: 'workbench' },
+  planting_table: { sheet: SHEETS.plantingTable, model: 'planting_table' },
+  shop_kiosk: { sheet: SHEETS.shopKiosk, model: 'kiosk' },
 };
 
 /** The side of the room a wall bounds, or `interior` for a wall against none of its edges. */
@@ -316,12 +344,33 @@ export function furnitureBox(f: Furniture, index: number): Box {
   const wash = FURNITURE_WASHES[f.sheet.key] ?? 'wood';
   if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
-  const height = f.stands === undefined ? DEFAULT_FURNITURE_HEIGHT : heightMetres(f.stands.height);
+  if (f.sheet.key === ROLLER_DOOR_SHEET) {
+    const band = footprint({ ...f, y: f.y + f.h - WALL_BAND, h: WALL_BAND });
+    const proud = { ...band, y0: band.y0 - FACE_RELIEF, y1: band.y1 + FACE_RELIEF };
+    return box(name, wash, proud, 0, heightMetres(f.h), f.solid);
+  }
+  if (f.stands === undefined) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
+  const height = heightMetres(f.stands.height);
   const model = MODELLED_SHEETS[f.sheet.key];
   return {
     ...box(name, wash, footprint(rect), 0, height, f.solid),
     ...(model === undefined ? {} : { model }),
   };
+}
+
+/**
+ * The box of a prop that stands as a model (the shed's workbench, planting
+ * table and kiosk): over the prop's footprint, as tall as its 2D frame rises
+ * above it (the frame's logical px less the footprint's depth, the top face).
+ * Not solid: the 2D collision of a prop is its interact box.
+ */
+export function propBox(prop: Prop): Box | undefined {
+  const stands = PROP_MODELS[prop.key];
+  if (stands === undefined) return undefined;
+  const { sheet, model } = stands;
+  const height = heightMetres(sheet.frameHeight / sheetPxPerLogical(sheet) - prop.h);
+  const rect = { x: prop.x - prop.w / 2, y: prop.y - prop.h / 2, w: prop.w, h: prop.h };
+  return { ...box(`prop.${prop.key}`, 'wood', footprint(rect), 0, height, false), model };
 }
 
 /** True if no part of `r` is inside `bounds`: ground beyond the walkable floor, as the front garden's road. */
@@ -413,6 +462,7 @@ export function roomPlan3d(room: Room): RoomPlan3d {
   const floor = [box('floor', surfaces.floor, footprint(bounds), -FLOOR_THICKNESS, 0, false)];
   const furniture: Box[] = [];
   room.furniture.forEach((piece, index) => {
+    if (!isBoxed(piece)) return;
     const built = furnitureBox(piece, index);
     if (piece.flat === true && beyond(piece, bounds)) {
       floor.push({ ...built, z0: -FLOOR_THICKNESS, z1: 0 });
@@ -420,6 +470,21 @@ export function roomPlan3d(room: Room): RoomPlan3d {
       furniture.push(built);
     }
   });
+  furniture.push(...room.props.flatMap((prop) => propBox(prop) ?? []));
+  const { rug } = ROOM_STYLES[key];
+  if (rug !== undefined) {
+    const name = `furniture.rug.${rug.sheet.key}`;
+    furniture.push(
+      box(
+        name,
+        FURNITURE_WASHES[rug.sheet.key] ?? 'wood',
+        footprint(rug),
+        0,
+        FLAT_THICKNESS,
+        false,
+      ),
+    );
+  }
 
   return {
     key,

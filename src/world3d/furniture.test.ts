@@ -38,6 +38,9 @@ describe('furniturePieces', () => {
       'watering_can',
       'pot_stack',
       'sack',
+      'workbench',
+      'planting_table',
+      'kiosk',
     ]);
     // spr_shelf: (208, 67, 24, 20) px, 12 px tall on the bottom 8 px of its frame.
     expect(pieces[0]).toMatchObject({
@@ -56,8 +59,12 @@ describe('furniturePieces', () => {
 
   it('leaves the modelled pieces out of the plan boxes the renderer draws', () => {
     const plan = roomPlan3d(SHED_ROOM);
-    expect(plan.furniture.filter((b) => b.model !== undefined)).toHaveLength(5);
-    expect(meshSpecs(plan).some((spec) => spec.name.startsWith('furniture.'))).toBe(false);
+    expect(plan.furniture.filter((b) => b.model !== undefined)).toHaveLength(8);
+    expect(
+      meshSpecs(plan)
+        .map((spec) => spec.name)
+        .filter((name) => name.startsWith('furniture.')),
+    ).toEqual(['furniture.rug.spr_shed_rug']);
   });
 
   it('puts every placed item at its footprint, at the height its sheet stands', () => {
@@ -115,8 +122,9 @@ describe('furniturePieces', () => {
 describe('furniture models', () => {
   const kinds = Object.keys(FURNITURE_MODELS) as FurnitureKind[];
 
-  it('has a model for every kind a sheet maps to, and a sheet for every model', () => {
-    expect(new Set(Object.values(MODELLED_SHEETS))).toEqual(new Set(kinds));
+  it('has a model for every kind a sheet maps to, and a sheet or a shed prop for every model', () => {
+    const propKinds: FurnitureKind[] = ['workbench', 'planting_table', 'kiosk'];
+    expect(new Set([...Object.values(MODELLED_SHEETS), ...propKinds])).toEqual(new Set(kinds));
   });
 
   it.each(kinds)(

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
 import { countDetails, roomDetails, type Detail } from './details';
-import { roomPlan3d } from './plan';
+import { FACE_RELIEF, WINDOW_HEAD, WINDOW_SILL, roomPlan3d } from './plan';
 
 const detailsOf = (key: keyof typeof ROOMS): Detail[] =>
   roomDetails(ROOMS[key], roomPlan3d(ROOMS[key]));
@@ -92,7 +92,32 @@ describe('roomDetails', () => {
     const plantings = detailsOf('garden').filter((d) => d.kind === 'planting');
     expect(plantings.map((d) => d.name)).toEqual(['source_juniper', 'source_maple', 'source_pine']);
     expect(plantings[0]?.host).toBeUndefined();
-    expect(countDetails(detailsOf('garden'))).toEqual({ door: 1, planting: 3 });
+    expect(countDetails(detailsOf('garden'))).toEqual({ door: 1, window: 1, planting: 3 });
+  });
+
+  it("sets the front garden's four windows and the kitchen's in their face, from sill to head", () => {
+    for (const [key, count] of [
+      ['frontGarden', 4],
+      ['garden', 1],
+    ] as const) {
+      const room = ROOMS[key];
+      const plan = roomPlan3d(room);
+      const windows = detailsOf(key).filter((d) => d.kind === 'window');
+      expect(windows).toHaveLength(count);
+      const faces = plan.furniture.filter((b) => b.name.endsWith('_face'));
+      for (const window of windows) {
+        const { x0, x1, y0, y1, z1 } = extent(window);
+        const zs = window.parts.map((p) => p.z0);
+        expect(Math.min(...zs)).toBe(WINDOW_SILL);
+        expect(z1).toBe(WINDOW_HEAD);
+        // On a face, standing proud of it on both sides, and no taller than it.
+        const face = faces.find((f) => f.x0 <= x0 && f.x1 >= x1);
+        expect(face).toBeDefined();
+        expect(y0).toBeCloseTo((face?.y0 ?? 0) - FACE_RELIEF, 9);
+        expect(y1).toBeCloseTo((face?.y1 ?? 0) + FACE_RELIEF, 9);
+        expect(z1).toBeLessThan(face?.z1 ?? 0);
+      }
+    }
   });
 
   it('is empty for a room with nothing to model', () => {

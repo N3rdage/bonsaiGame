@@ -11,7 +11,16 @@ import type { WashKey } from './plan';
 
 /** The kinds of furniture that have a model: the player's placeables and the shed's clutter. */
 export type FurnitureKind =
-  'pedestal' | 'floor_shelf' | 'shelf' | 'tools' | 'watering_can' | 'pot_stack' | 'sack';
+  | 'pedestal'
+  | 'floor_shelf'
+  | 'shelf'
+  | 'tools'
+  | 'watering_can'
+  | 'pot_stack'
+  | 'sack'
+  | 'workbench'
+  | 'planting_table'
+  | 'kiosk';
 
 /** A box of a model: its corners relative to the middle of the footprint at the floor, and its wash. */
 export interface ModelPart {
@@ -30,7 +39,11 @@ export interface FurnitureModel {
   readonly parts: readonly ModelPart[];
 }
 
-/** The sheets of room furniture that are drawn as a model, by the kind they stand for. */
+/**
+ * The sheets of room furniture that are drawn as a model, by the kind they
+ * stand for. The workbench, planting table and kiosk are props, not furniture
+ * (plan.ts's `propBox`), so they are not here.
+ */
 export const MODELLED_SHEETS: Readonly<Record<string, FurnitureKind>> = {
   spr_pedestal: 'pedestal',
   spr_floor_shelf: 'floor_shelf',
@@ -86,6 +99,31 @@ const POTS_SIZE = { w: 0.375, d: 0.25, h: 0.5625 } as const;
 
 /** The sack: 0.5 m wide and 0.25 m deep, 0.5625 m tall (12 px), a body and a tied neck. */
 const SACK_SIZE = { w: 0.5, d: 0.25, h: 0.5625 } as const;
+
+/** The workbench: 1.25 m by 0.625 m and 0.9375 m tall (frame 40 px, 20 of it the top face), a top, four legs and a lower shelf. */
+const BENCH_SIZE = { w: 1.25, d: 0.625, h: 0.9375 } as const;
+const TABLE_TOP = 0.06;
+const LEG = 0.06;
+
+/** The planting table: 1 m by 0.625 m and 0.9375 m tall (frame 40 px, 20 of it the top face), a top with a soil tray on it, on four legs. */
+const TABLE_SIZE = { w: 1, d: 0.625, h: 0.9375 } as const;
+const TRAY_RAISE = 0.05;
+
+/** The shop kiosk: 0.875 m by 0.75 m and 1.5 m tall (frame 56 px, 24 of it the top face), a counter with a sign on two posts behind it. */
+const KIOSK_SIZE = { w: 0.875, d: 0.75, h: 1.5 } as const;
+const KIOSK_COUNTER = 0.95;
+const KIOSK_SIGN = 0.3;
+
+/** The four legs of a table `w` by `d` tall `h`, one at each corner. */
+function legs(w: number, d: number, h: number): ModelPart[] {
+  const [x, y] = [(w - LEG) / 2, (d - LEG) / 2];
+  return [
+    block('wood', [LEG, LEG, h], [-x, -y, 0]),
+    block('wood', [LEG, LEG, h], [x, -y, 0]),
+    block('wood', [LEG, LEG, h], [-x, y, 0]),
+    block('wood', [LEG, LEG, h], [x, y, 0]),
+  ];
+}
 
 const { w: PW, d: PD, h: PH } = PEDESTAL_SIZE;
 const { w: FW, d: FD, h: FH } = FLOOR_SHELF_SIZE;
@@ -154,6 +192,52 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
     parts: [
       block('render', [SACK_SIZE.w, SACK_SIZE.d, 0.4]),
       block('render', [0.26, 0.16, SACK_SIZE.h - 0.4], [0, 0, 0.4]),
+    ],
+  },
+  workbench: {
+    size: BENCH_SIZE,
+    parts: [
+      ...legs(BENCH_SIZE.w, BENCH_SIZE.d, BENCH_SIZE.h - TABLE_TOP),
+      block('wood', [BENCH_SIZE.w, BENCH_SIZE.d, TABLE_TOP], [0, 0, BENCH_SIZE.h - TABLE_TOP]),
+      block('wood', [BENCH_SIZE.w - 2 * LEG, BENCH_SIZE.d - 2 * LEG, PLANK], [0, 0, 0.2]),
+    ],
+  },
+  planting_table: {
+    size: TABLE_SIZE,
+    parts: [
+      ...legs(TABLE_SIZE.w, TABLE_SIZE.d, TABLE_SIZE.h - TRAY_RAISE - TABLE_TOP),
+      block(
+        'wood',
+        [TABLE_SIZE.w, TABLE_SIZE.d, TABLE_TOP],
+        [0, 0, TABLE_SIZE.h - TRAY_RAISE - TABLE_TOP],
+      ),
+      block(
+        'soil',
+        [TABLE_SIZE.w - 0.2, TABLE_SIZE.d - 0.2, TRAY_RAISE],
+        [0, 0, TABLE_SIZE.h - TRAY_RAISE],
+      ),
+    ],
+  },
+  kiosk: {
+    size: KIOSK_SIZE,
+    parts: [
+      block('wood', [KIOSK_SIZE.w, KIOSK_SIZE.d, KIOSK_COUNTER - 0.04]),
+      block('stone', [KIOSK_SIZE.w, KIOSK_SIZE.d, 0.04], [0, 0, KIOSK_COUNTER - 0.04]),
+      block(
+        'wood',
+        [PLANK, PLANK, KIOSK_SIZE.h - KIOSK_COUNTER],
+        [-(KIOSK_SIZE.w - PLANK) / 2, -(KIOSK_SIZE.d - PLANK) / 2, KIOSK_COUNTER],
+      ),
+      block(
+        'wood',
+        [PLANK, PLANK, KIOSK_SIZE.h - KIOSK_COUNTER],
+        [(KIOSK_SIZE.w - PLANK) / 2, -(KIOSK_SIZE.d - PLANK) / 2, KIOSK_COUNTER],
+      ),
+      block(
+        'tile',
+        [KIOSK_SIZE.w, PLANK, KIOSK_SIGN],
+        [0, -(KIOSK_SIZE.d - PLANK) / 2, KIOSK_SIZE.h - KIOSK_SIGN],
+      ),
     ],
   },
 };

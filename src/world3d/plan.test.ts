@@ -5,6 +5,7 @@ import { furnitureWalls, type RoomKey } from '../world/shedRoom';
 import {
   DOOR_HEIGHT,
   FENCE_HEIGHT_M,
+  FACE_RELIEF,
   LOW_FENCE_HEIGHT_M,
   WALL_HEIGHT,
   WINDOW_HEAD,
@@ -224,6 +225,53 @@ describe('roomPlan3d furniture', () => {
     const shelf = roomPlan3d(ROOMS.shed).furniture[0];
     expect(shelf).toMatchObject({ x0: 6.5, x1: 7.25, y0: 79 / 32, y1: 87 / 32, solid: false });
     expect(shelf?.z1).toBe(heightMetres(12));
+  });
+});
+
+describe('roomPlan3d pieces on a building face', () => {
+  it('draws no box for a wall cap or a window, which the walls and the face details stand for', () => {
+    for (const key of KEYS) {
+      const names = roomPlan3d(ROOMS[key]).furniture.map((b) => b.name);
+      expect(names.filter((n) => /_cap(_v)?$|spr_house_window$/.test(n))).toEqual([]);
+    }
+  });
+
+  it("stands the garage's roller door its 40 px, against the face, over its 2.4 m span", () => {
+    const door = roomPlan3d(ROOMS.frontGarden).furniture.find((b) =>
+      b.name.endsWith('_roller_door'),
+    );
+    const face = roomPlan3d(ROOMS.frontGarden).furniture.find((b) => b.name.endsWith('_face'));
+    expect(door).toMatchObject({ z0: 0, z1: heightMetres(40), solid: false });
+    expect(door?.x1 ?? 0).toBeCloseTo((door?.x0 ?? 0) + 77 / 32, 9);
+    expect(door?.y0).toBeCloseTo((face?.y0 ?? 0) - FACE_RELIEF, 9);
+    expect(door?.y1).toBeCloseTo((face?.y1 ?? 0) + FACE_RELIEF, 9);
+  });
+});
+
+describe('roomPlan3d shed furniture props', () => {
+  const standing = (key: string): Box | undefined =>
+    roomPlan3d(ROOMS.shed).furniture.find((b) => b.name === `prop.${key}`);
+
+  it.each([
+    ['workbench', 40, 20, 20],
+    ['planting_table', 32, 20, 20],
+    ['shop_kiosk', 28, 24, 32],
+  ])('%s: stands on its %i x %i px footprint as tall as its %i px front face', (key, w, d, h) => {
+    const prop = ROOMS.shed.props.find((p) => p.key === key);
+    const box = standing(key);
+    expect(prop).toBeDefined();
+    expect(box).toMatchObject({ z0: 0, z1: heightMetres(h), solid: false });
+    expect((box?.x1 ?? 0) - (box?.x0 ?? 0)).toBeCloseTo(metres(w), 9);
+    expect((box?.y1 ?? 0) - (box?.y0 ?? 0)).toBeCloseTo(metres(d), 9);
+    expect(((box?.x0 ?? 0) + (box?.x1 ?? 0)) / 2).toBeCloseTo(metres(prop?.x ?? 0), 9);
+    expect(((box?.y0 ?? 0) + (box?.y1 ?? 0)) / 2).toBeCloseTo(metres(prop?.y ?? 0), 9);
+  });
+
+  it("lays the rug flat on the floor over the rug's 120 x 70 px rect", () => {
+    const rug = roomPlan3d(ROOMS.shed).furniture.find((b) => b.name.endsWith('spr_shed_rug'));
+    expect(rug).toMatchObject({ z0: 0, z1: 0.01, solid: false });
+    expect((rug?.x1 ?? 0) - (rug?.x0 ?? 0)).toBeCloseTo(3.75, 9);
+    expect((rug?.y1 ?? 0) - (rug?.y0 ?? 0)).toBeCloseTo(70 / 32, 9);
   });
 });
 
