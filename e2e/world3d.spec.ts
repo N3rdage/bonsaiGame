@@ -690,10 +690,16 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
       await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      // Each walk starts once the rooms behind the doors are built ahead, so it runs on idle
+      // frames and the player lands where the baseline has it.
+      await waitForBuilt(page, ['garden', 'lounge']);
       await shedToLounge(page);
+      await waitForBuilt(page, ['hallway']);
       await loungeToHallway(page);
+      await waitForBuilt(page, ['frontGarden', 'study']);
       await hallwayToFront(page);
       await waitForRoom(page, 'frontGarden');
+      await waitForBuilt(page, ['garden']);
       await expect
         .poll(async () => (await world3d(page)).cut.some((n) => n.endsWith('_face')), POLL)
         .toBe(true);
