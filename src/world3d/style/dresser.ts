@@ -51,6 +51,9 @@ import {
 
 type V3 = [number, number, number];
 
+/** `&lite=1`: the bench's cost probe, walls and models not receiving shadows and coarser shapes. */
+const LITE = new URLSearchParams(window.location.search).get('lite') === '1';
+
 function unit(hex: number): V3 {
   return [((hex >> 16) & 255) / 255, ((hex >> 8) & 255) / 255, (hex & 255) / 255];
 }
@@ -219,7 +222,7 @@ export class Dresser {
       } else if (name.startsWith('wall') || name.includes('spr_paper')) {
         worldUvs(mesh, 'wall');
         mesh.material = wall;
-        mesh.receiveShadows = true;
+        mesh.receiveShadows = !LITE;
         mesh.renderOutline = false;
       } else if (REMODELLED_SHEETS.some((sheet) => name.endsWith(sheet))) {
         mesh.isVisible = false;
@@ -309,7 +312,7 @@ export class Dresser {
       merged.name = `style.${key}`;
       merged.material = this.matFor(mat);
       merged.isPickable = false;
-      merged.receiveShadows = mat !== 'glow';
+      merged.receiveShadows = mat !== 'glow' && (!LITE || mat === 'rug');
       if (kind === 'solid') {
         this.shadows.addShadowCaster(merged);
         if (this.look.inkPx > 0) {
@@ -326,7 +329,7 @@ export class Dresser {
     const name = `style.shape.${String(n)}`;
     let mesh: Mesh;
     if (shape.kind === 'box') {
-      const data = roundedBox(w, h, d, shape.r ?? 0.02, 3);
+      const data = roundedBox(w, h, d, shape.r ?? 0.02, LITE ? 1 : 3);
       mesh = new Mesh(name, this.scene);
       const v = new VertexData();
       v.positions = data.positions;
@@ -336,7 +339,7 @@ export class Dresser {
     } else if (shape.kind === 'ball') {
       mesh = CreateSphere(
         name,
-        { segments: 10, diameterX: w, diameterY: h, diameterZ: d },
+        { segments: LITE ? 6 : 10, diameterX: w, diameterY: h, diameterZ: d },
         this.scene,
       );
     } else {
@@ -346,7 +349,12 @@ export class Dresser {
       const top = shape.kind === 'cone' ? (shape.top ?? 0.5) : 1;
       mesh = CreateCylinder(
         name,
-        { height: length, diameterBottom: across, diameterTop: across * top, tessellation: 18 },
+        {
+          height: length,
+          diameterBottom: across,
+          diameterTop: across * top,
+          tessellation: LITE ? 10 : 18,
+        },
         this.scene,
       );
       if (lie === 'x') mesh.rotation.z = Math.PI / 2;

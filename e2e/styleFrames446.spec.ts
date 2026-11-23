@@ -12,7 +12,7 @@ import { bootWorld, expect, skipTutorial, test } from './drive';
 
 const OUT = path.join(process.cwd(), 'docs', 'style-frames-446');
 const SETTINGS = JSON.stringify({ fullscreen: false, weather: false, world3d: true });
-const TAKES = (process.env.TAKES ?? 'before,a,b,c').split(',');
+const TAKES = (process.env.TAKES ?? 'before,a,b,c,a-lite').split(',');
 const TIMES = ['day', 'dusk'] as const;
 const BENCH = process.env.BENCH !== '0';
 const RAW = process.env.RAW === '1';
@@ -93,7 +93,8 @@ test.describe('style frames #446', () => {
       test(`${take} ${time}`, async ({ page }) => {
         test.setTimeout(180_000);
         const params = new URLSearchParams();
-        if (take !== 'before') params.set('style', take);
+        if (take !== 'before') params.set('style', take.split('-')[0] ?? take);
+        if (take.endsWith('-lite')) params.set('lite', '1');
         if (time === 'dusk') params.set('time', 'dusk');
         const query = params.size > 0 ? `?${params.toString()}` : '';
         await toLounge(page, query, take !== 'before');
@@ -104,6 +105,15 @@ test.describe('style frames #446', () => {
           await frames(page, 10);
         }
         await page.screenshot({ path: path.join(OUT, `lounge-${take}-${time}.png`) });
+        if (time === 'day') {
+          // Zoomed in on the wheel (the game's own zoom) to the avatar at phone size.
+          const box = await page.locator('#game canvas').boundingBox();
+          if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+          for (let i = 0; i < 6; i++) await page.mouse.wheel(0, -600);
+          await page.waitForTimeout(1500);
+          await frames(page, 10);
+          await page.screenshot({ path: path.join(OUT, `closeup-${take}-${time}.png`) });
+        }
         if (RAW) {
           await page.evaluate(() => {
             const c = document.querySelector<HTMLCanvasElement>('#game canvas');
@@ -117,7 +127,8 @@ test.describe('style frames #446', () => {
       test(`${take} bench`, async ({ page }) => {
         test.setTimeout(240_000);
         const params = new URLSearchParams({ bench: '1' });
-        if (take !== 'before') params.set('style', take);
+        if (take !== 'before') params.set('style', take.split('-')[0] ?? take);
+        if (take.endsWith('-lite')) params.set('lite', '1');
         await toLounge(page, `?${params.toString()}`, take !== 'before');
         await page.waitForFunction(() => window.__style446?.bench?.done === true, undefined, {
           timeout: 120_000,
