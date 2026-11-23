@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Room } from '../world/shedRoom';
-import type { World3d } from './world3d';
+import type Phaser from 'phaser';
+import { setSurround, type World3d } from './world3d';
 
 const hoisted = vi.hoisted(() => ({
   built: [] as unknown[],
@@ -107,5 +108,28 @@ describe('World3d loading', () => {
     w.sync(true, room, player, [], 'spring', undefined);
     await flush();
     expect(w.active).toBe(true);
+  });
+});
+
+describe('setSurround', () => {
+  const colour = (clear: boolean): number[] => {
+    const c = { r: -1, g: -1, b: -1, a: -1 };
+    const game = {
+      config: {
+        backgroundColor: {
+          setTo: (r: number, g: number, b: number, a: number) => Object.assign(c, { r, g, b, a }),
+        },
+      },
+    } as unknown as Phaser.Game;
+    setSurround(game, clear);
+    return [c.r, c.g, c.b, c.a];
+  };
+
+  it('clears to transparent black with the 3D world on, so nothing is added over it', () => {
+    expect(colour(true)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('clears to the opaque surround with the 3D world off', () => {
+    expect(colour(false)).toEqual([0x3e, 0x36, 0x32, 255]);
   });
 });
