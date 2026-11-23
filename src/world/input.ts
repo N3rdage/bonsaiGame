@@ -37,6 +37,20 @@ export const STEP_MS = 1000 / STEPS_PER_SECOND;
 /** At most this many steps per frame, so a long stall does not fast-forward the player. */
 export const MAX_STEPS_PER_FRAME = 5;
 
+/** A frame longer than this, ms, is slow: two steps' worth. */
+export const SLOW_FRAME_MS = 2 * STEP_MS;
+
+/**
+ * The frame time the steps count. Phaser's smoothed `deltaMs` keeps a steady
+ * step a frame at the display's rate, where the raw time's jitter would run
+ * some frames none and some two. But Phaser replaces a frame over 200 ms with
+ * older, shorter ones, so under load it stays near one step a frame and walks
+ * the player in slow motion: a slow frame counts its real length, `rawMs`.
+ */
+export function frameMs(deltaMs: number, rawMs: number): number {
+  return rawMs > SLOW_FRAME_MS ? rawMs : deltaMs;
+}
+
 /**
  * Fixed-rate accumulator: adds a frame's `deltaMs` to the carried remainder and
  * returns how many whole steps to run and the new remainder, so movement runs

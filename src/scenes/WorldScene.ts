@@ -77,7 +77,7 @@ import {
   type InspectorButtonId,
   type InspectorText,
 } from '../world/inspector';
-import { STEP_MS, fixedSteps, joystickInput, keyboardInput } from '../world/input';
+import { STEP_MS, fixedSteps, frameMs, joystickInput, keyboardInput } from '../world/input';
 import { onKeyDown } from '../world/keys';
 import {
   createPlayer,
@@ -2064,9 +2064,10 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.runClock(delta);
-    // The steps count real frame time: Phaser's smoothed delta stays near one step
-    // however slow the frames run, which would walk the player in slow motion.
-    const { steps, accumulatorMs } = fixedSteps(this.accumulatorMs, this.game.loop.rawDelta);
+    const { steps, accumulatorMs } = fixedSteps(
+      this.accumulatorMs,
+      frameMs(delta, this.game.loop.rawDelta),
+    );
     this.accumulatorMs = accumulatorMs;
     if (steps === 0) return;
     const raw = this.joystick?.input ?? this.keyboardMove();
