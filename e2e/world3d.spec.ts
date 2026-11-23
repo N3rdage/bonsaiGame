@@ -25,7 +25,14 @@ import {
   test,
   toTitle,
 } from './drive';
-import { gardenToGreenhouse, loungeToShed, shedToGarden, shedToLounge } from './rooms';
+import {
+  gardenToGreenhouse,
+  hallwayToFront,
+  loungeToHallway,
+  loungeToShed,
+  shedToGarden,
+  shedToLounge,
+} from './rooms';
 
 /** Tests run two workers on software GL: a walk, a camera ease or an instance count can take longer than the default 5 s poll. */
 const POLL = { timeout: 30_000 };
@@ -607,6 +614,28 @@ test.describe('the 3D world', () => {
       await expect.poll(async () => (await world3d(page)).shadows, POLL).toBe(true);
       await zoomIn(page, 900, 8);
       await expect(page).toHaveScreenshot('world3d-garden-shadows.png');
+    },
+  );
+
+  test(
+    "cuts the front garden's house face away with its windows and the garage door when it hides the player",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await bootWorld(page);
+      await waitForRoom(page, 'shed');
+      await skipTutorial(page, true);
+      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      await shedToLounge(page);
+      await loungeToHallway(page);
+      await hallwayToFront(page);
+      await waitForRoom(page, 'frontGarden');
+      await expect
+        .poll(async () => (await world3d(page)).cut.some((n) => n.endsWith('_face')), POLL)
+        .toBe(true);
+      await page.waitForTimeout(500);
+      await expect(page).toHaveScreenshot('world3d-front-garden.png');
     },
   );
 

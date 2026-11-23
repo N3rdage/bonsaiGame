@@ -1,8 +1,7 @@
 /**
  * The 3D rooms' modelled details, as pure data derived from the 2D room data
  * and never authored beside it: a door where the plan cuts a door opening, a
- * window where it cuts a window opening (and one set in a building's face
- * where the room has a window piece), a box hedge on each flat bed
+ * window where it cuts a window opening (and the windows and roller door hung from a building's face), a box hedge on each flat bed
  * (`spr_bed`) and a small shrub on each source plant. Each is a handful of
  * boxes in plan metres with a palette wash. A door or window goes with the
  * wall piece it hangs from, so the camera's cut-away takes it along.
@@ -11,7 +10,16 @@
 import type { ModelPart } from './furnitureModels';
 import type { Opening, RoomPlan3d, WallBox } from './plan';
 import type { Room } from '../world/shedRoom';
-import { FACE_RELIEF, WINDOW_HEAD, WINDOW_SHEET, WINDOW_SILL, furnitureBox, metres } from './plan';
+import {
+  FACE_RELIEF,
+  ROLLER_DOOR_SHEET,
+  WINDOW_HEAD,
+  WINDOW_SILL,
+  furnitureBox,
+  heightMetres,
+  isFaceFixture,
+  metres,
+} from './plan';
 
 export type DetailKind = 'door' | 'window' | 'hedge' | 'planting';
 
@@ -123,17 +131,19 @@ function hostOf(o: Opening, walls: readonly WallBox[]): WallBox | undefined {
 }
 
 /**
- * The windows set in a building's face (`spr_house_window` pieces): each one
- * over its span along the face it is drawn on, from `WINDOW_SILL` to
- * `WINDOW_HEAD`, its frame standing `FACE_RELIEF` proud of the face on either
- * side. A face is the building's `spr_*_face` piece whose rect holds the window's.
+ * The fixtures set in a building's face: each `spr_house_window` over its span
+ * along the face, from `WINDOW_SILL` to `WINDOW_HEAD`, and the garage's roller
+ * door, a slab `heightMetres` of its frame tall. Each stands `FACE_RELIEF`
+ * proud of the face on either side and hangs from the face's box (the
+ * `spr_*_face` piece whose rect holds the fixture's), so the camera's cut
+ * takes it away with the face.
  */
-function faceWindows(room: Room): Detail[] {
+function faceFixtures(room: Room): Detail[] {
   const faces = room.furniture
     .map((f, index) => ({ f, index }))
     .filter(({ f }) => f.sheet.key.endsWith('_face'));
   return room.furniture.flatMap((f, index): Detail[] => {
-    if (f.sheet.key !== WINDOW_SHEET) return [];
+    if (!isFaceFixture(f)) return [];
     const host = faces.find(
       ({ f: face }) =>
         face.x <= f.x &&
@@ -144,17 +154,18 @@ function faceWindows(room: Room): Detail[] {
     if (host === undefined) return [];
     const face = furnitureBox(host.f, host.index);
     const name = `furniture.${String(index)}.${f.sheet.key}`;
-    const opening: Opening = {
-      name,
-      kind: 'window',
+    const span = {
       x0: metres(f.x),
       x1: metres(f.x + f.w),
       y0: face.y0 - FACE_RELIEF,
       y1: face.y1 + FACE_RELIEF,
-      z0: WINDOW_SILL,
-      z1: WINDOW_HEAD,
     };
-    return [{ name, kind: 'window', parts: windowParts(opening) }];
+    if (f.sheet.key === ROLLER_DOOR_SHEET) {
+      const door: ModelPart = { wash: 'paint', ...span, z0: 0, z1: heightMetres(f.h) };
+      return [{ name, kind: 'door', host: face.name, parts: [door] }];
+    }
+    const opening: Opening = { name, kind: 'window', ...span, z0: WINDOW_SILL, z1: WINDOW_HEAD };
+    return [{ name, kind: 'window', host: face.name, parts: windowParts(opening) }];
   });
 }
 
@@ -226,7 +237,7 @@ export function roomDetails(room: Room, plan: RoomPlan3d): Detail[] {
       kind: 'planting',
       parts: plantingParts(metres(prop.x), metres(prop.y + prop.h / 2)),
     }));
-  return [...openings, ...faceWindows(room), ...hedges, ...plantings];
+  return [...openings, ...faceFixtures(room), ...hedges, ...plantings];
 }
 
 /** How many details there are of each kind present. */

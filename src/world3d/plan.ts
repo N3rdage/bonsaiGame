@@ -107,14 +107,17 @@ const FURNITURE_WASHES: Readonly<Record<string, WashKey>> = {
   spr_greenhouse_roof: 'paint',
   spr_greenhouse_cap: 'paint',
   spr_greenhouse_cap_v: 'paint',
-  spr_roller_door: 'paint',
   spr_shed_rug: 'tile',
 };
 
-/** The sheet of the windows set in a building's face: drawn as a window detail (details.ts), not a box. */
+/** The sheet of the windows set in a building's face. */
 export const WINDOW_SHEET = 'spr_house_window';
 /** The garage's door, which stands against its face. */
-const ROLLER_DOOR_SHEET = 'spr_roller_door';
+export const ROLLER_DOOR_SHEET = 'spr_roller_door';
+
+/** A window or the roller door: drawn as a detail hung from the face it is on (details.ts), not as a box. */
+export const isFaceFixture = (f: Furniture): boolean =>
+  f.sheet.key === WINDOW_SHEET || f.sheet.key === ROLLER_DOOR_SHEET;
 
 /**
  * A wall's cap (`spr_*_cap`, `spr_*_cap_v`) is the 0.25 m top of a wall seen
@@ -123,8 +126,8 @@ const ROLLER_DOOR_SHEET = 'spr_roller_door';
  */
 const isCap = (f: Furniture): boolean => /_cap(_v)?$/.test(f.sheet.key);
 
-/** Whether the plan draws `f` as a box or model of its own: not a cap, and not a window, which is a detail set in the face. */
-export const isBoxed = (f: Furniture): boolean => !isCap(f) && f.sheet.key !== WINDOW_SHEET;
+/** Whether the plan draws `f` as a box or model of its own: not a cap, and not a fixture of a face. */
+export const isBoxed = (f: Furniture): boolean => !isCap(f) && !isFaceFixture(f);
 
 /** The shed's working furniture, props that stand as a model over their footprint, as tall as their 2D frame. */
 const PROP_MODELS: Readonly<
@@ -344,11 +347,6 @@ export function furnitureBox(f: Furniture, index: number): Box {
   const wash = FURNITURE_WASHES[f.sheet.key] ?? 'wood';
   if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
-  if (f.sheet.key === ROLLER_DOOR_SHEET) {
-    const band = footprint({ ...f, y: f.y + f.h - WALL_BAND, h: WALL_BAND });
-    const proud = { ...band, y0: band.y0 - FACE_RELIEF, y1: band.y1 + FACE_RELIEF };
-    return box(name, wash, proud, 0, heightMetres(f.h), f.solid);
-  }
   if (f.stands === undefined) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   const height = heightMetres(f.stands.height);
   const model = MODELLED_SHEETS[f.sheet.key];

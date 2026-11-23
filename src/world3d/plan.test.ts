@@ -5,7 +5,6 @@ import { furnitureWalls, type RoomKey } from '../world/shedRoom';
 import {
   DOOR_HEIGHT,
   FENCE_HEIGHT_M,
-  FACE_RELIEF,
   LOW_FENCE_HEIGHT_M,
   WALL_HEIGHT,
   WINDOW_HEAD,
@@ -234,17 +233,6 @@ describe('roomPlan3d pieces on a building face', () => {
       const names = roomPlan3d(ROOMS[key]).furniture.map((b) => b.name);
       expect(names.filter((n) => /_cap(_v)?$|spr_house_window$/.test(n))).toEqual([]);
     }
-  });
-
-  it("stands the garage's roller door its 40 px, against the face, over its 2.4 m span", () => {
-    const door = roomPlan3d(ROOMS.frontGarden).furniture.find((b) =>
-      b.name.endsWith('_roller_door'),
-    );
-    const face = roomPlan3d(ROOMS.frontGarden).furniture.find((b) => b.name.endsWith('_face'));
-    expect(door).toMatchObject({ z0: 0, z1: heightMetres(40), solid: false });
-    expect(door?.x1 ?? 0).toBeCloseTo((door?.x0 ?? 0) + 77 / 32, 9);
-    expect(door?.y0).toBeCloseTo((face?.y0 ?? 0) - FACE_RELIEF, 9);
-    expect(door?.y1).toBeCloseTo((face?.y1 ?? 0) + FACE_RELIEF, 9);
   });
 });
 
