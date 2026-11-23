@@ -141,7 +141,7 @@ test.describe('the 3D world', () => {
       const lounge = await world3d(page);
       expect(lounge.room).toBe('lounge');
 
-      // Trips dispose the room they leave: coming back to the lounge shows the same meshes.
+      // A room left is hidden, not disposed: coming back to the lounge shows the same meshes.
       await loungeToShed(page);
       await waitForRoom(page, 'shed');
       expect((await world3d(page)).meshes).toBe(shed.meshes);
@@ -149,6 +149,42 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'lounge');
       expect((await world3d(page)).meshes).toBe(lounge.meshes);
       expect(errors).toEqual([]);
+    },
+  );
+
+  test(
+    'shows a room it already built again without building it',
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.setTimeout(120_000);
+      await bootWorld(page);
+      await waitForRoom(page, 'shed');
+      await skipTutorial(page, true);
+      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await loungeToShed(page);
+      await waitForRoom(page, 'shed');
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+
+      const { roomChanges } = await world3d(page);
+      expect(roomChanges.map(({ room, first }) => [room, first])).toEqual([
+        ['shed', true],
+        ['lounge', true],
+        ['shed', false],
+        ['lounge', false],
+      ]);
+      // A built room's art is laid by the time the room's floor and walls show.
+      expect(roomChanges[1]?.dressedMs).toBeGreaterThan(0);
+      expect(roomChanges[3]?.dressedMs).toBeUndefined();
+      // Software GL draws a repeat visit in a few ms to a few tens (the shed, with its trees and
+      // thin instances, is the dearest); building it again took longer. The bound is generous
+      // for two workers under load; the `first` flags above are what pin that nothing is rebuilt.
+      for (const change of roomChanges.filter(({ first }) => !first)) {
+        expect(change.ms).toBeLessThan(150);
+      }
     },
   );
 
