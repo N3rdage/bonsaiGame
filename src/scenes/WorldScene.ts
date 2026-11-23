@@ -963,6 +963,7 @@ export class WorldScene extends Phaser.Scene {
       placeable: this.placeable(),
       placing: placing !== undefined,
       escapeReaches: escapeReachesPage(closeKeyState()),
+      bench: this.world3d.active,
       nextKind: next !== undefined && next !== placing ? PLACEABLES[next].label : undefined,
     };
     const bg = this.panelBox(menuPanel(options, this.ui), HUD_DEPTH);
@@ -987,6 +988,10 @@ export class WorldScene extends Phaser.Scene {
       },
       settings: () => {
         this.openSettings();
+      },
+      bench: () => {
+        this.closePanel();
+        this.world3d.startBench();
       },
       title: () => {
         this.toTitle();

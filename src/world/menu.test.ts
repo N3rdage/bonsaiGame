@@ -42,6 +42,23 @@ const opts = (carrying: boolean): MenuOptions => ({
 });
 
 describe('world HUD menu layout', () => {
+  it('has a Benchmark row between Settings and Title only while the 3D world is on', () => {
+    const ids = (o: MenuOptions) => menuItems(o, DESKTOP_UI).map((i) => i.id);
+    expect(ids(opts(false))).not.toContain('bench');
+    expect(ids({ ...opts(false), bench: false })).not.toContain('bench');
+    expect(ids({ ...opts(false), bench: true })).toEqual([
+      'inventory',
+      'sleep',
+      'sleep-week',
+      'save',
+      'load',
+      'settings',
+      'bench',
+      'title',
+    ]);
+    expect(menuItems({ ...opts(false), bench: true }, DESKTOP_UI)[6]?.label).toBe('Benchmark');
+  });
+
   it('has Inventory, Sleep, Sleep a week, Save, Load, Settings and Title, in that order', () => {
     expect(menuItems(opts(false), DESKTOP_UI).map((i) => [i.id, i.label])).toEqual([
       ['inventory', 'Inventory (I)'],
@@ -279,21 +296,23 @@ describe('menu columns at 711x273', () => {
   it('keep every row tap target apart in every menu state', () => {
     const ui = uiMetrics(cssPerLogical(711, 273), true);
     for (const carrying of [false, true]) {
-      for (const [placeable, placing] of [
-        [false, false],
-        [true, false],
-        [true, true],
-      ] as const) {
-        const items = menuItems(
-          { carrying, placeable, placing, nextKind: 'Floor shelf', escapeReaches: true },
-          ui,
-        );
-        const rects = items.map((i) =>
-          hitRect(estimatedBox(i.label, i.x, i.y, 0, 0.5, ui), ui.hit),
-        );
-        rects.forEach((a, i) => {
-          for (const b of rects.slice(i + 1)) expect(rectsOverlap(a, b)).toBe(false);
-        });
+      for (const bench of [false, true]) {
+        for (const [placeable, placing] of [
+          [false, false],
+          [true, false],
+          [true, true],
+        ] as const) {
+          const items = menuItems(
+            { carrying, placeable, placing, bench, nextKind: 'Floor shelf', escapeReaches: true },
+            ui,
+          );
+          const rects = items.map((i) =>
+            hitRect(estimatedBox(i.label, i.x, i.y, 0, 0.5, ui), ui.hit),
+          );
+          rects.forEach((a, i) => {
+            for (const b of rects.slice(i + 1)) expect(rectsOverlap(a, b)).toBe(false);
+          });
+        }
       }
     }
   });
