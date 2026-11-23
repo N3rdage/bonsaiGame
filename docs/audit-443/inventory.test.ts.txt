@@ -1,0 +1,39 @@
+import { writeFileSync } from 'node:fs';
+import { it } from 'vitest';
+import { ROOMS } from './world/gardenRoom';
+import { furnitureBox, roomPlan3d, metres } from './world3d/plan';
+import { roomDetails } from './world3d/details';
+
+it('dump', () => {
+  const out: string[] = [];
+  const f = (n: number) => String(Math.round(n * 1000) / 1000);
+  for (const [key, room] of Object.entries(ROOMS)) {
+    const plan = roomPlan3d(room);
+    const details = roomDetails(room, plan);
+    out.push(
+      `## ${key} canvas ${room.width}x${room.height} bounds ${JSON.stringify(room.bounds)} start ${JSON.stringify(room.playerStart)}`,
+    );
+    out.push(
+      `walls: ${room.walls.length} 3Dwallboxes: ${plan.walls.length} ${[...new Set(plan.walls.map((w) => w.name.split('.')[0] + '/' + f(w.z1)))].join(',')}`,
+    );
+    room.furniture.forEach((p, i) => {
+      const b = furnitureBox(p, i);
+      out.push(
+        `F${i} ${p.sheet.key} rect(${p.x},${p.y},${p.w},${p.h}) = ${f(metres(p.w))}x${f(metres(p.h))}m solid=${p.solid} flat=${p.flat === true} sorted=${p.sorted === true} stands=${JSON.stringify(p.stands ?? null)} | 3D box ${f(b.x1 - b.x0)}x${f(b.y1 - b.y0)}x${f(b.z1 - b.z0)} model=${b.model ?? '-'} wash=${b.wash} ${plan.floor.some((x) => x.name === b.name) ? '(floor ground)' : ''}`,
+      );
+    });
+    room.props.forEach((p) =>
+      out.push(
+        `P ${p.key} "${p.label}" (${p.x},${p.y}) ${p.w}x${p.h}px = ${f(metres(p.w))}x${f(metres(p.h))}m wall=${p.wall ?? '-'} species=${p.speciesKey ?? '-'} pedestal=${p.pedestalKey ?? '-'} sheet=${p.sheet?.key ?? '-'}`,
+      ),
+    );
+    room.windows.forEach((w, i) =>
+      out.push(`W${i} x${w.x} w${w.w} = ${f(metres(w.w))}m`),
+    );
+    out.push(
+      `openings: ${plan.openings.map((o) => o.kind + ':' + o.name + ' ' + f(o.x1 - o.x0) + 'x' + f(o.y1 - o.y0) + 'x' + f(o.z1 - o.z0)).join('; ')}`,
+    );
+    out.push(`details: ${details.map((d) => d.kind + ':' + d.name).join(', ')}`);
+  }
+  writeFileSync('docs/audit-443/inventory.txt', out.join('\n'));
+});

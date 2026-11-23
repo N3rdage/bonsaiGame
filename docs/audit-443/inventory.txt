@@ -1,0 +1,101 @@
+## shed canvas 480x270 bounds {"x":80,"y":48,"w":320,"h":176} start {"x":240,"y":135}
+walls: 4 3Dwallboxes: 11 wall/2.4,wall/0.9
+F0 spr_shelf rect(208,67,24,20) = 0.75x0.625m solid=false flat=false sorted=false stands={"height":12,"foot":8} | 3D box 0.75x0.25x0.563 model=shelf wash=wood 
+F1 spr_tools rect(100,144,12,32) = 0.375x1m solid=false flat=false sorted=true stands={"height":28,"foot":4} | 3D box 0.375x0.125x1.313 model=tools wash=wood 
+F2 spr_watering_can rect(345,116,16,12) = 0.5x0.375m solid=false flat=false sorted=true stands={"height":6,"foot":6} | 3D box 0.5x0.188x0.281 model=watering_can wash=wood 
+F3 spr_pot_stack rect(347,174,12,20) = 0.375x0.625m solid=false flat=false sorted=true stands={"height":12,"foot":8} | 3D box 0.375x0.25x0.563 model=pot_stack wash=wood 
+F4 spr_sack rect(142,172,16,20) = 0.5x0.625m solid=false flat=false sorted=true stands={"height":12,"foot":8} | 3D box 0.5x0.25x0.563 model=sack wash=wood 
+P workbench "Workbench" (125,90) 40x20px = 1.25x0.625m wall=- species=- pedestal=- sheet=-
+P planting_table "Planting" (165,90) 32x20px = 1x0.625m wall=- species=- pedestal=- sheet=-
+P shop_kiosk "Shop" (125,145) 28x24px = 0.875x0.75m wall=- species=- pedestal=- sheet=-
+P door "Door" (240,216) 16x16px = 0.5x0.5m wall=S species=- pedestal=- sheet=spr_shed_door_s
+P door_lounge "Door" (240,56) 16x16px = 0.5x0.5m wall=N species=- pedestal=- sheet=spr_shed_door
+W0 x264 w32 = 1m
+openings: door:door 1x0.5x2; door:door_lounge 1x0.5x2; window:window.0 1x0.5x1.1
+details: door:door, door:door_lounge, window:window.0
+## garden canvas 464x512 bounds {"x":0,"y":0,"w":464,"h":512} start {"x":80,"y":274}
+walls: 7 3Dwallboxes: 7 wall/0.75,wall/2.4
+F0 spr_house_roof rect(0,0,416,144) = 13x4.5m solid=false flat=false sorted=false stands={"height":48} | 3D box 13x4.5x2.25 model=- wash=tile 
+F1 spr_house_face rect(160,96,248,48) = 7.75x1.5m solid=false flat=false sorted=false stands=null | 3D box 7.75x0.5x2.4 model=- wash=render 
+F2 spr_house_cap_v rect(408,0,8,144) = 0.25x4.5m solid=false flat=false sorted=false stands=null | 3D box 0.25x4.5x0.5 model=- wash=render 
+F3 spr_house_window rect(204,100,40,24) = 1.25x0.75m solid=false flat=false sorted=false stands=null | 3D box 1.25x0.75x0.5 model=- wash=wood 
+F4 spr_shed_roof rect(0,144,160,112) = 5x3.5m solid=false flat=false sorted=false stands={"height":48} | 3D box 5x3.5x2.25 model=- wash=tile 
+F5 spr_shed_face rect(0,208,160,48) = 5x1.5m solid=false flat=false sorted=false stands=null | 3D box 5x0.5x2.4 model=- wash=render 
+F6 spr_greenhouse_roof rect(256,304,160,112) = 5x3.5m solid=true flat=false sorted=false stands={"height":48} | 3D box 5x3.5x2.25 model=- wash=paint 
+F7 spr_greenhouse_cap rect(256,304,160,8) = 5x0.25m solid=false flat=false sorted=false stands=null | 3D box 5x0.25x0.5 model=- wash=paint 
+F8 spr_greenhouse_cap_v rect(256,304,8,64) = 0.25x2m solid=false flat=false sorted=false stands=null | 3D box 0.25x2x0.5 model=- wash=paint 
+F9 spr_greenhouse_cap_v rect(408,304,8,64) = 0.25x2m solid=false flat=false sorted=false stands=null | 3D box 0.25x2x0.5 model=- wash=paint 
+F10 spr_greenhouse_face rect(256,368,160,48) = 5x1.5m solid=false flat=false sorted=false stands=null | 3D box 5x0.5x2.4 model=- wash=paint 
+P source_juniper "Juniper" (80,472) 24x24px = 0.75x0.75m wall=- species=juniper pedestal=- sheet=-
+P source_maple "Japanese Maple" (112,472) 24x24px = 0.75x0.75m wall=- species=maple pedestal=- sheet=-
+P source_pine "Pine" (144,472) 24x24px = 0.75x0.75m wall=- species=pine pedestal=- sheet=-
+P door "Door" (80,248) 16x16px = 0.5x0.5m wall=N species=- pedestal=- sheet=spr_shed_door
+P door_study "Door" (344,136) 16x16px = 0.5x0.5m wall=N species=- pedestal=- sheet=spr_door_glazed
+P door_greenhouse "Door" (336,408) 16x16px = 0.5x0.5m wall=N species=- pedestal=- sheet=spr_door_glazed
+P gate "Gate" (432,8) 16x16px = 0.5x0.5m wall=N species=- pedestal=- sheet=spr_gate
+openings: door:gate 1x0.5x2
+details: door:gate, planting:source_juniper, planting:source_maple, planting:source_pine
+## frontGarden canvas 576x272 bounds {"x":0,"y":96,"w":576,"h":128} start {"x":336,"y":190}
+walls: 4 3Dwallboxes: 6 wall/0.5,wall/0.75
+F0 spr_road rect(0,0,576,96) = 18x3m solid=false flat=true sorted=false stands=null | 3D box 18x3x0.01 model=- wash=asphalt (floor ground)
+F1 spr_drive rect(16,96,96,112) = 3x3.5m solid=false flat=true sorted=false stands=null | 3D box 3x3.5x0.01 model=- wash=stone 
+F2 spr_path rect(320,96,32,112) = 1x3.5m solid=false flat=true sorted=false stands=null | 3D box 1x3.5x0.01 model=- wash=stone 
+F3 spr_bed rect(128,112,176,16) = 5.5x0.5m solid=false flat=true sorted=false stands=null | 3D box 5.5x0.5x0.01 model=- wash=soil 
+F4 spr_bed rect(368,112,176,16) = 5.5x0.5m solid=false flat=true sorted=false stands=null | 3D box 5.5x0.5x0.01 model=- wash=soil 
+F5 spr_house_face rect(0,176,112,48) = 3.5x1.5m solid=false flat=false sorted=false stands=null | 3D box 3.5x0.5x2.4 model=- wash=render 
+F6 spr_roller_door rect(17.5,184,77,40) = 2.406x1.25m solid=false flat=false sorted=false stands=null | 3D box 2.406x1.25x0.5 model=- wash=wood 
+F7 spr_house_face rect(112,176,416,48) = 13x1.5m solid=false flat=false sorted=false stands=null | 3D box 13x0.5x2.4 model=- wash=render 
+F8 spr_house_window rect(148,180,40,24) = 1.25x0.75m solid=false flat=false sorted=false stands=null | 3D box 1.25x0.75x0.5 model=- wash=wood 
+F9 spr_house_window rect(212,180,40,24) = 1.25x0.75m solid=false flat=false sorted=false stands=null | 3D box 1.25x0.75x0.5 model=- wash=wood 
+F10 spr_house_window rect(404,180,40,24) = 1.25x0.75m solid=false flat=false sorted=false stands=null | 3D box 1.25x0.75x0.5 model=- wash=wood 
+F11 spr_house_window rect(468,180,40,24) = 1.25x0.75m solid=false flat=false sorted=false stands=null | 3D box 1.25x0.75x0.5 model=- wash=wood 
+F12 spr_fence rect(528,208,48,16) = 1.5x0.5m solid=false flat=false sorted=false stands={"height":16} | 3D box 1.5x0.5x0.75 model=- wash=wood 
+F13 spr_house_roof rect(0,224,528,48) = 16.5x1.5m solid=false flat=false sorted=false stands={"height":48} | 3D box 16.5x1.5x2.25 model=- wash=tile 
+F14 spr_house_cap_v rect(520,176,8,96) = 0.25x3m solid=false flat=false sorted=false stands=null | 3D box 0.25x3x0.5 model=- wash=render 
+P door_house "Door" (336,216) 16x16px = 0.5x0.5m wall=S species=- pedestal=- sheet=spr_front_door
+P gate "Gate" (544,216) 16x16px = 0.5x0.5m wall=S species=- pedestal=- sheet=spr_gate
+openings: door:door_house 1x0.5x2; door:gate 1x0.5x2
+details: door:door_house, door:gate, hedge:furniture.3.spr_bed, hedge:furniture.4.spr_bed
+## lounge canvas 480x270 bounds {"x":144,"y":48,"w":304,"h":176} start {"x":240,"y":190}
+walls: 9 3Dwallboxes: 12 wall/2.4,wall/0.9
+F0 spr_floor_kitchen rect(336,128,96,80) = 3x2.5m solid=false flat=true sorted=false stands=null | 3D box 3x2.5x0.01 model=- wash=stone 
+F1 spr_paper rect(336,64,96,64) = 3x2m solid=true flat=false sorted=false stands={"height":48} | 3D box 3x2x2.25 model=- wash=wood 
+F2 spr_lounge_cap_v rect(336,64,8,64) = 0.25x2m solid=false flat=false sorted=false stands=null | 3D box 0.25x2x0.5 model=- wash=wood 
+F3 spr_lounge_cap rect(336,120,96,8) = 3x0.25m solid=false flat=false sorted=false stands=null | 3D box 3x0.25x0.5 model=- wash=wood 
+F4 spr_fireplace rect(224,64,32,24) = 1x0.75m solid=true flat=false sorted=true stands={"height":20} | 3D box 1x0.75x0.938 model=- wash=wood 
+F5 spr_side_table rect(160,64,16,16) = 0.5x0.5m solid=true flat=false sorted=true stands={"height":8} | 3D box 0.5x0.5x0.375 model=- wash=wood 
+F6 spr_counter rect(336,188,96,20) = 3x0.625m solid=true flat=false sorted=true stands={"height":20} | 3D box 3x0.625x0.938 model=- wash=wood 
+F7 spr_counter_v rect(412,128,20,60) = 0.625x1.875m solid=true flat=false sorted=true stands={"height":20} | 3D box 0.625x1.875x0.938 model=- wash=wood 
+P pedestal_1 "Pedestal" (240,77) 32x22px = 1x0.688m wall=- species=- pedestal=lounge_mantel sheet=-
+P pedestal_2 "Pedestal" (168,74) 16x12px = 0.5x0.375m wall=- species=- pedestal=lounge_side_table sheet=-
+P door "Door" (240,216) 16x16px = 0.5x0.5m wall=S species=- pedestal=- sheet=-
+P door_hallway "Door" (344,96) 16x16px = 0.5x0.5m wall=E species=- pedestal=- sheet=spr_door_side_e
+W0 x176 w32 = 1m
+W1 x288 w32 = 1m
+openings: door:door 1x0.5x2; window:window.0 1x0.5x1.1; window:window.1 1x0.5x1.1
+details: door:door, window:window.0, window:window.1
+## hallway canvas 480x270 bounds {"x":176,"y":128,"w":128,"h":96} start {"x":210,"y":176}
+walls: 4 3Dwallboxes: 10 wall/2.4
+F0 spr_runner rect(200,184,60,24) = 1.875x0.75m solid=false flat=true sorted=false stands=null | 3D box 1.875x0.75x0.01 model=- wash=runner 
+F1 spr_hall_table rect(266,196,16,12) = 0.5x0.375m solid=false flat=false sorted=true stands={"height":16} | 3D box 0.5x0.375x0.75 model=- wash=wood 
+P door_lounge "Door" (184,176) 16x16px = 0.5x0.5m wall=W species=- pedestal=- sheet=spr_door_side_w
+P door_front "Door" (240,136) 16x16px = 0.5x0.5m wall=N species=- pedestal=- sheet=-
+P door_study "Door" (296,176) 16x16px = 0.5x0.5m wall=E species=- pedestal=- sheet=spr_door_side_e
+openings: door:door_lounge 0.5x1x2; door:door_front 1x0.5x2; door:door_study 0.5x1x2
+details: door:door_lounge, door:door_front, door:door_study
+## study canvas 480x270 bounds {"x":144,"y":48,"w":176,"h":176} start {"x":178,"y":96}
+walls: 6 3Dwallboxes: 11 wall/2.4,wall/0.9
+F0 spr_desk rect(160,64,32,16) = 1x0.5m solid=true flat=false sorted=true stands={"height":16} | 3D box 1x0.5x0.75 model=- wash=wood 
+F1 spr_bookshelf rect(256,64,48,16) = 1.5x0.5m solid=true flat=false sorted=true stands={"height":12} | 3D box 1.5x0.5x0.563 model=- wash=wood 
+P pedestal_1 "Pedestal" (176,70) 32x20px = 1x0.625m wall=- species=- pedestal=study_desk sheet=-
+P pedestal_2 "Pedestal" (296,72.5) 16x15px = 0.5x0.469m wall=- species=- pedestal=study_bookshelf sheet=-
+P door_hallway "Door" (152,96) 16x16px = 0.5x0.5m wall=W species=- pedestal=- sheet=spr_door_side_w
+P door_garden "Door" (232,216) 48x16px = 1.5x0.5m wall=S species=- pedestal=- sheet=spr_door_glass
+W0 x208 w32 = 1m
+openings: door:door_hallway 0.5x1x2; door:door_garden 1.5x0.5x2; window:window.0 1x0.5x1.1
+details: door:door_hallway, door:door_garden, window:window.0
+## greenhouse canvas 480x270 bounds {"x":144,"y":64,"w":192,"h":144} start {"x":240,"y":174}
+walls: 4 3Dwallboxes: 6 wall/2.4
+P door_garden "Door" (240,200) 16x16px = 0.5x0.5m wall=S species=- pedestal=- sheet=spr_door_glazed
+openings: door:door_garden 1x0.5x2
+details: door:door_garden
