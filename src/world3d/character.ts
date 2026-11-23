@@ -61,7 +61,7 @@ const SHIRT: Rgb = [0.35, 0.58, 0.45];
 const TROUSERS: Rgb = [0.3, 0.36, 0.5];
 const SHOE: Rgb = [0.25, 0.2, 0.18];
 
-interface Part {
+export interface Part {
   readonly joint: JointName;
   readonly center: Vec3;
   readonly radii: Vec3;
@@ -70,7 +70,7 @@ interface Part {
   readonly color: Rgb;
 }
 
-function part(joint: JointName, center: Vec3, radii: Vec3, color: Rgb, stretch = 0): Part {
+export function part(joint: JointName, center: Vec3, radii: Vec3, color: Rgb, stretch = 0): Part {
   return { joint, center: scaled(center), radii: scaled(radii), stretch: stretch * SCALE, color };
 }
 
@@ -106,20 +106,21 @@ export interface CharacterMesh {
   readonly indices: Uint32Array;
 }
 
-const RINGS = 8;
-const SEGMENTS = 12;
-
 /** The body's arrays: each part a smooth ellipsoid (a rounded bar with a stretch). */
-export function characterMesh(): CharacterMesh {
+export function characterMesh(
+  parts: readonly Part[] = PARTS,
+  RINGS = 8,
+  SEGMENTS = 12,
+): CharacterMesh {
   const per = (RINGS + 1) * (SEGMENTS + 1);
-  const vertices = PARTS.length * per;
+  const vertices = parts.length * per;
   const positions = new Float32Array(vertices * 3);
   const normals = new Float32Array(vertices * 3);
   const colors = new Float32Array(vertices * 4);
   const joints = new Float32Array(vertices * 4);
   const weights = new Float32Array(vertices * 4);
-  const indices = new Uint32Array(PARTS.length * RINGS * SEGMENTS * 6);
-  PARTS.forEach((p, n) => {
+  const indices = new Uint32Array(parts.length * RINGS * SEGMENTS * 6);
+  parts.forEach((p, n) => {
     const first = n * per;
     const [cx, cy, cz] = p.center;
     const [rx, ry, rz] = p.radii;

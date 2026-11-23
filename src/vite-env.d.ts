@@ -347,4 +347,11 @@ interface BonsaiViewerHotspot {
 
 interface Window {
   __bonsai?: BonsaiTestHook;
+  /** Backlog #446 (style frames, throwaway): the take shown, and the bench's result once run. */
+  __style446?: {
+    readonly take: string | null;
+    readonly time: string;
+    readonly ready: boolean;
+    readonly bench?: Readonly<Record<string, number | string | boolean>>;
+  };
 }

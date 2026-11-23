@@ -72,6 +72,12 @@ import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { TreeStand } from './trees';
 import { wallLayout, wallMeshData, wallPieces, wallSheets } from './wallTiles';
 import { weatherKind, weatherSprites, type WeatherField } from './weather';
+import { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
+import { Bench, showBench } from './style/bench';
+import { Dresser } from './style/dresser';
+import { LOOKS } from './style/looks';
+import { parseStyleParams, type StyleParams } from './style/params';
+import { OUTLINE_WIDTH_PX } from '../viewer/toon';
 
 /** The page's surround colour (SURROUND in src/scenes/textStyle.ts), behind the room. */
 const SURROUND = Color3.FromHexString('#3e3632');
@@ -289,6 +295,11 @@ export class Renderer {
   private size = '';
   /** When the last frame was drawn, ms; the scene is rendered by hand, so the engine keeps no delta of its own. */
   private lastFrame = performance.now();
+  /** Backlog #446 (throwaway): the URL's take, its dresser, and the bench. */
+  private readonly style: StyleParams = parseStyleParams(window.location.search);
+  private readonly dresser: Dresser | undefined;
+  private readonly bench: Bench | undefined;
+  private readonly instrumentation: SceneInstrumentation | undefined;
 
   /** Lays a canvas for the engine under `host`, the game's own, which it then rides above; outside `#game`, whose canvas the tests find. */
   constructor(private readonly host: HTMLCanvasElement) {
@@ -323,9 +334,25 @@ export class Renderer {
       Vector3.Zero(),
       this.scene,
     );
-    this.colourMaterial = new StandardMaterial('colours', this.scene);
-    this.colourMaterial.specularColor = Color3.Black();
-    toonLit(this.colourMaterial, this.toLight);
+    if (this.style.take) {
+      this.dresser = new Dresser(
+        this.scene,
+        LOOKS[this.style.take],
+        this.style.time,
+        this.shadows,
+        this.toLight,
+      );
+      this.colourMaterial = this.dresser.colours();
+    } else {
+      this.colourMaterial = new StandardMaterial('colours', this.scene);
+      this.colourMaterial.specularColor = Color3.Black();
+      toonLit(this.colourMaterial, this.toLight);
+    }
+    if (this.style.bench) {
+      this.bench = new Bench();
+      this.instrumentation = new SceneInstrumentation(this.scene);
+    }
+    window.__style446 = { take: this.style.take, time: this.style.time, ready: false };
     const skeleton = new Skeleton('player', 'player', this.scene);
     const bones: Partial<Record<JointName, Bone>> = {};
     for (const joint of JOINT_NAMES) {
@@ -346,7 +373,7 @@ export class Renderer {
 
   /** The character's body as one mesh skinned to `skeleton`, whose bones are in `JOINT_NAMES` order. */
   private skinned(skeleton: Skeleton): Mesh {
-    const body = characterMesh();
+    const body = this.dresser ? characterMesh(this.dresser.look.avatar, 12, 18) : characterMesh();
     const mesh = new Mesh('player', this.scene);
     const vertices = new VertexData();
     vertices.positions = body.positions;
@@ -530,6 +557,23 @@ export class Renderer {
     this.cutAway(plan);
     this.fit();
     this.scene.render();
+    if (
+      this.room === 'lounge' &&
+      this.bench?.record(now, elapsed, this.instrumentation?.drawCallsCounter.current ?? 0, {
+        width: this.engine.getRenderWidth(),
+        height: this.engine.getRenderHeight(),
+      }) &&
+      this.bench.result
+    ) {
+      const label = this.style.take ? `style ${this.style.take} ${this.style.time}` : 'today';
+      showBench(label, this.bench.result);
+      window.__style446 = {
+        take: this.style.take,
+        time: this.style.time,
+        ready: true,
+        bench: { ...this.bench.result },
+      };
+    }
   }
 
   /**
@@ -570,6 +614,13 @@ export class Renderer {
       ease(this.focus.z, goal.z, dt),
     );
     this.camera.setTarget(this.focus, false, false, true);
+    const path = this.room === 'lounge' ? this.bench?.camera(performance.now()) : undefined;
+    if (path) {
+      this.camera.alpha = path.alpha;
+      this.camera.beta = path.beta;
+      this.camera.radius = path.radius;
+      return;
+    }
     this.camera.alpha = ease(this.camera.alpha, cameraRig.alpha, dt);
     this.camera.beta = ease(this.camera.beta, cameraRig.beta, dt);
     this.camera.radius = ease(this.camera.radius, cameraRig.radius, dt);
@@ -628,6 +679,7 @@ export class Renderer {
   dispose(): void {
     this.clearFloor();
     this.clearWalls();
+    this.dresser?.dispose();
     this.scene.dispose();
     this.engine.dispose();
     this.canvas.remove();
@@ -637,6 +689,11 @@ export class Renderer {
   private material(wash: WashKey): StandardMaterial {
     const known = this.materials.get(wash);
     if (known) return known;
+    if (this.dresser) {
+      const styled = this.dresser.wash(wash, washColour(wash));
+      this.materials.set(wash, styled);
+      return styled;
+    }
     const material = new StandardMaterial(`wash.${wash}`, this.scene);
     material.diffuseColor = washColour(wash);
     material.specularColor = Color3.Black();
@@ -681,6 +738,12 @@ export class Renderer {
     this.furnishDetails(roomDetails(room, plan), plan);
     this.setHotspots(room, plan);
     this.room = room.key;
+    this.dresser?.clear();
+    if (this.dresser && room.key === 'lounge') {
+      this.dresser.dress(this.pieces);
+      window.__style446 = { take: this.style.take, time: this.style.time, ready: true };
+      return;
+    }
     this.tile(room);
     this.clothe(room, plan);
   }
@@ -959,8 +1022,12 @@ export class Renderer {
 
   /** Draws `mesh` with the ink outline (`INK_RGB`) in the width the canvas's size gives; Babylon outlines thin instances in the same one draw. */
   private ink(mesh: AbstractMesh): void {
-    const { r, g, b } = inkUnit();
-    mesh.renderOutline = true;
+    const ink = this.dresser?.look.ink;
+    const { r, g, b } =
+      ink === undefined
+        ? inkUnit()
+        : { r: ((ink >> 16) & 255) / 255, g: ((ink >> 8) & 255) / 255, b: (ink & 255) / 255 };
+    mesh.renderOutline = this.dresser ? this.dresser.look.inkPx > 0 : true;
     mesh.outlineColor = new Color3(r, g, b);
     mesh.outlineWidth = this.outlineWidth;
   }
@@ -1044,7 +1111,12 @@ export class Renderer {
       height: `${String(rect.height)}px`,
     });
     this.engine.resize();
-    this.outlineWidth = outlineWidthMetres(RADIUS_DEFAULT, this.camera.fov, rect.height);
+    this.outlineWidth = outlineWidthMetres(
+      RADIUS_DEFAULT,
+      this.camera.fov,
+      rect.height,
+      this.dresser?.look.inkPx ?? OUTLINE_WIDTH_PX,
+    );
     for (const mesh of this.scene.meshes) {
       if (mesh.renderOutline) mesh.outlineWidth = this.outlineWidth;
     }

@@ -22,6 +22,13 @@ import type { WeatherField } from './weather';
  * (main.ts), and an opaque clear colour draws exactly as a canvas without one.
  */
 export function setSurround(game: Phaser.Game, clear: boolean): void {
+  // Backlog #446: a clear colour of SURROUND's rgb at alpha 0 is not a valid premultiplied colour,
+  // and the browser composites it additively, washing the 3D world under it with SURROUND. The
+  // style takes clear to transparent black; today's look keeps the bug so "before" is honest.
+  if (clear && new URLSearchParams(window.location.search).has('style')) {
+    game.config.backgroundColor.setTo(0, 0, 0, 0);
+    return;
+  }
   game.config.backgroundColor.setTo(
     (SURROUND >> 16) & 0xff,
     (SURROUND >> 8) & 0xff,
