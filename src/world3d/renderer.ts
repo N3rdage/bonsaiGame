@@ -53,6 +53,7 @@ import {
   parentOf,
   poseOf,
   restOffset,
+  smoothSpeed,
   walkRate,
 } from './character';
 import { facingOf } from './move';
@@ -147,11 +148,6 @@ const SHADOW_CEILING = 4;
 const ANISOTROPY = 4;
 /** Polygon offset of the Inked art's materials, negative toward the camera. */
 const ART_DEPTH_OFFSET = -2;
-
-/** Seconds over which the measured speed of the player's feet settles, so the fixed steps' jitter does not flicker the blend. */
-const SPEED_SMOOTHING = 0.1;
-/** The longest frame the animation follows, seconds: a returning tab does not skip a clip's cycles, and a slow frame, in which the game moves the player by no more than its own step cap, is not read as a crawl. */
-const MAX_FRAME_SECONDS = 0.1;
 
 /** A standing tree: the node at its feet, the meshes parented to it and the key they were built for (`treeKey`). */
 interface Planted {
@@ -546,6 +542,7 @@ export class Renderer {
     trees: readonly TreeStand[],
     season: Season,
     weather: WeatherField | undefined,
+    gameSeconds = 0,
   ): void {
     const started = performance.now();
     const fresh = this.room !== room.key;
@@ -565,7 +562,7 @@ export class Renderer {
       moved = Math.hypot(dx, dy);
     }
     this.lastFeet = { x: plan.x, y: plan.y };
-    this.animate(moved, fresh ? 0 : elapsed / 1000);
+    this.animate(moved, fresh ? 0 : gameSeconds);
     // The body faces its local +z, which a turn of theta about y points along (sin, cos) in x and z.
     this.player.rotation.y = this.facing + Math.PI / 2;
     const feet = toBabylon(plan);
@@ -586,18 +583,14 @@ export class Renderer {
   }
 
   /**
-   * Moves the player's pose on by `seconds`: its speed over the ground (the
-   * metres its feet moved this frame, smoothed) sets the clip weights and the
-   * walk clip's rate, and the bones take the blended pose.
+   * Moves the player's pose on by `dt` seconds of game time, the time the frame's
+   * fixed steps covered (a slow frame on the wall clock does not stretch it):
+   * its speed over the ground (the metres its feet moved in that time,
+   * smoothed) sets the clip weights and the walk clip's rate, and the bones
+   * take the blended pose.
    */
-  private animate(moved: number, seconds: number): void {
-    // The game's own clock never advances a frame by more than this, so a slow frame is read as this long.
-    const dt = Math.min(seconds, MAX_FRAME_SECONDS);
-    if (dt > 0) {
-      this.speed += (moved / dt - this.speed) * Math.min(1, dt / SPEED_SMOOTHING);
-    } else {
-      this.speed = 0;
-    }
+  private animate(moved: number, dt: number): void {
+    this.speed = smoothSpeed(this.speed, moved, dt);
     this.clips = fadeWeights(this.clips, this.speed, dt);
     if (!this.stillIdle) this.clocks.idle = (this.clocks.idle + dt) % clipDuration('idle');
     this.clocks.walk = (this.clocks.walk + dt * walkRate(this.speed)) % clipDuration('walk');
