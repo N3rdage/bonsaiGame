@@ -68,6 +68,7 @@ export class World3d {
     trees: readonly TreeStand[],
     season: Season,
     weather: WeatherField | undefined,
+    gameSeconds = 0,
   ): void {
     if (on && !this.renderer && !this.loading && !this.failed) {
       this.loading = true;
@@ -86,7 +87,7 @@ export class World3d {
         });
     }
     if (!on) this.dispose();
-    this.renderer?.frame(room, player, trees, season, weather);
+    this.renderer?.frame(room, player, trees, season, weather, gameSeconds);
   }
 
   /** Lets the renderer and its canvas go, cancels a load in flight, and lets a failed load be tried again. */

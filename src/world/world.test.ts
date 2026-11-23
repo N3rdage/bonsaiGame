@@ -5,8 +5,10 @@ import {
   JOYSTICK_DEAD_ZONE,
   JOYSTICK_RADIUS,
   MAX_STEPS_PER_FRAME,
+  SLOW_FRAME_MS,
   STEP_MS,
   fixedSteps,
+  frameMs,
   joystickInput,
   keyboardInput,
 } from './input';
@@ -1271,6 +1273,15 @@ describe('input', () => {
 
   it('caps the steps after a stall and drops the backlog', () => {
     expect(fixedSteps(0, 2000)).toEqual({ steps: MAX_STEPS_PER_FRAME, accumulatorMs: 0 });
+  });
+
+  it("counts Phaser's smoothed delta at the display's rate and a slow frame's real length", () => {
+    // A 60 Hz frame's raw jitter is smoothed away: one step a frame.
+    expect(frameMs(STEP_MS, 16.4)).toBe(STEP_MS);
+    expect(frameMs(STEP_MS, 17.1)).toBe(STEP_MS);
+    // A 250 ms frame that Phaser reports as one step runs the cap, not one step.
+    expect(fixedSteps(0, frameMs(STEP_MS, 250)).steps).toBe(MAX_STEPS_PER_FRAME);
+    expect(frameMs(STEP_MS, SLOW_FRAME_MS + 1)).toBe(SLOW_FRAME_MS + 1);
   });
 });
 

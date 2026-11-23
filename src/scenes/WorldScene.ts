@@ -77,7 +77,7 @@ import {
   type InspectorButtonId,
   type InspectorText,
 } from '../world/inspector';
-import { fixedSteps, joystickInput, keyboardInput } from '../world/input';
+import { STEP_MS, fixedSteps, frameMs, joystickInput, keyboardInput } from '../world/input';
 import { onKeyDown } from '../world/keys';
 import {
   createPlayer,
@@ -2064,7 +2064,10 @@ export class WorldScene extends Phaser.Scene {
     }
 
     this.runClock(delta);
-    const { steps, accumulatorMs } = fixedSteps(this.accumulatorMs, delta);
+    const { steps, accumulatorMs } = fixedSteps(
+      this.accumulatorMs,
+      frameMs(delta, this.game.loop.rawDelta),
+    );
     this.accumulatorMs = accumulatorMs;
     if (steps === 0) return;
     const raw = this.joystick?.input ?? this.keyboardMove();
@@ -2099,7 +2102,7 @@ export class WorldScene extends Phaser.Scene {
     this.drawWeather();
     this.drawPlayer();
     this.hud.setText(hudText(this.ctx.state));
-    this.draw3d();
+    this.draw3d(steps);
     this.publishHook();
   }
 
@@ -2107,15 +2110,17 @@ export class WorldScene extends Phaser.Scene {
    * The 3D world setting (src/world3d/world3d.ts): while Babylon draws the
    * room under the canvas, the world camera and the canvas's clear colour step
    * aside so it shows through, and the HUD and panels draw over it as ever.
+   * The body animates on the game time this frame's `steps` covered.
    */
-  private draw3d(): void {
+  private draw3d(steps = 0): void {
     const { state, settings } = this.ctx;
     const season = seasonForDay(state.day);
     const room = this.liveRoom();
     const trees = settings.world3d ? treeStands(state, room, season) : [];
     // The 3D world draws the outdoor weather only; the indoor motes stay a 2D touch.
     const weather = isIndoor(this.room) ? undefined : this.weather;
-    this.world3d.sync(settings.world3d, room, this.player, trees, season, weather);
+    const gameSeconds = (steps * STEP_MS) / 1000;
+    this.world3d.sync(settings.world3d, room, this.player, trees, season, weather, gameSeconds);
     const on = this.world3d.active;
     if (this.worldCamera.visible === !on) return;
     this.worldCamera.visible = !on;

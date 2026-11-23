@@ -251,6 +251,19 @@ export const STRIDE_SPEED = (4 * HIPS_HEIGHT * Math.sin(WALK_SWING)) / WALK_PERI
 const RATE_MIN = 0.5;
 const RATE_MAX = 2;
 
+/** Seconds over which the measured speed of a body's feet settles, so the fixed steps' jitter does not flicker the blend. */
+export const SPEED_SMOOTHING = 0.1;
+
+/**
+ * `speed` (metres a second) moved toward `moved` metres over `dt` seconds of
+ * game time, the time the fixed steps covered, so the reading is the body's
+ * true pace however long the frame took on the wall clock. No time, no speed.
+ */
+export function smoothSpeed(speed: number, moved: number, dt: number): number {
+  if (dt <= 0) return 0;
+  return speed + (moved / dt - speed) * Math.min(1, dt / SPEED_SMOOTHING);
+}
+
 /** The weights a body moving at `speed` metres a second settles to: walk rises linearly to 1 at `WALK_FULL_SPEED`, idle takes the rest. */
 export function targetWeights(speed: number): ClipWeights {
   const walk = Math.min(1, Math.max(0, speed / WALK_FULL_SPEED));

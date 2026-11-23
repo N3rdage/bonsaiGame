@@ -12,6 +12,7 @@ import {
   parentOf,
   poseOf,
   restOffset,
+  smoothSpeed,
   targetWeights,
   walkRate,
 } from './character';
@@ -141,6 +142,27 @@ describe('the blend', () => {
     expect(fadeWeights(half, 2, 1)).toEqual({ idle: 0, walk: 1 });
     expect(fadeWeights({ idle: 0, walk: 1 }, 0, 0.1).walk).toBeCloseTo(0.5);
     expect(fadeWeights({ idle: 0.9, walk: 0.1 }, 0, 1)).toEqual({ idle: 1, walk: 0 });
+  });
+
+  it('reads the pace of the game time the steps covered, however slow the frame was', () => {
+    const full = (MOVE_SPEED * 60) / 32;
+    // Five steps a frame, then one step a frame: the same pace on the game's clock.
+    for (const steps of [1, 5]) {
+      const dt = steps / 60;
+      const moved = full * dt;
+      let speed = 0;
+      let clips = { idle: 1, walk: 0 };
+      for (let i = 0; i < 200; i += 1) {
+        speed = smoothSpeed(speed, moved, dt);
+        clips = fadeWeights(clips, speed, dt);
+      }
+      expect(speed).toBeCloseTo(full);
+      expect(clips.walk).toBe(1);
+    }
+  });
+
+  it('has no speed without game time', () => {
+    expect(smoothSpeed(2, 0.5, 0)).toBe(0);
   });
 
   it('plays the walk at 1 at the stride speed, within 0.5 and 2 either side', () => {
