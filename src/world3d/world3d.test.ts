@@ -59,7 +59,7 @@ describe('World3d loading', () => {
 
   it('builds the renderer once the chunk has loaded', async () => {
     const w = await fresh();
-    w.sync(true, room, player, [], 'spring', undefined);
+    w.sync(true, room, player, [], 'spring', undefined, () => room);
     await flush();
     expect(hoisted.built).toHaveLength(1);
     expect(w.active).toBe(true);
@@ -68,7 +68,7 @@ describe('World3d loading', () => {
   it('does not build the renderer when dispose ran while the chunk loaded', async () => {
     const release = gated();
     const w = await fresh();
-    w.sync(true, room, player, [], 'spring', undefined);
+    w.sync(true, room, player, [], 'spring', undefined, () => room);
     w.dispose();
     release();
     await flush();
@@ -79,9 +79,9 @@ describe('World3d loading', () => {
   it('can start loading again after a dispose that cancelled a load', async () => {
     const release = gated();
     const w = await fresh();
-    w.sync(true, room, player, [], 'spring', undefined);
+    w.sync(true, room, player, [], 'spring', undefined, () => room);
     w.dispose();
-    w.sync(true, room, player, [], 'spring', undefined);
+    w.sync(true, room, player, [], 'spring', undefined, () => room);
     release();
     await flush();
     expect(hoisted.built).toHaveLength(1);
@@ -93,19 +93,19 @@ describe('World3d loading', () => {
     hoisted.fail.current = true;
     const w = await fresh();
     for (let i = 0; i < 5; i += 1) {
-      w.sync(true, room, player, [], 'spring', undefined);
+      w.sync(true, room, player, [], 'spring', undefined, () => room);
       await flush();
     }
     expect(warn).toHaveBeenCalledTimes(1);
     expect(w.active).toBe(false);
 
     hoisted.fail.current = false;
-    w.sync(true, room, player, [], 'spring', undefined);
+    w.sync(true, room, player, [], 'spring', undefined, () => room);
     await flush();
     expect(w.active).toBe(false);
 
-    w.sync(false, room, player, [], 'spring', undefined);
-    w.sync(true, room, player, [], 'spring', undefined);
+    w.sync(false, room, player, [], 'spring', undefined, () => room);
+    w.sync(true, room, player, [], 'spring', undefined, () => room);
     await flush();
     expect(w.active).toBe(true);
   });

@@ -1,8 +1,33 @@
 import { describe, expect, it } from 'vitest';
+import { ROOMS } from '../world/gardenRoom';
 import { GREENHOUSE_ROOM } from '../world/greenhouseRoom';
 import { LOUNGE_ROOM } from '../world/loungeRoom';
 import type { Room } from '../world/shedRoom';
-import { ROOM_CHANGE_LOG, logChange, roomSignature, type RoomChange } from './roomCache';
+import {
+  ROOM_CHANGE_LOG,
+  logChange,
+  neighbourKeys,
+  roomSignature,
+  type RoomChange,
+} from './roomCache';
+
+describe('neighbourKeys', () => {
+  it('lists the rooms the shed doors lead to, in prop order', () => {
+    expect(neighbourKeys(ROOMS.shed)).toEqual(['garden', 'lounge']);
+  });
+
+  it('lists each room once and never the room itself, for every room', () => {
+    for (const room of Object.values(ROOMS)) {
+      const keys = neighbourKeys(room);
+      expect(new Set(keys).size).toBe(keys.length);
+      expect(keys).not.toContain(room.key);
+    }
+  });
+
+  it('is empty for a room whose props lead nowhere', () => {
+    expect(neighbourKeys({ ...LOUNGE_ROOM, props: [] })).toEqual([]);
+  });
+});
 
 describe('roomSignature', () => {
   it('is the same for the same room and differs between rooms', () => {
