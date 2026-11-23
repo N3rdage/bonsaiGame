@@ -574,7 +574,7 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-shed-turned.png');
   });
 
-  test("lights and inks the room in the tree viewer's toon look", async ({ page }) => {
+  test("lights and inks the room in the world's look", async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await waitForRoom(page, 'shed');

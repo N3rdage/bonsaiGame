@@ -68,8 +68,8 @@ import {
 } from './meshes';
 import { inFront, nearestSpot, type Picked, type ScreenSpot } from './tap';
 import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
-import { inkUnit, outlineWidthMetres } from './toon';
-import { toonLit } from './toonPlugin';
+import { LOOK, outlineWidthMetres, unitRgb } from './look';
+import { lookLit } from './lookPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { TreeStand } from './trees';
 import { wallLayout, wallMeshData, wallPieces, wallSheets } from './wallTiles';
@@ -105,7 +105,7 @@ export interface RendererSnapshot {
   readonly shadowMap: ShadowMapState;
   /** The polygon offset the Inked art's materials draw with over the boxes they lie on. */
   readonly artDepthOffset: number;
-  /** True while the lit meshes are lit through the toon ramp and inked. */
+  /** True while the lit meshes take the look light and ink. */
   readonly toon: boolean;
   /** The key of the sheet the floor's tiles are cut from, null until its texture has loaded. */
   readonly floorSheet: string | null;
@@ -318,7 +318,7 @@ export class Renderer {
   private readonly colourMaterial: StandardMaterial;
   /** Toward the sun in Babylon's frame, the direction the ramp reads N.L against. */
   private readonly toLight: Vec3;
-  /** The ink outline's width in metres: OUTLINE_WIDTH_PX at the default camera radius on the canvas as it is sized. */
+  /** The ink outline's width in metres: the look's outline width in px at the default camera radius on the canvas as it is sized. */
   private outlineWidth = 0;
   /** What the camera looks at, eased toward the player's middle. */
   private readonly focus = Vector3.Zero();
@@ -337,6 +337,15 @@ export class Renderer {
     this.engine = new Engine(this.canvas, true, { adaptToDeviceRatio: true });
     this.scene = new Scene(this.engine);
     this.scene.clearColor = Color4.FromColor3(SURROUND, 1);
+    const processing = this.scene.imageProcessingConfiguration;
+    processing.isEnabled = true;
+    processing.exposure = LOOK.exposure;
+    processing.contrast = LOOK.contrast;
+    processing.vignetteEnabled = true;
+    processing.vignetteWeight = LOOK.vignetteWeight;
+    processing.vignetteStretch = LOOK.vignetteStretch;
+    processing.vignetteCameraFov = LOOK.vignetteFov;
+    processing.vignetteColor = new Color4(...unitRgb(LOOK.vignetteColour), 1);
     const light = lightDirectionBabylon();
     this.toLight = { x: -light.x, y: -light.y, z: -light.z };
     const sun = new DirectionalLight('sun', new Vector3(light.x, light.y, light.z), this.scene);
@@ -362,7 +371,7 @@ export class Renderer {
     );
     this.colourMaterial = new StandardMaterial('colours', this.scene);
     this.colourMaterial.specularColor = Color3.Black();
-    toonLit(this.colourMaterial, this.toLight);
+    lookLit(this.colourMaterial, this.toLight);
     const skeleton = new Skeleton('player', 'player', this.scene);
     const bones: Partial<Record<JointName, Bone>> = {};
     for (const joint of JOINT_NAMES) {
@@ -690,7 +699,7 @@ export class Renderer {
     const material = new StandardMaterial(`wash.${wash}`, this.scene);
     material.diffuseColor = washColour(wash);
     material.specularColor = Color3.Black();
-    toonLit(material, this.toLight);
+    lookLit(material, this.toLight);
     this.materials.set(wash, material);
     return material;
   }
@@ -795,7 +804,7 @@ export class Renderer {
   /**
    * Lays `room`'s Inked floor tiles just over the floor box's top once the
    * sheet's PNG (the one Phaser loads) has loaded: one merged quad mesh,
-   * mipmapped, toon lit and shadowed like the floor
+   * mipmapped, look lit and shadowed like the floor
    * under it.
    */
   private tile(set: RoomSet, room: Room): void {
@@ -821,7 +830,7 @@ export class Renderer {
    * lowers the box, takes its art with it (one mesh over several pieces could
    * not follow their separate cuts); the pieces that stand for good, a
    * garden's fences, share one merged mesh per sheet. A sheet's meshes share
-   * one material, mipmapped, toon lit, with no outline and
+   * one material, mipmapped, look lit, with no outline and
    * no shadows, as the boxes are.
    */
   private clothe(set: RoomSet, room: Room): void {
@@ -919,7 +928,7 @@ export class Renderer {
     this.sheets.set(url, entry);
   }
 
-  /** A toon-lit material showing `texture`; with `oneSided`, only on the side its quads' normals face. */
+  /** A look-lit material showing `texture`; with `oneSided`, only on the side its quads' normals face. */
   private sheetMaterial(name: string, texture: Texture, oneSided: boolean): StandardMaterial {
     const material = new StandardMaterial(name, this.scene);
     material.diffuseTexture = texture;
@@ -930,7 +939,7 @@ export class Renderer {
     // depth precision and any angle.
     material.zOffset = ART_DEPTH_OFFSET;
     material.zOffsetUnits = ART_DEPTH_OFFSET;
-    toonLit(material, this.toLight);
+    lookLit(material, this.toLight);
     return material;
   }
 
@@ -1083,11 +1092,10 @@ export class Renderer {
     return mesh;
   }
 
-  /** Draws `mesh` with the ink outline (`INK_RGB`) in the width the canvas's size gives; Babylon outlines thin instances in the same one draw. */
+  /** Draws `mesh` with the ink outline (`LOOK.ink`) in the width the canvas's size gives; Babylon outlines thin instances in the same one draw. */
   private ink(mesh: AbstractMesh): void {
-    const { r, g, b } = inkUnit();
     mesh.renderOutline = true;
-    mesh.outlineColor = new Color3(r, g, b);
+    mesh.outlineColor = new Color3(...unitRgb(LOOK.ink));
     mesh.outlineWidth = this.outlineWidth;
   }
 
