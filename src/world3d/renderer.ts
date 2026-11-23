@@ -40,6 +40,7 @@ import { floorLayout, floorMeshData, type QuadMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind, type ModelPart } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
+import { logChange, type RoomChange } from './roomCache';
 import { shadowFrustum } from './shadowFrustum';
 import {
   JOINT_NAMES,
@@ -121,6 +122,8 @@ export interface RendererSnapshot {
     readonly w: number;
     readonly h: number;
   }[];
+  /** The latest changes of room, oldest first, with the time each took to draw. */
+  readonly roomChanges: readonly RoomChange[];
 }
 
 /** What the test hook reads of the shadow map. */
@@ -252,6 +255,8 @@ export class Renderer {
   private readonly stillIdle = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   private readonly boneMatrix = new Matrix();
   private room: Room['key'] | undefined;
+  private roomChanges: RoomChange[] = [];
+  private readonly visited = new Set<string>();
   private plan: RoomPlan3d | undefined;
   private pieces = new Map<string, Piece>();
   private floorArt: FloorArt | undefined;
@@ -389,6 +394,7 @@ export class Renderer {
       hotspots: this.hotspotPoints()
         .filter(inFront)
         .map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
+      roomChanges: this.roomChanges,
     };
   }
 
@@ -504,8 +510,13 @@ export class Renderer {
     season: Season,
     weather: WeatherField | undefined,
   ): void {
+    const started = performance.now();
     const fresh = this.room !== room.key;
-    if (fresh) this.build(room);
+    const first = fresh && !this.visited.has(room.key);
+    if (fresh) {
+      this.visited.add(room.key);
+      this.build(room);
+    }
     this.furnish(room);
     this.plant(trees, season);
     this.sky(weather);
@@ -530,6 +541,13 @@ export class Renderer {
     this.cutAway(plan);
     this.fit();
     this.scene.render();
+    if (fresh) {
+      this.roomChanges = logChange(this.roomChanges, {
+        room: room.key,
+        first,
+        ms: performance.now() - started,
+      });
+    }
   }
 
   /**

@@ -99,6 +99,13 @@ interface BonsaiTestHook {
       readonly w: number;
       readonly h: number;
     }[];
+    /** The last 20 changes of room the renderer drew, oldest first: the room, `first` (true when the change built the room's meshes, its first visit or one after the room's own data changed; false when it showed the set kept from an earlier visit), `ms` from the start of the change's frame to the end of its render, and for a built room `dressedMs`, the same clock when its floor and wall sheets had all been laid (absent until then); empty while off. */
+    readonly roomChanges: readonly {
+      readonly room: string;
+      readonly first: boolean;
+      readonly ms: number;
+      readonly dressedMs?: number;
+    }[];
   };
   /** World only: the current room's `bounds`, the outer edge of its wall ring (top-left and size, logical px); the floor is the band's 16 px inside it. */
   readonly roomBounds?: {

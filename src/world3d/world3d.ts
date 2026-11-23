@@ -129,6 +129,7 @@ export class World3d {
       player: this.renderer ? this.renderer.playerAt() : null,
       picked: this.picked,
       hotspots: state ? [...state.hotspots] : [],
+      roomChanges: state ? state.roomChanges.map((change) => ({ ...change })) : [],
     };
   }
 }
