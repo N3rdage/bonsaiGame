@@ -1,6 +1,6 @@
 /**
- * The on-screen benchmark behind the menu's Benchmark row (Settings, 3D world
- * on): once the room has settled it flies the camera along a fixed path for
+ * The on-screen benchmark behind the Menu's Benchmark row, shown while the 3D
+ * world (a Settings toggle) is on: once the room has settled it flies the camera along a fixed path for
  * `RUN_S` seconds (two sweeps round the room, in close and out wide, up and
  * down), records every frame's time and draw calls, and reduces them to fps,
  * median, p95 and worst frame ms and draw calls. Pure: the page's size, pixel
