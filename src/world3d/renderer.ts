@@ -890,7 +890,7 @@ export class Renderer {
   /**
    * Stands the room's modelled doors, windows, hedges and plantings. Those
    * hung from a wall piece (a door, a window) are one merged mesh parented to
-   * that piece's box, so the camera's cut takes them away with it, lit like
+   * that piece's box (a wall, or the building face a window or the roller door is set in), so the camera's cut takes them away with it, lit like
    * the walls and not outlined; the rest (a hedge, a planting) are one merged
    * mesh on the floor, which casts a shadow and is inked as furniture is.
    */
@@ -900,13 +900,13 @@ export class Renderer {
       host !== undefined && this.pieces.has(host);
     const hosts = new Set(details.map((d) => d.host).filter(hung));
     for (const host of hosts) {
-      const wall = plan.walls.find((w) => w.name === host);
+      const box = [...plan.walls, ...plan.furniture].find((w) => w.name === host);
       const parent = this.pieces.get(host)?.mesh;
-      if (!wall || !parent) continue;
+      if (!box || !parent) continue;
       const origin = {
-        x: (wall.x0 + wall.x1) / 2,
-        y: (wall.y0 + wall.y1) / 2,
-        z: (wall.z0 + wall.z1) / 2,
+        x: (box.x0 + box.x1) / 2,
+        y: (box.y0 + box.y1) / 2,
+        z: (box.z0 + box.z1) / 2,
       };
       const parts = details.filter((d) => d.host === host).flatMap((d) => d.parts);
       const mesh = this.partsMesh(`details.${host}`, parts, origin);

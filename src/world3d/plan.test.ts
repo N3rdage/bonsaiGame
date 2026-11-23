@@ -227,6 +227,42 @@ describe('roomPlan3d furniture', () => {
   });
 });
 
+describe('roomPlan3d pieces on a building face', () => {
+  it('draws no box for a wall cap or a window, which the walls and the face details stand for', () => {
+    for (const key of KEYS) {
+      const names = roomPlan3d(ROOMS[key]).furniture.map((b) => b.name);
+      expect(names.filter((n) => /_cap(_v)?$|spr_house_window$/.test(n))).toEqual([]);
+    }
+  });
+});
+
+describe('roomPlan3d shed furniture props', () => {
+  const standing = (key: string): Box | undefined =>
+    roomPlan3d(ROOMS.shed).furniture.find((b) => b.name === `prop.${key}`);
+
+  it.each([
+    ['workbench', 40, 20, 20],
+    ['planting_table', 32, 20, 20],
+    ['shop_kiosk', 28, 24, 32],
+  ])('%s: stands on its %i x %i px footprint as tall as its %i px front face', (key, w, d, h) => {
+    const prop = ROOMS.shed.props.find((p) => p.key === key);
+    const box = standing(key);
+    expect(prop).toBeDefined();
+    expect(box).toMatchObject({ z0: 0, z1: heightMetres(h), solid: false });
+    expect((box?.x1 ?? 0) - (box?.x0 ?? 0)).toBeCloseTo(metres(w), 9);
+    expect((box?.y1 ?? 0) - (box?.y0 ?? 0)).toBeCloseTo(metres(d), 9);
+    expect(((box?.x0 ?? 0) + (box?.x1 ?? 0)) / 2).toBeCloseTo(metres(prop?.x ?? 0), 9);
+    expect(((box?.y0 ?? 0) + (box?.y1 ?? 0)) / 2).toBeCloseTo(metres(prop?.y ?? 0), 9);
+  });
+
+  it("lays the rug flat on the floor over the rug's 120 x 70 px rect", () => {
+    const rug = roomPlan3d(ROOMS.shed).furniture.find((b) => b.name.endsWith('spr_shed_rug'));
+    expect(rug).toMatchObject({ z0: 0, z1: 0.01, solid: false });
+    expect((rug?.x1 ?? 0) - (rug?.x0 ?? 0)).toBeCloseTo(3.75, 9);
+    expect((rug?.y1 ?? 0) - (rug?.y0 ?? 0)).toBeCloseTo(70 / 32, 9);
+  });
+});
+
 describe('roomPlan3d building faces', () => {
   it('draws the front garden faces WALL_HEIGHT tall over the south band', () => {
     const faces = roomPlan3d(ROOMS.frontGarden).furniture.filter((b) => b.name.endsWith('_face'));
