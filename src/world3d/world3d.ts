@@ -11,6 +11,7 @@ import { SURROUND } from '../scenes/textStyle';
 import type { Season } from '../sim/seasons';
 import type { Room } from '../world/shedRoom';
 import { cameraRig } from './camera';
+import { showBench } from './benchPanel';
 import type { Renderer } from './renderer';
 import type { Picked } from './tap';
 import type { TreeStand } from './trees';
@@ -45,6 +46,9 @@ export class World3d {
 
   /** The last hotspot a tap picked, for the test hook. */
   private picked: string | null = null;
+  /** The benchmark result whose panel has been shown, so each result is shown once. */
+  private benchShown: unknown;
+  private benchPanel: HTMLElement | undefined;
 
   constructor(private readonly host: HTMLCanvasElement) {}
 
@@ -88,6 +92,17 @@ export class World3d {
     }
     if (!on) this.dispose();
     this.renderer?.frame(room, player, trees, season, weather, gameSeconds);
+    const bench = this.renderer?.benchState().result;
+    if (bench && bench !== this.benchShown) {
+      this.benchShown = bench;
+      this.benchPanel = showBench(bench);
+    }
+  }
+
+  /** Starts a benchmark run in the room shown, taking down the last result's panel; nothing while the renderer is not up. */
+  startBench(): void {
+    this.benchPanel?.remove();
+    this.renderer?.startBench();
   }
 
   /** Lets the renderer and its canvas go, cancels a load in flight, and lets a failed load be tried again. */
@@ -95,6 +110,8 @@ export class World3d {
     this.generation += 1;
     this.loading = false;
     this.failed = false;
+    this.benchPanel?.remove();
+    this.benchShown = undefined;
     this.renderer?.dispose();
     this.renderer = undefined;
   }
@@ -131,6 +148,7 @@ export class World3d {
       picked: this.picked,
       hotspots: state ? [...state.hotspots] : [],
       roomChanges: state ? state.roomChanges.map((change) => ({ ...change })) : [],
+      bench: state ? { ...state.bench } : { running: false, result: null },
     };
   }
 }

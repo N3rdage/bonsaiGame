@@ -106,6 +106,24 @@ interface BonsaiTestHook {
       readonly ms: number;
       readonly dressedMs?: number;
     }[];
+    /** The benchmark (Menu, Benchmark, while the 3D world is on): `running` from the tap until the result is in (2 s warm-up, 12 s of frames), then `result`: frames drawn, fps, median, 95th percentile and worst frame ms, draw calls a frame (mean and max), the canvas's render size, the device pixel ratio, the user agent and the room; `result` is null before a run and while off. */
+    readonly bench: {
+      readonly running: boolean;
+      readonly result: {
+        readonly frames: number;
+        readonly fps: number;
+        readonly medianMs: number;
+        readonly p95Ms: number;
+        readonly worstMs: number;
+        readonly drawCalls: number;
+        readonly drawCallsMax: number;
+        readonly width: number;
+        readonly height: number;
+        readonly dpr: number;
+        readonly userAgent: string;
+        readonly room: string;
+      } | null;
+    };
   };
   /** World only: the current room's `bounds`, the outer edge of its wall ring (top-left and size, logical px); the floor is the band's 16 px inside it. */
   readonly roomBounds?: {

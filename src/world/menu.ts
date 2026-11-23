@@ -1,7 +1,7 @@
 /**
  * Layout of the world HUD: the badge, the View tree and Notebook buttons, the toast and the
  * Menu button with its panel (Put down while carrying, Place item or Stop placing and Next in a
- * room that takes furniture, Inventory, Sleep, Sleep a week, Save, Load, Settings, Title), the
+ * room that takes furniture, Inventory, Sleep, Sleep a week, Save, Load, Settings, Benchmark while the 3D world is on, Title), the
  * carry line, in logical px on the 480x270
  * canvas. Pure data; WorldScene draws it.
  */
@@ -43,6 +43,7 @@ export type MenuItemId =
   | 'save'
   | 'load'
   | 'settings'
+  | 'bench'
   | 'title';
 
 /** What the panel's leading rows depend on: a carried tree, and the placement mode. */
@@ -55,6 +56,8 @@ export interface MenuOptions {
   readonly nextKind?: string | undefined;
   /** Whether Escape reaches the game (src/world/closeKey.ts): the Title item names it, else no key. */
   readonly escapeReaches: boolean;
+  /** The 3D world is on: `Benchmark` follows Settings. */
+  readonly bench?: boolean;
 }
 
 export interface MenuItem {
@@ -89,6 +92,7 @@ function entries(o: MenuOptions): readonly { id: MenuItemId; label: string }[] {
   return [
     ...lead,
     ...ITEMS,
+    ...(o.bench ? [{ id: 'bench' as const, label: 'Benchmark' }] : []),
     { id: 'title', label: withCloseKey('Title', o.escapeReaches ? 'Esc' : undefined) },
   ];
 }
