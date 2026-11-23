@@ -82,6 +82,9 @@ test.describe('the 3D world', () => {
         watering_can: 1,
         pot_stack: 1,
         sack: 1,
+        workbench: 1,
+        planting_table: 1,
+        kiosk: 1,
       });
       if (test.info().project.name === 's22-landscape') {
         await skipTutorial(page, true);
@@ -585,7 +588,7 @@ test.describe('the 3D world', () => {
       expect((await world3d(page)).details).toEqual({ door: 2, window: 1 });
       await shedToGarden(page);
       await waitForRoom(page, 'garden');
-      expect((await world3d(page)).details).toEqual({ door: 1, planting: 3 });
+      expect((await world3d(page)).details).toEqual({ door: 1, window: 1, planting: 3 });
     },
   );
 
