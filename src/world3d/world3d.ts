@@ -11,7 +11,8 @@ import { SURROUND } from '../scenes/textStyle';
 import type { Season } from '../sim/seasons';
 import type { Room, RoomKey } from '../world/shedRoom';
 import { cameraRig } from './camera';
-import { showBench } from './benchPanel';
+import { showBench, showPanel } from './benchPanel';
+import { roomTimeLines } from './roomTimes';
 import type { Renderer } from './renderer';
 import type { Picked } from './tap';
 import type { TreeStand } from './trees';
@@ -49,6 +50,7 @@ export class World3d {
   /** The benchmark result whose panel has been shown, so each result is shown once. */
   private benchShown: unknown;
   private benchPanel: HTMLElement | undefined;
+  private timesPanel: HTMLElement | undefined;
 
   constructor(private readonly host: HTMLCanvasElement) {}
 
@@ -106,12 +108,23 @@ export class World3d {
     this.renderer?.startBench();
   }
 
+  /** Shows the latest room-change and build-ahead times, replacing any readout open; empty lists while the renderer is not up. */
+  showTimes(): void {
+    this.timesPanel?.remove();
+    const snap = this.renderer?.snapshot();
+    this.timesPanel = showPanel(
+      'times',
+      roomTimeLines(snap?.roomChanges ?? [], snap?.aheadBuilds ?? [], navigator.userAgent),
+    );
+  }
+
   /** Lets the renderer and its canvas go, cancels a load in flight, and lets a failed load be tried again. */
   dispose(): void {
     this.generation += 1;
     this.loading = false;
     this.failed = false;
     this.benchPanel?.remove();
+    this.timesPanel?.remove();
     this.benchShown = undefined;
     this.renderer?.dispose();
     this.renderer = undefined;
