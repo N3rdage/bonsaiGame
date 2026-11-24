@@ -1264,7 +1264,8 @@ export class Renderer {
   /**
    * One mesh of `parts` (boxes in plan metres), each vertex-coloured by its
    * wash and positioned relative to `origin` so it can ride a box centred
-   * there, on the shared colour material.
+   * there. Solid parts go on the shared colour material; glass parts
+   * (`ModelPart.glass`) go into a child mesh on the translucent glass material.
    */
   private partsMesh(name: string, parts: readonly ModelPart[], origin: Vec3): Mesh {
     const solid = this.mergedParts(
