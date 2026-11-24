@@ -1,7 +1,8 @@
 /**
  * A roof's mesh for the 3D world, as pure data: the roof (plan.ts) is a
  * cross-section, a gable's two slopes or a slope's one, extruded along the
- * ridge, with a triangle closing each end. Each face is flat shaded; each
+ * ridge, with a triangle closing each end and, for a slope, a vertical face
+ * closing its high edge. Each face is flat shaded; each
  * triangle is given in both windings so it draws from either side.
  */
 
@@ -92,6 +93,14 @@ export function roofMesh(roof: Roof): RoofMesh {
     section.map((pt) => at(l1, pt)),
     along,
   );
+  if (form.kind === 'slope') {
+    const edge = highFirst ? c0 : c1;
+    const outward = highFirst ? -1 : 1;
+    face(
+      [at(l0, [edge, low]), at(l1, [edge, low]), at(l1, [edge, high]), at(l0, [edge, high])],
+      alongX ? [0, outward, 0] : [outward, 0, 0],
+    );
+  }
 
   return {
     center: centre,

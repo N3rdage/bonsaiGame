@@ -82,7 +82,14 @@ import { inkUnit, outlineWidthMetres } from './toon';
 import { toonLit } from './toonPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { TreeStand } from './trees';
-import { wallLayout, wallMeshData, wallPieces, wallSheets } from './wallTiles';
+import {
+  massLayout,
+  paperedMasses,
+  wallLayout,
+  wallMeshData,
+  wallPieces,
+  wallSheets,
+} from './wallTiles';
 import { weatherKind, weatherSprites, type WeatherField } from './weather';
 
 /** The page's surround colour (SURROUND in src/scenes/textStyle.ts), behind the room. */
@@ -947,7 +954,8 @@ export class Renderer {
    * one mesh per sheet parented to its box, so the cut, which scales and
    * lowers the box, takes its art with it (one mesh over several pieces could
    * not follow their separate cuts); the pieces that stand for good, a
-   * garden's fences, share one merged mesh per sheet. A sheet's meshes share
+   * garden's fences and a room's papered masses, share one merged mesh per
+   * sheet. A sheet's meshes share
    * one material, mipmapped, toon lit, with no outline and
    * no shadows, as the boxes are.
    */
@@ -979,12 +987,12 @@ export class Renderer {
             mesh.parent = parent;
             return [mesh];
           });
-        const fixed = layout.filter(({ piece }) => !movable.has(piece));
+        const fixed = [
+          ...layout.filter(({ piece }) => !movable.has(piece)).flatMap(({ quads }) => quads),
+          ...paperedMasses(room).flatMap((mass) => massLayout(room, mass, sheet, width, height)),
+        ];
         if (fixed.length > 0) {
-          const data = wallMeshData(
-            fixed.flatMap(({ quads }) => quads),
-            { x: 0, y: 0, z: 0 },
-          );
+          const data = wallMeshData(fixed, { x: 0, y: 0, z: 0 });
           const whole = this.texturedMesh(`walls.${sheet.key}`, data, material);
           whole.parent = set.root;
           meshes.push(whole);

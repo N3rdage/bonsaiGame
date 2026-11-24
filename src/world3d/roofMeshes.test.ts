@@ -41,15 +41,27 @@ describe('roofMesh', () => {
     expect(ridge.every((p) => Math.abs(p.z + 2) < 1e-6)).toBe(true);
   });
 
-  it('keeps a slope to 10 vertices, high on the north (+z) edge and low on the south', () => {
+  it('keeps a slope to 14 vertices, high on the north (+z) edge and low on the south', () => {
     const v = vertices(slope);
-    expect(v).toHaveLength(10);
+    expect(v).toHaveLength(14);
     for (const p of v) {
       if (p.y > 2.2) expect(p.z).toBeCloseTo(0);
     }
     expect(Math.min(...v.map((p) => p.y))).toBeCloseTo(0.4);
     const south = v.filter((p) => Math.abs(p.z + 4) < 1e-6);
     expect(south.every((p) => Math.abs(p.y - 0.4) < 1e-6)).toBe(true);
+  });
+
+  it("closes a slope's high north edge with a vertical face from its low to its high", () => {
+    const { center, positions, normals } = roofMesh(slope);
+    const wall = Array.from({ length: positions.length / 3 }, (_, v) => v).filter(
+      (v) => Math.abs((normals[v * 3 + 2] ?? 0) - 1) < 1e-6,
+    );
+    expect(wall).toHaveLength(4);
+    const heights = wall.map((v) => (positions[v * 3 + 1] ?? 0) + center.y);
+    expect(Math.min(...heights)).toBeCloseTo(0.4);
+    expect(Math.max(...heights)).toBeCloseTo(2.25);
+    for (const v of wall) expect((positions[v * 3 + 2] ?? 0) + center.z).toBeCloseTo(0);
   });
 
   it('gives every vertex a unit normal and every triangle both windings', () => {

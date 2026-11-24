@@ -9,11 +9,11 @@
  */
 
 import type { Sheet } from '../world/assets';
-import { ROOM_STYLES, wallRuns, type WallRun } from '../world/roomArt';
+import { ROOM_STYLES, furnitureRuns, tileRuns, wallRuns, type WallRun } from '../world/roomArt';
 import type { Room } from '../world/shedRoom';
 import type { QuadMeshData } from './floorTiles';
 import { toBabylon, type Vec3 } from './meshes';
-import { metres, type WallBox } from './plan';
+import { furnitureBox, isPapered, metres, pixels, type Box, type WallBox } from './plan';
 
 /** How far the art lies off the box's surface, so it never z-fights it. */
 export const WALL_LIFT = 0.003;
@@ -175,6 +175,101 @@ function standing(
   };
 }
 
+/** A cap's quad on the top of `piece`: the run clipped to the piece's footprint, lying `WALL_LIFT` above its height. */
+function topQuad(
+  sheet: Sheet,
+  frame: number,
+  image: { readonly w: number; readonly h: number },
+  span: Span,
+  piece: WallPiece,
+): WallQuad {
+  const [x0, x1] = [Math.max(span.x0, piece.x0), Math.min(span.x1, piece.x1)];
+  const [y0, y1] = [Math.max(span.y0, piece.y0), Math.min(span.y1, piece.y1)];
+  const [w, h] = [span.x1 - span.x0, span.y1 - span.y0];
+  const z = piece.height + WALL_LIFT;
+  return {
+    frame,
+    normal: { x: 0, y: 0, z: 1 },
+    corners: [
+      { x: x0, y: y1, z },
+      { x: x1, y: y1, z },
+      { x: x1, y: y0, z },
+      { x: x0, y: y0, z },
+    ],
+    ...frameUv(sheet, frame, image, [
+      (x0 - span.x0) / w,
+      (span.y1 - y1) / h,
+      (x1 - span.x0) / w,
+      (span.y1 - y0) / h,
+    ]),
+  };
+}
+
+/** The room's papered masses (the lounge's hallway block): solid furniture drawn as the house beyond, which stand as walls. */
+export function paperedMasses(room: Room): Box[] {
+  return room.furniture.flatMap((f, index) =>
+    isPapered(f) ? [furnitureBox(f, index, room.key)] : [],
+  );
+}
+
+/**
+ * The quads of `sheet` on a papered `mass`, which dresses as the room's walls
+ * do: the back wall's face tiles on its south and west faces, the faces a
+ * player sees, the whole of its height; the room's cap runs that lie on its
+ * footprint on its top. Each frame's rect is inset as `wallLayout`'s.
+ */
+export function massLayout(
+  room: Room,
+  mass: Box,
+  sheet: Sheet,
+  imageWidth: number,
+  imageHeight: number,
+): WallQuad[] {
+  const { face, wallRow, wallColumn } = ROOM_STYLES[room.key];
+  const image = { w: imageWidth, h: imageHeight };
+  const quads: WallQuad[] = [];
+  if (face?.sheet.key === sheet.key) {
+    const south: WallPiece = { ...mass, side: 'S', height: mass.z1 };
+    const west: WallPiece = { ...mass, side: 'W', height: mass.z1 };
+    const lay = (piece: WallPiece, normal: Vec3, from: number, to: number): void => {
+      for (const run of tileRuns(sheet, { x: from, y: 0, w: to - from, h: face.height })) {
+        const [a0, a1] = [metres(run.x), metres(run.x + run.w)];
+        const span = alongX(piece)
+          ? { x0: a0, x1: a1, y0: piece.y0, y1: piece.y1 }
+          : { x0: piece.x0, x1: piece.x1, y0: a0, y1: a1 };
+        const { show, ...placed } = standing(span, piece, normal);
+        quads.push({
+          frame: run.frame ?? 0,
+          ...placed,
+          ...frameUv(sheet, run.frame ?? 0, image, show),
+        });
+      }
+    };
+    lay(south, { x: 0, y: 1, z: 0 }, pixels(mass.x0), pixels(mass.x1));
+    lay(west, { x: -1, y: 0, z: 0 }, pixels(mass.y0), pixels(mass.y1));
+  }
+  if (sheet.key === wallRow.key || sheet.key === wallColumn.key) {
+    const top: WallPiece = { ...mass, side: 'N', height: mass.z1 };
+    for (const run of furnitureRuns(room)) {
+      const span: Span = {
+        x0: metres(run.x),
+        x1: metres(run.x + run.w),
+        y0: metres(run.y),
+        y1: metres(run.y + run.h),
+      };
+      const within =
+        span.x0 >= mass.x0 - EPSILON &&
+        span.x1 <= mass.x1 + EPSILON &&
+        span.y0 >= mass.y0 - EPSILON &&
+        span.y1 <= mass.y1 + EPSILON;
+      if (run.sheet.key === sheet.key && within) {
+        quads.push(topQuad(sheet, run.frame ?? 0, image, span, top));
+      }
+    }
+  }
+  return quads;
+}
+
 /**
  * The quads of every run of `sheet` on the room's wall pieces, for an image of
  * `imageWidth` x `imageHeight` px, grouped by piece. A run is laid on the
@@ -213,26 +308,7 @@ export function wallLayout(
       const quads: WallQuad[] = [];
       if (kind === 'cap') {
         if (Math.abs(piece.z1 - piece.height) > EPSILON) continue;
-        const [x0, x1] = [Math.max(span.x0, piece.x0), Math.min(span.x1, piece.x1)];
-        const [y0, y1] = [Math.max(span.y0, piece.y0), Math.min(span.y1, piece.y1)];
-        const [w, h] = [span.x1 - span.x0, span.y1 - span.y0];
-        const z = piece.height + WALL_LIFT;
-        quads.push({
-          frame,
-          normal: { x: 0, y: 0, z: 1 },
-          corners: [
-            { x: x0, y: y1, z },
-            { x: x1, y: y1, z },
-            { x: x1, y: y0, z },
-            { x: x0, y: y0, z },
-          ],
-          ...frameUv(sheet, frame, image, [
-            (x0 - span.x0) / w,
-            (span.y1 - y1) / h,
-            (x1 - span.x0) / w,
-            (span.y1 - y0) / h,
-          ]),
-        });
+        quads.push(topQuad(sheet, frame, image, span, piece));
       } else {
         const normals = kind === 'face' ? [{ x: 0, y: 1, z: 0 }] : bandNormals(piece);
         for (const normal of normals) {

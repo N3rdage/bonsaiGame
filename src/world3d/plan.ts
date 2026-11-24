@@ -125,6 +125,12 @@ const FURNITURE_WASHES: Readonly<Record<string, WashKey>> = {
   spr_shed_rug: 'tile',
 };
 
+/** The sheet of the lounge's hallway mass: a papered wall, so it wears its room's wall wash and dressing, not furniture's. */
+const PAPER_SHEET = 'spr_paper';
+
+/** Whether `f` is a mass drawn as the paper, a wall of the room that is solid furniture in its plan. */
+export const isPapered = (f: Furniture): boolean => f.sheet.key === PAPER_SHEET;
+
 /** The sheet of the windows set in a building's face. */
 export const WINDOW_SHEET = 'spr_house_window';
 /** The garage's door, which stands against its face. */
@@ -377,12 +383,12 @@ const FACE_SHEETS: ReadonlySet<string> = new Set([
  * `stands`, a slab if `flat`; a building's face is `WALL_HEIGHT` tall over its
  * rect's bottom band.
  */
-export function furnitureBox(f: Furniture, index: number): Box {
+export function furnitureBox(f: Furniture, index: number, room: RoomKey): Box {
   const isFace = f.stands === undefined && FACE_SHEETS.has(f.sheet.key);
   const foot = isFace ? WALL_BAND : f.stands?.foot;
   const rect = foot === undefined ? f : { ...f, y: f.y + f.h - foot, h: foot };
   const name = `furniture.${String(index)}.${f.sheet.key}`;
-  const wash = FURNITURE_WASHES[f.sheet.key] ?? 'wood';
+  const wash = isPapered(f) ? SURFACES[room].wall : (FURNITURE_WASHES[f.sheet.key] ?? 'wood');
   if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
   if (f.stands === undefined) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
@@ -526,7 +532,7 @@ export function roomPlan3d(room: Room): RoomPlan3d {
   const roofs: Roof[] = [];
   room.furniture.forEach((piece, index) => {
     if (!isBoxed(piece)) return;
-    const built = furnitureBox(piece, index);
+    const built = furnitureBox(piece, index, key);
     if (ROOF_SHEETS.has(piece.sheet.key)) {
       const strip = key === 'frontGarden';
       roofs.push(roofOf(`roof.${String(index)}.${piece.sheet.key}`, built, strip));

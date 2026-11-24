@@ -5,6 +5,8 @@ import { WALL_CAP, wallRuns } from '../world/roomArt';
 import { roomPlan3d } from './plan';
 import {
   WALL_LIFT,
+  massLayout,
+  paperedMasses,
   wallLayout,
   wallMeshData,
   wallPieces,
@@ -141,5 +143,50 @@ describe('wallMeshData', () => {
     expect(data.positions[0]).toBeCloseTo((q?.corners[0].x ?? 0) - 1);
     expect(data.positions[1]).toBeCloseTo((q?.corners[0].z ?? 0) - 3);
     expect(data.positions[2]).toBeCloseTo(-((q?.corners[0].y ?? 0) - 2));
+  });
+});
+
+describe('massLayout, the lounge hallway mass', () => {
+  const lounge = ROOMS.lounge;
+  const [mass] = paperedMasses(lounge);
+  const lay = (sheet: Sheet): WallQuad[] => {
+    const { w, h } = sizeOf(sheet);
+    return mass ? massLayout(lounge, mass, sheet, w, h) : [];
+  };
+
+  it('finds the one papered mass, the hallway block', () => {
+    expect(paperedMasses(lounge)).toHaveLength(1);
+    expect(mass).toMatchObject({ wash: 'wallpaper', x0: 10.5, x1: 13.5, y0: 2, y1: 4, z1: 2.25 });
+    expect(paperedMasses(ROOMS.shed)).toEqual([]);
+  });
+
+  it("dresses its south and west faces in the back wall's face tiles, the whole height", () => {
+    const quads = lay(SHEETS.wallLounge);
+    const south = quads.filter((q) => q.normal.y === 1);
+    const west = quads.filter((q) => q.normal.x === -1);
+    expect(south).toHaveLength(6);
+    expect(west).toHaveLength(4);
+    expect(quads).toHaveLength(10);
+    expect(south.every((q) => q.corners.every((c) => c.y === 4 + WALL_LIFT))).toBe(true);
+    expect(west.every((q) => q.corners.every((c) => c.x === 10.5 - WALL_LIFT))).toBe(true);
+    for (const q of quads) {
+      expect(Math.min(...q.corners.map((c) => c.z))).toBe(0);
+      expect(Math.max(...q.corners.map((c) => c.z))).toBe(2.25);
+    }
+  });
+
+  it("lays the lounge's caps on its top along its two open edges", () => {
+    const side = lay(SHEETS.loungeCapV);
+    const row = lay(SHEETS.loungeCap);
+    expect(side).toHaveLength(4);
+    expect(row).toHaveLength(6);
+    for (const q of [...side, ...row]) {
+      expect(q.normal).toEqual({ x: 0, y: 0, z: 1 });
+      expect(q.corners.every((c) => c.z === 2.25 + WALL_LIFT)).toBe(true);
+    }
+  });
+
+  it('lays nothing of a sheet the room does not wear', () => {
+    expect(lay(SHEETS.shedWall)).toEqual([]);
   });
 });

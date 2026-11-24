@@ -12,7 +12,7 @@
  */
 
 import { PLAYER_HEIGHT, type Vec3 } from './meshes';
-import type { Box, RoomPlan3d, WallSide } from './plan';
+import { ROOF_OVERHANG, type Box, type Roof, type RoomPlan3d, type WallSide } from './plan';
 
 /** The extent of a box: what the slab test needs of it. */
 type Extent = Pick<Box, 'x0' | 'x1' | 'y0' | 'y1' | 'z0' | 'z1'>;
@@ -245,12 +245,29 @@ export function cuttable(plan: RoomPlan3d, piece: Box): boolean {
   return !OUTDOORS.has(plan.key) || piece.z1 - piece.z0 > OUTDOOR_CUT_MIN_HEIGHT;
 }
 
+/** The box a roof stands over, from the floor: its building's footprint, without a gable's overhang, so a line that clips only the overhang does not cut the roof from a building left standing. */
+function roofBuilding(roof: Roof): Box {
+  const inset = roof.form.kind === 'gable' ? ROOF_OVERHANG : 0;
+  return {
+    name: roof.name,
+    wash: roof.wash,
+    x0: roof.x0 + inset,
+    x1: roof.x1 - inset,
+    y0: roof.y0 + inset,
+    y1: roof.y1 - inset,
+    z0: 0,
+    z1: roof.high,
+    solid: false,
+  };
+}
+
 /**
  * The names of the plan's pieces to cut away to the skirting for a camera in
  * `view` round the player standing at `player` (feet, plan metres). Indoors
  * that is each wall on the side the camera is on (`facesCamera`); outdoors,
- * each tall wall or building piece, and each roof (over its footprint from the floor), the line from the camera to the player's
- * middle passes through. The camera is taken as centred on the player, which
+ * each tall wall or building piece, and each roof (over its building's
+ * footprint from the floor, its overhang left out), the line from the camera
+ * to the player's middle passes through. The camera is taken as centred on the player, which
  * it is once eased.
  */
 export function cutNames(plan: RoomPlan3d, view: CameraView, player: Vec3): string[] {
@@ -263,7 +280,7 @@ export function cutNames(plan: RoomPlan3d, view: CameraView, player: Vec3): stri
     .filter((piece) => cuttable(plan, piece) && segmentCrossesBox(eye, middle, piece))
     .map((piece) => piece.name);
   const roofs = plan.roofs
-    .filter((roof) => segmentCrossesBox(eye, middle, { ...roof, z0: 0, z1: roof.high }))
+    .filter((roof) => segmentCrossesBox(eye, middle, roofBuilding(roof)))
     .map((roof) => roof.name);
   return [...pieces, ...roofs];
 }

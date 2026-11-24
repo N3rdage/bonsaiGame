@@ -212,6 +212,26 @@ describe('roomPlan3d furniture', () => {
     expect(solid.every((f) => f.z0 === 0)).toBe(true);
   });
 
+  it("washes the lounge's hallway mass as the room's wallpaper, 3 x 2 x 2.25 m and solid", () => {
+    const mass = roomPlan3d(ROOMS.lounge).furniture.find((f) => f.name.endsWith('spr_paper'));
+    expect(mass).toMatchObject({
+      wash: 'wallpaper',
+      x0: 10.5,
+      x1: 13.5,
+      y0: 2,
+      y1: 4,
+      z0: 0,
+      z1: 2.25,
+      solid: true,
+    });
+  });
+
+  it('washes furniture wood unless it is a papered wall', () => {
+    const wood = roomPlan3d(ROOMS.lounge).furniture.filter((f) => !f.name.endsWith('spr_paper'));
+    expect(wood.some((f) => f.wash === 'wood')).toBe(true);
+    expect(wood.every((f) => f.wash !== 'wallpaper')).toBe(true);
+  });
+
   it('lays flat furniture as a slab, and the road beyond the bounds as floor', () => {
     const plan = roomPlan3d(ROOMS.frontGarden);
     expect(plan.floor.find((f) => f.wash === 'asphalt')).toMatchObject({
