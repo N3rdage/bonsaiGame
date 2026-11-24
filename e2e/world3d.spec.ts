@@ -646,6 +646,24 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-furniture.png');
   });
 
+  test(
+    "papers the lounge's hallway block as a wall",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await bootWorld(page);
+      await waitForRoom(page, 'shed');
+      await skipTutorial(page, true);
+      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      await waitForBuilt(page, ['garden', 'lounge']);
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await page.waitForTimeout(800);
+      await expect(page).toHaveScreenshot('world3d-lounge.png');
+    },
+  );
+
   test("lays each room's own Inked floor tiles", { tag: '@walk' }, async ({ page }) => {
     test.setTimeout(120_000);
     await bootWorld(page);
