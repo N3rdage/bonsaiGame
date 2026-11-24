@@ -136,6 +136,7 @@ export interface RendererSnapshot {
   readonly built: readonly string[];
   /** The latest changes of room, oldest first, with the time each took to draw. */
   readonly roomChanges: readonly RoomChange[];
+  /** The latest rooms built ahead, hidden, oldest first, with the time each build took. */
   readonly aheadBuilds: readonly AheadBuild[];
   /** The benchmark run: on now, and its result once in. */
   readonly bench: { readonly running: boolean; readonly result: BenchResult | null };
