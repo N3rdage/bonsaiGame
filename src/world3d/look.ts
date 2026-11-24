@@ -39,6 +39,20 @@ export const LOOK = {
   contrast: 1.1,
 } as const;
 
+/** The painted surfaces' colours, 0xRRGGBB: what the texture painters take as their defaults. */
+export const SURFACES = {
+  walls: {
+    paper: 0x4f7a64,
+    motif: 0x6a9478,
+    wainscot: 0xe6d8b8,
+    rail: 0x9a6a44,
+    skirting: 0x6a4630,
+  },
+  floor: { plank: 0xb4804e, gap: 0x4a2e20, worn: 0xd0a070 },
+  tiles: { tile: 0xd8cbb0, grout: 0x9a8a74 },
+  rug: [0x2e4a6a, 0xf0dcb0, 0xb8473a, 0xe0a040],
+} as const;
+
 /** The light's colours as the shader takes them: 0..1 triples, power folded in. */
 export function lookLight(): { sun: Rgb; sky: Rgb; ground: Rgb } {
   return {

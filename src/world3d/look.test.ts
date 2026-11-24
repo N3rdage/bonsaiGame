@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOK, lookLight, outlineWidthMetres, rampGlsl, unitRgb } from './look';
+import { LOOK, SURFACES, lookLight, outlineWidthMetres, rampGlsl, unitRgb } from './look';
 
 describe('LOOK', () => {
   it('pins the painterly numbers', () => {
@@ -71,6 +71,21 @@ describe('rampGlsl', () => {
 
   it('rejects an empty ramp', () => {
     expect(() => rampGlsl([])).toThrow();
+  });
+});
+
+describe('SURFACES', () => {
+  it('pins the painted surfaces', () => {
+    expect(SURFACES.walls).toEqual({
+      paper: 0x4f7a64,
+      motif: 0x6a9478,
+      wainscot: 0xe6d8b8,
+      rail: 0x9a6a44,
+      skirting: 0x6a4630,
+    });
+    expect(SURFACES.floor).toEqual({ plank: 0xb4804e, gap: 0x4a2e20, worn: 0xd0a070 });
+    expect(SURFACES.tiles).toEqual({ tile: 0xd8cbb0, grout: 0x9a8a74 });
+    expect(SURFACES.rug).toEqual([0x2e4a6a, 0xf0dcb0, 0xb8473a, 0xe0a040]);
   });
 });
 
