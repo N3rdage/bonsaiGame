@@ -99,7 +99,7 @@ const SURROUND = Color3.FromHexString('#3e3632');
 /** The plan's origin, where a model's parts and a room's standing details are placed. */
 const ORIGIN: Vec3 = { x: 0, y: 0, z: 0 };
 
-/** The mat on an empty display spot: a low disc, `MAT_DIAMETER` m across (a little wider than a small pot) and `MAT_HEIGHT` m thick, sitting on the furniture's top, drawn in `MAT_TESSELLATION` sides. */
+/** The mat on an empty display spot: a low disc, `MAT_DIAMETER` m across (a little wider than a small pot) and `MAT_HEIGHT` m thick, sitting on the furniture's top, drawn in `MAT_TESSELLATION` sides, in a pale stone wash that reads against the furniture's wood. */
 const MAT_DIAMETER = 0.22;
 const MAT_HEIGHT = 0.02;
 const MAT_TESSELLATION = 16;
@@ -820,7 +820,7 @@ export class Renderer {
           { diameter: MAT_DIAMETER, height: MAT_HEIGHT, tessellation: MAT_TESSELLATION },
           this.scene,
         );
-        mesh.material = this.material('runner');
+        mesh.material = this.material('stone');
         mesh.receiveShadows = true;
         mesh.isPickable = false;
         this.ink(mesh);
