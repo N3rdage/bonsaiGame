@@ -27,7 +27,7 @@ import {
 } from './drive';
 import {
   gardenToGreenhouse,
-  hallwayToFront,
+  hallwayToFrontByInteract,
   loungeToHallway,
   loungeToShed,
   shedToGarden,
@@ -727,8 +727,11 @@ test.describe('the 3D world', () => {
       await waitForBuilt(page, ['hallway']);
       await loungeToHallway(page);
       await waitForBuilt(page, ['frontGarden', 'study']);
-      await hallwayToFront(page);
+      // The door is used by Interact, not by walking into it: a walk-through leaves the arrow key
+      // held and the player drifting north of the landing by a timing-dependent few px.
+      await hallwayToFrontByInteract(page);
       await waitForRoom(page, 'frontGarden');
+      expect((await hook(page)).player).toMatchObject({ x: 336, y: 190 });
       await waitForBuilt(page, ['garden']);
       await expect
         .poll(async () => (await world3d(page)).cut.some((n) => n.endsWith('_face')), POLL)
