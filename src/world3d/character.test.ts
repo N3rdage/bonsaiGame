@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CHARACTER_HEIGHT,
   CLIP_NAMES,
+  GARDENER_PALETTE,
   JOINT_NAMES,
   STRIDE_SPEED,
   WALK_FULL_SPEED,
@@ -81,6 +82,67 @@ describe('the body', () => {
     }
     expect(Math.max(...mesh.indices)).toBe(vertices - 1);
     expect(mesh.colors).toHaveLength(vertices * 4);
+  });
+
+  it('stands about 1.7 to 1.75 m with its bun, bun and boots included', () => {
+    expect(CHARACTER_HEIGHT).toBeGreaterThanOrEqual(1.7);
+    expect(CHARACTER_HEIGHT).toBeLessThanOrEqual(1.75);
+  });
+
+  it('is 38 parts of 117 vertices each', () => {
+    expect(vertices).toBe(38 * 117);
+    expect(mesh.indices).toHaveLength(38 * 8 * 12 * 6);
+  });
+
+  it('binds the vertices to the joints they follow: limbs below their pivots, the head above its own', () => {
+    const count = [0, 0, 0, 0, 0, 0, 0];
+    for (let v = 0; v < vertices; v++) {
+      const joint = JOINT_NAMES[mesh.joints[v * 4] ?? -1] ?? 'hips';
+      const y = mesh.positions[v * 3 + 1] ?? 0;
+      count[mesh.joints[v * 4] ?? 0] = (count[mesh.joints[v * 4] ?? 0] ?? 0) + 1;
+      if (joint === 'legL' || joint === 'legR') expect(y).toBeLessThan(jointAt(joint)[1]);
+      if (joint === 'armL' || joint === 'armR') expect(y).toBeLessThan(jointAt(joint)[1]);
+      if (joint === 'head') expect(y).toBeGreaterThan(jointAt('head')[1] * 0.8);
+    }
+    expect(Object.fromEntries(JOINT_NAMES.map((j, i) => [j, (count[i] ?? 0) / 117]))).toEqual({
+      hips: 4,
+      spine: 4,
+      head: 18,
+      legL: 3,
+      legR: 3,
+      armL: 3,
+      armR: 3,
+    });
+  });
+
+  it('paints the same every build, within the colour range, lit from above', () => {
+    expect(characterMesh().colors).toEqual(mesh.colors);
+    expect(Math.min(...mesh.colors)).toBeGreaterThanOrEqual(0);
+    expect(Math.max(...mesh.colors)).toBeLessThanOrEqual(1);
+    // The first part's top pole is lighter than its bottom one (ring 0 is the bottom).
+    const top = mesh.colors[8 * 13 * 4] ?? 0;
+    const bottom = mesh.colors[0] ?? 0;
+    expect(top).toBeGreaterThan(bottom);
+  });
+});
+
+describe('the gardener', () => {
+  it('wears the painterly palette', () => {
+    expect(GARDENER_PALETTE).toEqual({
+      skin: 0xeab48c,
+      hair: 0x2e2a2e,
+      sprig: 0xe8c470,
+      leaf: 0x7ab85a,
+      band: 0x3a6a8a,
+      shirt: 0xd2604a,
+      apron: 0xe8d8b4,
+      trousers: 0x3a4a6a,
+      boots: 0x5a3828,
+      scarf: 0xf0d080,
+      cheek: 0xf08070,
+      eye: 0x1e1a1e,
+      handle: 0x8a5a3a,
+    });
   });
 });
 
