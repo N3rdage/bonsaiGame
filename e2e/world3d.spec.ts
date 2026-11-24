@@ -148,6 +148,10 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'lounge');
       const lounge = await world3d(page);
       expect(lounge.room).toBe('lounge');
+      if (test.info().project.name === 's22-landscape') {
+        await page.waitForTimeout(500);
+        await expect(page).toHaveScreenshot('world3d-lounge.png');
+      }
 
       // A room left is hidden, not disposed: coming back to the lounge shows the same meshes.
       await loungeToShed(page);
@@ -627,7 +631,7 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-shed-turned.png');
   });
 
-  test("lights and inks the room in the tree viewer's toon look", async ({ page }) => {
+  test("lights and inks the room in the world's look", async ({ page }) => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await waitForRoom(page, 'shed');

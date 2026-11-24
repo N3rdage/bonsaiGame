@@ -79,7 +79,7 @@ interface BonsaiTestHook {
     };
     /** The polygon offset the Inked floor and wall art draws with over the boxes it dresses (negative: toward the camera); 0 before the floor's art has loaded and while off. */
     readonly artDepthOffset: number;
-    /** True while the lit meshes are lit through the viewer's stepped toon ramp and inked with its outline; false while off. */
+    /** True while the lit meshes are lit through the look's soft ramp and hemisphere fill and inked; false while off. */
     readonly toon: boolean;
     /** The key of the sheet the 3D floor's Inked tiles are cut from ('spr_floor_shed' in the shed), null until its texture has loaded and while off. */
     readonly floorSheet: string | null;
