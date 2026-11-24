@@ -752,6 +752,18 @@ test.describe('the 3D world', () => {
     },
   );
 
+  test('draws the gardener close up in the shed', { tag: '@walk' }, async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    // The wheel zooms to the camera's nearest, which frames the player from head to boots.
+    await zoomIn(page, 3000, 4.5);
+    await expect(page).toHaveScreenshot('world3d-gardener.png', { timeout: 30_000 });
+  });
+
   test("draws the garden's glazed doors", { tag: '@walk' }, async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
     test.setTimeout(120_000);
