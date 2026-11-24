@@ -76,7 +76,8 @@ import {
   toBabylon,
 } from './meshes';
 import { inFront, nearestSpot, type Picked, type ScreenSpot } from './tap';
-import { roomPlan3d, type RoomPlan3d, type WashKey } from './plan';
+import { roomPlan3d, type Roof, type RoomPlan3d, type WashKey } from './plan';
+import { roofMesh } from './roofMeshes';
 import { inkUnit, outlineWidthMetres } from './toon';
 import { toonLit } from './toonPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
@@ -877,10 +878,28 @@ export class Renderer {
         z1: spec.center.y + spec.height / 2,
       });
     }
+    for (const roof of plan.roofs) this.roof(set, roof);
     this.furnishDetails(set, roomDetails(room, plan));
     this.tile(set, room);
     this.clothe(set, room);
     return set;
+  }
+
+  /** Stands `roof` over its building: one inked prism, cut away with the other pieces. */
+  private roof(set: RoomSet, roof: Roof): void {
+    const { center, positions, normals, indices } = roofMesh(roof);
+    const mesh = new Mesh(roof.name, this.scene);
+    const vertices = new VertexData();
+    vertices.positions = positions;
+    vertices.normals = normals;
+    vertices.indices = indices;
+    vertices.applyToMesh(mesh);
+    mesh.parent = set.root;
+    mesh.position.set(center.x, center.y, center.z);
+    mesh.material = this.material(roof.wash);
+    mesh.isPickable = false;
+    this.ink(mesh);
+    set.pieces.set(roof.name, { mesh, z0: roof.low, z1: roof.high });
   }
 
   /** Disposes a set's meshes, taking its casters off the shadow map's list, and the materials only it uses; the shared textures stay. */
