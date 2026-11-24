@@ -993,6 +993,10 @@ export class WorldScene extends Phaser.Scene {
         this.closePanel();
         this.world3d.startBench();
       },
+      times: () => {
+        this.closePanel();
+        this.world3d.showTimes();
+      },
       title: () => {
         this.toTitle();
       },
@@ -1802,12 +1806,17 @@ export class WorldScene extends Phaser.Scene {
    * targeted, so it follows the state on every redraw.
    */
   private liveRoom(): Room {
+    return this.liveRoomOf(this.room);
+  }
+
+  /** `room` with the furniture placed in it, as `liveRoom` gives the room shown; the 3D world builds the rooms behind the doors from these. */
+  private liveRoomOf(room: Room): Room {
     const { state } = this.ctx;
     const carrying = carriedTree(state) !== undefined;
     return {
-      ...this.room,
-      props: [...this.room.props, ...placedProps(state, this.room, carrying)],
-      furniture: [...this.room.furniture, ...placedFurniture(state, this.room)],
+      ...room,
+      props: [...room.props, ...placedProps(state, room, carrying)],
+      furniture: [...room.furniture, ...placedFurniture(state, room)],
     };
   }
 
@@ -2125,7 +2134,16 @@ export class WorldScene extends Phaser.Scene {
     // The 3D world draws the outdoor weather only; the indoor motes stay a 2D touch.
     const weather = isIndoor(this.room) ? undefined : this.weather;
     const gameSeconds = (steps * STEP_MS) / 1000;
-    this.world3d.sync(settings.world3d, room, this.player, trees, season, weather, gameSeconds);
+    this.world3d.sync(
+      settings.world3d,
+      room,
+      this.player,
+      trees,
+      season,
+      weather,
+      (key) => this.liveRoomOf(ROOMS[key]),
+      gameSeconds,
+    );
     const on = this.world3d.active;
     if (this.worldCamera.visible === !on) return;
     this.worldCamera.visible = !on;

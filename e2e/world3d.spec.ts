@@ -27,7 +27,7 @@ import {
 } from './drive';
 import {
   gardenToGreenhouse,
-  hallwayToFront,
+  hallwayToFrontByInteract,
   loungeToHallway,
   loungeToShed,
   shedToGarden,
@@ -47,6 +47,14 @@ async function world3d(page: Page): Promise<NonNullable<BonsaiTestHook['world3d'
   const state = (await hook(page)).world3d;
   if (!state) throw new Error('world3d missing from the hook');
   return state;
+}
+
+/** Waits until the renderer keeps a built set for each of `rooms`, shown or hidden. */
+async function waitForBuilt(page: Page, rooms: readonly RoomKey[]): Promise<void> {
+  await page.waitForFunction(
+    (keys) => keys.every((key) => window.__bonsai?.world3d?.built.includes(key)),
+    rooms,
+  );
 }
 
 /** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid. */
@@ -165,6 +173,7 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
       await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      await waitForBuilt(page, ['lounge']);
 
       await shedToLounge(page);
       await waitForRoom(page, 'lounge');
@@ -176,13 +185,14 @@ test.describe('the 3D world', () => {
       const { roomChanges } = await world3d(page);
       expect(roomChanges.map(({ room, first }) => [room, first])).toEqual([
         ['shed', true],
-        ['lounge', true],
+        ['lounge', false],
         ['shed', false],
         ['lounge', false],
       ]);
-      // A built room's art is laid by the time the room's floor and walls show.
-      expect(roomChanges[1]?.dressedMs).toBeGreaterThan(0);
-      expect(roomChanges[3]?.dressedMs).toBeUndefined();
+      // The shed, the first room, was built by its own change and its art laid by the time its
+      // floor and walls showed; the lounge was built ahead from the shed, so no change built it.
+      expect(roomChanges[0]?.dressedMs).toBeGreaterThan(0);
+      for (const change of roomChanges.slice(1)) expect(change.dressedMs).toBeUndefined();
       // Software GL draws a repeat visit in a few ms to a few tens (the shed, with its trees and
       // thin instances, is the dearest); building it again took longer. The bound is generous
       // for two workers under load; the `first` flags above are what pin that nothing is rebuilt.
@@ -192,12 +202,54 @@ test.describe('the 3D world', () => {
     },
   );
 
+  test('builds the rooms behind the shed doors ahead, hidden', async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await waitForBuilt(page, ['garden', 'lounge', 'shed']);
+    // A set built ahead is hidden: only the shed's meshes are counted, and the room is still the shed.
+    const state = await world3d(page);
+    expect(state.room).toBe('shed');
+    expect(state.roomChanges.map(({ room, first }) => [room, first])).toEqual([['shed', true]]);
+  });
+
+  test('builds no room ahead while the player walks, and does once they stop', async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await waitForBuilt(page, ['garden', 'lounge']);
+    // The shed's neighbours are built and ahead of the lounge's own: the hallway is not.
+    expect((await world3d(page)).built).not.toContain('hallway');
+
+    // Through the lounge door and on up the lounge, a walk of over a second that never lets go
+    // of the key, so the player does not stand still in the room that queues the hallway.
+    await page.keyboard.down('ArrowUp');
+    await page.waitForFunction(() => window.__bonsai?.room === 'lounge', undefined, POLL);
+    const walking = await hook(page);
+    expect(walking.world3d?.built).not.toContain('hallway');
+    const from = walking.player.y;
+    await page.waitForFunction((y) => (window.__bonsai?.player.y ?? y) < y - 20, from, POLL);
+    const now = await hook(page);
+    expect(now.player.y).toBeLessThan(from);
+    expect(now.world3d?.aheadBuilds).toEqual(walking.world3d?.aheadBuilds);
+    expect(now.world3d?.built).toEqual(walking.world3d?.built);
+    await page.keyboard.up('ArrowUp');
+
+    await waitForBuilt(page, ['hallway']);
+    const { aheadBuilds } = await world3d(page);
+    expect(aheadBuilds.map(({ room }) => room)).toEqual(['garden', 'lounge', 'hallway']);
+    for (const { ms } of aheadBuilds) expect(ms).toBeGreaterThan(0);
+  });
+
   test('walks through a doorway into the next room without Interact', async ({ page }) => {
     test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await waitForBuilt(page, ['lounge']);
 
     // The shed's start is in line with the lounge door in its top wall: straight up, no E.
     expect((await hook(page)).room).toBe('shed');
@@ -206,6 +258,11 @@ test.describe('the 3D world', () => {
     await page.keyboard.up('ArrowUp');
     const lounge = await hook(page);
     expect(lounge.arrivedBeside).toBe('door');
+    // The lounge was built ahead, so the change into it built nothing.
+    expect((await world3d(page)).roomChanges.at(-1)).toMatchObject({
+      room: 'lounge',
+      first: false,
+    });
     // The landing is beside the far door, facing into the room, and walking on does not bounce back.
     expect(lounge.player.y).toBeGreaterThan(150);
     await page.waitForTimeout(400);
@@ -593,6 +650,20 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-furniture.png');
   });
 
+  test("papers the lounge's hallway block as a wall", { tag: '@walk' }, async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await waitForBuilt(page, ['garden', 'lounge']);
+    await shedToLounge(page);
+    await waitForRoom(page, 'lounge');
+    await page.waitForTimeout(800);
+    await expect(page).toHaveScreenshot('world3d-lounge.png');
+  });
+
   test("lays each room's own Inked floor tiles", { tag: '@walk' }, async ({ page }) => {
     test.setTimeout(120_000);
     await bootWorld(page);
@@ -635,7 +706,7 @@ test.describe('the 3D world', () => {
       expect((await world3d(page)).details).toEqual({ door: 2, window: 1 });
       await shedToGarden(page);
       await waitForRoom(page, 'garden');
-      expect((await world3d(page)).details).toEqual({ door: 1, window: 1, planting: 3 });
+      expect((await world3d(page)).details).toEqual({ door: 4, window: 1, planting: 3 });
     },
   );
 
@@ -667,10 +738,19 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
       await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      // Each walk starts once the rooms behind the doors are built ahead, so it runs on idle
+      // frames and the player lands where the baseline has it.
+      await waitForBuilt(page, ['garden', 'lounge']);
       await shedToLounge(page);
+      await waitForBuilt(page, ['hallway']);
       await loungeToHallway(page);
-      await hallwayToFront(page);
+      await waitForBuilt(page, ['frontGarden', 'study']);
+      // The door is used by Interact, not by walking into it: a walk-through leaves the arrow key
+      // held and the player drifting north of the landing by a timing-dependent few px.
+      await hallwayToFrontByInteract(page);
       await waitForRoom(page, 'frontGarden');
+      expect((await hook(page)).player).toMatchObject({ x: 336, y: 190 });
+      await waitForBuilt(page, ['garden']);
       await expect
         .poll(async () => (await world3d(page)).cut.some((n) => n.endsWith('_face')), POLL)
         .toBe(true);

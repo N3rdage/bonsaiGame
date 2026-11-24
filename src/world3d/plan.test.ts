@@ -1,16 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
-import { FENCE_HEIGHT, LOW_FENCE_HEIGHT } from '../world/roomArt';
+import { BACK_WALL_FACE, FENCE_HEIGHT, LOW_FENCE_HEIGHT } from '../world/roomArt';
 import { furnitureWalls, type RoomKey } from '../world/shedRoom';
 import {
   DOOR_HEIGHT,
   FENCE_HEIGHT_M,
   LOW_FENCE_HEIGHT_M,
+  ROOF_OVERHANG,
+  ROOF_PITCH,
+  ROOF_RISE_MAX,
+  ROOF_STRIP_LOW,
   WALL_HEIGHT,
   WINDOW_HEAD,
   WINDOW_SILL,
   heightMetres,
   metres,
+  roofOf,
   roomPlan3d,
   type Box,
 } from './plan';
@@ -207,6 +212,26 @@ describe('roomPlan3d furniture', () => {
     expect(solid.every((f) => f.z0 === 0)).toBe(true);
   });
 
+  it("washes the lounge's hallway mass as the room's wallpaper, 3 x 2 x 2.25 m and solid", () => {
+    const mass = roomPlan3d(ROOMS.lounge).furniture.find((f) => f.name.endsWith('spr_paper'));
+    expect(mass).toMatchObject({
+      wash: 'wallpaper',
+      x0: 10.5,
+      x1: 13.5,
+      y0: 2,
+      y1: 4,
+      z0: 0,
+      z1: 2.25,
+      solid: true,
+    });
+  });
+
+  it('washes furniture wood unless it is a papered wall', () => {
+    const wood = roomPlan3d(ROOMS.lounge).furniture.filter((f) => !f.name.endsWith('spr_paper'));
+    expect(wood.some((f) => f.wash === 'wood')).toBe(true);
+    expect(wood.every((f) => f.wash !== 'wallpaper')).toBe(true);
+  });
+
   it('lays flat furniture as a slab, and the road beyond the bounds as floor', () => {
     const plan = roomPlan3d(ROOMS.frontGarden);
     expect(plan.floor.find((f) => f.wash === 'asphalt')).toMatchObject({
@@ -291,5 +316,80 @@ describe('roomPlan3d collision', () => {
     expect(firstDifference([...solid, ...doors], collision)).toBeUndefined();
     // And every opening lies inside that collision: no door or window is walkable.
     expect(firstDifference([...plan.openings, ...collision], collision)).toBeUndefined();
+  });
+});
+
+describe('roomPlan3d roofs', () => {
+  const garden = roomPlan3d(ROOMS.garden);
+  const eaves = heightMetres(BACK_WALL_FACE);
+  /** The room's roof run by sheet key, in metres. */
+  const run = (key: RoomKey, sheet: string): Foot => {
+    const r = ROOMS[key].furniture.find((f) => f.sheet.key === sheet);
+    if (r === undefined) throw new Error(sheet);
+    return { x0: metres(r.x), x1: metres(r.x + r.w), y0: metres(r.y), y1: metres(r.y + r.h) };
+  };
+  const roofOver = (sheet: string, plan = garden) => {
+    const roof = plan.roofs.find((r) => r.name.endsWith(sheet));
+    if (roof === undefined) throw new Error(sheet);
+    return roof;
+  };
+
+  it.each([
+    ['spr_house_roof', 'tile'],
+    ['spr_shed_roof', 'tile'],
+    ['spr_greenhouse_roof', 'paint'],
+  ] as const)('%s: a gable on its walls, ridge along its longer axis', (sheet, wash) => {
+    const foot = run('garden', sheet);
+    const roof = roofOver(sheet);
+    expect(roof.wash).toBe(wash);
+    expect(roof.form).toEqual({ kind: 'gable', axis: 'x' });
+    expect(roof.low).toBeCloseTo(eaves);
+    expect(roof.x0).toBeCloseTo(foot.x0 - ROOF_OVERHANG);
+    expect(roof.x1).toBeCloseTo(foot.x1 + ROOF_OVERHANG);
+    expect(roof.y0).toBeCloseTo(foot.y0 - ROOF_OVERHANG);
+    expect(roof.y1).toBeCloseTo(foot.y1 + ROOF_OVERHANG);
+    const half = (roof.y1 - roof.y0) / 2;
+    expect(roof.high - roof.low).toBeCloseTo(Math.min(ROOF_RISE_MAX, half * Math.tan(ROOF_PITCH)));
+    // The box under the roof still stands at the eaves.
+    expect(garden.furniture.find((b) => b.name.endsWith(sheet))?.z1).toBeCloseTo(eaves);
+  });
+
+  it('pitches a shallow footprint at 30 degrees and caps a deep one', () => {
+    const house = roofOver('spr_house_roof');
+    const shed = roofOver('spr_shed_roof');
+    expect(house.high - house.low).toBeCloseTo(ROOF_RISE_MAX);
+    const half = (shed.y1 - shed.y0) / 2;
+    expect((shed.high - shed.low) / half).toBeCloseTo(Math.tan(ROOF_PITCH));
+    expect(shed.high - shed.low).toBeLessThan(ROOF_RISE_MAX);
+  });
+
+  it('runs the ridge of a footprint longer north-south along y', () => {
+    const box: Box = {
+      name: 'b',
+      wash: 'tile',
+      x0: 0,
+      x1: 2,
+      y0: 0,
+      y1: 6,
+      z0: 0,
+      z1: eaves,
+      solid: false,
+    };
+    const roof = roofOf('r', box, false);
+    expect(roof.form).toEqual({ kind: 'gable', axis: 'y' });
+    expect(roof.high - roof.low).toBeCloseTo((1 + ROOF_OVERHANG) * Math.tan(ROOF_PITCH));
+  });
+
+  it("falls the front garden's roof strip from the face's top to a low south edge", () => {
+    const front = roomPlan3d(ROOMS.frontGarden);
+    const foot = run('frontGarden', 'spr_house_roof');
+    const roof = roofOver('spr_house_roof', front);
+    expect(front.roofs).toHaveLength(1);
+    expect(roof.form).toEqual({ kind: 'slope', high: 'N' });
+    expect(roof.high).toBeCloseTo(eaves);
+    expect(roof.low).toBe(ROOF_STRIP_LOW);
+    expect(roof).toMatchObject(foot);
+    // No slab is left where the strip lies.
+    expect(front.furniture.some((b) => b.name.endsWith('spr_house_roof'))).toBe(false);
   });
 });

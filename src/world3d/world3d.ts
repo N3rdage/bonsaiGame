@@ -9,9 +9,10 @@
 import type Phaser from 'phaser';
 import { SURROUND } from '../scenes/textStyle';
 import type { Season } from '../sim/seasons';
-import type { Room } from '../world/shedRoom';
+import type { Room, RoomKey } from '../world/shedRoom';
 import { cameraRig } from './camera';
-import { showBench } from './benchPanel';
+import { showBench, showPanel } from './benchPanel';
+import { roomTimeLines } from './roomTimes';
 import type { Renderer } from './renderer';
 import type { Picked } from './tap';
 import type { TreeStand } from './trees';
@@ -49,6 +50,7 @@ export class World3d {
   /** The benchmark result whose panel has been shown, so each result is shown once. */
   private benchShown: unknown;
   private benchPanel: HTMLElement | undefined;
+  private timesPanel: HTMLElement | undefined;
 
   constructor(private readonly host: HTMLCanvasElement) {}
 
@@ -64,7 +66,7 @@ export class World3d {
     return this.renderer !== undefined;
   }
 
-  /** Follows the setting: starts loading the renderer when it turns on, drops it when it turns off, and draws a frame while it is up. */
+  /** Follows the setting (`roomOf` gives a room's live data, which the rooms behind the doors are built ahead from): starts loading the renderer when it turns on, drops it when it turns off, and draws a frame while it is up. */
   sync(
     on: boolean,
     room: Room,
@@ -72,6 +74,7 @@ export class World3d {
     trees: readonly TreeStand[],
     season: Season,
     weather: WeatherField | undefined,
+    roomOf: (key: RoomKey) => Room,
     gameSeconds = 0,
   ): void {
     if (on && !this.renderer && !this.loading && !this.failed) {
@@ -91,7 +94,7 @@ export class World3d {
         });
     }
     if (!on) this.dispose();
-    this.renderer?.frame(room, player, trees, season, weather, gameSeconds);
+    this.renderer?.frame(room, player, trees, season, weather, roomOf, gameSeconds);
     const bench = this.renderer?.benchState().result;
     if (bench && bench !== this.benchShown) {
       this.benchShown = bench;
@@ -105,12 +108,23 @@ export class World3d {
     this.renderer?.startBench();
   }
 
+  /** Shows the latest room-change and build-ahead times, replacing any readout open; empty lists while the renderer is not up. */
+  showTimes(): void {
+    this.timesPanel?.remove();
+    const snap = this.renderer?.snapshot();
+    this.timesPanel = showPanel(
+      'times',
+      roomTimeLines(snap?.roomChanges ?? [], snap?.aheadBuilds ?? [], navigator.userAgent),
+    );
+  }
+
   /** Lets the renderer and its canvas go, cancels a load in flight, and lets a failed load be tried again. */
   dispose(): void {
     this.generation += 1;
     this.loading = false;
     this.failed = false;
     this.benchPanel?.remove();
+    this.timesPanel?.remove();
     this.benchShown = undefined;
     this.renderer?.dispose();
     this.renderer = undefined;
@@ -144,10 +158,12 @@ export class World3d {
       wallSheets: state ? [...state.wallSheets] : [],
       details: state ? { ...state.details } : {},
       weather: state?.weather ?? null,
+      built: state ? [...state.built] : [],
       player: this.renderer ? this.renderer.playerAt() : null,
       picked: this.picked,
       hotspots: state ? [...state.hotspots] : [],
       roomChanges: state ? state.roomChanges.map((change) => ({ ...change })) : [],
+      aheadBuilds: state ? state.aheadBuilds.map((build) => ({ ...build })) : [],
       bench: state ? { ...state.bench } : { running: false, result: null },
     };
   }

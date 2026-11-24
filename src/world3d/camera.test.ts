@@ -21,7 +21,7 @@ import {
   segmentCrossesBox,
 } from './camera';
 import { playerFeet } from './meshes';
-import { roomPlan3d } from './plan';
+import { ROOF_OVERHANG, roomPlan3d } from './plan';
 
 const DEG = Math.PI / 180;
 /** The heading of a camera standing on each side of the room: alpha puts it at (cos, -sin) in (east, south). */
@@ -284,6 +284,7 @@ describe('cutNames', () => {
     const plan = {
       ...roomPlan3d(ROOMS.garden),
       walls: [],
+      roofs: [],
       furniture: [
         piece('between', 9, 11, 2.4),
         piece('beside', 20, 11, 2.4),
@@ -295,6 +296,51 @@ describe('cutNames', () => {
     expect(cutNames(plan, view(HEADING.S), player)).toEqual(['between']);
     expect(cutNames(plan, view(HEADING.N), player)).toEqual(['behind']);
     expect(cutNames(plan, view(HEADING.E), player)).toEqual([]);
+  });
+
+  it('cuts a roof over the line from the camera to the player, whole from the floor up', () => {
+    const roof = (name: string, x0: number, y0: number) => ({
+      name,
+      wash: 'tile' as const,
+      x0,
+      x1: x0 + 2,
+      y0,
+      y1: y0 + 2,
+      low: 2.25,
+      high: 3,
+      form: { kind: 'gable', axis: 'x' } as const,
+    });
+    const plan = {
+      ...roomPlan3d(ROOMS.garden),
+      walls: [],
+      furniture: [],
+      roofs: [roof('between', 9, 10.5), roof('beside', 20, 11), roof('behind', 9, 7)],
+    };
+    const player = { x: 10, y: 10, z: 0 };
+    expect(cutNames(plan, view(HEADING.S), player)).toEqual(['between']);
+    expect(cutNames(plan, view(HEADING.N), player)).toEqual(['behind']);
+    expect(cutNames(plan, view(HEADING.E), player)).toEqual([]);
+  });
+
+  it('does not cut a roof the line clips only at its overhang, which would leave its building flat-topped', () => {
+    const roof = (name: string, x0: number) => ({
+      name,
+      wash: 'tile' as const,
+      x0,
+      x1: x0 + 2,
+      y0: 10.5,
+      y1: 12.5,
+      low: 2.25,
+      high: 3,
+      form: { kind: 'gable', axis: 'x' } as const,
+    });
+    const plan = {
+      ...roomPlan3d(ROOMS.garden),
+      walls: [],
+      furniture: [],
+      roofs: [roof('overhang', 10 - ROOF_OVERHANG / 2), roof('building', 10 - 1)],
+    };
+    expect(cutNames(plan, view(HEADING.S), { x: 10, y: 10, z: 0 })).toEqual(['building']);
   });
 });
 

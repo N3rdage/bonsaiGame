@@ -1,16 +1,21 @@
 /**
  * The 3D rooms' modelled details, as pure data derived from the 2D room data
  * and never authored beside it: a door where the plan cuts a door opening, a
- * window where it cuts a window opening (and the windows and roller door hung from a building's face), a box hedge on each flat bed
- * (`spr_bed`) and a small shrub on each source plant. Each is a handful of
+ * window where it cuts a window opening (and the windows, roller door and door
+ * props hung from a building's face), a box hedge on each flat bed
+ * (`spr_bed`) and a shrub of its species on each source plant. Each is a handful of
  * boxes in plan metres with a palette wash. A door or window goes with the
  * wall piece it hangs from, so the camera's cut-away takes it along.
  */
 
 import type { ModelPart } from './furnitureModels';
-import type { Opening, RoomPlan3d, WallBox } from './plan';
-import type { Room } from '../world/shedRoom';
+import type { Box, Opening, RoomPlan3d, WallBox } from './plan';
+import type { SpeciesKey } from '../sim/types';
+import { SHEETS } from '../world/assets';
+import type { Furniture, Prop, Rect, Room } from '../world/shedRoom';
 import {
+  DOOR_HEIGHT,
+  DOOR_WIDTH,
   FACE_RELIEF,
   ROLLER_DOOR_SHEET,
   WINDOW_HEAD,
@@ -44,9 +49,44 @@ const MULLION_OVER = 1;
  */
 const HEDGE_HEIGHT = 0.25;
 const HEDGE_INSET = 0.04;
-/** A source plant's shrub: a stem and a crown over its standing point (metres). */
-const STEM = { width: 0.08, height: 0.3 };
-const CROWN = { width: 0.5, z0: 0.25, z1: 0.85 };
+/** A source plant's stem is this wide (metres); its crown is a stack of tiers over the prop's footprint. */
+const STEM_WIDTH = 0.08;
+/**
+ * Each species' crown: a wash and its tiers from the ground up, each a width
+ * as a fraction of the prop's footprint (the widest is 1) and a span in z
+ * (metres). The juniper is a dense cone, the maple a broad round crown, the
+ * pine layers with air between.
+ */
+const CROWNS: Record<
+  SpeciesKey,
+  { wash: ModelPart['wash']; tiers: readonly (readonly [number, number, number])[] }
+> = {
+  juniper: {
+    wash: 'foliage',
+    tiers: [
+      [1, 0.15, 0.4],
+      [0.7, 0.4, 0.65],
+      [0.4, 0.65, 0.9],
+    ],
+  },
+  maple: {
+    wash: 'mapleSummer',
+    tiers: [
+      [0.7, 0.3, 0.5],
+      [1, 0.5, 0.75],
+      [0.6, 0.75, 0.9],
+    ],
+  },
+  pine: {
+    wash: 'pineSummer',
+    tiers: [
+      [1, 0.3, 0.4],
+      [0.75, 0.5, 0.6],
+      [0.5, 0.7, 0.8],
+      [0.25, 0.9, 1],
+    ],
+  },
+};
 
 /** The sheet whose flat runs are the garden's beds. */
 const BED_SHEET = 'spr_bed';
@@ -138,21 +178,29 @@ function hostOf(o: Opening, walls: readonly WallBox[]): WallBox | undefined {
  * `spr_*_face` piece whose rect holds the fixture's), so the camera's cut
  * takes it away with the face.
  */
-function faceFixtures(room: Room): Detail[] {
+function faceFixtures(room: Room, plan: RoomPlan3d): Detail[] {
   const faces = room.furniture
     .map((f, index) => ({ f, index }))
     .filter(({ f }) => f.sheet.key.endsWith('_face'));
-  return room.furniture.flatMap((f, index): Detail[] => {
-    if (!isFaceFixture(f)) return [];
-    const host = faces.find(
+  const faceOf = (r: Rect): { f: Furniture; index: number } | undefined =>
+    faces.find(
       ({ f: face }) =>
-        face.x <= f.x &&
-        face.x + face.w >= f.x + f.w &&
-        face.y <= f.y &&
-        face.y + face.h >= f.y + f.h,
+        face.x <= r.x &&
+        face.x + face.w >= r.x + r.w &&
+        face.y <= r.y &&
+        face.y + face.h >= r.y + r.h,
     );
+  const doors = room.props
+    .filter((prop) => prop.wall !== undefined && !plan.openings.some((o) => o.name === prop.key))
+    .flatMap((prop): Detail[] => {
+      const host = faceOf({ x: prop.x - prop.w / 2, y: prop.y - prop.h / 2, w: prop.w, h: prop.h });
+      return host === undefined ? [] : [faceDoor(prop, furnitureBox(host.f, host.index, room.key))];
+    });
+  const fixtures = room.furniture.flatMap((f, index): Detail[] => {
+    if (!isFaceFixture(f)) return [];
+    const host = faceOf(f);
     if (host === undefined) return [];
-    const face = furnitureBox(host.f, host.index);
+    const face = furnitureBox(host.f, host.index, room.key);
     const name = `furniture.${String(index)}.${f.sheet.key}`;
     const span = {
       x0: metres(f.x),
@@ -167,6 +215,43 @@ function faceFixtures(room: Room): Detail[] {
     const opening: Opening = { name, kind: 'window', ...span, z0: WINDOW_SILL, z1: WINDOW_HEAD };
     return [{ name, kind: 'window', host: face.name, parts: windowParts(opening) }];
   });
+  return [...doors, ...fixtures];
+}
+
+/**
+ * A door prop against a building's face: a wood frame standing `FACE_RELIEF`
+ * proud of the face on either side, its leaf set back to half that. It is as
+ * wide and tall as a door the plan cuts (`DOOR_WIDTH` at least, `DOOR_HEIGHT`)
+ * and centred on the prop, whose own extent is only its 0.5 m interact box.
+ * A glazed door's leaf is glass, any other's planks.
+ */
+function faceDoor(prop: Prop, face: Box): Detail {
+  const half = Math.max(DOOR_WIDTH, metres(prop.w)) / 2;
+  const span: Opening = {
+    name: prop.key,
+    kind: 'door',
+    x0: metres(prop.x) - half,
+    x1: metres(prop.x) + half,
+    y0: face.y0 - FACE_RELIEF,
+    y1: face.y1 + FACE_RELIEF,
+    z0: 0,
+    z1: DOOR_HEIGHT,
+  };
+  const { x0, x1, z1 } = span;
+  const depth = span.y1 - span.y0;
+  const leaf = (depth - FACE_RELIEF) / depth;
+  const wash = prop.sheet?.key === SHEETS.doorGlazed.key ? 'studyPaper' : 'floor';
+  return {
+    name: prop.key,
+    kind: 'door',
+    host: face.name,
+    parts: [
+      bar(span, 'wood', x0, x0 + BAR, 0, z1),
+      bar(span, 'wood', x1 - BAR, x1, 0, z1),
+      bar(span, 'wood', x0 + BAR, x1 - BAR, z1 - BAR, z1),
+      bar(span, wash, x0 + BAR, x1 - BAR, 0, z1 - BAR, leaf),
+    ],
+  };
 }
 
 /** A box hedge on a bed's footprint. */
@@ -184,29 +269,17 @@ function hedgeParts(bed: { x0: number; x1: number; y0: number; y1: number }): Mo
   ];
 }
 
-/** A shrub standing at (`x`, `y`): a stem under a crown. */
-function plantingParts(x: number, y: number): ModelPart[] {
-  const stem = STEM.width / 2;
-  const crown = CROWN.width / 2;
+/** A species' shrub standing at (`x`, `y`): a stem under tiers of foliage whose widest spans `width`. */
+function plantingParts(species: SpeciesKey, x: number, y: number, width: number): ModelPart[] {
+  const { wash, tiers } = CROWNS[species];
+  const stem = STEM_WIDTH / 2;
+  const top = tiers[tiers.length - 1]?.[1] ?? 0;
   return [
-    {
-      wash: 'wood',
-      x0: x - stem,
-      x1: x + stem,
-      y0: y - stem,
-      y1: y + stem,
-      z0: 0,
-      z1: STEM.height,
-    },
-    {
-      wash: 'runner',
-      x0: x - crown,
-      x1: x + crown,
-      y0: y - crown,
-      y1: y + crown,
-      z0: CROWN.z0,
-      z1: CROWN.z1,
-    },
+    { wash: 'wood', x0: x - stem, x1: x + stem, y0: y - stem, y1: y + stem, z0: 0, z1: top },
+    ...tiers.map(([fraction, z0, z1]): ModelPart => {
+      const half = (width * fraction) / 2;
+      return { wash, x0: x - half, x1: x + half, y0: y - half, y1: y + half, z0, z1 };
+    }),
   ];
 }
 
@@ -230,14 +303,23 @@ export function roomDetails(room: Room, plan: RoomPlan3d): Detail[] {
     .concat(plan.furniture)
     .filter((box) => box.name.endsWith(`.${BED_SHEET}`))
     .map((bed): Detail => ({ name: bed.name, kind: 'hedge', parts: hedgeParts(bed) }));
-  const plantings = room.props
-    .filter((prop) => prop.speciesKey !== undefined)
-    .map((prop): Detail => ({
-      name: prop.key,
-      kind: 'planting',
-      parts: plantingParts(metres(prop.x), metres(prop.y + prop.h / 2)),
-    }));
-  return [...openings, ...faceFixtures(room), ...hedges, ...plantings];
+  const plantings = room.props.flatMap((prop): Detail[] =>
+    prop.speciesKey === undefined
+      ? []
+      : [
+          {
+            name: prop.key,
+            kind: 'planting',
+            parts: plantingParts(
+              prop.speciesKey,
+              metres(prop.x),
+              metres(prop.y + prop.h / 2),
+              metres(prop.w),
+            ),
+          },
+        ],
+  );
+  return [...openings, ...faceFixtures(room, plan), ...hedges, ...plantings];
 }
 
 /** How many details there are of each kind present. */

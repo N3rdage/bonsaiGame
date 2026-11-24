@@ -59,7 +59,9 @@ import {
 // landing, straight up into the face, 8.5 px below its door; from the
 // greenhouse's landing straight down into its bottom wall (y 191.5), 8.5 px
 // from its door; in the hallway, along to the front door's column as a walk
-// leg and up into its top wall (y 144.75), below the front door, and from any
+// leg and up into its top wall (y 144.75), below the front door (or, from the
+// lounge door's landing, up to the row y 146 and along the wall as a walk leg
+// to the door, west of its walk-through strip), and from any
 // of its landings along into a side wall (x 192.5 or 287.5), the side door in
 // reach; from each side door's landing straight into the wall or the block
 // its door is in, 8.5 px short of the door; from the shed door's landing in
@@ -283,6 +285,22 @@ export async function greenhouseToGarden(page: Page): Promise<Crossing> {
 export async function hallwayToFront(page: Page): Promise<Crossing> {
   await walkToColumn(page, 240);
   await holdUntilNear(page, 'ArrowUp', 'door_front');
+  return throughDoor(page, 'frontGarden');
+}
+
+/** The hallway row along its top wall (y 144.75) from which the front door (240, 136) is in reach. */
+const HALLWAY_TOP_ROW = 146;
+
+/**
+ * From the hallway's lounge-door landing (210, 176): a walkTo leg up to
+ * HALLWAY_TOP_ROW (the top wall stops it at y 144.75 at the latest), then east
+ * until the front door is in reach, which is x 222..228, west of the door's
+ * walk-through strip; moving along the wall never takes the door, so the
+ * player is still, no key held, and Interact carries it to the front garden's
+ * landing (336, 190).
+ */
+export async function hallwayToFrontByInteract(page: Page): Promise<Crossing> {
+  await walkTo(page, HALLWAY_TOP_ROW, 'right', 'door_front');
   return throughDoor(page, 'frontGarden');
 }
 

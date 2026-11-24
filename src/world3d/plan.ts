@@ -90,6 +90,21 @@ const SURFACES: Record<RoomKey, { readonly floor: WashKey; readonly wall: WashKe
   greenhouse: { floor: 'stone', wall: 'paint' },
 };
 
+/** A gable roof's pitch, 30 degrees, and the most it may rise above its eaves, metres: a deep footprint's ridge stops here. */
+export const ROOF_PITCH = Math.PI / 6;
+export const ROOF_RISE_MAX = 1.2;
+/** How far a gable roof overhangs its walls, metres. */
+export const ROOF_OVERHANG = 0.15;
+/** The low edge of the front garden's roof strip, metres: the back of the house's roof, seen from above, falls from its eaves to here. */
+export const ROOF_STRIP_LOW = 0.4;
+
+/** The sheets of a building's roof, which `roomPlan3d` draws as a `Roof`. */
+const ROOF_SHEETS: ReadonlySet<string> = new Set([
+  'spr_house_roof',
+  'spr_shed_roof',
+  'spr_greenhouse_roof',
+]);
+
 /** The wash of a piece of furniture by its sheet's key; any other is wood. */
 const FURNITURE_WASHES: Readonly<Record<string, WashKey>> = {
   spr_road: 'asphalt',
@@ -109,6 +124,12 @@ const FURNITURE_WASHES: Readonly<Record<string, WashKey>> = {
   spr_greenhouse_cap_v: 'paint',
   spr_shed_rug: 'tile',
 };
+
+/** The sheet of the lounge's hallway mass: a papered wall, so it wears its room's wall wash and dressing, not furniture's. */
+const PAPER_SHEET = 'spr_paper';
+
+/** Whether `f` is a mass drawn as the paper, a wall of the room that is solid furniture in its plan. */
+export const isPapered = (f: Furniture): boolean => f.sheet.key === PAPER_SHEET;
 
 /** The sheet of the windows set in a building's face. */
 export const WINDOW_SHEET = 'spr_house_window';
@@ -174,6 +195,27 @@ export interface Opening {
   readonly z1: number;
 }
 
+/**
+ * A roof over a building, drawn as a prism in place of a slab. `x0`..`y1` is
+ * its outer footprint, eaves overhang included. A gable roof rises from `low`
+ * (the eaves, on both long sides) to `high` (the ridge, which runs along
+ * `axis`); a slope falls from `high` at the `high` edge to `low` at the
+ * opposite one.
+ */
+export interface Roof {
+  readonly name: string;
+  readonly wash: WashKey;
+  readonly x0: number;
+  readonly x1: number;
+  readonly y0: number;
+  readonly y1: number;
+  readonly low: number;
+  readonly high: number;
+  readonly form:
+    | { readonly kind: 'gable'; readonly axis: 'x' | 'y' }
+    | { readonly kind: 'slope'; readonly high: Wall };
+}
+
 /** A prop's place: no geometry, a point to hang a label or an interaction on. */
 export interface Anchor {
   readonly key: string;
@@ -194,6 +236,8 @@ export interface RoomPlan3d {
   readonly floor: readonly Box[];
   readonly walls: readonly WallBox[];
   readonly furniture: readonly Box[];
+  /** The roofs over the room's buildings: on top of the furniture boxes at their eaves, or in place of a box that would hide the room. */
+  readonly roofs: readonly Roof[];
   readonly openings: readonly Opening[];
   readonly anchors: readonly Anchor[];
   readonly playerStart: { readonly x: number; readonly y: number };
@@ -339,12 +383,12 @@ const FACE_SHEETS: ReadonlySet<string> = new Set([
  * `stands`, a slab if `flat`; a building's face is `WALL_HEIGHT` tall over its
  * rect's bottom band.
  */
-export function furnitureBox(f: Furniture, index: number): Box {
+export function furnitureBox(f: Furniture, index: number, room: RoomKey): Box {
   const isFace = f.stands === undefined && FACE_SHEETS.has(f.sheet.key);
   const foot = isFace ? WALL_BAND : f.stands?.foot;
   const rect = foot === undefined ? f : { ...f, y: f.y + f.h - foot, h: foot };
   const name = `furniture.${String(index)}.${f.sheet.key}`;
-  const wash = FURNITURE_WASHES[f.sheet.key] ?? 'wood';
+  const wash = isPapered(f) ? SURFACES[room].wall : (FURNITURE_WASHES[f.sheet.key] ?? 'wood');
   if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
   if (f.stands === undefined) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
@@ -354,6 +398,32 @@ export function furnitureBox(f: Furniture, index: number): Box {
     ...box(name, wash, footprint(rect), 0, height, f.solid),
     ...(model === undefined ? {} : { model }),
   };
+}
+
+/**
+ * The roof over a building's `eaves` box. A gable roof (the back garden's):
+ * the ridge runs along the longer axis, rises at `ROOF_PITCH` from the eaves
+ * to `ROOF_RISE_MAX` at most, and the roof overhangs the walls by
+ * `ROOF_OVERHANG`. A `strip` (the front garden's, which lies between the
+ * camera and the room) is one slope, from the eaves at its north edge to
+ * `ROOF_STRIP_LOW` at its south.
+ */
+export function roofOf(name: string, eaves: Box, strip: boolean): Roof {
+  const { wash, x0, x1, y0, y1, z1 } = eaves;
+  if (strip) {
+    const form = { kind: 'slope', high: 'N' } as const;
+    return { name, wash, x0, x1, y0, y1, low: ROOF_STRIP_LOW, high: z1, form };
+  }
+  const axis = x1 - x0 >= y1 - y0 ? 'x' : 'y';
+  const outer = {
+    x0: x0 - ROOF_OVERHANG,
+    x1: x1 + ROOF_OVERHANG,
+    y0: y0 - ROOF_OVERHANG,
+    y1: y1 + ROOF_OVERHANG,
+  };
+  const across = axis === 'x' ? outer.y1 - outer.y0 : outer.x1 - outer.x0;
+  const rise = Math.min(ROOF_RISE_MAX, (across / 2) * Math.tan(ROOF_PITCH));
+  return { name, wash, ...outer, low: z1, high: z1 + rise, form: { kind: 'gable', axis } };
 }
 
 /**
@@ -459,9 +529,15 @@ export function roomPlan3d(room: Room): RoomPlan3d {
 
   const floor = [box('floor', surfaces.floor, footprint(bounds), -FLOOR_THICKNESS, 0, false)];
   const furniture: Box[] = [];
+  const roofs: Roof[] = [];
   room.furniture.forEach((piece, index) => {
     if (!isBoxed(piece)) return;
-    const built = furnitureBox(piece, index);
+    const built = furnitureBox(piece, index, key);
+    if (ROOF_SHEETS.has(piece.sheet.key)) {
+      const strip = key === 'frontGarden';
+      roofs.push(roofOf(`roof.${String(index)}.${piece.sheet.key}`, built, strip));
+      if (strip) return;
+    }
     if (piece.flat === true && beyond(piece, bounds)) {
       floor.push({ ...built, z0: -FLOOR_THICKNESS, z1: 0 });
     } else {
@@ -489,6 +565,7 @@ export function roomPlan3d(room: Room): RoomPlan3d {
     floor,
     walls: wallBoxes,
     furniture,
+    roofs,
     openings,
     anchors: room.props.map((prop) => ({
       key: prop.key,

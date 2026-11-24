@@ -32,7 +32,7 @@ const FRONT_ON = 0;
 /** Every modelled piece of `room`'s furniture, in the room's order. */
 export function furniturePieces(room: Room): FurniturePiece[] {
   const boxes: Box[] = [
-    ...room.furniture.flatMap((f, index) => (isBoxed(f) ? [furnitureBox(f, index)] : [])),
+    ...room.furniture.flatMap((f, index) => (isBoxed(f) ? [furnitureBox(f, index, room.key)] : [])),
     ...room.props.flatMap((prop) => propBox(prop) ?? []),
   ];
   return boxes.flatMap(({ model, x0, x1, y0, y1, z1 }) => {
