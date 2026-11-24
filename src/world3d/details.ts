@@ -11,17 +11,17 @@
 import type { ModelPart } from './furnitureModels';
 import type { Box, Opening, RoomPlan3d, WallBox } from './plan';
 import type { SpeciesKey } from '../sim/types';
-import { SHEETS } from '../world/assets';
 import type { Furniture, Prop, Rect, Room } from '../world/shedRoom';
 import {
   DOOR_HEIGHT,
-  DOOR_WIDTH,
+  doorWidth,
   FACE_RELIEF,
   ROLLER_DOOR_SHEET,
   WINDOW_HEAD,
   WINDOW_SILL,
   furnitureBox,
   heightMetres,
+  isGlazedDoor,
   isFaceFixture,
   metres,
 } from './plan';
@@ -41,6 +41,8 @@ const BAR = 0.08;
 /** The thickness of a door leaf and of a window's glass across the wall, metres. */
 const LEAF = 0.05;
 const GLASS = 0.03;
+/** A glazed door cut in a wall has a pane this fraction of its leaf's thickness; one on a building's face has a pane through the whole depth, so it shows in front of the face's art. */
+const PANE = 0.4;
 /** Windows wider than this get a mullion down the middle, metres. */
 const MULLION_OVER = 1;
 /**
@@ -114,20 +116,45 @@ function bar(
 }
 
 /**
- * A door in `o`: a frame of jambs and a head round a leaf. A door in a fence
- * lower than the opening is a gate, as tall as its fence (`top`).
+ * A door in `o`: a frame of jambs and a head round a leaf that is `leaf` of
+ * the opening's depth thick. A glazed door's leaf is a pane of glass in wood
+ * rails (`thickness` of the opening's depth thick), with a meeting stile when it is a double door; any other's is a plank
+ * slab. A door in a fence lower than the opening is a gate, as tall as its
+ * fence (`top`).
  */
-function doorParts(o: Opening, top: number): ModelPart[] {
+function doorParts(o: Opening, top: number, leaf: number, thickness: number): ModelPart[] {
   const alongX = o.x1 - o.x0 >= o.y1 - o.y0;
   const [a0, a1] = alongX ? [o.x0, o.x1] : [o.y0, o.y1];
-  const depth = alongX ? o.y1 - o.y0 : o.x1 - o.x0;
-  const leaf = Math.min(1, LEAF / depth);
-  return [
+  const frame = [
     bar(o, 'wood', a0, a0 + BAR, o.z0, top),
     bar(o, 'wood', a1 - BAR, a1, o.z0, top),
     bar(o, 'wood', a0 + BAR, a1 - BAR, top - BAR, top),
-    bar(o, 'floor', a0 + BAR, a1 - BAR, o.z0, top - BAR, leaf),
   ];
+  if (o.glazed !== true) {
+    return [...frame, bar(o, 'floor', a0 + BAR, a1 - BAR, o.z0, top - BAR, leaf)];
+  }
+  const mid = (o.z0 + top) / 2;
+  const glass: ModelPart = {
+    ...bar(o, 'studyPaper', a0 + BAR, a1 - BAR, o.z0 + BAR, top - BAR, thickness),
+    glass: true,
+  };
+  const parts = [
+    ...frame,
+    glass,
+    bar(o, 'wood', a0 + BAR, a1 - BAR, o.z0, o.z0 + BAR, leaf),
+    bar(o, 'wood', a0 + BAR, a1 - BAR, mid - BAR / 2, mid + BAR / 2, leaf),
+  ];
+  if (a1 - a0 > MULLION_OVER) {
+    const centre = (a0 + a1) / 2;
+    parts.push(bar(o, 'wood', centre - BAR / 2, centre + BAR / 2, o.z0 + BAR, top - BAR, leaf));
+  }
+  return parts;
+}
+
+/** How much of an opening's depth a door's leaf fills: `LEAF` metres of it. */
+function leafOf(o: Opening): number {
+  const depth = o.x1 - o.x0 >= o.y1 - o.y0 ? o.y1 - o.y0 : o.x1 - o.x0;
+  return Math.min(1, LEAF / depth);
 }
 
 /** A window in `o`: a frame of sill, head and jambs round a pane of glass, with a mullion when it is wide. */
@@ -221,12 +248,12 @@ function faceFixtures(room: Room, plan: RoomPlan3d): Detail[] {
 /**
  * A door prop against a building's face: a wood frame standing `FACE_RELIEF`
  * proud of the face on either side, its leaf set back to half that. It is as
- * wide and tall as a door the plan cuts (`DOOR_WIDTH` at least, `DOOR_HEIGHT`)
- * and centred on the prop, whose own extent is only its 0.5 m interact box.
- * A glazed door's leaf is glass, any other's planks.
+ * wide as the plan's cut for the same prop (`doorWidth`) and `DOOR_HEIGHT`
+ * tall, centred on the prop. A glazed door is glass in a frame (`isGlazedDoor`),
+ * any other's leaf planks.
  */
 function faceDoor(prop: Prop, face: Box): Detail {
-  const half = Math.max(DOOR_WIDTH, metres(prop.w)) / 2;
+  const half = doorWidth(prop, true) / 2;
   const span: Opening = {
     name: prop.key,
     kind: 'door',
@@ -236,21 +263,14 @@ function faceDoor(prop: Prop, face: Box): Detail {
     y1: face.y1 + FACE_RELIEF,
     z0: 0,
     z1: DOOR_HEIGHT,
+    ...(isGlazedDoor(prop) ? { glazed: true } : {}),
   };
-  const { x0, x1, z1 } = span;
   const depth = span.y1 - span.y0;
-  const leaf = (depth - FACE_RELIEF) / depth;
-  const wash = prop.sheet?.key === SHEETS.doorGlazed.key ? 'studyPaper' : 'floor';
   return {
     name: prop.key,
     kind: 'door',
     host: face.name,
-    parts: [
-      bar(span, 'wood', x0, x0 + BAR, 0, z1),
-      bar(span, 'wood', x1 - BAR, x1, 0, z1),
-      bar(span, 'wood', x0 + BAR, x1 - BAR, z1 - BAR, z1),
-      bar(span, wash, x0 + BAR, x1 - BAR, 0, z1 - BAR, leaf),
-    ],
+    parts: doorParts(span, span.z1, (depth - FACE_RELIEF) / depth, 1),
   };
 }
 
@@ -296,7 +316,10 @@ export function roomDetails(room: Room, plan: RoomPlan3d): Detail[] {
       name: o.name,
       kind: o.kind,
       ...(host === undefined ? {} : { host: host.name }),
-      parts: o.kind === 'door' ? doorParts(o, Math.min(o.z1, host?.z1 ?? o.z1)) : windowParts(o),
+      parts:
+        o.kind === 'door'
+          ? doorParts(o, Math.min(o.z1, host?.z1 ?? o.z1), leafOf(o), leafOf(o) * PANE)
+          : windowParts(o),
     };
   });
   const hedges = plan.floor

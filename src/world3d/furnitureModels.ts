@@ -25,6 +25,8 @@ export type FurnitureKind =
 /** A box of a model: its corners relative to the middle of the footprint at the floor, and its wash. */
 export interface ModelPart {
   readonly wash: WashKey;
+  /** A pane of glass: drawn translucent and without ink, its `wash` only a fallback. */
+  readonly glass?: boolean;
   readonly x0: number;
   readonly x1: number;
   readonly y0: number;

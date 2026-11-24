@@ -8,6 +8,7 @@ import {
   WINDOW_HEAD,
   WINDOW_SILL,
   heightMetres,
+  isGlazedDoor,
   roomPlan3d,
 } from './plan';
 
@@ -142,7 +143,11 @@ describe('roomDetails', () => {
       expect(z1).toBeLessThan(face?.z1 ?? 0);
       expect(y0).toBeCloseTo((face?.y0 ?? 0) - FACE_RELIEF, 9);
       expect(y1).toBeCloseTo((face?.y1 ?? 0) + FACE_RELIEF, 9);
-      const leaf = door.parts[3];
+      const leaf = door.parts.find((p) => p.wash === 'floor');
+      if (isGlazedDoor(prop)) {
+        expect(leaf).toBeUndefined();
+        continue;
+      }
       expect(leaf?.y0).toBeGreaterThan(y0);
       expect(leaf?.y1).toBeLessThan(y1);
     }

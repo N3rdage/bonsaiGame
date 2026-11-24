@@ -54,7 +54,7 @@ interface BonsaiTestHook {
     readonly meshes: number;
     /** The trees standing in the room (each a pot, a trunk and, in season, foliage meshes), as many as the 2D world draws there; 0 while off. */
     readonly trees: number;
-    /** The mats marking the room's empty display spots (a disc on each spot with no tree); 0 while off. */
+    /** The mats marking the room's empty display spots (a stone stand on each spot with no tree); 0 while off. */
     readonly spotMats: number;
     /** The room's furniture drawn with thin instances: each model kind ('pedestal', 'floor_shelf', 'shelf', 'tools', 'watering_can', 'pot_stack', 'sack') and how many pieces of it stand; a kind with none is absent, and the record is empty while off. */
     readonly instances: Readonly<Record<string, number>>;
@@ -82,7 +82,7 @@ interface BonsaiTestHook {
     /** The polygon offset the Inked floor and wall art draws with over the boxes it dresses (negative: toward the camera); 0 before the floor's art has loaded and while off. */
     readonly artDepthOffset: number;
     /** True while the lit meshes are lit through the look's soft ramp and hemisphere fill and inked; false while off. */
-    readonly toon: boolean;
+    readonly inked: boolean;
     /** The key of the sheet the 3D floor's Inked tiles are cut from ('spr_floor_shed' in the shed), null until its texture has loaded and while off. */
     readonly floorSheet: string | null;
     /** The keys of the sheets the 3D walls, caps and fences are cut from that have loaded, sorted ('spr_shed_cap', 'spr_shed_cap_v', 'spr_shed_wall' in the shed); empty until then and while off. */
