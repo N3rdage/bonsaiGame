@@ -28,6 +28,7 @@ import {
 import {
   gardenToGreenhouse,
   hallwayToFrontByInteract,
+  hallwayToStudy,
   loungeToHallway,
   loungeToShed,
   shedToGarden,
@@ -148,6 +149,8 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'lounge');
       const lounge = await world3d(page);
       expect(lounge.room).toBe('lounge');
+      // Neither of the lounge's two display spots (the mantel, the side table) holds a tree: a mat on each.
+      expect(lounge.spotMats).toBe(2);
       if (test.info().project.name === 's22-landscape') {
         await page.waitForTimeout(500);
         await expect(page).toHaveScreenshot('world3d-lounge.png');
@@ -664,6 +667,25 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-lounge-hallway.png');
   });
 
+  test("draws the study's furniture", { tag: '@walk' }, async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await waitForBuilt(page, ['garden', 'lounge']);
+    await shedToLounge(page);
+    await waitForRoom(page, 'lounge');
+    await loungeToHallway(page);
+    await waitForRoom(page, 'hallway');
+    await hallwayToStudy(page);
+    await waitForRoom(page, 'study');
+    // The camera eases from the hallway door's landing to the player's place in the study.
+    await page.waitForTimeout(3000);
+    await expect(page).toHaveScreenshot('world3d-study.png');
+  });
+
   test("lays each room's own Inked floor tiles", { tag: '@walk' }, async ({ page }) => {
     test.setTimeout(120_000);
     await bootWorld(page);
@@ -857,8 +879,9 @@ test.describe('the 3D world', () => {
       const placed = await world3d(page);
       expect(placed.instances.floor_shelf).toBe(1);
       expect(placed.hotspots.map((h) => h.id)).toContain('placed_2');
-      // Only the new item's instance and hotspot are new: the room's own meshes are the same count.
-      expect(placed.meshes).toBe(room.meshes + 1);
+      // Only the new item's hotspot and the mat on its empty spot are new meshes: the room's own meshes are the same count.
+      expect(placed.spotMats).toBe(room.spotMats + 1);
+      expect(placed.meshes).toBe(room.meshes + 2);
       expect(errors).toEqual([]);
     },
   );

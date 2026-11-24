@@ -15,7 +15,7 @@ import { showBench, showPanel } from './benchPanel';
 import { roomTimeLines } from './roomTimes';
 import type { Renderer } from './renderer';
 import type { Picked } from './tap';
-import type { TreeStand } from './trees';
+import type { SpotMat, TreeStand } from './trees';
 import type { WeatherField } from './weather';
 
 /**
@@ -72,6 +72,7 @@ export class World3d {
     room: Room,
     player: { readonly x: number; readonly y: number },
     trees: readonly TreeStand[],
+    mats: readonly SpotMat[],
     season: Season,
     weather: WeatherField | undefined,
     roomOf: (key: RoomKey) => Room,
@@ -94,7 +95,7 @@ export class World3d {
         });
     }
     if (!on) this.dispose();
-    this.renderer?.frame(room, player, trees, season, weather, roomOf, gameSeconds);
+    this.renderer?.frame(room, player, trees, mats, season, weather, roomOf, gameSeconds);
     const bench = this.renderer?.benchState().result;
     if (bench && bench !== this.benchShown) {
       this.benchShown = bench;
@@ -138,6 +139,7 @@ export class World3d {
       room: state?.room ?? null,
       meshes: state?.meshes ?? 0,
       trees: state?.trees ?? 0,
+      spotMats: state?.spotMats ?? 0,
       instances: state ? { ...state.instances } : {},
       camera: state?.camera ?? {
         alpha: cameraRig.alpha,

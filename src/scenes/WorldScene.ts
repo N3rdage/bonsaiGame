@@ -212,7 +212,7 @@ import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig, pressRoute } from '../wo
 import { DOOR_RULES, doorWalkedInto } from '../world3d/doorWalk';
 import { cameraRelative } from '../world3d/move';
 import { TapTracker, routeInput } from '../world3d/tap';
-import { treeStands } from '../world3d/trees';
+import { spotMats, treeStands } from '../world3d/trees';
 import { World3d, setSurround } from '../world3d/world3d';
 import { MusicPlayer, SoundPlayer } from './audio';
 import type { TitleSceneData, WorldSceneData } from './sceneData';
@@ -2131,6 +2131,7 @@ export class WorldScene extends Phaser.Scene {
     const season = seasonForDay(state.day);
     const room = this.liveRoom();
     const trees = settings.world3d ? treeStands(state, room, season) : [];
+    const mats = settings.world3d ? spotMats(state, room) : [];
     // The 3D world draws the outdoor weather only; the indoor motes stay a 2D touch.
     const weather = isIndoor(this.room) ? undefined : this.weather;
     const gameSeconds = (steps * STEP_MS) / 1000;
@@ -2139,6 +2140,7 @@ export class WorldScene extends Phaser.Scene {
       room,
       this.player,
       trees,
+      mats,
       season,
       weather,
       (key) => this.liveRoomOf(ROOMS[key]),
