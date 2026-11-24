@@ -61,7 +61,7 @@ export const LOW_FENCE_HEIGHT_M = 0.5;
 export const FLOOR_THICKNESS = 0.1;
 /** The thickness of a `flat` piece lying on the floor (a runner, the drive, the beds). */
 export const FLAT_THICKNESS = 0.01;
-/** A door is 1 m wide at least (the shed's door is 32 px; a prop's own extent is its interact box) and 2 m high. */
+/** A walkable door is 1 m wide at least (`doorWidth` gives a wider one its art's or its prop's width) and 2 m high. */
 export const DOOR_WIDTH = 1;
 export const DOOR_HEIGHT = 2;
 /** A window's sill and head above the floor: roomArt's 20 px (0.94 m) sill and 44 px (2.06 m) top, to the nearest 0.1 m. */
@@ -193,6 +193,8 @@ export interface Opening {
   readonly y1: number;
   readonly z0: number;
   readonly z1: number;
+  /** A door whose sheet is glazed (`isGlazedDoor`): drawn as glass in a frame. */
+  readonly glazed?: boolean;
 }
 
 /**
@@ -356,6 +358,33 @@ function wallHeightOf(room: Room, rect: Rect): number {
   return STYLE_HEIGHTS.get(px) ?? heightMetres(px);
 }
 
+/** The sheets of the glazed doors: the single leaf (the greenhouse's, and the garden's to it and to the study) and the study's double door. */
+const GLAZED_DOOR_SHEETS: ReadonlySet<string> = new Set([
+  SHEETS.doorGlazed.key,
+  SHEETS.doorGlass.key,
+]);
+
+/** Whether `prop` is a door drawn with a glazed sheet. */
+export function isGlazedDoor(prop: Prop): boolean {
+  return prop.sheet !== undefined && GLAZED_DOOR_SHEETS.has(prop.sheet.key);
+}
+
+/**
+ * How wide a door's frame is along its wall (metres): the widest of its
+ * sprite's own width (a front-on door only: a side-on door in a vertical wall
+ * is a thin leaf seen edge on, so only the prop counts), the prop's extent
+ * along the wall, and `DOOR_WIDTH`, the least a door is to walk through. The
+ * cut in a wall and the frame on a building's face both use it.
+ */
+export function doorWidth(prop: Prop, alongX: boolean): number {
+  const own = metres(alongX ? prop.w : prop.h);
+  const art =
+    prop.sheet !== undefined && alongX
+      ? metres(prop.sheet.frameWidth / sheetPxPerLogical(prop.sheet))
+      : 0;
+  return Math.max(DOOR_WIDTH, own, art);
+}
+
 /** The opening a cut makes, over a wall's full depth. */
 function openingOf(name: string, kind: Opening['kind'], f: Footprint, along: Cut): Opening {
   const alongX = f.x1 - f.x0 >= f.y1 - f.y0;
@@ -469,9 +498,19 @@ export function roomPlan3d(room: Room): RoomPlan3d {
 
   const cuts = new Map<number, Cut[]>();
   const openings: Opening[] = [];
-  const open = (index: number, rect: Rect, kind: Opening['kind'], name: string, cut: Cut): void => {
+  const open = (
+    index: number,
+    rect: Rect,
+    kind: Opening['kind'],
+    name: string,
+    cut: Cut,
+    glazed = false,
+  ): void => {
     cuts.set(index, [...(cuts.get(index) ?? []), cut]);
-    openings.push(openingOf(name, kind, footprint(rect), cut));
+    openings.push({
+      ...openingOf(name, kind, footprint(rect), cut),
+      ...(glazed ? { glazed } : {}),
+    });
   };
 
   for (const prop of room.props) {
@@ -480,7 +519,7 @@ export function roomPlan3d(room: Room): RoomPlan3d {
     if (host === undefined) continue;
     const alongX = host.rect.w >= host.rect.h;
     const centre = metres(alongX ? prop.x : prop.y);
-    const half = Math.max(DOOR_WIDTH, metres(alongX ? prop.w : prop.h)) / 2;
+    const half = doorWidth(prop, alongX) / 2;
     const f = footprint(host.rect);
     const cut: Cut = {
       a0: Math.max(centre - half, alongX ? f.x0 : f.y0),
@@ -489,7 +528,7 @@ export function roomPlan3d(room: Room): RoomPlan3d {
       z1: DOOR_HEIGHT,
       key: prop.key,
     };
-    open(host.index, host.rect, 'door', prop.key, cut);
+    open(host.index, host.rect, 'door', prop.key, cut, isGlazedDoor(prop));
   }
 
   const topWall = walls.find(

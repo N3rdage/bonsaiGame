@@ -640,7 +640,7 @@ test.describe('the 3D world', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
-    await expect.poll(async () => (await world3d(page)).toon, POLL).toBe(true);
+    await expect.poll(async () => (await world3d(page)).inked, POLL).toBe(true);
     expect(errors).toEqual([]);
   });
 

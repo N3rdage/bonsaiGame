@@ -155,7 +155,7 @@ export class World3d {
         ? { ...state.shadowMap, window: [...state.shadowMap.window] }
         : { fixed: false, size: 0, bias: 0, normalBias: 0, window: [0, 0, 0, 0, 0, 0] },
       artDepthOffset: state?.artDepthOffset ?? 0,
-      toon: state?.toon ?? false,
+      inked: state?.inked ?? false,
       floorSheet: state?.floorSheet ?? null,
       wallSheets: state ? [...state.wallSheets] : [],
       details: state ? { ...state.details } : {},

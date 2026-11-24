@@ -137,7 +137,7 @@ export interface RendererSnapshot {
   /** The polygon offset the Inked art's materials draw with over the boxes they lie on. */
   readonly artDepthOffset: number;
   /** True while the lit meshes take the look light and ink. */
-  readonly toon: boolean;
+  readonly inked: boolean;
   /** The key of the sheet the floor's tiles are cut from, null until its texture has loaded. */
   readonly floorSheet: string | null;
   /** The keys of the sheets the walls' art is cut from that have loaded, sorted. */
@@ -281,6 +281,10 @@ function washHex(hex: number): Color3 {
   return Color3.FromHexString(`#${hex.toString(16).padStart(6, '0')}`);
 }
 
+/** A pane of glass: its light blue-green tint and how opaque it is. */
+const GLASS_TINT = 0xbcdcd8;
+const GLASS_ALPHA = 0.4;
+
 /** The Babylon colour of a palette wash. */
 function washColour(wash: WashKey): Color3 {
   return washHex(PALETTE[wash]);
@@ -361,6 +365,8 @@ export class Renderer {
   private readonly mats = new Map<string, Mesh>();
   /** The one material of every tree part and furniture model: white, so the vertex colours the builders give are what shows. */
   private readonly colourMaterial: StandardMaterial;
+  /** The material of every pane of glass: a light blue-green, translucent. */
+  private readonly glassMaterial: StandardMaterial;
   /** Toward the sun in Babylon's frame, the direction the ramp reads N.L against. */
   private readonly toLight: Vec3;
   /** The ink outline's width in metres: the look's outline width in px at the default camera radius on the canvas as it is sized. */
@@ -417,6 +423,11 @@ export class Renderer {
     this.colourMaterial = new StandardMaterial('colours', this.scene);
     this.colourMaterial.specularColor = Color3.Black();
     lookLit(this.colourMaterial, this.toLight);
+    this.glassMaterial = new StandardMaterial('glass', this.scene);
+    this.glassMaterial.diffuseColor = washHex(GLASS_TINT);
+    this.glassMaterial.specularColor = Color3.Black();
+    this.glassMaterial.alpha = GLASS_ALPHA;
+    lookLit(this.glassMaterial, this.toLight);
     const skeleton = new Skeleton('player', 'player', this.scene);
     const bones: Partial<Record<JointName, Bone>> = {};
     for (const joint of JOINT_NAMES) {
@@ -489,7 +500,7 @@ export class Renderer {
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       shadowMap: this.shadowMapState(),
       artDepthOffset: this.shown?.floorArt?.material.zOffset ?? 0,
-      toon: true,
+      inked: true,
       floorSheet: this.shown?.floorArt?.sheet ?? null,
       wallSheets: [...(this.shown?.wallArt.keys() ?? [])].sort(),
       details: this.shown?.detailCounts ?? {},
@@ -778,6 +789,13 @@ export class Renderer {
       piece.mesh.scaling.y = (span.z1 - span.z0) / (piece.z1 - piece.z0);
       piece.mesh.position.y = (span.z0 + span.z1) / 2;
     }
+    // A lowered piece squashes the details hung from it into a sliver (a face's window is a
+    // frame outline over the skirting), so they go with the height they stood at.
+    for (const [name, piece] of pieces) {
+      for (const child of piece.mesh.getChildMeshes(true)) {
+        if (child.name.startsWith('details.')) child.setEnabled(!cut.has(name));
+      }
+    }
   }
 
   /** Stands `stands`' trees: one whose key changed gets new meshes, one that left is disposed, a new one is built. */
@@ -891,6 +909,9 @@ export class Renderer {
         piece.mesh.setEnabled(true);
         piece.mesh.scaling.y = 1;
         piece.mesh.position.y = (piece.z0 + piece.z1) / 2;
+        for (const child of piece.mesh.getChildMeshes(true)) {
+          if (child.name.startsWith('details.')) child.setEnabled(true);
+        }
       }
       set.root.setEnabled(true);
     }
@@ -1246,6 +1267,23 @@ export class Renderer {
    * there, on the shared colour material.
    */
   private partsMesh(name: string, parts: readonly ModelPart[], origin: Vec3): Mesh {
+    const solid = this.mergedParts(
+      name,
+      parts.filter((part) => part.glass !== true),
+      origin,
+    );
+    solid.material = this.colourMaterial;
+    const panes = parts.filter((part) => part.glass === true);
+    if (panes.length > 0) {
+      const glass = this.mergedParts(`${name}.glass`, panes, origin);
+      glass.material = this.glassMaterial;
+      glass.parent = solid;
+    }
+    return solid;
+  }
+
+  /** One mesh of `parts`, vertex-coloured by wash and positioned relative to `origin`; the caller gives it a material. */
+  private mergedParts(name: string, parts: readonly ModelPart[], origin: Vec3): Mesh {
     const boxes = parts.map((part, n) => {
       const box = CreateBox(
         `${name}.${String(n)}`,
@@ -1270,7 +1308,6 @@ export class Renderer {
     const mesh = Mesh.MergeMeshes(boxes, true);
     if (!mesh) throw new Error(`${name} has no parts`);
     mesh.name = name;
-    mesh.material = this.colourMaterial;
     mesh.isPickable = false;
     mesh.alwaysSelectAsActiveMesh = true;
     return mesh;
