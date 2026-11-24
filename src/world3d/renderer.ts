@@ -99,9 +99,15 @@ const SURROUND = Color3.FromHexString('#3e3632');
 /** The plan's origin, where a model's parts and a room's standing details are placed. */
 const ORIGIN: Vec3 = { x: 0, y: 0, z: 0 };
 
-/** The mat on an empty display spot: a low disc, `MAT_DIAMETER` m across (a little wider than a small pot) and `MAT_HEIGHT` m thick, sitting on the furniture's top, drawn in `MAT_TESSELLATION` sides, in a pale stone wash that reads against the furniture's wood. */
-const MAT_DIAMETER = 0.22;
-const MAT_HEIGHT = 0.02;
+/**
+ * The mat on an empty display spot: a low stone stand, `MAT_DIAMETER` m across
+ * and `MAT_HEIGHT` m tall, on the furniture's top, drawn in `MAT_TESSELLATION`
+ * sides and inked. The furniture under it is inked too, and its outline shell
+ * (a few cm deep) is drawn over whatever stands inside it, so the stand rises
+ * clear of it.
+ */
+const MAT_DIAMETER = 0.3;
+const MAT_HEIGHT = 0.08;
 const MAT_TESSELLATION = 16;
 
 /** What the scene reports to the test hook. */
@@ -821,7 +827,6 @@ export class Renderer {
           this.scene,
         );
         mesh.material = this.material('stone');
-        mesh.receiveShadows = true;
         mesh.isPickable = false;
         this.ink(mesh);
         this.mats.set(key, mesh);
