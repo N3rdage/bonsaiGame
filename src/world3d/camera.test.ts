@@ -322,7 +322,7 @@ describe('cutNames', () => {
     expect(cutNames(plan, view(HEADING.E), player)).toEqual([]);
   });
 
-  it("does not cut a roof the line clips only at its overhang, which would leave its building flat-topped", () => {
+  it('does not cut a roof the line clips only at its overhang, which would leave its building flat-topped', () => {
     const roof = (name: string, x0: number) => ({
       name,
       wash: 'tile' as const,

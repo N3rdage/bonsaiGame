@@ -152,7 +152,7 @@ function faceFixtures(room: Room): Detail[] {
         face.y + face.h >= f.y + f.h,
     );
     if (host === undefined) return [];
-    const face = furnitureBox(host.f, host.index);
+    const face = furnitureBox(host.f, host.index, room.key);
     const name = `furniture.${String(index)}.${f.sheet.key}`;
     const span = {
       x0: metres(f.x),

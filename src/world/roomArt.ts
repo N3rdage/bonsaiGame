@@ -364,7 +364,7 @@ function faceRuns(room: Room, face: WallFace, { wallRow, wallColumn }: RoomStyle
 }
 
 /** The rect cut into the sheet's frames at their logical size, rows top to bottom, each frame hashed from where it lands. */
-function tileRuns(sheet: Sheet, area: Rect): WallRun[] {
+export function tileRuns(sheet: Sheet, area: Rect): WallRun[] {
   const tw = sheet.frameWidth / sheetPxPerLogical(sheet);
   const th = sheet.frameHeight / sheetPxPerLogical(sheet);
   return Array.from({ length: Math.ceil(area.h / th) }, (_, row) =>
