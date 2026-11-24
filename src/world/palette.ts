@@ -47,4 +47,8 @@ export const PALETTE = {
   runner: 0x4c805c,
   studyPaper: 0xb8c4d0,
   parquet: 0xb27456,
+  /** The garden's source plants' foliage: WASHES.foliage (the juniper's summer), mapleSummer, pineSummer. */
+  foliage: 0x589654,
+  mapleSummer: 0x467e46,
+  pineSummer: 0x508068,
 } as const;

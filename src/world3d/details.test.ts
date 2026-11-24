@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
 import { countDetails, roomDetails, type Detail } from './details';
-import { FACE_RELIEF, WINDOW_HEAD, WINDOW_SILL, heightMetres, roomPlan3d } from './plan';
+import {
+  DOOR_HEIGHT,
+  DOOR_WIDTH,
+  FACE_RELIEF,
+  WINDOW_HEAD,
+  WINDOW_SILL,
+  heightMetres,
+  roomPlan3d,
+} from './plan';
 
 const detailsOf = (key: keyof typeof ROOMS): Detail[] =>
   roomDetails(ROOMS[key], roomPlan3d(ROOMS[key]));
@@ -94,7 +102,54 @@ describe('roomDetails', () => {
     const plantings = detailsOf('garden').filter((d) => d.kind === 'planting');
     expect(plantings.map((d) => d.name)).toEqual(['source_juniper', 'source_maple', 'source_pine']);
     expect(plantings[0]?.host).toBeUndefined();
-    expect(countDetails(detailsOf('garden'))).toEqual({ door: 1, window: 1, planting: 3 });
+    expect(countDetails(detailsOf('garden'))).toEqual({ door: 4, window: 1, planting: 3 });
+  });
+
+  it("gives each garden source plant its species' tiers, its widest the prop's 0.75 m footprint", () => {
+    const plants = ROOMS.garden.props.filter((p) => p.speciesKey !== undefined);
+    expect(plants.map((p) => p.w)).toEqual([24, 24, 24]);
+    const washes = { juniper: 'foliage', maple: 'mapleSummer', pine: 'pineSummer' };
+    const tiers = { juniper: 3, maple: 3, pine: 4 };
+    for (const prop of plants) {
+      const key = prop.speciesKey ?? 'juniper';
+      const planting = detailsOf('garden').find((d) => d.name === prop.key);
+      const crown = planting?.parts.filter((p) => p.wash === washes[key]) ?? [];
+      expect(crown).toHaveLength(tiers[key]);
+      expect(Math.max(...crown.map((p) => p.x1 - p.x0))).toBeCloseTo(0.75, 9);
+      expect(Math.max(...crown.map((p) => p.y1 - p.y0))).toBeCloseTo(0.75, 9);
+      expect(Math.min(...crown.map((p) => p.x0))).toBeCloseTo(prop.x / 32 - 0.375, 9);
+    }
+  });
+
+  it("hangs each garden door that has no opening on its building's face, recessed in a frame", () => {
+    const room = ROOMS.garden;
+    const plan = roomPlan3d(room);
+    const faceDoors = room.props.filter(
+      (p) => p.wall !== undefined && !plan.openings.some((o) => o.name === p.key),
+    );
+    expect(faceDoors.map((p) => p.key)).toEqual(['door', 'door_study', 'door_greenhouse']);
+    const details = detailsOf('garden');
+    for (const prop of faceDoors) {
+      const matches = details.filter((d) => d.name === prop.key);
+      expect(matches).toHaveLength(1);
+      const door = matches[0] ?? { name: '', kind: 'door' as const, parts: [] };
+      const face = plan.furniture.find((b) => b.name === door.host);
+      expect(face?.name).toMatch(/_face$/);
+      const { x0, x1, y0, y1, z1 } = extent(door);
+      expect(x1 - x0).toBeCloseTo(DOOR_WIDTH, 9);
+      expect((x0 + x1) / 2).toBeCloseTo(prop.x / 32, 9);
+      expect(z1).toBe(DOOR_HEIGHT);
+      expect(z1).toBeLessThan(face?.z1 ?? 0);
+      expect(y0).toBeCloseTo((face?.y0 ?? 0) - FACE_RELIEF, 9);
+      expect(y1).toBeCloseTo((face?.y1 ?? 0) + FACE_RELIEF, 9);
+      const leaf = door.parts[3];
+      expect(leaf?.y0).toBeGreaterThan(y0);
+      expect(leaf?.y1).toBeLessThan(y1);
+    }
+  });
+
+  it('gives the gate, which has a plan opening, one door detail only', () => {
+    expect(detailsOf('garden').filter((d) => d.name === 'gate')).toHaveLength(1);
   });
 
   it("sets the front garden's four windows and the kitchen's in their face, from sill to head", () => {
