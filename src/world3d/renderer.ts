@@ -21,6 +21,7 @@ import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
 import { Bone } from '@babylonjs/core/Bones/bone';
 import { Skeleton } from '@babylonjs/core/Bones/skeleton';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
 import type { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 import { Mesh } from '@babylonjs/core/Meshes/mesh';
@@ -81,7 +82,7 @@ import { roofMesh } from './roofMeshes';
 import { LOOK, outlineWidthMetres, unitRgb } from './look';
 import { lookLit } from './lookPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
-import type { TreeStand } from './trees';
+import type { SpotMat, TreeStand } from './trees';
 import {
   massLayout,
   paperedMasses,
@@ -98,12 +99,19 @@ const SURROUND = Color3.FromHexString('#3e3632');
 /** The plan's origin, where a model's parts and a room's standing details are placed. */
 const ORIGIN: Vec3 = { x: 0, y: 0, z: 0 };
 
+/** The mat on an empty display spot: a low disc, `MAT_DIAMETER` m across (a little wider than a small pot) and `MAT_HEIGHT` m thick, sitting on the furniture's top, drawn in `MAT_TESSELLATION` sides. */
+const MAT_DIAMETER = 0.22;
+const MAT_HEIGHT = 0.02;
+const MAT_TESSELLATION = 16;
+
 /** What the scene reports to the test hook. */
 export interface RendererSnapshot {
   readonly room: Room['key'];
   readonly meshes: number;
   /** The trees standing in the room, each a pot, a trunk and, in season, foliage. */
   readonly trees: number;
+  /** The mats marking the room's empty display spots. */
+  readonly spotMats: number;
   /** The furniture standing in the room, as instances of each kind's one model. */
   readonly instances: Readonly<Record<string, number>>;
   /** Where the camera is now, eased toward the rig. */
@@ -343,6 +351,8 @@ export class Renderer {
   private weatherKind: string | null = null;
   /** The trees standing in the room, by tree id. */
   private readonly trees = new Map<number, Planted>();
+  /** The mats on the room's empty display spots, by spot key. */
+  private readonly mats = new Map<string, Mesh>();
   /** The one material of every tree part and furniture model: white, so the vertex colours the builders give are what shows. */
   private readonly colourMaterial: StandardMaterial;
   /** Toward the sun in Babylon's frame, the direction the ramp reads N.L against. */
@@ -463,6 +473,7 @@ export class Renderer {
       room: this.room,
       meshes: this.scene.meshes.filter((mesh) => mesh.isEnabled()).length,
       trees: this.trees.size,
+      spotMats: this.mats.size,
       instances: Object.fromEntries([...this.instanced].map(([kind, { count }]) => [kind, count])),
       camera: { alpha, beta, radius },
       cut: this.cut,
@@ -601,6 +612,7 @@ export class Renderer {
     room: Room,
     px: { readonly x: number; readonly y: number },
     trees: readonly TreeStand[],
+    mats: readonly SpotMat[],
     season: Season,
     weather: WeatherField | undefined,
     roomOf: (key: RoomKey) => Room,
@@ -611,6 +623,7 @@ export class Renderer {
     const built = fresh && this.enter(room, started);
     this.furnish(room);
     this.plant(trees, season);
+    this.lay(mats);
     this.sky(weather);
     const plan = playerFeet(px);
     const now = performance.now();
@@ -791,6 +804,33 @@ export class Renderer {
     }
   }
 
+  /** Lays `mats`: a new spot gets a mat, one that left has its mat disposed, and each stays on its spot. */
+  private lay(mats: readonly SpotMat[]): void {
+    const keys = new Set(mats.map((mat) => mat.key));
+    for (const [key, mesh] of this.mats) {
+      if (keys.has(key)) continue;
+      this.discard(mesh);
+      this.mats.delete(key);
+    }
+    for (const { key, x, y, z } of mats) {
+      let mesh = this.mats.get(key);
+      if (!mesh) {
+        mesh = CreateCylinder(
+          `mat.${key}`,
+          { diameter: MAT_DIAMETER, height: MAT_HEIGHT, tessellation: MAT_TESSELLATION },
+          this.scene,
+        );
+        mesh.material = this.material('runner');
+        mesh.receiveShadows = true;
+        mesh.isPickable = false;
+        this.ink(mesh);
+        this.mats.set(key, mesh);
+      }
+      const at = toBabylon({ x, y, z: z + MAT_HEIGHT / 2 });
+      mesh.position.set(at.x, at.y, at.z);
+    }
+  }
+
   /** Removes the canvas and everything on the GPU, and gives the game's canvas back its style. */
   dispose(): void {
     for (const set of this.sets.values()) this.release(set);
@@ -828,6 +868,8 @@ export class Renderer {
     this.instanced.clear();
     for (const planted of this.trees.values()) this.discardTree(planted);
     this.trees.clear();
+    for (const mesh of this.mats.values()) this.discard(mesh);
+    this.mats.clear();
     this.cut = [];
     const signature = roomSignature(room);
     let set = this.sets.get(room.key);

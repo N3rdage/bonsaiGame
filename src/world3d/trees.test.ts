@@ -3,10 +3,11 @@ import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { GameState } from '../sim/types';
 import { LOUNGE_ROOM } from '../world/loungeRoom';
-import { SHED_ROOM } from '../world/shedRoom';
+import { SHED_ROOM, type Room } from '../world/shedRoom';
+import { STUDY_ROOM } from '../world/studyRoom';
 import { floorSpot, treeSprites } from '../world/treeSprites';
 import { heightMetres, metres } from './plan';
-import { treeKey, treeStands } from './trees';
+import { spotMats, treeKey, treeStands } from './trees';
 
 function stateWith(...locations: string[]): GameState {
   const state = createNewGameState();
@@ -53,6 +54,38 @@ describe('treeStands', () => {
       treeSprites(state, LOUNGE_ROOM).map((s) => s.tree.id),
     );
     expect(treeStands(stateWith(), LOUNGE_ROOM, 'spring')).toEqual([]);
+  });
+});
+
+describe('spotMats', () => {
+  const at = (room: Room, pedestalKey: string): { x: number; y: number } => {
+    const spot = room.props.find((p) => p.pedestalKey === pedestalKey);
+    if (!spot) throw new Error(`no spot ${pedestalKey}`);
+    return { x: metres(spot.x), y: metres(spot.y) };
+  };
+
+  it('marks each empty spot of the lounge in the middle of the spot, on the top of its furniture', () => {
+    const mats = spotMats(stateWith(), LOUNGE_ROOM);
+    expect(mats).toEqual([
+      { key: 'lounge_mantel', ...at(LOUNGE_ROOM, 'lounge_mantel'), z: heightMetres(20) },
+      { key: 'lounge_side_table', ...at(LOUNGE_ROOM, 'lounge_side_table'), z: heightMetres(8) },
+    ]);
+  });
+
+  it('marks each empty spot of the study on the desk and the bookcase', () => {
+    expect(spotMats(stateWith(), STUDY_ROOM)).toEqual([
+      { key: 'study_desk', ...at(STUDY_ROOM, 'study_desk'), z: heightMetres(16) },
+      { key: 'study_bookshelf', ...at(STUDY_ROOM, 'study_bookshelf'), z: heightMetres(12) },
+    ]);
+  });
+
+  it('marks no spot that holds a tree, and no room without spots', () => {
+    const state = stateWith('displayed:lounge_side_table');
+    expect(spotMats(state, LOUNGE_ROOM).map((m) => m.key)).toEqual(['lounge_mantel']);
+    expect(
+      spotMats(stateWith('displayed:lounge_mantel', 'displayed:lounge_side_table'), LOUNGE_ROOM),
+    ).toEqual([]);
+    expect(spotMats(stateWith(), SHED_ROOM)).toEqual([]);
   });
 });
 

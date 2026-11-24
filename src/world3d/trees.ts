@@ -7,6 +7,7 @@
  */
 
 import type { Season } from '../sim/seasons';
+import { treeOnPedestal } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { treeSprites } from '../world/treeSprites';
 import type { Furniture, Room } from '../world/shedRoom';
@@ -65,4 +66,29 @@ export function treeStands(state: GameState, room: Room, season: Season): TreeSt
       key: treeKey(sprite.tree, season),
     };
   });
+}
+
+/** A mat marking an empty display spot: its middle on the top of the furniture, in plan metres, where a displayed tree would stand. */
+export interface SpotMat {
+  /** The spot's `pedestalKey`. */
+  readonly key: string;
+  readonly x: number;
+  readonly y: number;
+  readonly z: number;
+}
+
+/** A mat for every display spot of `room` (a prop with a `pedestalKey`) that holds no tree, at the stand a tree there would have. */
+export function spotMats(state: GameState, room: Room): SpotMat[] {
+  return room.props.flatMap((spot) =>
+    spot.pedestalKey === undefined || treeOnPedestal(state, spot.pedestalKey) !== undefined
+      ? []
+      : [
+          {
+            key: spot.pedestalKey,
+            x: metres(spot.x),
+            y: metres(spot.y),
+            z: surfaceAt(room, spot.x, spot.y),
+          },
+        ],
+  );
 }
