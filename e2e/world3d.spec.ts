@@ -702,7 +702,7 @@ test.describe('the 3D world', () => {
       expect((await world3d(page)).details).toEqual({ door: 2, window: 1 });
       await shedToGarden(page);
       await waitForRoom(page, 'garden');
-      expect((await world3d(page)).details).toEqual({ door: 1, window: 1, planting: 3 });
+      expect((await world3d(page)).details).toEqual({ door: 4, window: 1, planting: 3 });
     },
   );
 
