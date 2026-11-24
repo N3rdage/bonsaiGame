@@ -108,6 +108,8 @@ interface BonsaiTestHook {
       readonly ms: number;
       readonly dressedMs?: number;
     }[];
+    /** The latest 20 rooms built hidden ahead behind the shown room's doors, oldest first, each with the ms its build took; the renderer builds one only once the player has stood still for 200 ms, and the log is empty while off. */
+    readonly aheadBuilds: readonly { readonly room: string; readonly ms: number }[];
     /** The benchmark (Menu, Benchmark, while the 3D world is on): `running` from the tap until the result is in (2 s warm-up, 12 s of frames), then `result`: frames drawn, fps, median, 95th percentile and worst frame ms, draw calls a frame (mean and max), the canvas's render size, the device pixel ratio, the user agent and the room; `result` is null before a run and while off. */
     readonly bench: {
       readonly running: boolean;

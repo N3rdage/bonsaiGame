@@ -209,6 +209,36 @@ test.describe('the 3D world', () => {
     expect(state.roomChanges.map(({ room, first }) => [room, first])).toEqual([['shed', true]]);
   });
 
+  test('builds no room ahead while the player walks, and does once they stop', async ({ page }) => {
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await waitForBuilt(page, ['garden', 'lounge']);
+    // The shed's neighbours are built and ahead of the lounge's own: the hallway is not.
+    expect((await world3d(page)).built).not.toContain('hallway');
+
+    // Through the lounge door and on up the lounge, a walk of over a second that never lets go
+    // of the key, so the player does not stand still in the room that queues the hallway.
+    await page.keyboard.down('ArrowUp');
+    await page.waitForFunction(() => window.__bonsai?.room === 'lounge', undefined, POLL);
+    const walking = await hook(page);
+    expect(walking.world3d?.built).not.toContain('hallway');
+    const from = walking.player.y;
+    await page.waitForFunction((y) => (window.__bonsai?.player.y ?? y) < y - 20, from, POLL);
+    const now = await hook(page);
+    expect(now.player.y).toBeLessThan(from);
+    expect(now.world3d?.aheadBuilds).toEqual(walking.world3d?.aheadBuilds);
+    expect(now.world3d?.built).toEqual(walking.world3d?.built);
+    await page.keyboard.up('ArrowUp');
+
+    await waitForBuilt(page, ['hallway']);
+    const { aheadBuilds } = await world3d(page);
+    expect(aheadBuilds.map(({ room }) => room)).toEqual(['garden', 'lounge', 'hallway']);
+    for (const { ms } of aheadBuilds) expect(ms).toBeGreaterThan(0);
+  });
+
   test('walks through a doorway into the next room without Interact', async ({ page }) => {
     test.setTimeout(120_000);
     await bootWorld(page);

@@ -43,7 +43,13 @@ import { floorLayout, floorMeshData, type QuadMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind, type ModelPart } from './furnitureModels';
 import { lightDirectionBabylon, shadowDarkness } from './light';
-import { logChange, neighbourKeys, roomSignature, type RoomChange } from './roomCache';
+import {
+  logChange,
+  neighbourKeys,
+  roomSignature,
+  type AheadBuild,
+  type RoomChange,
+} from './roomCache';
 import { shadowFrustum } from './shadowFrustum';
 import {
   JOINT_NAMES,
@@ -130,6 +136,7 @@ export interface RendererSnapshot {
   readonly built: readonly string[];
   /** The latest changes of room, oldest first, with the time each took to draw. */
   readonly roomChanges: readonly RoomChange[];
+  readonly aheadBuilds: readonly AheadBuild[];
   /** The benchmark run: on now, and its result once in. */
   readonly bench: { readonly running: boolean; readonly result: BenchResult | null };
 }
@@ -155,6 +162,9 @@ const SHADOW_CEILING = 4;
 const ANISOTROPY = 4;
 /** Polygon offset of the Inked art's materials, negative toward the camera. */
 const ART_DEPTH_OFFSET = -2;
+
+/** How long the player's feet must have stayed put before a room is built ahead, ms: a walk's frames are not all steps, so one frame at rest does not say the player stopped. */
+const STILL_BEFORE_AHEAD_MS = 200;
 
 /** A standing tree: the node at its feet, the meshes parented to it and the key they were built for (`treeKey`). */
 interface Planted {
@@ -299,10 +309,11 @@ export class Renderer {
   private readonly boneMatrix = new Matrix();
   private room: Room['key'] | undefined;
   private roomChanges: RoomChange[] = [];
+  private aheadBuilds: AheadBuild[] = [];
   /** Each room's built set, kept for the renderer's life; only `shown`'s is enabled. */
   private readonly sets = new Map<Room['key'], RoomSet>();
   private shown: RoomSet | undefined;
-  /** The rooms behind the shown room's doors still to be built ahead, in the order of its props; one is built a frame once the shown room is dressed. */
+  /** The rooms behind the shown room's doors still to be built ahead, in the order of its props; one is built a frame once the shown room is dressed and the player has stood still a moment. */
   private ahead: RoomKey[] = [];
   /** Every sheet's texture, by URL: loaded once and shared by the rooms that use it. */
   private readonly sheets = new Map<string, SheetTexture>();
@@ -335,6 +346,8 @@ export class Renderer {
   private size = '';
   /** When the last frame was drawn, ms; the scene is rendered by hand, so the engine keeps no delta of its own. */
   private lastFrame = performance.now();
+  /** When the player's feet last moved, or the room last changed, ms. */
+  private movedAt = performance.now();
   /** The benchmark run in progress or last finished, and the draw-call counter it reads while it runs. */
   private bench: Bench | undefined;
   private instrumentation: SceneInstrumentation | undefined;
@@ -456,6 +469,7 @@ export class Renderer {
         .map(({ id, x, y, w, h }) => ({ id, x, y, w, h })),
       built: [...this.sets.keys()].sort(),
       roomChanges: this.roomChanges,
+      aheadBuilds: this.aheadBuilds,
       bench: this.benchState(),
     };
   }
@@ -566,7 +580,9 @@ export class Renderer {
    * the room's data changed) if the room changed and rebuilding a tree's only
    * when its key did. A change of room is logged with the time it took, and
    * queues the rooms behind its doors, which later frames build hidden, one a
-   * frame, from `roomOf`'s live data once the room shown is dressed.
+   * frame, from `roomOf`'s live data, only once the player's feet have stood
+   * still for `STILL_BEFORE_AHEAD_MS` and the room shown is dressed, so a
+   * build never hitches a walk.
    */
   frame(
     room: Room,
@@ -595,6 +611,7 @@ export class Renderer {
       moved = Math.hypot(dx, dy);
     }
     this.lastFeet = { x: plan.x, y: plan.y };
+    if (fresh || moved > 0) this.movedAt = now;
     this.animate(moved, fresh ? 0 : gameSeconds);
     // The body faces its local +z, which a turn of theta about y points along (sin, cos) in x and z.
     this.player.rotation.y = this.facing + Math.PI / 2;
@@ -614,13 +631,19 @@ export class Renderer {
         if (set.laidAt !== undefined) change.dressedMs = set.laidAt - started;
       }
       this.ahead = neighbourKeys(room);
-    } else if (this.shown?.laidAt !== undefined) {
+    } else if (
+      moved === 0 &&
+      now - this.movedAt >= STILL_BEFORE_AHEAD_MS &&
+      this.shown?.laidAt !== undefined
+    ) {
       this.buildAhead(roomOf);
     }
   }
 
   /**
-   * Builds the next queued room hidden, one a frame: a room whose kept set
+   * Builds the next queued room hidden, one a frame, and logs the time the
+   * build took (the caller asks only once the player has stood
+   * still, since a build is one blocking step): a room whose kept set
    * still matches its live data is passed over without spending the frame, and
    * a stale one is released and built again. Nothing of the room shown is
    * touched: not its shadow fit, hotspots or log.
@@ -632,8 +655,13 @@ export class Renderer {
       const kept = this.sets.get(key);
       if (kept?.signature === signature) continue;
       if (kept) this.release(kept);
-      const set = this.build(room, signature, performance.now());
+      const started = performance.now();
+      const set = this.build(room, signature, started);
       set.root.setEnabled(false);
+      this.aheadBuilds = logChange(this.aheadBuilds, {
+        room: key,
+        ms: performance.now() - started,
+      });
       this.sets.set(key, set);
       return;
     }

@@ -42,7 +42,14 @@ export function neighbourKeys(room: Room): Room['key'][] {
   return [...keys];
 }
 
-/** `log` with `change` added, keeping the latest `ROOM_CHANGE_LOG`. */
-export function logChange(log: readonly RoomChange[], change: RoomChange): RoomChange[] {
-  return [...log, change].slice(-ROOM_CHANGE_LOG);
+/** One room built hidden ahead of a change into it, and the time `build` took. */
+export interface AheadBuild {
+  readonly room: Room['key'];
+  /** The time the room's build took, ms. */
+  readonly ms: number;
+}
+
+/** `log` with `entry` added, keeping the latest `ROOM_CHANGE_LOG`. */
+export function logChange<T>(log: readonly T[], entry: T): T[] {
+  return [...log, entry].slice(-ROOM_CHANGE_LOG);
 }

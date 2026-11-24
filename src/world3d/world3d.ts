@@ -150,6 +150,7 @@ export class World3d {
       picked: this.picked,
       hotspots: state ? [...state.hotspots] : [],
       roomChanges: state ? state.roomChanges.map((change) => ({ ...change })) : [],
+      aheadBuilds: state ? state.aheadBuilds.map((build) => ({ ...build })) : [],
       bench: state ? { ...state.bench } : { running: false, result: null },
     };
   }

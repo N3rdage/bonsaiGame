@@ -5,6 +5,7 @@ import { LOUNGE_ROOM } from '../world/loungeRoom';
 import type { Room } from '../world/shedRoom';
 import {
   ROOM_CHANGE_LOG,
+  type AheadBuild,
   logChange,
   neighbourKeys,
   roomSignature,
@@ -73,5 +74,13 @@ describe('logChange', () => {
     expect(log).toHaveLength(ROOM_CHANGE_LOG);
     expect(log[0]?.ms).toBe(5);
     expect(log.at(-1)?.ms).toBe(ROOM_CHANGE_LOG + 4);
+  });
+
+  it('logs ahead builds the same way', () => {
+    let log: AheadBuild[] = [];
+    for (let n = 0; n < ROOM_CHANGE_LOG + 2; n += 1)
+      log = logChange(log, { room: 'garden', ms: n });
+    expect(log).toHaveLength(ROOM_CHANGE_LOG);
+    expect(log[0]).toEqual({ room: 'garden', ms: 2 });
   });
 });
