@@ -993,6 +993,10 @@ export class WorldScene extends Phaser.Scene {
         this.closePanel();
         this.world3d.startBench();
       },
+      times: () => {
+        this.closePanel();
+        this.world3d.showTimes();
+      },
       title: () => {
         this.toTitle();
       },

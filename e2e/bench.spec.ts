@@ -21,6 +21,7 @@ test.describe('the benchmark', () => {
     const ids = (await hook(page)).controls.map((c) => c.id);
     expect(ids).toContain('menu-settings');
     expect(ids).not.toContain('menu-bench');
+    expect(ids).not.toContain('menu-times');
   });
 
   test('runs from the menu, shows its result and gives the camera back', async ({ page }) => {

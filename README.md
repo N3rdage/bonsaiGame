@@ -68,6 +68,7 @@ The game has sound effects and quiet ambient music, each with its own switch in 
 | Menu button → Save, or F5 | Save game |
 | Menu button → Load, or F9 | Load game |
 | Menu button → Benchmark (while the 3D world is on) | Fly the camera round the room for 14 seconds, then show the frame rate, median, p95 and worst frame times and draw calls; Close puts the panel away and the camera goes back to the player |
+| Menu button → Room times (while the 3D world is on) | Show how long the latest room changes and the rooms built ahead of them took, in milliseconds; Close puts the panel away |
 | Menu button → Title, or Esc | Back to title (Esc first closes an open panel or the 3D viewer, or ends placing) |
 | Q | Close an open panel, the 3D viewer or placing mode, and nothing else: it never leaves the room, and in the rename box it is a typed letter. Unlike Esc it works in browser fullscreen, where the browser takes the first Esc to leave fullscreen; there the close buttons name Q, not Esc (Chromium offers Esc back through its keyboard lock, and then they name Esc again) |
 

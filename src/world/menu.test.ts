@@ -42,7 +42,7 @@ const opts = (carrying: boolean): MenuOptions => ({
 });
 
 describe('world HUD menu layout', () => {
-  it('has a Benchmark row between Settings and Title only while the 3D world is on', () => {
+  it('has Benchmark and Room times rows between Settings and Title only while the 3D world is on', () => {
     const ids = (o: MenuOptions) => menuItems(o, DESKTOP_UI).map((i) => i.id);
     expect(ids(opts(false))).not.toContain('bench');
     expect(ids({ ...opts(false), bench: false })).not.toContain('bench');
@@ -54,9 +54,11 @@ describe('world HUD menu layout', () => {
       'load',
       'settings',
       'bench',
+      'times',
       'title',
     ]);
     expect(menuItems({ ...opts(false), bench: true }, DESKTOP_UI)[6]?.label).toBe('Benchmark');
+    expect(menuItems({ ...opts(false), bench: true }, DESKTOP_UI)[7]?.label).toBe('Room times');
   });
 
   it('has Inventory, Sleep, Sleep a week, Save, Load, Settings and Title, in that order', () => {
