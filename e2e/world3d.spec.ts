@@ -24,6 +24,8 @@ import {
   tapControl,
   test,
   toTitle,
+  walkToColumn,
+  walkToRow,
 } from './drive';
 import {
   gardenToGreenhouse,
@@ -749,6 +751,25 @@ test.describe('the 3D world', () => {
       await expect(page).toHaveScreenshot('world3d-garden-shadows.png');
     },
   );
+
+  test("draws the garden's glazed doors", { tag: '@walk' }, async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await shedToGarden(page);
+    await waitForRoom(page, 'garden');
+    // The rooms behind the garden's doors are built ahead on idle frames; let that finish.
+    await waitForBuilt(page, ['study', 'greenhouse', 'frontGarden']);
+    // On the lawn in front of the study's door, in the house's back face, which the camera frames.
+    await walkToColumn(page, 300);
+    await walkToRow(page, 175);
+    await page.waitForTimeout(2000);
+    // The garden's capture takes software GL longer than the default 5 s to settle.
+    await expect(page).toHaveScreenshot('world3d-garden-doors.png', { timeout: 30_000 });
+  });
 
   test(
     "cuts the front garden's house face away with its windows and the garage door when it hides the player",
