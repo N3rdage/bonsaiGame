@@ -14,6 +14,9 @@
 import { PLAYER_HEIGHT, type Vec3 } from './meshes';
 import type { Box, RoomPlan3d, WallSide } from './plan';
 
+/** The extent of a box: what the slab test needs of it. */
+type Extent = Pick<Box, 'x0' | 'x1' | 'y0' | 'y1' | 'z0' | 'z1'>;
+
 /** The pitch from vertical a new session starts at, 55 degrees, and the heading: south of the player, looking north. */
 export const CAMERA_BETA = (55 * Math.PI) / 180;
 export const CAMERA_ALPHA = -Math.PI / 2;
@@ -212,7 +215,7 @@ export function cameraPosition(view: CameraView, target: Vec3): Vec3 {
 }
 
 /** True if the segment from `a` to `b` passes through the box (the slab test). */
-export function segmentCrossesBox(a: Vec3, b: Vec3, box: Box): boolean {
+export function segmentCrossesBox(a: Vec3, b: Vec3, box: Extent): boolean {
   let enter = 0;
   let leave = 1;
   const axes = [
@@ -246,7 +249,7 @@ export function cuttable(plan: RoomPlan3d, piece: Box): boolean {
  * The names of the plan's pieces to cut away to the skirting for a camera in
  * `view` round the player standing at `player` (feet, plan metres). Indoors
  * that is each wall on the side the camera is on (`facesCamera`); outdoors,
- * each tall wall or building piece the line from the camera to the player's
+ * each tall wall or building piece, and each roof (over its footprint from the floor), the line from the camera to the player's
  * middle passes through. The camera is taken as centred on the player, which
  * it is once eased.
  */
@@ -256,7 +259,11 @@ export function cutNames(plan: RoomPlan3d, view: CameraView, player: Vec3): stri
   }
   const middle = { ...player, z: player.z + PLAYER_HEIGHT / 2 };
   const eye = cameraPosition(view, middle);
-  return [...plan.walls, ...plan.furniture]
+  const pieces = [...plan.walls, ...plan.furniture]
     .filter((piece) => cuttable(plan, piece) && segmentCrossesBox(eye, middle, piece))
     .map((piece) => piece.name);
+  const roofs = plan.roofs
+    .filter((roof) => segmentCrossesBox(eye, middle, { ...roof, z0: 0, z1: roof.high }))
+    .map((roof) => roof.name);
+  return [...pieces, ...roofs];
 }

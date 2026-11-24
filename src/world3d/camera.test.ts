@@ -284,12 +284,37 @@ describe('cutNames', () => {
     const plan = {
       ...roomPlan3d(ROOMS.garden),
       walls: [],
+      roofs: [],
       furniture: [
         piece('between', 9, 11, 2.4),
         piece('beside', 20, 11, 2.4),
         piece('behind', 9, 8.5, 2.4),
         piece('fence', 9, 11.6, 0.75),
       ],
+    };
+    const player = { x: 10, y: 10, z: 0 };
+    expect(cutNames(plan, view(HEADING.S), player)).toEqual(['between']);
+    expect(cutNames(plan, view(HEADING.N), player)).toEqual(['behind']);
+    expect(cutNames(plan, view(HEADING.E), player)).toEqual([]);
+  });
+
+  it('cuts a roof over the line from the camera to the player, whole from the floor up', () => {
+    const roof = (name: string, x0: number, y0: number) => ({
+      name,
+      wash: 'tile' as const,
+      x0,
+      x1: x0 + 2,
+      y0,
+      y1: y0 + 2,
+      low: 2.25,
+      high: 3,
+      form: { kind: 'gable', axis: 'x' } as const,
+    });
+    const plan = {
+      ...roomPlan3d(ROOMS.garden),
+      walls: [],
+      furniture: [],
+      roofs: [roof('between', 9, 10.5), roof('beside', 20, 11), roof('behind', 9, 7)],
     };
     const player = { x: 10, y: 10, z: 0 };
     expect(cutNames(plan, view(HEADING.S), player)).toEqual(['between']);
