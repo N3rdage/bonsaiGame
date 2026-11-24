@@ -9,7 +9,7 @@
 import type Phaser from 'phaser';
 import { SURROUND } from '../scenes/textStyle';
 import type { Season } from '../sim/seasons';
-import type { Room } from '../world/shedRoom';
+import type { Room, RoomKey } from '../world/shedRoom';
 import { cameraRig } from './camera';
 import { showBench } from './benchPanel';
 import type { Renderer } from './renderer';
@@ -64,7 +64,7 @@ export class World3d {
     return this.renderer !== undefined;
   }
 
-  /** Follows the setting: starts loading the renderer when it turns on, drops it when it turns off, and draws a frame while it is up. */
+  /** Follows the setting (`roomOf` gives a room's live data, which the rooms behind the doors are built ahead from): starts loading the renderer when it turns on, drops it when it turns off, and draws a frame while it is up. */
   sync(
     on: boolean,
     room: Room,
@@ -72,6 +72,7 @@ export class World3d {
     trees: readonly TreeStand[],
     season: Season,
     weather: WeatherField | undefined,
+    roomOf: (key: RoomKey) => Room,
     gameSeconds = 0,
   ): void {
     if (on && !this.renderer && !this.loading && !this.failed) {
@@ -91,7 +92,7 @@ export class World3d {
         });
     }
     if (!on) this.dispose();
-    this.renderer?.frame(room, player, trees, season, weather, gameSeconds);
+    this.renderer?.frame(room, player, trees, season, weather, roomOf, gameSeconds);
     const bench = this.renderer?.benchState().result;
     if (bench && bench !== this.benchShown) {
       this.benchShown = bench;
@@ -144,10 +145,12 @@ export class World3d {
       wallSheets: state ? [...state.wallSheets] : [],
       details: state ? { ...state.details } : {},
       weather: state?.weather ?? null,
+      built: state ? [...state.built] : [],
       player: this.renderer ? this.renderer.playerAt() : null,
       picked: this.picked,
       hotspots: state ? [...state.hotspots] : [],
       roomChanges: state ? state.roomChanges.map((change) => ({ ...change })) : [],
+      aheadBuilds: state ? state.aheadBuilds.map((build) => ({ ...build })) : [],
       bench: state ? { ...state.bench } : { running: false, result: null },
     };
   }

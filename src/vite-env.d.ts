@@ -99,6 +99,8 @@ interface BonsaiTestHook {
       readonly w: number;
       readonly h: number;
     }[];
+    /** The keys of the room sets the renderer keeps, shown and hidden, sorted: the room shown, those built ahead behind its doors and those visited before; empty while off. */
+    readonly built: readonly string[];
     /** The last 20 changes of room the renderer drew, oldest first: the room, `first` (true when the change built the room's meshes, its first visit or one after the room's own data changed; false when it showed the set kept from an earlier visit), `ms` from the start of the change's frame to the end of its render, and for a built room `dressedMs`, the same clock when its floor and wall sheets had all been laid (absent until then); empty while off. */
     readonly roomChanges: readonly {
       readonly room: string;
@@ -106,6 +108,8 @@ interface BonsaiTestHook {
       readonly ms: number;
       readonly dressedMs?: number;
     }[];
+    /** The latest 20 rooms built hidden ahead behind the shown room's doors, oldest first, each with the ms its build took; the renderer builds one only once the player has stood still for 200 ms, and the log is empty while off. */
+    readonly aheadBuilds: readonly { readonly room: string; readonly ms: number }[];
     /** The benchmark (Menu, Benchmark, while the 3D world is on): `running` from the tap until the result is in (2 s warm-up, 12 s of frames), then `result`: frames drawn, fps, median, 95th percentile and worst frame ms, draw calls a frame (mean and max), the canvas's render size, the device pixel ratio, the user agent and the room; `result` is null before a run and while off. */
     readonly bench: {
       readonly running: boolean;
