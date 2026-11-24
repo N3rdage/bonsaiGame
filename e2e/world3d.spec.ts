@@ -661,7 +661,7 @@ test.describe('the 3D world', () => {
     await shedToLounge(page);
     await waitForRoom(page, 'lounge');
     await page.waitForTimeout(800);
-    await expect(page).toHaveScreenshot('world3d-lounge.png');
+    await expect(page).toHaveScreenshot('world3d-lounge-hallway.png');
   });
 
   test("lays each room's own Inked floor tiles", { tag: '@walk' }, async ({ page }) => {
