@@ -1155,7 +1155,7 @@ export class Renderer {
    * Stands the room's modelled doors, windows, hedges and plantings. Those
    * hung from a wall piece (a door, a window) are one merged mesh parented to
    * that piece's box (a wall, or the building face a window or the roller door is set in), so the camera's cut takes them away with it, lit like
-   * the walls and not outlined; the rest (a hedge, a planting) are one merged
+   * the walls and not outlined (a face detail is inked, as its face is); the rest (a hedge, a planting) are one merged
    * mesh on the floor, which casts a shadow and is inked as furniture is.
    */
   private furnishDetails(set: RoomSet, details: readonly Detail[]): void {
@@ -1176,6 +1176,9 @@ export class Renderer {
       const parts = details.filter((d) => d.host === host).flatMap((d) => d.parts);
       const mesh = this.partsMesh(`details.${host}`, parts, origin);
       mesh.parent = parent;
+      // A building face is inked, and its outline shell is drawn over any pixel that is not
+      // the face's own or an inked mesh's, so a detail standing on it must be inked as well.
+      if (host.startsWith('furniture.')) this.ink(mesh);
     }
     const standing = details.filter((d) => !hung(d.host)).flatMap((d) => d.parts);
     if (standing.length === 0) return;
