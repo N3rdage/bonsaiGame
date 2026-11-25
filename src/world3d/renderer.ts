@@ -43,6 +43,7 @@ import { countDetails, roomDetails, type Detail } from './details';
 import { floorLayout, floorMeshData, type QuadMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
 import { FURNITURE_MODELS, type FurnitureKind, type ModelPart } from './furnitureModels';
+import { roundedBox } from './shapes';
 import { lightDirectionBabylon, shadowDarkness } from './light';
 import {
   logChange,
@@ -1283,14 +1284,27 @@ export class Renderer {
     return solid;
   }
 
+  /** The box of `part` at the origin: sharp from `CreateBox`, or rounded from `roundedBox` when it has a radius. */
+  private partBox(name: string, part: ModelPart): Mesh {
+    const width = part.x1 - part.x0;
+    const height = part.z1 - part.z0;
+    const depth = part.y1 - part.y0;
+    if (part.radius === undefined) return CreateBox(name, { width, height, depth }, this.scene);
+    const shape = roundedBox(width, height, depth, part.radius);
+    const vertices = new VertexData();
+    vertices.positions = shape.positions;
+    vertices.normals = shape.normals;
+    vertices.uvs = shape.uvs;
+    vertices.indices = shape.indices;
+    const mesh = new Mesh(name, this.scene);
+    vertices.applyToMesh(mesh);
+    return mesh;
+  }
+
   /** One mesh of `parts`, vertex-coloured by wash and positioned relative to `origin`; the caller gives it a material. */
   private mergedParts(name: string, parts: readonly ModelPart[], origin: Vec3): Mesh {
     const boxes = parts.map((part, n) => {
-      const box = CreateBox(
-        `${name}.${String(n)}`,
-        { width: part.x1 - part.x0, height: part.z1 - part.z0, depth: part.y1 - part.y0 },
-        this.scene,
-      );
+      const box = this.partBox(`${name}.${String(n)}`, part);
       const centre = toBabylon({
         x: (part.x0 + part.x1) / 2 - origin.x,
         y: (part.y0 + part.y1) / 2 - origin.y,

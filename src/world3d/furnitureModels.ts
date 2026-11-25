@@ -1,6 +1,6 @@
 /**
  * The shapes the 3D world gives furniture, as pure data: each kind of piece is
- * a handful of boxes in metres with a palette wash, built in code. A model is
+ * a handful of rounded boxes in metres with a palette wash, built in code. A model is
  * drawn once per kind and stood wherever that kind repeats (renderer.ts, thin
  * instances), scaled from its nominal `size` to the footprint and height the
  * room data gives the piece. Frame as plan.ts's: x east, y south, z up, the
@@ -8,6 +8,7 @@
  */
 
 import type { WashKey } from './plan';
+import { roundedBoxVertexCount } from './shapes';
 
 /** The kinds of furniture that have a model: the player's placeables and the shed's clutter. */
 export type FurnitureKind =
@@ -27,6 +28,8 @@ export interface ModelPart {
   readonly wash: WashKey;
   /** A pane of glass: drawn translucent and without ink, its `wash` only a fallback. */
   readonly glass?: boolean;
+  /** Rounds the box's edges to this radius, metres, at most half its smallest extent; without it the box is sharp. */
+  readonly radius?: number;
   readonly x0: number;
   readonly x1: number;
   readonly y0: number;
@@ -56,7 +59,10 @@ export const MODELLED_SHEETS: Readonly<Record<string, FurnitureKind>> = {
   spr_sack: 'sack',
 };
 
-/** A box `w` wide, `d` deep and `h` tall, its middle over (`x`, `y`) and its bottom at `z`. */
+/** The most a furniture box's edges are rounded: a few cm on a big slab; a thin plank or pole rounds to a third of its thickness. */
+const ROUNDING = 0.03;
+
+/** A box `w` wide, `d` deep and `h` tall, its middle over (`x`, `y`) and its bottom at `z`, its edges rounded to suit its size. */
 function block(
   wash: WashKey,
   [w, d, h]: readonly [number, number, number],
@@ -70,6 +76,7 @@ function block(
     y1: y + d / 2,
     z0: z,
     z1: z + h,
+    radius: Math.min(ROUNDING, Math.min(w, d, h) / 3),
   };
 }
 
@@ -243,3 +250,18 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
     ],
   },
 };
+
+/** The vertices of a sharp box, as `CreateBox` makes it: four to each face. */
+const SHARP_BOX_VERTICES = 24;
+
+/** The vertices one instance of `kind`'s model draws. */
+export function modelVertices(kind: FurnitureKind): number {
+  return FURNITURE_MODELS[kind].parts.reduce(
+    (sum, { radius, x0, x1, y0, y1, z0, z1 }) =>
+      sum +
+      (radius === undefined
+        ? SHARP_BOX_VERTICES
+        : roundedBoxVertexCount(x1 - x0, z1 - z0, y1 - y0, radius)),
+    0,
+  );
+}

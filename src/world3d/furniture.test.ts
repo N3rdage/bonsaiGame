@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { GameState } from '../sim/types';
+import { ROOMS } from '../world/gardenRoom';
 import { GREENHOUSE_ROOM } from '../world/greenhouseRoom';
 import { LOUNGE_ROOM } from '../world/loungeRoom';
 import {
@@ -12,8 +13,13 @@ import {
   placedProps,
 } from '../world/placement';
 import { SHED_ROOM, type Room } from '../world/shedRoom';
-import { furniturePieces } from './furniture';
-import { FURNITURE_MODELS, MODELLED_SHEETS, type FurnitureKind } from './furnitureModels';
+import { FURNITURE_VERTEX_BUDGET, furniturePieces, furnitureVertices } from './furniture';
+import {
+  FURNITURE_MODELS,
+  MODELLED_SHEETS,
+  modelVertices,
+  type FurnitureKind,
+} from './furnitureModels';
 import { heightMetres, metres, roomPlan3d } from './plan';
 import { meshSpecs } from './meshes';
 import { treeStands } from './trees';
@@ -119,6 +125,20 @@ describe('furniturePieces', () => {
   });
 });
 
+describe('the furniture vertex budget', () => {
+  it.each(Object.entries(ROOMS))('%s draws its furniture within the budget', (_key, room) => {
+    expect(furnitureVertices(room)).toBeLessThanOrEqual(FURNITURE_VERTEX_BUDGET);
+  });
+
+  it("counts each piece's model once: the shed's pieces add up", () => {
+    const kinds = furniturePieces(SHED_ROOM).map((p) => p.kind);
+    expect(furnitureVertices(SHED_ROOM)).toBe(
+      kinds.reduce((sum, kind) => sum + modelVertices(kind), 0),
+    );
+    expect(furnitureVertices(SHED_ROOM)).toBe(7560);
+  });
+});
+
 describe('furniture models', () => {
   const kinds = Object.keys(FURNITURE_MODELS) as FurnitureKind[];
 
@@ -140,6 +160,10 @@ describe('furniture models', () => {
         expect(Math.max(part.x0, part.x1)).toBeLessThanOrEqual(size.w / 2 + eps);
         expect(part.y0).toBeGreaterThanOrEqual(-size.d / 2 - eps);
         expect(part.y1).toBeLessThanOrEqual(size.d / 2 + eps);
+        expect(part.radius).toBeGreaterThan(0);
+        expect(part.radius).toBeLessThanOrEqual(
+          Math.min(part.x1 - part.x0, part.y1 - part.y0, part.z1 - part.z0) / 2,
+        );
       }
       expect(Math.min(...parts.map((p) => p.z0))).toBe(0);
       expect(Math.max(...parts.map((p) => p.z1))).toBeCloseTo(size.h, 9);
