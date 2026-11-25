@@ -92,6 +92,7 @@ import {
   meshSpecs,
   playerFeet,
   roomPx,
+  surfaceOwners,
   toBabylon,
 } from './meshes';
 import { inFront, nearestSpot, type Picked, type ScreenSpot } from './tap';
@@ -105,6 +106,7 @@ import {
   massLayout,
   paintedFaces,
   paintedMassFaces,
+  onRing,
   paperedMasses,
   wallLayout,
   wallMeshData,
@@ -342,6 +344,12 @@ interface Piece {
   readonly mesh: Mesh;
   readonly z0: number;
   readonly z1: number;
+}
+
+/** The middle of a piece's full box in the plan's frame: what art and details hung from it are positioned against, whether or not the camera's cut has lowered it. */
+function centreOf(piece: Piece): Vec3 {
+  const { x, z } = piece.mesh.position;
+  return { x, y: -z, z: (piece.z0 + piece.z1) / 2 };
 }
 
 export class Renderer {
@@ -985,6 +993,8 @@ export class Renderer {
       change: undefined,
       laidAt: undefined,
     };
+    // A building's wall box is inked as the furniture is: it stands where an inked face once did.
+    const buildings = new Set(plan.walls.filter((w) => !onRing(room, w)).map((w) => w.name));
     for (const spec of meshSpecs(plan)) {
       const mesh = CreateBox(
         spec.name,
@@ -995,7 +1005,7 @@ export class Renderer {
       mesh.position.set(spec.center.x, spec.center.y, spec.center.z);
       mesh.material = this.material(spec.wash);
       mesh.receiveShadows = spec.name === 'floor';
-      if (spec.name.startsWith('furniture.')) this.ink(mesh);
+      if (spec.name.startsWith('furniture.') || buildings.has(spec.name)) this.ink(mesh);
       set.pieces.set(spec.name, {
         mesh,
         z0: spec.center.y - spec.height / 2,
@@ -1136,16 +1146,14 @@ export class Renderer {
     const meshes = layout
       .filter(({ piece }) => movable.has(piece))
       .flatMap(({ piece, quads }) => {
-        const box = set.plan.walls.find((p) => p.name === piece);
-        const parent = set.pieces.get(piece)?.mesh;
-        if (!box || !parent) return [];
-        const origin = {
-          x: (box.x0 + box.x1) / 2,
-          y: (box.y0 + box.y1) / 2,
-          z: (box.z0 + box.z1) / 2,
-        };
-        const mesh = this.texturedMesh(`${piece}.${key}`, wallMeshData(quads, origin), material);
-        mesh.parent = parent;
+        const hung = set.pieces.get(piece);
+        if (!hung) return [];
+        const mesh = this.texturedMesh(
+          `${piece}.${key}`,
+          wallMeshData(quads, centreOf(hung)),
+          material,
+        );
+        mesh.parent = hung.mesh;
         return [mesh];
       });
     const fixed = [
@@ -1348,26 +1356,25 @@ export class Renderer {
   private furnishDetails(set: RoomSet, details: readonly Detail[]): void {
     const { plan } = set;
     set.detailCounts = countDetails(details);
+    // A detail hung on a box that is not drawn (a face inside its building's wall) hangs from the box that is.
+    const owners = surfaceOwners(plan);
+    const hostOf = (detail: Detail): string | undefined =>
+      detail.host === undefined ? undefined : (owners.get(detail.host) ?? detail.host);
     const hung = (host: string | undefined): host is string =>
       host !== undefined && set.pieces.has(host);
-    const hosts = new Set(details.map((d) => d.host).filter(hung));
+    const hosts = new Set(details.map(hostOf).filter(hung));
     for (const host of hosts) {
-      const box = [...plan.walls, ...plan.furniture].find((w) => w.name === host);
-      const parent = set.pieces.get(host)?.mesh;
-      if (!box || !parent) continue;
-      const origin = {
-        x: (box.x0 + box.x1) / 2,
-        y: (box.y0 + box.y1) / 2,
-        z: (box.z0 + box.z1) / 2,
-      };
-      const parts = details.filter((d) => d.host === host).flatMap((d) => d.parts);
-      const mesh = this.partsMesh(`details.${host}`, parts, origin);
+      const piece = set.pieces.get(host);
+      if (!piece) continue;
+      const parent = piece.mesh;
+      const parts = details.filter((d) => hostOf(d) === host).flatMap((d) => d.parts);
+      const mesh = this.partsMesh(`details.${host}`, parts, centreOf(piece));
       mesh.parent = parent;
       // A building face is inked, and its outline shell is drawn over any pixel that is not
       // the face's own or an inked mesh's, so a detail standing on it must be inked as well.
-      if (host.startsWith('furniture.')) this.ink(mesh);
+      if (parent.renderOutline) this.ink(mesh);
     }
-    const standing = details.filter((d) => !hung(d.host)).flatMap((d) => d.parts);
+    const standing = details.filter((d) => !hung(hostOf(d))).flatMap((d) => d.parts);
     if (standing.length === 0) return;
     const mesh = this.partsMesh('details.standing', standing, ORIGIN);
     mesh.parent = set.root;

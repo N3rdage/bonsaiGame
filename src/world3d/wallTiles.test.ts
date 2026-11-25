@@ -113,6 +113,17 @@ describe('wallLayout, the garden', () => {
     }
   });
 
+  it("lays no fence art on a building's wall box, whose surface is its own", () => {
+    const buildings = roomPlan3d(ROOMS.garden)
+      .walls.filter((w) => w.wash === 'render')
+      .map((w) => w.name);
+    expect(buildings.length).toBeGreaterThan(0);
+    for (const sheet of [SHEETS.fence, SHEETS.fenceCorner, SHEETS.fenceV]) {
+      const laidOn = layout('garden', sheet).map((p) => p.piece);
+      expect(laidOn.filter((name) => buildings.includes(name))).toEqual([]);
+    }
+  });
+
   it("draws a corner tile once, on the first wall that has it, not on the west wall's overlapping end", () => {
     const quads = quadsOf(layout('garden', SHEETS.fenceCorner));
     expect(quads).toHaveLength(8);
