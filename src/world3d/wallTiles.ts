@@ -18,6 +18,9 @@ import { furnitureBox, isPapered, metres, pixels, type Box, type WallBox } from 
 /** How far the art lies off the box's surface, so it never z-fights it. */
 export const WALL_LIFT = 0.003;
 
+/** How far a painted face lies off an inked furniture mass, which clears the outline shell that covers a 3 mm lift. */
+export const MASS_LIFT = 0.05;
+
 const EPSILON = 1e-6;
 
 /** A plan wall box and the height its whole wall stands, which a piece cut by a window or door does not reach. */
@@ -142,6 +145,7 @@ function standing(
   span: Span,
   piece: WallPiece,
   normal: Vec3,
+  lift = WALL_LIFT,
 ): Pick<WallQuad, 'normal' | 'corners'> & {
   readonly show: readonly [number, number, number, number];
 } {
@@ -150,11 +154,11 @@ function standing(
   const [c0, c1] = overlap(span, piece);
   const plane = along
     ? normal.y > 0
-      ? piece.y1 + WALL_LIFT
-      : piece.y0 - WALL_LIFT
+      ? piece.y1 + lift
+      : piece.y0 - lift
     : normal.x > 0
-      ? piece.x1 + WALL_LIFT
-      : piece.x0 - WALL_LIFT;
+      ? piece.x1 + lift
+      : piece.x0 - lift;
   // The viewer's right along the axis: (n.y, -n.x) in the plan.
   const right = along ? normal.y : -normal.x;
   const [left, rightEnd] = right > 0 ? [c0, c1] : [c1, c0];
@@ -345,16 +349,13 @@ function paintedQuad(
   piece: WallPiece,
   normal: Vec3,
   repeat: { readonly u: number; readonly v: number },
+  lift = WALL_LIFT,
 ): WallQuad {
   const placed = standing(
-    {
-      x0: piece.x0,
-      x1: piece.x1,
-      y0: piece.y0,
-      y1: piece.y1,
-    },
+    { x0: piece.x0, x1: piece.x1, y0: piece.y0, y1: piece.y1 },
     piece,
     normal,
+    lift,
   );
   const [left, right, , top] = placed.corners;
   const along = alongX(piece);
@@ -382,14 +383,14 @@ export function paintedFaces(
   }));
 }
 
-/** The quads of a painted surface on a papered `mass`'s south and west faces, the ones a player sees (`massLayout`'s). */
+/** The quads of a painted surface on a papered `mass`'s south and west faces, the ones a player sees (`massLayout`'s), `MASS_LIFT` off it. */
 export function paintedMassFaces(
   mass: Box,
   repeat: { readonly u: number; readonly v: number },
 ): WallQuad[] {
   return [
-    paintedQuad({ ...mass, side: 'S', height: mass.z1 }, { x: 0, y: 1, z: 0 }, repeat),
-    paintedQuad({ ...mass, side: 'W', height: mass.z1 }, { x: -1, y: 0, z: 0 }, repeat),
+    paintedQuad({ ...mass, side: 'S', height: mass.z1 }, { x: 0, y: 1, z: 0 }, repeat, MASS_LIFT),
+    paintedQuad({ ...mass, side: 'W', height: mass.z1 }, { x: -1, y: 0, z: 0 }, repeat, MASS_LIFT),
   ];
 }
 

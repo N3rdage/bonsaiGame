@@ -13,7 +13,7 @@ import {
   paintedWalls,
 } from './paintedSurfaces';
 import { roomPlan3d } from './plan';
-import { paintedFaces, paintedMassFaces, paperedMasses, wallPieces } from './wallTiles';
+import { MASS_LIFT, paintedFaces, paintedMassFaces, paperedMasses, wallPieces } from './wallTiles';
 
 describe('which room wears which surface', () => {
   const floors: Record<RoomKey, string | undefined> = {
@@ -150,5 +150,7 @@ describe('painted wall faces', () => {
     expect(south?.normal).toEqual({ x: 0, y: 1, z: 0 });
     expect(west?.normal).toEqual({ x: -1, y: 0, z: 0 });
     expect(south?.v0).toBe(mass.z0 / PAINT.metres.wall.v);
+    expect(south?.corners[0].y).toBeCloseTo(mass.y1 + MASS_LIFT, 9);
+    expect(west?.corners[0].x).toBeCloseTo(mass.x0 - MASS_LIFT, 9);
   });
 });
