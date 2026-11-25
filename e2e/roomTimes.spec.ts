@@ -17,6 +17,11 @@ test.describe('the room-time readout', () => {
     });
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    // The rooms behind the shed's doors build one a frame once the player stands still; on CI's
+    // software GL a menu tap made during those builds can wait out the test.
+    await page.waitForFunction(() => window.__bonsai?.world3d?.aheadPending === 0, undefined, {
+      timeout: 60_000,
+    });
 
     await openMenu(page);
     await tapControl(page, 'menu-times');
