@@ -8,6 +8,7 @@
  * wall piece it hangs from, so the camera's cut-away takes it along.
  */
 
+import { CHARACTER_HEIGHT } from './character';
 import type { ModelPart } from './furnitureModels';
 import type { Box, Opening, RoomPlan3d, WallBox } from './plan';
 import type { SpeciesKey } from '../sim/types';
@@ -54,10 +55,30 @@ const HEDGE_INSET = 0.04;
 /** A source plant's stem is this wide (metres); its crown is a stack of tiers over the prop's footprint. */
 const STEM_WIDTH = 0.08;
 /**
+ * The opaque height of the player's standing frame and of each species' source
+ * plant frame in the 2D sheets (`spr_player`, `spr_source_plant`), in sheet px
+ * (the Inked sheets draw 4 px to a logical px). Only their ratio is used: a
+ * plant stands that fraction of the 3D player's height, so it keeps its size
+ * beside the player. `heightMetres` gives the same ratio but scales it to the
+ * 2D player's 1.44 m, not to the 3D player's `CHARACTER_HEIGHT`.
+ */
+export const PLAYER_ART_PX = 123;
+export const SOURCE_PLANT_ART_PX: Record<SpeciesKey, number> = {
+  juniper: 126,
+  maple: 119,
+  pine: 117,
+};
+
+/** A species' plant height in metres: its 2D height relative to the 2D player's, times the 3D player's. */
+export function plantHeight(species: SpeciesKey): number {
+  return (SOURCE_PLANT_ART_PX[species] / PLAYER_ART_PX) * CHARACTER_HEIGHT;
+}
+
+/**
  * Each species' crown: a wash and its tiers from the ground up, each a width
- * as a fraction of the prop's footprint (the widest is 1) and a span in z
- * (metres). The juniper is a dense cone, the maple a broad round crown, the
- * pine layers with air between.
+ * as a fraction of the prop's footprint (the widest is 1) and a span in z as
+ * fractions of the plant's height (the top is 1). The juniper is a dense cone,
+ * the maple a broad round crown, the pine layers with air between.
  */
 const CROWNS: Record<
   SpeciesKey,
@@ -66,17 +87,17 @@ const CROWNS: Record<
   juniper: {
     wash: 'foliage',
     tiers: [
-      [1, 0.15, 0.4],
-      [0.7, 0.4, 0.65],
-      [0.4, 0.65, 0.9],
+      [1, 0.15, 0.45],
+      [0.7, 0.45, 0.7],
+      [0.4, 0.7, 1],
     ],
   },
   maple: {
     wash: 'mapleSummer',
     tiers: [
-      [0.7, 0.3, 0.5],
-      [1, 0.5, 0.75],
-      [0.6, 0.75, 0.9],
+      [0.7, 0.3, 0.55],
+      [1, 0.55, 0.8],
+      [0.6, 0.8, 1],
     ],
   },
   pine: {
@@ -293,12 +314,20 @@ function hedgeParts(bed: { x0: number; x1: number; y0: number; y1: number }): Mo
 function plantingParts(species: SpeciesKey, x: number, y: number, width: number): ModelPart[] {
   const { wash, tiers } = CROWNS[species];
   const stem = STEM_WIDTH / 2;
-  const top = tiers[tiers.length - 1]?.[1] ?? 0;
+  const height = plantHeight(species);
   return [
-    { wash: 'wood', x0: x - stem, x1: x + stem, y0: y - stem, y1: y + stem, z0: 0, z1: top },
+    { wash: 'wood', x0: x - stem, x1: x + stem, y0: y - stem, y1: y + stem, z0: 0, z1: height },
     ...tiers.map(([fraction, z0, z1]): ModelPart => {
       const half = (width * fraction) / 2;
-      return { wash, x0: x - half, x1: x + half, y0: y - half, y1: y + half, z0, z1 };
+      return {
+        wash,
+        x0: x - half,
+        x1: x + half,
+        y0: y - half,
+        y1: y + half,
+        z0: z0 * height,
+        z1: z1 * height,
+      };
     }),
   ];
 }

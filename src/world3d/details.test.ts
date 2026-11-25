@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
-import { countDetails, roomDetails, type Detail } from './details';
+import { CHARACTER_HEIGHT } from './character';
+import {
+  countDetails,
+  PLAYER_ART_PX,
+  roomDetails,
+  SOURCE_PLANT_ART_PX,
+  type Detail,
+} from './details';
 import {
   DOOR_HEIGHT,
   DOOR_WIDTH,
@@ -119,6 +126,17 @@ describe('roomDetails', () => {
       expect(Math.max(...crown.map((p) => p.x1 - p.x0))).toBeCloseTo(0.75, 9);
       expect(Math.max(...crown.map((p) => p.y1 - p.y0))).toBeCloseTo(0.75, 9);
       expect(Math.min(...crown.map((p) => p.x0))).toBeCloseTo(prop.x / 32 - 0.375, 9);
+    }
+  });
+
+  it('stands each source plant as tall beside the 3D player as its 2D sprite is beside the 2D player', () => {
+    for (const prop of ROOMS.garden.props) {
+      if (prop.speciesKey === undefined) continue;
+      const planting = detailsOf('garden').find((d) => d.name === prop.key);
+      const top = Math.max(...(planting?.parts ?? []).map((p) => p.z1));
+      const ratio2d = SOURCE_PLANT_ART_PX[prop.speciesKey] / PLAYER_ART_PX;
+      expect(top / CHARACTER_HEIGHT / ratio2d).toBeGreaterThan(0.9);
+      expect(top / CHARACTER_HEIGHT / ratio2d).toBeLessThan(1.1);
     }
   });
 
