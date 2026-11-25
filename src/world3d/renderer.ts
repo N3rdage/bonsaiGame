@@ -185,6 +185,8 @@ export interface RendererSnapshot {
   readonly roomChanges: readonly RoomChange[];
   /** The latest rooms built ahead, hidden, oldest first, with the time each build took. */
   readonly aheadBuilds: readonly AheadBuild[];
+  /** How many rooms behind the shown room's doors are still queued to be built ahead. */
+  readonly aheadPending: number;
   /** The benchmark run: on now, and its result once in. */
   readonly bench: { readonly running: boolean; readonly result: BenchResult | null };
 }
@@ -550,6 +552,7 @@ export class Renderer {
       built: [...this.sets.keys()].sort(),
       roomChanges: this.roomChanges,
       aheadBuilds: this.aheadBuilds,
+      aheadPending: this.ahead.length,
       bench: this.benchState(),
     };
   }
