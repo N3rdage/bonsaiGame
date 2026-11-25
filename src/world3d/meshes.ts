@@ -58,28 +58,78 @@ function specOf(b: Box): MeshSpec {
   };
 }
 
-/** True if `inner` lies inside `outer` in all three axes and `outer` is taller: its faces would only fight `outer`'s. */
-function buried(inner: Box, outer: Box): boolean {
+const EPSILON = 1e-6;
+
+/** True if `inner` lies inside `outer` in all three axes: its faces would only fight `outer`'s. */
+function nested(inner: Box, outer: Box): boolean {
   return (
-    inner.x0 >= outer.x0 &&
-    inner.x1 <= outer.x1 &&
-    inner.y0 >= outer.y0 &&
-    inner.y1 <= outer.y1 &&
-    inner.z0 >= outer.z0 &&
-    inner.z1 < outer.z1
+    inner.x0 >= outer.x0 - EPSILON &&
+    inner.x1 <= outer.x1 + EPSILON &&
+    inner.y0 >= outer.y0 - EPSILON &&
+    inner.y1 <= outer.y1 + EPSILON &&
+    inner.z0 >= outer.z0 - EPSILON &&
+    inner.z1 <= outer.z1 + EPSILON
   );
+}
+
+/** True if `over` reaches at least as far as `box` does on both ends of an axis. */
+const spans = (box: Box, over: Box, lo: 'x0' | 'y0' | 'z0', hi: 'x1' | 'y1' | 'z1'): boolean =>
+  over[lo] <= box[lo] + EPSILON && over[hi] >= box[hi] - EPSILON;
+
+/**
+ * `box` cut back to where `over` begins or ends, when the two overlap at one
+ * end of `box` along a plan axis and `over` spans `box` on the other two: the
+ * overlap is a face they share, and `box` gives it up.
+ */
+function cutBack(box: Box, over: Box): Box {
+  if (!spans(box, over, 'z0', 'z1')) return box;
+  const alongX = spans(box, over, 'y0', 'y1');
+  const alongY = spans(box, over, 'x0', 'x1');
+  if (alongX && over.x0 <= box.x0 + EPSILON && over.x1 > box.x0 && over.x1 < box.x1) {
+    return { ...box, x0: over.x1 };
+  }
+  if (alongX && over.x1 >= box.x1 - EPSILON && over.x0 > box.x0 && over.x0 < box.x1) {
+    return { ...box, x1: over.x0 };
+  }
+  if (alongY && over.y0 <= box.y0 + EPSILON && over.y1 > box.y0 && over.y1 < box.y1) {
+    return { ...box, y0: over.y1 };
+  }
+  if (alongY && over.y1 >= box.y1 - EPSILON && over.y0 > box.y0 && over.y0 < box.y1) {
+    return { ...box, y1: over.y0 };
+  }
+  return box;
+}
+
+/**
+ * The boxes with every surface once. Taller boxes come first (then the wider,
+ * then the earlier): each is cut back from the ones before it that share a
+ * face with it, and left out if that leaves it inside one, so no two boxes
+ * have faces in one plane for the depth test to fight over.
+ */
+function withoutSharedSurfaces(boxes: readonly Box[]): Box[] {
+  const area = (b: Box): number => (b.x1 - b.x0) * (b.y1 - b.y0);
+  const ranked = [...boxes].sort((a, b) => b.z1 - a.z1 || area(b) - area(a));
+  const kept: Box[] = [];
+  const cut = new Map<Box, Box>();
+  for (const box of ranked) {
+    const trimmed = kept.reduce((b, over) => cutBack(b, over), box);
+    if (kept.some((over) => nested(trimmed, over))) continue;
+    kept.push(trimmed);
+    cut.set(box, trimmed);
+  }
+  return boxes.flatMap((box) => cut.get(box) ?? []);
 }
 
 /**
  * Every box of the plan: the floor, then the walls, then the furniture that
- * has no model (a modelled piece is drawn from furniture.ts's pieces). A
- * wall inside a taller piece of furniture (the front garden's band under a
- * building's face) is left out, so two washes never share a surface.
+ * has no model (a modelled piece is drawn from furniture.ts's pieces). A box
+ * inside another is left out and one that shares a face with another is cut
+ * back (a building's wall, its roof's footprint and its face; a band of wall
+ * under a building's face), so two washes never share a surface.
  */
 export function meshSpecs(plan: RoomPlan3d): MeshSpec[] {
-  const walls = plan.walls.filter((wall) => !plan.furniture.some((piece) => buried(wall, piece)));
-  const boxes = plan.furniture.filter((piece) => piece.model === undefined);
-  return [...plan.floor, ...walls, ...boxes].map(specOf);
+  const drawn = withoutSharedSurfaces([...plan.floor, ...plan.walls, ...plan.furniture]);
+  return drawn.filter((box) => box.model === undefined).map(specOf);
 }
 
 /** The player's height, metres: the character's, which the camera looks at the middle of. */

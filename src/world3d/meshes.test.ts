@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
 import type { RoomKey } from '../world/shedRoom';
-import { fromBabylon, hotspotSpecs, meshSpecs, playerFeet, roomPx, toBabylon } from './meshes';
+import {
+  fromBabylon,
+  hotspotSpecs,
+  meshSpecs,
+  playerFeet,
+  roomPx,
+  toBabylon,
+  type MeshSpec,
+} from './meshes';
 import { WALL_HEIGHT, roomPlan3d } from './plan';
 
 const KEYS = Object.keys(ROOMS) as RoomKey[];
@@ -99,5 +107,71 @@ describe('hotspotSpecs', () => {
     const bench = ROOMS.shed.props.find((p) => p.key === 'workbench');
     const spec = hotspotSpecs(roomPlan3d(ROOMS.shed)).find((s) => s.key === 'workbench');
     expect(spec && roomPx(spec.center)).toEqual({ x: bench?.x, y: bench?.y });
+  });
+});
+
+type Triple = readonly [number, number, number];
+
+interface Extent {
+  readonly name: string;
+  readonly lo: Triple;
+  readonly hi: Triple;
+}
+
+const AXES = ['x', 'y', 'z'] as const;
+const TOLERANCE = 1e-6;
+const MIN_OVERLAP_AREA = 1e-4;
+
+function extentOf(s: MeshSpec): Extent {
+  const { x, y, z } = s.center;
+  return {
+    name: s.name,
+    lo: [x - s.width / 2, y - s.height / 2, z - s.depth / 2],
+    hi: [x + s.width / 2, y + s.height / 2, z + s.depth / 2],
+  };
+}
+
+const lies = (p: Extent, q: Extent): boolean =>
+  AXES.every(
+    (_, i) =>
+      (p.lo[i] ?? 0) >= (q.lo[i] ?? 0) - TOLERANCE && (p.hi[i] ?? 0) <= (q.hi[i] ?? 0) + TOLERANCE,
+  );
+
+/** How far two boxes overlap along an axis; negative when they are apart. */
+const overlap = (a: Extent, b: Extent, i: number): number =>
+  Math.min(a.hi[i] ?? 0, b.hi[i] ?? 0) - Math.max(a.lo[i] ?? 0, b.lo[i] ?? 0);
+
+/**
+ * The faults of a room's drawn boxes, in the renderer's frame (y up): a box
+ * nested in another, or two boxes whose faces a camera above can see (every
+ * side and every top, never an underside) lie in one plane facing one way and
+ * overlap in area, which the depth test fights over.
+ */
+function surfaceFaults(specs: readonly MeshSpec[]): string[] {
+  const extents = specs.map(extentOf);
+  const faults: string[] = [];
+  extents.forEach((a, n) => {
+    for (const b of extents.slice(n + 1)) {
+      if (lies(a, b) || lies(b, a)) faults.push(`${a.name} is nested with ${b.name}`);
+      AXES.forEach((axis, i) => {
+        const area = [0, 1, 2]
+          .filter((other) => other !== i)
+          .reduce((product, other) => product * Math.max(0, overlap(a, b, other)), 1);
+        if (area < MIN_OVERLAP_AREA) return;
+        if (Math.abs((a.hi[i] ?? 0) - (b.hi[i] ?? 0)) < TOLERANCE) {
+          faults.push(`${a.name} and ${b.name} share a face looking +${axis}`);
+        }
+        if (axis !== 'y' && Math.abs((a.lo[i] ?? 0) - (b.lo[i] ?? 0)) < TOLERANCE) {
+          faults.push(`${a.name} and ${b.name} share a face looking -${axis}`);
+        }
+      });
+    }
+  });
+  return faults;
+}
+
+describe('meshSpecs surfaces', () => {
+  it.each(KEYS)('%s: draws no box nested in, or coplanar with, another', (key) => {
+    expect(surfaceFaults(meshSpecs(roomPlan3d(ROOMS[key])))).toEqual([]);
   });
 });
