@@ -88,6 +88,7 @@ import { facingOf } from './move';
 import {
   PLAYER_HEIGHT,
   type Vec3,
+  drawnBoxes,
   hotspotSpecs,
   meshSpecs,
   playerFeet,
@@ -103,14 +104,15 @@ import { lookLit } from './lookPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { SpotMat, TreeStand } from './trees';
 import {
-  drawnWallPieces,
   massLayout,
   paintedFaces,
   paintedMassFaces,
   onRing,
+  onDrawnPieces,
   paperedMasses,
   wallLayout,
   wallMeshData,
+  wallPieces,
   type PieceQuads,
   type WallQuad,
 } from './wallTiles';
@@ -1100,8 +1102,12 @@ export class Renderer {
    */
   private clothe(set: RoomSet, room: Room): void {
     const { plan } = set;
-    const pieces = drawnWallPieces(plan).filter((piece) => set.pieces.has(piece.name));
-    const movable = new Set(pieces.filter((p) => cuttable(plan, p)).map((p) => p.name));
+    const pieces = wallPieces(plan.walls).filter((piece) => set.pieces.has(piece.name));
+    const wallNames = new Set(plan.walls.map((wall) => wall.name));
+    const drawn = [...drawnBoxes(plan).values()].filter(
+      (box) => wallNames.has(box.name) && set.pieces.has(box.name),
+    );
+    const movable = new Set(drawn.filter((box) => cuttable(plan, box)).map((box) => box.name));
     if (paintedWalls(room)) {
       const { metres } = SURFACE_SPECS.wallpaper;
       const material = this.sheetMaterial('wall.paper', this.surfaceTexture('wallpaper'), true);
@@ -1109,7 +1115,7 @@ export class Renderer {
         set,
         'paint.wallpaper',
         material,
-        paintedFaces(pieces, metres),
+        onDrawnPieces(paintedFaces(pieces, metres), drawn),
         paperedMasses(room).flatMap((mass) => paintedMassFaces(mass, metres)),
         movable,
       );
@@ -1122,7 +1128,7 @@ export class Renderer {
           set,
           sheet.key,
           material,
-          wallLayout(room, pieces, sheet, width, height),
+          onDrawnPieces(wallLayout(room, pieces, sheet, width, height), drawn),
           paperedMasses(room).flatMap((mass) => massLayout(room, mass, sheet, width, height)),
           movable,
         );

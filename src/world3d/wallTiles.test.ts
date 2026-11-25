@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { SHEETS, type Sheet } from '../world/assets';
 import { ROOMS } from '../world/gardenRoom';
+import type { Room } from '../world/shedRoom';
 import { WALL_CAP, wallRuns } from '../world/roomArt';
-import { drawnBoxes } from './meshes';
+import { drawnBoxes, type Vec3 } from './meshes';
 import { SURFACE_SPECS } from './paintedSurfaces';
-import { roomPlan3d } from './plan';
+import { roomPlan3d, type Box } from './plan';
 import {
   WALL_LIFT,
-  drawnWallPieces,
+  clipQuad,
+  onDrawnPieces,
   paintedFaces,
   massLayout,
   paperedMasses,
@@ -16,7 +18,6 @@ import {
   wallPieces,
   wallSheets,
   type PieceQuads,
-  type WallPiece,
   type WallQuad,
 } from './wallTiles';
 
@@ -207,51 +208,199 @@ describe('massLayout, the lounge hallway mass', () => {
   });
 });
 
-describe('drawnWallPieces, the shed', () => {
-  const shed = ROOMS.shed;
-  const plan = roomPlan3d(shed);
-  const drawn = drawnBoxes(plan);
-  const cut = wallPieces(plan.walls).find((piece) => {
-    const box = drawn.get(piece.name);
-    return box !== undefined && (box.x0 !== piece.x0 || box.x1 !== piece.x1);
+const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number): Box => ({
+  name: 'box',
+  wash: 'wood',
+  x0,
+  x1,
+  y0,
+  y1,
+  z0,
+  z1,
+  solid: true,
+});
+
+/** A vertical quad on the plane y = 1 over x 0..4, z 0..2, its UVs 0..1 across and 0..1 up. */
+const standing: WallQuad = {
+  frame: 3,
+  normal: { x: 0, y: 1, z: 0 },
+  corners: [
+    { x: 0, y: 1, z: 0 },
+    { x: 4, y: 1, z: 0 },
+    { x: 4, y: 1, z: 2 },
+    { x: 0, y: 1, z: 2 },
+  ],
+  u0: 0,
+  v0: 0,
+  u1: 1,
+  v1: 1,
+};
+
+/** A top quad at z = 2 over x 0..4, y 0..2, its first row on the high y as the layout lays it. */
+const top: WallQuad = {
+  frame: 1,
+  normal: { x: 0, y: 0, z: 1 },
+  corners: [
+    { x: 0, y: 2, z: 2 },
+    { x: 4, y: 2, z: 2 },
+    { x: 4, y: 0, z: 2 },
+    { x: 0, y: 0, z: 2 },
+  ],
+  u0: 0.2,
+  v0: 0.4,
+  u1: 0.6,
+  v1: 0.8,
+};
+
+describe('clipQuad', () => {
+  it('cuts a vertical quad to the box along both its axes and interpolates its UVs', () => {
+    const part = clipQuad(standing, box(1, 3, 0, 1, 0.5, 1.5), WALL_LIFT);
+    expect(part?.corners).toEqual([
+      { x: 1, y: 1, z: 0.5 },
+      { x: 3, y: 1, z: 0.5 },
+      { x: 3, y: 1, z: 1.5 },
+      { x: 1, y: 1, z: 1.5 },
+    ]);
+    expect([part?.u0, part?.u1, part?.v0, part?.v1]).toEqual([0.25, 0.75, 0.25, 0.75]);
+    expect(part).toMatchObject({ frame: 3, normal: standing.normal });
   });
-  const box = drawn.get(cut?.name ?? '');
-  const within = (quads: readonly WallQuad[]): boolean =>
+
+  it('cuts a top quad to the box, its V running against y', () => {
+    const part = clipQuad(top, box(2, 6, 0.5, 1, 0, 2), WALL_LIFT);
+    expect(part?.corners).toEqual([
+      { x: 2, y: 1, z: 2 },
+      { x: 4, y: 1, z: 2 },
+      { x: 4, y: 0.5, z: 2 },
+      { x: 2, y: 0.5, z: 2 },
+    ]);
+    expect(part?.u0).toBeCloseTo(0.4);
+    expect(part?.u1).toBeCloseTo(0.6);
+    expect(part?.v0).toBeCloseTo(0.6);
+    expect(part?.v1).toBeCloseTo(0.7);
+  });
+
+  it('keeps a quad whole when the box holds it, its plane up to the tolerance off the box', () => {
+    const part = clipQuad(standing, box(-1, 5, 0, 1 - WALL_LIFT, -1, 3), WALL_LIFT + 1e-6);
+    expect(part?.corners).toEqual(standing.corners);
+    expect(part).toMatchObject({ u0: 0, u1: 1, v0: 0, v1: 1 });
+  });
+
+  it("leaves out a box the quad's plane is outside", () => {
+    expect(clipQuad(standing, box(0, 4, 2, 3, 0, 2), WALL_LIFT)).toBeUndefined();
+    expect(clipQuad(top, box(0, 4, 0, 2, 0, 1), WALL_LIFT)).toBeUndefined();
+  });
+
+  it('leaves out a box that only touches the quad along an edge', () => {
+    expect(clipQuad(standing, box(4, 6, 0, 1, 0, 2), WALL_LIFT)).toBeUndefined();
+    expect(clipQuad(top, box(0, 4, 2, 3, 0, 3), WALL_LIFT)).toBeUndefined();
+  });
+});
+
+/** The room's drawn wall boxes, as the renderer hands art to them with every piece present. */
+function drawnWalls(room: Room): Box[] {
+  const plan = roomPlan3d(room);
+  const names = new Set(plan.walls.map((wall) => wall.name));
+  return [...drawnBoxes(plan).values()].filter((b) => names.has(b.name));
+}
+
+/** The room's layouts on the plan's whole pieces that are drawn, as the renderer lays them: each sheet's art, then the wallpaper. */
+function layoutsOf(room: Room): PieceQuads[][] {
+  const present = new Set(drawnWalls(room).map((b) => b.name));
+  const pieces = wallPieces(roomPlan3d(room).walls).filter((p) => present.has(p.name));
+  return [
+    ...wallSheets(room).map((sheet) => {
+      const { w, h } = sizeOf(sheet);
+      return wallLayout(room, pieces, sheet, w, h);
+    }),
+    paintedFaces(pieces, SURFACE_SPECS.wallpaper.metres),
+  ];
+}
+
+const length = (a: Vec3, b: Vec3): number => Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+
+describe('onDrawnPieces, the shed', () => {
+  const shed = ROOMS.shed;
+  const drawn = drawnWalls(shed);
+  const lift = WALL_LIFT + 1e-6;
+  const within = (quads: readonly WallQuad[], b: Box): boolean =>
     quads.every((q) =>
       q.corners.every(
         (c) =>
-          c.x >= (box?.x0 ?? NaN) - WALL_LIFT - 1e-6 &&
-          c.x <= (box?.x1 ?? NaN) + WALL_LIFT + 1e-6 &&
-          c.y >= (box?.y0 ?? NaN) - WALL_LIFT - 1e-6 &&
-          c.y <= (box?.y1 ?? NaN) + WALL_LIFT + 1e-6,
+          c.x >= b.x0 - lift &&
+          c.x <= b.x1 + lift &&
+          c.y >= b.y0 - lift &&
+          c.y <= b.y1 + lift &&
+          c.z >= b.z0 - lift &&
+          c.z <= b.z1 + lift,
       ),
     );
-  const onCut = (pieces: readonly PieceQuads[]): WallQuad[] =>
-    pieces.filter((p) => p.piece === cut?.name).flatMap((p) => p.quads);
-  const inked = (pieces: WallPiece[]): WallQuad[] =>
-    wallSheets(shed).flatMap((sheet) => {
+
+  it('trims the north wall back where the west wall shares its end', () => {
+    const north = roomPlan3d(shed).walls.find((w) => w.name === 'wall.0.0');
+    const cut = drawn.find((b) => b.name === 'wall.0.0');
+    expect([north?.x0, north?.x1]).toEqual([2.5, 7]);
+    expect([cut?.x0, cut?.x1]).toEqual([3, 7]);
+  });
+
+  it("files every quad within the drawn box it is filed under, for each sheet's art and the wallpaper", () => {
+    for (const lay of layoutsOf(shed)) {
+      const filed = onDrawnPieces(lay, drawn);
+      expect(filed.length).toBeGreaterThan(0);
+      for (const { piece, quads } of filed) {
+        const b = drawn.find((d) => d.name === piece);
+        expect(b !== undefined && within(quads, b)).toBe(true);
+      }
+    }
+  });
+});
+
+describe('onDrawnPieces, coverage', () => {
+  const tolerance = WALL_LIFT + 1e-6;
+  const areaOfQuad = (q: WallQuad): number =>
+    length(q.corners[0], q.corners[1]) * length(q.corners[0], q.corners[3]);
+  const total = (lay: readonly PieceQuads[]): number =>
+    quadsOf([...lay]).reduce((sum, q) => sum + areaOfQuad(q), 0);
+  const kept = (room: Room, lay: PieceQuads[]): number =>
+    total(onDrawnPieces(lay, drawnWalls(room)));
+  const whole = Object.values(ROOMS).filter((room) => room.key !== 'frontGarden');
+
+  it.each(whole.map((room) => [room.key, room] as const))(
+    'files all of the art of %s on its drawn walls, none twice',
+    (_key, room) => {
+      for (const lay of layoutsOf(room)) {
+        expect(total(lay)).toBeGreaterThan(0);
+        expect(kept(room, lay)).toBeCloseTo(total(lay), 6);
+      }
+    },
+  );
+
+  it("files all of the greenhouse's cap sheet", () => {
+    const room = ROOMS.greenhouse;
+    const caps = wallSheets(room).filter((s) => s.key === 'spr_greenhouse_cap');
+    expect(caps).toHaveLength(1);
+    for (const sheet of caps) {
       const { w, h } = sizeOf(sheet);
-      return onCut(wallLayout(shed, pieces, sheet, w, h));
-    });
-  const papered = (pieces: WallPiece[]): WallQuad[] =>
-    onCut(paintedFaces(pieces, SURFACE_SPECS.wallpaper.metres));
-
-  it("cuts a wall piece back where it meets a taller wall, and keeps its wall's height", () => {
-    const piece = drawnWallPieces(plan).find((p) => p.name === cut?.name);
-    expect(cut).toBeDefined();
-    expect(piece).toMatchObject({ x0: box?.x0, x1: box?.x1, y0: box?.y0, y1: box?.y1 });
-    expect(piece?.height).toBe(cut?.height);
+      const lay = wallLayout(room, wallPieces(roomPlan3d(room).walls), sheet, w, h);
+      expect(total(lay)).toBeGreaterThan(0);
+      expect(kept(room, lay)).toBeCloseTo(total(lay), 6);
+    }
   });
 
-  it("keeps the cut piece's inked art within the drawn box, where the plan's whole piece overreaches", () => {
-    expect(inked(drawnWallPieces(plan)).length).toBeGreaterThan(0);
-    expect(within(inked(drawnWallPieces(plan)))).toBe(true);
-    expect(within(inked(wallPieces(plan.walls)))).toBe(false);
-  });
-
-  it("keeps the cut piece's wallpaper within the drawn box, where the plan's whole piece overreaches", () => {
-    expect(papered(drawnWallPieces(plan)).length).toBeGreaterThan(0);
-    expect(within(papered(drawnWallPieces(plan)))).toBe(true);
-    expect(within(papered(wallPieces(plan.walls)))).toBe(false);
+  it("files the front garden's art but the part that lies within the house, which no wall draws", () => {
+    const room = ROOMS.frontGarden;
+    const plan = roomPlan3d(room);
+    const names = new Set(plan.walls.map((wall) => wall.name));
+    const others = [...drawnBoxes(plan).values()].filter((b) => !names.has(b.name));
+    const drawn = drawnWalls(room);
+    const lost = layoutsOf(room)
+      .flatMap((lay) => quadsOf(lay))
+      .filter((q) => onDrawnPieces([{ piece: 'q', quads: [q] }], drawn).length === 0);
+    expect(lost.length).toBeGreaterThan(0);
+    for (const q of lost) {
+      expect(others.some((b) => clipQuad(q, b, tolerance) !== undefined)).toBe(true);
+    }
+    for (const lay of layoutsOf(room)) {
+      expect(kept(room, lay)).toBeLessThanOrEqual(total(lay) + 1e-6);
+    }
   });
 });
