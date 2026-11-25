@@ -8,6 +8,8 @@ test.describe('the room-time readout', () => {
   test.use({ reducedMotion: 'reduce' });
 
   test('opens from the menu, lists the shed and closes', async ({ page }) => {
+    // A 3D boot on CI's software GL takes most of the default 60 s; the 3D world specs allow 120 s.
+    test.setTimeout(120_000);
     await page.addInitScript((settings) => {
       localStorage.setItem('bonsai.settings', settings);
     }, ON);
@@ -17,6 +19,11 @@ test.describe('the room-time readout', () => {
     });
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    // The rooms behind the shed's doors build one a frame once the player stands still; on CI's
+    // software GL a menu tap made during those builds can wait out the test.
+    await page.waitForFunction(() => window.__bonsai?.world3d?.aheadPending === 0, undefined, {
+      timeout: 60_000,
+    });
 
     await openMenu(page);
     await tapControl(page, 'menu-times');

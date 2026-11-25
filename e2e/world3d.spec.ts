@@ -60,6 +60,15 @@ async function waitForBuilt(page: Page, rooms: readonly RoomKey[]): Promise<void
   );
 }
 
+/**
+ * Waits until every room behind the shown room's doors is built ahead. Those builds run one a
+ * frame once the player stands still, so a walk or a screenshot started before they finish races
+ * them: on CI's software GL a capture then never settles and a tap can wait out the test.
+ */
+async function waitForAhead(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__bonsai?.world3d?.aheadPending === 0);
+}
+
 /** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid. */
 async function waitForRoom(page: Page, room: RoomKey): Promise<void> {
   await page.waitForFunction(
@@ -107,6 +116,7 @@ test.describe('the 3D world', () => {
       if (test.info().project.name === 's22-landscape') {
         await skipTutorial(page, true);
         await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+        await waitForAhead(page);
         // A few frames for the camera and the scene to settle.
         await page.evaluate(
           () =>
@@ -147,8 +157,10 @@ test.describe('the 3D world', () => {
       const after = (await world3d(page)).player;
       expect(after?.x).toBeGreaterThan((before?.x ?? 0) + 0.1);
 
+      await waitForAhead(page);
       await shedToLounge(page);
       await waitForRoom(page, 'lounge');
+      await waitForAhead(page);
       const lounge = await world3d(page);
       expect(lounge.room).toBe('lounge');
       // Neither of the lounge's two display spots (the mantel, the side table) holds a tree: a mat on each.
@@ -638,11 +650,13 @@ test.describe('the 3D world', () => {
           await page.waitForTimeout(100);
         }
         await expect.poll(async () => (await world3d(page)).camera.radius, POLL).toBeLessThan(5);
+        await waitForAhead(page);
         await page.waitForTimeout(500);
         await expect(page).toHaveScreenshot('world3d-trees.png');
       }
 
       // The lounge has no tree on its floor or spots in this save: its room draws none.
+      await waitForAhead(page);
       await shedToLounge(page);
       await waitForRoom(page, 'lounge');
       await expect.poll(async () => (await world3d(page)).trees, POLL).toBe(0);
@@ -695,6 +709,7 @@ test.describe('the 3D world', () => {
     await waitForBuilt(page, ['garden', 'lounge']);
     await shedToLounge(page);
     await waitForRoom(page, 'lounge');
+    await waitForAhead(page);
     await page.waitForTimeout(800);
     await expect(page).toHaveScreenshot('world3d-lounge-hallway.png');
   });
@@ -709,10 +724,13 @@ test.describe('the 3D world', () => {
     await waitForBuilt(page, ['garden', 'lounge']);
     await shedToLounge(page);
     await waitForRoom(page, 'lounge');
+    await waitForAhead(page);
     await loungeToHallway(page);
     await waitForRoom(page, 'hallway');
+    await waitForAhead(page);
     await hallwayToStudy(page);
     await waitForRoom(page, 'study');
+    await waitForAhead(page);
     // The camera eases from the hallway door's landing to the player's place in the study.
     await page.waitForTimeout(3000);
     await expect(page).toHaveScreenshot('world3d-study.png');
@@ -780,9 +798,11 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
       await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      await waitForAhead(page);
       await shedToGarden(page);
       await waitForRoom(page, 'garden');
       await expect.poll(async () => (await world3d(page)).shadows, POLL).toBe(true);
+      await waitForAhead(page);
       await zoomIn(page, 900, 8);
       await expect(page).toHaveScreenshot('world3d-garden-shadows.png');
     },
@@ -813,10 +833,12 @@ test.describe('the 3D world', () => {
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await waitForAhead(page);
     await shedToGarden(page);
     await waitForRoom(page, 'garden');
     // The rooms behind the garden's doors are built ahead on idle frames; let that finish.
     await waitForBuilt(page, ['study', 'greenhouse', 'frontGarden']);
+    await waitForAhead(page);
     // On the lawn in front of the study's door, in the house's back face, which the camera frames.
     await walkToColumn(page, 300);
     await walkToRow(page, 175);
@@ -874,6 +896,7 @@ test.describe('the 3D world', () => {
       // The shed is indoors: the 2D world's motes are not drawn in 3D.
       expect((await world3d(page)).weather).toBeNull();
 
+      await waitForAhead(page);
       await shedToGarden(page);
       await waitForRoom(page, 'garden');
       // The garden's field is built a frame or two after the room is; wait for it.
@@ -886,6 +909,7 @@ test.describe('the 3D world', () => {
       expect(errors).toEqual([]);
 
       // Back indoors the weather is gone again.
+      await waitForAhead(page);
       await gardenToGreenhouse(page);
       await waitForRoom(page, 'greenhouse');
       await expect.poll(async () => (await world3d(page)).weather, POLL).toBeNull();
@@ -922,7 +946,10 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
       await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      await waitForAhead(page);
       await shedToGarden(page);
+      await waitForRoom(page, 'garden');
+      await waitForAhead(page);
       await gardenToGreenhouse(page);
       await waitForRoom(page, 'greenhouse');
 
@@ -943,6 +970,7 @@ test.describe('the 3D world', () => {
           .poll(async () => (await world3d(page)).camera.alpha, POLL)
           .toBeLessThan(-Math.PI + 0.05);
         await zoomIn(page, 1500, 6);
+        await waitForAhead(page);
         await expect(page).toHaveScreenshot('world3d-bench-trees.png');
       }
 
