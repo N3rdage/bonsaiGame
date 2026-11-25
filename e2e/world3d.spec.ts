@@ -759,6 +759,12 @@ test.describe('the 3D world', () => {
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    // Three Q presses (45 degrees each) swing the camera 135 degrees round to see the player's
+    // face, fringe, apron and trowel three-quarters on. The player stays put, so the shot is still.
+    for (let i = 0; i < 3; i++) await page.keyboard.press('q');
+    await expect
+      .poll(async () => (await world3d(page)).camera.alpha, POLL)
+      .toBeCloseTo(-Math.PI / 2 - (3 * Math.PI) / 4, 1);
     // The wheel zooms to the camera's nearest, which frames the player from head to boots.
     await zoomIn(page, 3000, 4.5);
     await expect(page).toHaveScreenshot('world3d-gardener.png', { timeout: 30_000 });
