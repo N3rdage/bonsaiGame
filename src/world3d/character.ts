@@ -230,7 +230,7 @@ export function characterMesh(): CharacterMesh {
       for (let j = 0; j < SEGMENTS; j++) {
         const a = first + i * (SEGMENTS + 1) + j;
         const d = a + SEGMENTS + 1;
-        indices.set([a, d, a + 1, a + 1, d, d + 1], k);
+        indices.set([a, a + 1, d, a + 1, d + 1, d], k);
         k += 6;
       }
     }
