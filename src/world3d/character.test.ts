@@ -17,7 +17,49 @@ import {
   targetWeights,
   walkRate,
 } from './character';
+import { CreateBoxVertexData } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { MOVE_SPEED } from '../world/player';
+
+/** Per triangle, the sign of (edge1 x edge2) . normal: the winding seen from outside. */
+function windings(
+  positions: ArrayLike<number>,
+  normals: ArrayLike<number>,
+  indices: ArrayLike<number>,
+): number[] {
+  const out: number[] = [];
+  const at = (list: ArrayLike<number>, i: number, o: number): number => list[i * 3 + o] ?? 0;
+  for (let t = 0; t < indices.length; t += 3) {
+    const a = indices[t] ?? 0;
+    const b = indices[t + 1] ?? 0;
+    const c = indices[t + 2] ?? 0;
+    const e1 = [0, 1, 2].map((o) => at(positions, b, o) - at(positions, a, o));
+    const e2 = [0, 1, 2].map((o) => at(positions, c, o) - at(positions, a, o));
+    const cross = [
+      (e1[1] ?? 0) * (e2[2] ?? 0) - (e1[2] ?? 0) * (e2[1] ?? 0),
+      (e1[2] ?? 0) * (e2[0] ?? 0) - (e1[0] ?? 0) * (e2[2] ?? 0),
+      (e1[0] ?? 0) * (e2[1] ?? 0) - (e1[1] ?? 0) * (e2[0] ?? 0),
+    ];
+    const dot = cross.reduce(
+      (sum, v, o) => sum + v * (at(normals, a, o) + at(normals, b, o) + at(normals, c, o)),
+      0,
+    );
+    if (Math.abs(dot) > 1e-9) out.push(Math.sign(dot));
+  }
+  return out;
+}
+
+describe('the body mesh winding', () => {
+  it('winds every visible triangle the way Babylon does for its own boxes', () => {
+    const box = CreateBoxVertexData({ size: 1 });
+    const reference = windings(box.positions ?? [], box.normals ?? [], box.indices ?? []);
+    const front = reference[0];
+    expect(reference.every((w) => w === front)).toBe(true);
+    const body = characterMesh();
+    const mine = windings(body.positions, body.normals, body.indices);
+    expect(mine.length).toBeGreaterThan(0);
+    expect(mine.every((w) => w === front)).toBe(true);
+  });
+});
 
 describe('the skeleton', () => {
   it('has seven joints under one root, hips', () => {
