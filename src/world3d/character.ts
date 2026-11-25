@@ -9,6 +9,8 @@
  * rotation is a quaternion (x, y, z, w) turning it about its own position.
  */
 
+import { unitRgb } from './look';
+
 export const JOINT_NAMES = ['hips', 'spine', 'head', 'legL', 'legR', 'armL', 'armR'] as const;
 export type JointName = (typeof JOINT_NAMES)[number];
 export const CLIP_NAMES = ['idle', 'walk'] as const;
@@ -18,8 +20,8 @@ type Vec3 = readonly [x: number, y: number, z: number];
 type Quat = readonly [x: number, y: number, z: number, w: number];
 type Rgb = readonly [r: number, g: number, b: number];
 
-/** The model's drawn size against the numbers below, which were laid out for a 1.82 m figure. */
-const SCALE = 0.95;
+/** The model's drawn size against the numbers below, which were laid out for a 1.99 m figure (bun included): 1.73 m drawn. */
+const SCALE = 0.87;
 
 const scaled = (v: Vec3): Vec3 => [v[0] * SCALE, v[1] * SCALE, v[2] * SCALE];
 
@@ -56,10 +58,22 @@ export function restOffset(joint: JointName): Vec3 {
   return [at[0] - base[0], at[1] - base[1], at[2] - base[2]];
 }
 
-const SKIN: Rgb = [0.87, 0.67, 0.53];
-const SHIRT: Rgb = [0.35, 0.58, 0.45];
-const TROUSERS: Rgb = [0.3, 0.36, 0.5];
-const SHOE: Rgb = [0.25, 0.2, 0.18];
+/** The gardener's colours, 0xRRGGBB: a terracotta shirt, a cream apron, a blue headscarf. */
+export const GARDENER_PALETTE = {
+  skin: 0xeab48c,
+  hair: 0x2e2a2e,
+  sprig: 0xe8c470,
+  leaf: 0x7ab85a,
+  band: 0x3a6a8a,
+  shirt: 0xd2604a,
+  apron: 0xe8d8b4,
+  trousers: 0x3a4a6a,
+  boots: 0x5a3828,
+  scarf: 0xf0d080,
+  cheek: 0xf08070,
+  eye: 0x1e1a1e,
+  handle: 0x8a5a3a,
+} as const;
 
 interface Part {
   readonly joint: JointName;
@@ -70,24 +84,70 @@ interface Part {
   readonly color: Rgb;
 }
 
-function part(joint: JointName, center: Vec3, radii: Vec3, color: Rgb, stretch = 0): Part {
-  return { joint, center: scaled(center), radii: scaled(radii), stretch: stretch * SCALE, color };
+function part(joint: JointName, center: Vec3, radii: Vec3, colour: number, stretch = 0): Part {
+  return {
+    joint,
+    center: scaled(center),
+    radii: scaled(radii),
+    stretch: stretch * SCALE,
+    color: unitRgb(colour),
+  };
 }
 
-/** The body: hips, chest, head and nose, a leg and a shoe each side, an arm and a hand each side. */
+const P = GARDENER_PALETTE;
+
+/**
+ * The gardener: a big round head so the face reads at phone size, dot eyes and
+ * rosy cheeks, a hair cap and fringe, a knotted headscarf with its tails and a
+ * sprig, a bun, a neckerchief, rolled sleeves over bare forearms and round
+ * hands, a cream apron with a pocket and a trowel, and sturdy boots. Each part
+ * is bound whole to the joint whose motion it follows.
+ */
 const PARTS: readonly Part[] = [
-  part('hips', [0, 0.95, 0], [0.18, 0.13, 0.14], TROUSERS),
-  part('spine', [0, 1.22, 0], [0.2, 0.16, 0.13], SHIRT, 0.08),
-  part('head', [0, 1.67, 0], [0.14, 0.16, 0.15], SKIN),
-  part('head', [0, 1.65, 0.15], [0.03, 0.03, 0.03], SKIN),
-  part('legL', [-0.1, 0.45, 0], [0.075, 0.08, 0.075], TROUSERS, 0.3),
-  part('legL', [-0.1, 0.05, 0.05], [0.08, 0.05, 0.13], SHOE),
-  part('legR', [0.1, 0.45, 0], [0.075, 0.08, 0.075], TROUSERS, 0.3),
-  part('legR', [0.1, 0.05, 0.05], [0.08, 0.05, 0.13], SHOE),
-  part('armL', [-0.24, 1.14, 0], [0.055, 0.06, 0.055], SHIRT, 0.2),
-  part('armL', [-0.24, 0.84, 0], [0.05, 0.05, 0.05], SKIN),
-  part('armR', [0.24, 1.14, 0], [0.055, 0.06, 0.055], SHIRT, 0.2),
-  part('armR', [0.24, 0.84, 0], [0.05, 0.05, 0.05], SKIN),
+  // Legs and boots.
+  part('hips', [0, 0.92, 0], [0.19, 0.14, 0.15], P.trousers),
+  part('legL', [-0.1, 0.5, 0], [0.085, 0.09, 0.085], P.trousers, 0.24),
+  part('legR', [0.1, 0.5, 0], [0.085, 0.09, 0.085], P.trousers, 0.24),
+  part('legL', [-0.1, 0.12, 0.01], [0.095, 0.1, 0.1], P.boots),
+  part('legR', [0.1, 0.12, 0.01], [0.095, 0.1, 0.1], P.boots),
+  part('legL', [-0.1, 0.055, 0.05], [0.1, 0.055, 0.15], P.boots),
+  part('legR', [0.1, 0.055, 0.05], [0.1, 0.055, 0.15], P.boots),
+  // The body, the apron over its front, the pocket and the trowel in it, the neckerchief.
+  part('spine', [0, 1.18, 0], [0.22, 0.2, 0.16], P.shirt, 0.05),
+  part('spine', [0, 1.12, 0.085], [0.19, 0.22, 0.09], P.apron, 0.04),
+  part('hips', [0, 0.86, 0.1], [0.18, 0.12, 0.07], P.apron),
+  part('hips', [0.07, 0.86, 0.16], [0.07, 0.05, 0.02], P.apron),
+  part('hips', [0.09, 0.95, 0.16], [0.015, 0.06, 0.015], P.handle),
+  part('spine', [0, 1.38, 0.04], [0.14, 0.05, 0.12], P.scarf),
+  part('spine', [0.04, 1.31, 0.13], [0.04, 0.06, 0.02], P.scarf),
+  // Arms: sleeves rolled to the elbow, bare forearms, round hands.
+  part('armL', [-0.27, 1.25, 0], [0.075, 0.08, 0.075], P.shirt, 0.05),
+  part('armR', [0.27, 1.25, 0], [0.075, 0.08, 0.075], P.shirt, 0.05),
+  part('armL', [-0.28, 1.0, 0], [0.05, 0.05, 0.05], P.skin, 0.1),
+  part('armR', [0.28, 1.0, 0], [0.05, 0.05, 0.05], P.skin, 0.1),
+  part('armL', [-0.285, 0.85, 0.01], [0.06, 0.065, 0.06], P.skin),
+  part('armR', [0.285, 0.85, 0.01], [0.06, 0.065, 0.06], P.skin),
+  // The head: face, ears, nose, eyes and cheeks.
+  part('head', [0, 1.68, 0], [0.2, 0.2, 0.19], P.skin),
+  part('head', [-0.2, 1.67, 0], [0.04, 0.05, 0.035], P.skin),
+  part('head', [0.2, 1.67, 0], [0.04, 0.05, 0.035], P.skin),
+  part('head', [0, 1.665, 0.19], [0.03, 0.025, 0.03], P.skin),
+  part('head', [-0.08, 1.662, 0.168], [0.04, 0.052, 0.026], P.eye),
+  part('head', [0.08, 1.662, 0.168], [0.04, 0.052, 0.026], P.eye),
+  part('head', [-0.135, 1.62, 0.14], [0.04, 0.026, 0.02], P.cheek),
+  part('head', [0.135, 1.62, 0.14], [0.04, 0.026, 0.02], P.cheek),
+  // Hair: a cap over the back, a fringe and a little tail.
+  part('head', [0, 1.73, -0.07], [0.205, 0.17, 0.16], P.hair),
+  part('head', [0, 1.805, 0.085], [0.14, 0.03, 0.055], P.hair),
+  part('head', [0, 1.6, -0.19], [0.07, 0.09, 0.06], P.hair),
+  // The headscarf over the crown, its knot and tails behind, a sprig tucked in it, and the bun.
+  part('head', [0, 1.845, -0.09], [0.2, 0.065, 0.16], P.band),
+  part('head', [0, 1.77, -0.215], [0.06, 0.045, 0.05], P.band),
+  part('head', [0.04, 1.7, -0.25], [0.035, 0.07, 0.025], P.band),
+  part('head', [-0.04, 1.7, -0.25], [0.035, 0.07, 0.025], P.band),
+  part('head', [0.15, 1.87, 0.06], [0.03, 0.05, 0.02], P.sprig),
+  part('head', [0.17, 1.9, 0.05], [0.025, 0.04, 0.02], P.leaf),
+  part('head', [0, 1.92, -0.08], [0.09, 0.07, 0.09], P.hair),
 ];
 
 /** The figure's height, metres: the top of its head over feet on y 0. */
@@ -109,7 +169,24 @@ export interface CharacterMesh {
 const RINGS = 8;
 const SEGMENTS = 12;
 
-/** The body's arrays: each part a smooth ellipsoid (a rounded bar with a stretch). */
+/** A repeatable 0..1 from three whole numbers: the brush's wander, the same every build. */
+function scatter(a: number, b: number, c: number): number {
+  const h = Math.sin(a * 12.9898 + b * 78.233 + c * 37.719) * 43758.5453;
+  return h - Math.floor(h);
+}
+
+/** How much a vertex's colour wanders either way with the brush, as a fraction. */
+const BRUSH = 0.04;
+/** How much lighter the top of a form is painted than its underside, as a fraction either way. */
+const TOP_LIGHT = 0.07;
+
+/** A part's colour at one vertex: lit from above, shaded below, and nudged by the brush. */
+function painted(base: Rgb, up: number, brush: number): Rgb {
+  const k = 1 + TOP_LIGHT * up + BRUSH * (brush * 2 - 1);
+  return [Math.min(1, base[0] * k), Math.min(1, base[1] * k), Math.min(1, base[2] * k)];
+}
+
+/** The body's arrays: each part a smooth ellipsoid (a rounded bar with a stretch), painted with a top light and a brush's wander. */
 export function characterMesh(): CharacterMesh {
   const per = (RINGS + 1) * (SEGMENTS + 1);
   const vertices = PARTS.length * per;
@@ -143,7 +220,7 @@ export function characterMesh(): CharacterMesh {
           v * 3,
         );
         normals.set([nx / length, ny / length, nz / length], v * 3);
-        colors.set([...p.color, 1], v * 4);
+        colors.set([...painted(p.color, ny / length, scatter(n, i, j % SEGMENTS)), 1], v * 4);
         joints[v * 4] = JOINT_NAMES.indexOf(p.joint);
         weights[v * 4] = 1;
       }
@@ -201,7 +278,7 @@ function swing(
 
 const IDLE_PERIOD = 3;
 const WALK_PERIOD = 1;
-const WALK_SWING = 0.65;
+const WALK_SWING = 0.72;
 const HIPS_HEIGHT = JOINTS.hips.at[1];
 const BOB = 0.03;
 
