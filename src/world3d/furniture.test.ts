@@ -20,6 +20,7 @@ import {
   modelVertices,
   type FurnitureKind,
 } from './furnitureModels';
+import { OBJECTS } from './look';
 import { heightMetres, metres, roomPlan3d } from './plan';
 import { meshSpecs } from './meshes';
 import { treeStands } from './trees';
@@ -145,6 +146,15 @@ describe('furniture models', () => {
   it('has a model for every kind a sheet maps to, and a sheet or a shed prop for every model', () => {
     const propKinds: FurnitureKind[] = ['workbench', 'planting_table', 'kiosk'];
     expect(new Set([...Object.values(MODELLED_SHEETS), ...propKinds])).toEqual(new Set(kinds));
+  });
+
+  it('colours every part from the object palette', () => {
+    for (const kind of kinds) {
+      for (const { object } of FURNITURE_MODELS[kind].parts) {
+        expect(object in OBJECTS, `${kind}: ${object}`).toBe(true);
+        expect(OBJECTS[object]).toEqual(expect.any(Number));
+      }
+    }
   });
 
   it.each(kinds)(
