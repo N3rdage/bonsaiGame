@@ -103,6 +103,7 @@ import { lookLit } from './lookPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { SpotMat, TreeStand } from './trees';
 import {
+  drawnWallPieces,
   massLayout,
   paintedFaces,
   paintedMassFaces,
@@ -110,7 +111,6 @@ import {
   paperedMasses,
   wallLayout,
   wallMeshData,
-  wallPieces,
   type PieceQuads,
   type WallQuad,
 } from './wallTiles';
@@ -1100,7 +1100,7 @@ export class Renderer {
    */
   private clothe(set: RoomSet, room: Room): void {
     const { plan } = set;
-    const pieces = wallPieces(plan.walls).filter((piece) => set.pieces.has(piece.name));
+    const pieces = drawnWallPieces(plan).filter((piece) => set.pieces.has(piece.name));
     const movable = new Set(pieces.filter((p) => cuttable(plan, p)).map((p) => p.name));
     if (paintedWalls(room)) {
       const { metres } = SURFACE_SPECS.wallpaper;

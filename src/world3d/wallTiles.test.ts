@@ -2,9 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { SHEETS, type Sheet } from '../world/assets';
 import { ROOMS } from '../world/gardenRoom';
 import { WALL_CAP, wallRuns } from '../world/roomArt';
+import { drawnBoxes } from './meshes';
+import { SURFACE_SPECS } from './paintedSurfaces';
 import { roomPlan3d } from './plan';
 import {
   WALL_LIFT,
+  drawnWallPieces,
+  paintedFaces,
   massLayout,
   paperedMasses,
   wallLayout,
@@ -12,6 +16,7 @@ import {
   wallPieces,
   wallSheets,
   type PieceQuads,
+  type WallPiece,
   type WallQuad,
 } from './wallTiles';
 
@@ -199,5 +204,54 @@ describe('massLayout, the lounge hallway mass', () => {
 
   it('lays nothing of a sheet the room does not wear', () => {
     expect(lay(SHEETS.shedWall)).toEqual([]);
+  });
+});
+
+describe('drawnWallPieces, the shed', () => {
+  const shed = ROOMS.shed;
+  const plan = roomPlan3d(shed);
+  const drawn = drawnBoxes(plan);
+  const cut = wallPieces(plan.walls).find((piece) => {
+    const box = drawn.get(piece.name);
+    return box !== undefined && (box.x0 !== piece.x0 || box.x1 !== piece.x1);
+  });
+  const box = drawn.get(cut?.name ?? '');
+  const within = (quads: readonly WallQuad[]): boolean =>
+    quads.every((q) =>
+      q.corners.every(
+        (c) =>
+          c.x >= (box?.x0 ?? NaN) - WALL_LIFT - 1e-6 &&
+          c.x <= (box?.x1 ?? NaN) + WALL_LIFT + 1e-6 &&
+          c.y >= (box?.y0 ?? NaN) - WALL_LIFT - 1e-6 &&
+          c.y <= (box?.y1 ?? NaN) + WALL_LIFT + 1e-6,
+      ),
+    );
+  const onCut = (pieces: readonly PieceQuads[]): WallQuad[] =>
+    pieces.filter((p) => p.piece === cut?.name).flatMap((p) => p.quads);
+  const inked = (pieces: WallPiece[]): WallQuad[] =>
+    wallSheets(shed).flatMap((sheet) => {
+      const { w, h } = sizeOf(sheet);
+      return onCut(wallLayout(shed, pieces, sheet, w, h));
+    });
+  const papered = (pieces: WallPiece[]): WallQuad[] =>
+    onCut(paintedFaces(pieces, SURFACE_SPECS.wallpaper.metres));
+
+  it("cuts a wall piece back where it meets a taller wall, and keeps its wall's height", () => {
+    const piece = drawnWallPieces(plan).find((p) => p.name === cut?.name);
+    expect(cut).toBeDefined();
+    expect(piece).toMatchObject({ x0: box?.x0, x1: box?.x1, y0: box?.y0, y1: box?.y1 });
+    expect(piece?.height).toBe(cut?.height);
+  });
+
+  it("keeps the cut piece's inked art within the drawn box, where the plan's whole piece overreaches", () => {
+    expect(inked(drawnWallPieces(plan)).length).toBeGreaterThan(0);
+    expect(within(inked(drawnWallPieces(plan)))).toBe(true);
+    expect(within(inked(wallPieces(plan.walls)))).toBe(false);
+  });
+
+  it("keeps the cut piece's wallpaper within the drawn box, where the plan's whole piece overreaches", () => {
+    expect(papered(drawnWallPieces(plan)).length).toBeGreaterThan(0);
+    expect(within(papered(drawnWallPieces(plan)))).toBe(true);
+    expect(within(papered(wallPieces(plan.walls)))).toBe(false);
   });
 });

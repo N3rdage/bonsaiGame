@@ -12,8 +12,16 @@ import type { Sheet } from '../world/assets';
 import { ROOM_STYLES, furnitureRuns, tileRuns, wallRuns, type WallRun } from '../world/roomArt';
 import { ringWalls, type Room } from '../world/shedRoom';
 import type { QuadMeshData } from './floorTiles';
-import { toBabylon, type Vec3 } from './meshes';
-import { furnitureBox, isPapered, metres, pixels, type Box, type WallBox } from './plan';
+import { drawnBoxes, toBabylon, type Vec3 } from './meshes';
+import {
+  furnitureBox,
+  isPapered,
+  metres,
+  pixels,
+  type Box,
+  type RoomPlan3d,
+  type WallBox,
+} from './plan';
 
 /** How far the art lies off the box's surface, so it never z-fights it. */
 export const WALL_LIFT = 0.003;
@@ -40,6 +48,21 @@ export function wallPieces(walls: readonly WallBox[]): WallPiece[] {
     heights.set(wallOf(wall.name), Math.max(heights.get(wallOf(wall.name)) ?? 0, wall.z1));
   }
   return walls.map((wall) => ({ ...wall, height: heights.get(wallOf(wall.name)) ?? wall.z1 }));
+}
+
+/**
+ * The plan's wall pieces as `meshSpecs` draws them: those it keeps, each with
+ * the extent it is cut back to where it shares a face with a taller wall, and
+ * the height of its whole wall (taken from the uncut plan). Art laid on these
+ * stays on the drawn box instead of reaching over the strip cut away, which
+ * the camera's cutaway could uncover.
+ */
+export function drawnWallPieces(plan: RoomPlan3d): WallPiece[] {
+  const drawn = drawnBoxes(plan);
+  return wallPieces(plan.walls).flatMap((piece) => {
+    const box = drawn.get(piece.name);
+    return box ? [{ ...piece, x0: box.x0, x1: box.x1, y0: box.y0, y1: box.y1 }] : [];
+  });
 }
 
 /**

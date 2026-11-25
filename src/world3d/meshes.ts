@@ -132,6 +132,7 @@ function withoutSharedSurfaces(boxes: readonly Box[]): Surfaces {
   return { drawn: boxes.flatMap((box) => cut.get(box) ?? []), owners };
 }
 
+/** Modelled furniture boxes join the pass too: a model stands where its box does, so a plain box or wall under or inside it is cut back or left out rather than drawn through the model. */
 const surfacesOf = (plan: RoomPlan3d): Surfaces =>
   withoutSharedSurfaces([...plan.floor, ...plan.walls, ...plan.furniture]);
 
@@ -146,6 +147,11 @@ export function meshSpecs(plan: RoomPlan3d): MeshSpec[] {
   return surfacesOf(plan)
     .drawn.filter((box) => box.model === undefined)
     .map(specOf);
+}
+
+/** The boxes of the plan that survive the trim, by name, each as cut back (modelled furniture included, though `meshSpecs` leaves it to furniture.ts): what a surface laid on a box must stay within. */
+export function drawnBoxes(plan: RoomPlan3d): ReadonlyMap<string, Box> {
+  return new Map(surfacesOf(plan).drawn.map((box) => [box.name, box]));
 }
 
 /** The box that stands for each box `meshSpecs` leaves out, by name: the one it lies inside, which a detail hung on it hangs from instead. */
