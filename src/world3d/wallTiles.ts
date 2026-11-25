@@ -322,6 +322,77 @@ export function wallLayout(
   return [...byPiece].map(([piece, quads]) => ({ piece, quads }));
 }
 
+/** The normal of the face of a wall piece that looks into the room, `bandNormals`' two for a wall against no edge. */
+function inwardNormals(piece: WallPiece): Vec3[] {
+  const inward: Record<string, Vec3> = {
+    N: { x: 0, y: 1, z: 0 },
+    S: { x: 0, y: -1, z: 0 },
+    W: { x: 1, y: 0, z: 0 },
+    E: { x: -1, y: 0, z: 0 },
+  };
+  const one = inward[piece.side];
+  return one ? [one] : bandNormals(piece);
+}
+
+/**
+ * A painted surface laid whole on a piece's vertical face with `normal`, its
+ * UVs in metres from the plan's origin along the face, as the viewer reads it
+ * left to right (u), and from the floor up (v), over `repeat` metres a
+ * texture, so pieces side by side, and a window's sill and lintel, carry one
+ * unbroken surface. Frame 0: a painted quad has no sheet.
+ */
+function paintedQuad(
+  piece: WallPiece,
+  normal: Vec3,
+  repeat: { readonly u: number; readonly v: number },
+): WallQuad {
+  const placed = standing(
+    {
+      x0: piece.x0,
+      x1: piece.x1,
+      y0: piece.y0,
+      y1: piece.y1,
+    },
+    piece,
+    normal,
+  );
+  const [left, right, , top] = placed.corners;
+  const along = alongX(piece);
+  const sign = (along ? normal.y : -normal.x) > 0 ? 1 : -1;
+  const at = (c: Vec3): number => (sign * (along ? c.x : c.y)) / repeat.u;
+  return {
+    frame: 0,
+    normal,
+    corners: placed.corners,
+    u0: at(left),
+    v0: left.z / repeat.v,
+    u1: at(right),
+    v1: top.z / repeat.v,
+  };
+}
+
+/** The quads of a painted surface on the faces of `pieces` that look into the room, grouped by piece. */
+export function paintedFaces(
+  pieces: readonly WallPiece[],
+  repeat: { readonly u: number; readonly v: number },
+): PieceQuads[] {
+  return pieces.map((piece) => ({
+    piece: piece.name,
+    quads: inwardNormals(piece).map((normal) => paintedQuad(piece, normal, repeat)),
+  }));
+}
+
+/** The quads of a painted surface on a papered `mass`'s south and west faces, the ones a player sees (`massLayout`'s). */
+export function paintedMassFaces(
+  mass: Box,
+  repeat: { readonly u: number; readonly v: number },
+): WallQuad[] {
+  return [
+    paintedQuad({ ...mass, side: 'S', height: mass.z1 }, { x: 0, y: 1, z: 0 }, repeat),
+    paintedQuad({ ...mass, side: 'W', height: mass.z1 }, { x: -1, y: 0, z: 0 }, repeat),
+  ];
+}
+
 /**
  * The vertex arrays of one mesh holding every quad, wound to face its normal
  * in Babylon's left-handed frame, positioned relative to `origin` (the piece's

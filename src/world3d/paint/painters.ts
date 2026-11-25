@@ -75,6 +75,8 @@ export const PAINT = {
     gapCm: 1.5,
     grainLines: 5,
     grainCm: 1.2,
+    /** How far a grain line may stray across its plank, centimetres (4 texels at the default 128 a metre). */
+    grainWobbleCm: 3.125,
     knotChance: 0.35,
     knotCm: 2.2,
   },
@@ -313,7 +315,7 @@ export function paintWood(params: Partial<WoodParams> = {}): Raster {
         stroke(
           out,
           { x, y: gy },
-          { x: x + area.w / 2, y: gy + (rand() - 0.5) * 4 },
+          { x: x + area.w / 2, y: gy + (rand() - 0.5) * texels(w.grainWobbleCm, scale.v) },
           { x: end, y: gy },
           { width: texels(w.grainCm, scale.v), colour: shade(tone, 0.78), alpha: 0.25 },
           area,

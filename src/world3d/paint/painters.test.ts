@@ -104,7 +104,12 @@ describe('paintWood', () => {
     expect(hashRaster(paintWood(small))).toBe(hashRaster(a));
     expect(hashRaster(paintWood({ ...small, seed: 8 }))).not.toBe(hashRaster(a));
     expect(opaque(a)).toBe(true);
-    expect(hashRaster(a)).toBe('16f7cb4a');
+    expect(hashRaster(a)).toBe('d6cef15c');
+  });
+
+  it('wobbles a grain line by 4 texels at the default size, so the default texture is pinned', () => {
+    expect((PAINT.wood.grainWobbleCm / 100) * texelsPerMetre(WOOD_DEFAULTS).v).toBe(4);
+    expect(hashRaster(paintWood())).toBe('3a9b146a');
   });
 
   it('has dark gap rows between its planks', () => {
