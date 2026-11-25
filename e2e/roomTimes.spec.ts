@@ -8,6 +8,8 @@ test.describe('the room-time readout', () => {
   test.use({ reducedMotion: 'reduce' });
 
   test('opens from the menu, lists the shed and closes', async ({ page }) => {
+    // A 3D boot on CI's software GL takes most of the default 60 s; the 3D world specs allow 120 s.
+    test.setTimeout(120_000);
     await page.addInitScript((settings) => {
       localStorage.setItem('bonsai.settings', settings);
     }, ON);
