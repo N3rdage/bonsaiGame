@@ -1223,7 +1223,7 @@ export class Renderer {
     }
   }
 
-  /** The one source mesh of `kind`, made the first time a room needs it: its parts' boxes, vertex-coloured by their washes, merged into one at the origin. */
+  /** The one source mesh of `kind`, made the first time a room needs it: its parts' boxes, vertex-coloured from the object palette, merged into one at the origin. */
   private modelMesh(kind: FurnitureKind): Mesh {
     const known = this.models.get(kind);
     if (known) return known;
