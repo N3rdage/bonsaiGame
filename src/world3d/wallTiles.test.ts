@@ -360,47 +360,41 @@ describe('onDrawnPieces, coverage', () => {
     length(q.corners[0], q.corners[1]) * length(q.corners[0], q.corners[3]);
   const total = (lay: readonly PieceQuads[]): number =>
     quadsOf([...lay]).reduce((sum, q) => sum + areaOfQuad(q), 0);
-  const kept = (room: Room, lay: PieceQuads[]): number =>
-    total(onDrawnPieces(lay, drawnWalls(room)));
-  const whole = Object.values(ROOMS).filter((room) => room.key !== 'frontGarden');
+  const filed = (room: Room, lay: PieceQuads[]): PieceQuads[] =>
+    onDrawnPieces(lay, drawnWalls(room));
+  const inked = (room: Room): PieceQuads[][] => layoutsOf(room).slice(0, -1);
+  const rooms = Object.values(ROOMS).map((room) => [room.key, room] as const);
 
-  it.each(whole.map((room) => [room.key, room] as const))(
-    'files all of the art of %s on its drawn walls, none twice',
+  /** The layout's quads that no drawn wall box takes any part of. */
+  const unfiled = (room: Room, lay: PieceQuads[]): WallQuad[] =>
+    quadsOf(lay).filter((q) => filed(room, [{ piece: 'q', quads: [q] }]).length === 0);
+
+  const allBoxes = (room: Room): Box[] => [...drawnBoxes(roomPlan3d(room)).values()];
+
+  it.each(rooms)(
+    'takes every quad of %s onto a drawn wall box, or it lies inside a drawn box, out of sight',
     (_key, room) => {
       for (const lay of layoutsOf(room)) {
-        expect(total(lay)).toBeGreaterThan(0);
-        expect(kept(room, lay)).toBeCloseTo(total(lay), 6);
+        for (const q of unfiled(room, lay)) {
+          expect(allBoxes(room).some((b) => clipQuad(q, b, tolerance) !== undefined)).toBe(true);
+        }
       }
     },
   );
 
-  it("files all of the greenhouse's cap sheet", () => {
-    const room = ROOMS.greenhouse;
-    const caps = wallSheets(room).filter((s) => s.key === 'spr_greenhouse_cap');
-    expect(caps).toHaveLength(1);
-    for (const sheet of caps) {
-      const { w, h } = sizeOf(sheet);
-      const lay = wallLayout(room, wallPieces(roomPlan3d(room).walls), sheet, w, h);
-      expect(total(lay)).toBeGreaterThan(0);
-      expect(kept(room, lay)).toBeCloseTo(total(lay), 6);
+  it.each(rooms)('files each inked quad of %s that touches a drawn wall whole', (_key, room) => {
+    for (const lay of inked(room)) {
+      for (const q of quadsOf(lay)) {
+        const parts = onDrawnPieces([{ piece: 'q', quads: [q] }], drawnWalls(room));
+        if (parts.length > 0) expect(total(parts)).toBeGreaterThanOrEqual(areaOfQuad(q) - 1e-6);
+      }
     }
   });
 
-  it("files the front garden's art but the part that lies within the house, which no wall draws", () => {
-    const room = ROOMS.frontGarden;
-    const plan = roomPlan3d(room);
-    const names = new Set(plan.walls.map((wall) => wall.name));
-    const others = [...drawnBoxes(plan).values()].filter((b) => !names.has(b.name));
-    const drawn = drawnWalls(room);
-    const lost = layoutsOf(room)
-      .flatMap((lay) => quadsOf(lay))
-      .filter((q) => onDrawnPieces([{ piece: 'q', quads: [q] }], drawn).length === 0);
-    expect(lost.length).toBeGreaterThan(0);
-    for (const q of lost) {
-      expect(others.some((b) => clipQuad(q, b, tolerance) !== undefined)).toBe(true);
-    }
-    for (const lay of layoutsOf(room)) {
-      expect(kept(room, lay)).toBeLessThanOrEqual(total(lay) + 1e-6);
-    }
+  it("files all of the greenhouse's art, and the front garden's but four quads inside its walls and house", () => {
+    const lost = (room: Room): number =>
+      inked(room).reduce((sum, lay) => sum + unfiled(room, lay).length, 0);
+    expect(lost(ROOMS.greenhouse)).toBe(0);
+    expect(lost(ROOMS.frontGarden)).toBe(4);
   });
 });

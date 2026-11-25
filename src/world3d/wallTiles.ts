@@ -143,42 +143,33 @@ export function clipQuad(quad: WallQuad, box: Box, tolerance: number): WallQuad 
   };
 }
 
-/** Whether `inner` lies within `outer`'s bounds, which for two parts of one axis-aligned quad is its lying within it. */
-function covers(outer: WallQuad, inner: WallQuad): boolean {
-  return (['x', 'y', 'z'] as const).every((axis) => {
-    const [o, i] = [outer.corners.map((c) => c[axis]), inner.corners.map((c) => c[axis])];
-    return Math.min(...i) >= Math.min(...o) - EPSILON && Math.max(...i) <= Math.max(...o) + EPSILON;
-  });
+/** Whether `quad` lies on the face of `box` its normal points out of, `WALL_LIFT` off it, rather than inside the box or behind its other face. */
+function onFace(quad: WallQuad, box: Box): boolean {
+  const { x, y, z } = quad.normal;
+  const [at, face] =
+    x !== 0
+      ? [quad.corners[0].x, x > 0 ? box.x1 : box.x0]
+      : y !== 0
+        ? [quad.corners[0].y, y > 0 ? box.y1 : box.y0]
+        : [quad.corners[0].z, z > 0 ? box.z1 : box.z0];
+  return Math.abs(at - face) <= WALL_LIFT + EPSILON;
 }
 
 /**
  * A layout's quads handed to the drawn boxes they lie on, grouped by box in
  * the order the boxes come. The layout is made on the plan's whole pieces, so
- * one wall claims a corner run; here every quad is cut to each drawn box, and
- * the part over a neighbour's box rides that box, which the camera's cutaway
- * moves with its art. Where boxes overlap, as two walls of one height do at a
- * corner, a part another part of the same quad already covers is left out, so
- * the art is laid once; a part on no drawn box would hang in the air, so it is
- * dropped.
+ * one wall claims a corner run; here every quad is cut to each drawn box whose
+ * face it lies on, and the part over a neighbour's box rides that box, which
+ * the camera's cutaway moves with its art. A part inside a box is out of sight
+ * and a part on no drawn box would hang in the air, so both are dropped.
  */
 export function onDrawnPieces(layout: readonly PieceQuads[], drawn: readonly Box[]): PieceQuads[] {
-  const placed = layout
-    .flatMap((piece) => piece.quads)
-    .flatMap((quad) => {
-      const parts = drawn.flatMap((box) => {
-        const part = clipQuad(quad, box, WALL_LIFT + EPSILON);
-        return part ? [{ piece: box.name, part }] : [];
-      });
-      return parts.filter(
-        (a, i) =>
-          !parts.some(
-            (b, j) => j !== i && covers(b.part, a.part) && (j < i || !covers(a.part, b.part)),
-          ),
-      );
-    });
+  const quads = layout.flatMap((piece) => piece.quads);
   return drawn.flatMap((box) => {
-    const quads = placed.filter((p) => p.piece === box.name).map((p) => p.part);
-    return quads.length > 0 ? [{ piece: box.name, quads }] : [];
+    const parts = quads.flatMap((quad) =>
+      onFace(quad, box) ? (clipQuad(quad, box, WALL_LIFT + EPSILON) ?? []) : [],
+    );
+    return parts.length > 0 ? [{ piece: box.name, quads: parts }] : [];
   });
 }
 
