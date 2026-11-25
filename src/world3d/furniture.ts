@@ -8,7 +8,7 @@
  */
 
 import type { Room } from '../world/shedRoom';
-import type { FurnitureKind } from './furnitureModels';
+import { modelVertices, type FurnitureKind } from './furnitureModels';
 import { furnitureBox, isBoxed, propBox, type Box } from './plan';
 
 /** A piece of furniture to stand: the middle of its footprint, its size and its turn about the vertical. */
@@ -48,4 +48,17 @@ export function furniturePieces(room: Room): FurniturePiece[] {
     };
     return [{ ...piece, key: Object.values(piece).join('|') }];
   });
+}
+
+/**
+ * The most vertices of modelled furniture one room may draw, instances counted.
+ * The shed, the one room with furniture of its own, comes to 7,560; the budget
+ * leaves room to dress other rooms, and keeps a room that gains furniture, or a
+ * model that gains parts, from creeping up unseen on a phone's GPU.
+ */
+export const FURNITURE_VERTEX_BUDGET = 30_000;
+
+/** The vertices `room`'s modelled furniture draws: each piece's model, once per piece. */
+export function furnitureVertices(room: Room): number {
+  return furniturePieces(room).reduce((sum, piece) => sum + modelVertices(piece.kind), 0);
 }

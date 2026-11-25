@@ -18,6 +18,9 @@ export interface ShapeData {
   readonly indices: number[];
 }
 
+/** The steps each rounded edge is cut in: enough to roll the light, few enough to keep furniture light. */
+export const ROUND_BANDS = 2;
+
 type Axis = 0 | 1 | 2;
 type Triple = [number, number, number];
 
@@ -62,7 +65,7 @@ export function roundedBoxVertexCount(
   h: number,
   d: number,
   r: number,
-  bands = 2,
+  bands = ROUND_BANDS,
 ): number {
   const { half, radius } = dimensions(w, h, d, r);
   const [nx, ny, nz] = half.map((v) => axisStops(v, radius, bands).length) as Triple;
@@ -75,7 +78,13 @@ export function roundedBoxVertexCount(
  * but where two meet their vertices coincide with equal normals, so shading is
  * smooth over the edge.
  */
-export function roundedBox(w: number, h: number, d: number, r: number, bands = 2): ShapeData {
+export function roundedBox(
+  w: number,
+  h: number,
+  d: number,
+  r: number,
+  bands = ROUND_BANDS,
+): ShapeData {
   const { half, radius, inner } = dimensions(w, h, d, r);
   const stops = half.map((v) => axisStops(v, radius, bands));
   const positions: number[] = [];
