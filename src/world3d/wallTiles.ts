@@ -18,6 +18,9 @@ import { furnitureBox, isPapered, metres, pixels, type Box, type WallBox } from 
 /** How far the art lies off the box's surface, so it never z-fights it. */
 export const WALL_LIFT = 0.003;
 
+/** How far a painted face lies off an inked furniture mass, which clears the outline shell that covers a 3 mm lift. */
+export const MASS_LIFT = 0.05;
+
 const EPSILON = 1e-6;
 
 /** A plan wall box and the height its whole wall stands, which a piece cut by a window or door does not reach. */
@@ -142,6 +145,7 @@ function standing(
   span: Span,
   piece: WallPiece,
   normal: Vec3,
+  lift = WALL_LIFT,
 ): Pick<WallQuad, 'normal' | 'corners'> & {
   readonly show: readonly [number, number, number, number];
 } {
@@ -150,11 +154,11 @@ function standing(
   const [c0, c1] = overlap(span, piece);
   const plane = along
     ? normal.y > 0
-      ? piece.y1 + WALL_LIFT
-      : piece.y0 - WALL_LIFT
+      ? piece.y1 + lift
+      : piece.y0 - lift
     : normal.x > 0
-      ? piece.x1 + WALL_LIFT
-      : piece.x0 - WALL_LIFT;
+      ? piece.x1 + lift
+      : piece.x0 - lift;
   // The viewer's right along the axis: (n.y, -n.x) in the plan.
   const right = along ? normal.y : -normal.x;
   const [left, rightEnd] = right > 0 ? [c0, c1] : [c1, c0];
@@ -320,6 +324,74 @@ export function wallLayout(
     }
   }
   return [...byPiece].map(([piece, quads]) => ({ piece, quads }));
+}
+
+/** The normal of the face of a wall piece that looks into the room, `bandNormals`' two for a wall against no edge. */
+function inwardNormals(piece: WallPiece): Vec3[] {
+  const inward: Record<string, Vec3> = {
+    N: { x: 0, y: 1, z: 0 },
+    S: { x: 0, y: -1, z: 0 },
+    W: { x: 1, y: 0, z: 0 },
+    E: { x: -1, y: 0, z: 0 },
+  };
+  const one = inward[piece.side];
+  return one ? [one] : bandNormals(piece);
+}
+
+/**
+ * A painted surface laid whole on a piece's vertical face with `normal`, its
+ * UVs in metres from the plan's origin along the face, as the viewer reads it
+ * left to right (u), and from the floor up (v), over `repeat` metres a
+ * texture, so pieces side by side, and a window's sill and lintel, carry one
+ * unbroken surface. Frame 0: a painted quad has no sheet.
+ */
+function paintedQuad(
+  piece: WallPiece,
+  normal: Vec3,
+  repeat: { readonly u: number; readonly v: number },
+  lift = WALL_LIFT,
+): WallQuad {
+  const placed = standing(
+    { x0: piece.x0, x1: piece.x1, y0: piece.y0, y1: piece.y1 },
+    piece,
+    normal,
+    lift,
+  );
+  const [left, right, , top] = placed.corners;
+  const along = alongX(piece);
+  const sign = (along ? normal.y : -normal.x) > 0 ? 1 : -1;
+  const at = (c: Vec3): number => (sign * (along ? c.x : c.y)) / repeat.u;
+  return {
+    frame: 0,
+    normal,
+    corners: placed.corners,
+    u0: at(left),
+    v0: left.z / repeat.v,
+    u1: at(right),
+    v1: top.z / repeat.v,
+  };
+}
+
+/** The quads of a painted surface on the faces of `pieces` that look into the room, grouped by piece. */
+export function paintedFaces(
+  pieces: readonly WallPiece[],
+  repeat: { readonly u: number; readonly v: number },
+): PieceQuads[] {
+  return pieces.map((piece) => ({
+    piece: piece.name,
+    quads: inwardNormals(piece).map((normal) => paintedQuad(piece, normal, repeat)),
+  }));
+}
+
+/** The quads of a painted surface on a papered `mass`'s south and west faces, the ones a player sees (`massLayout`'s), `MASS_LIFT` off it. */
+export function paintedMassFaces(
+  mass: Box,
+  repeat: { readonly u: number; readonly v: number },
+): WallQuad[] {
+  return [
+    paintedQuad({ ...mass, side: 'S', height: mass.z1 }, { x: 0, y: 1, z: 0 }, repeat, MASS_LIFT),
+    paintedQuad({ ...mass, side: 'W', height: mass.z1 }, { x: -1, y: 0, z: 0 }, repeat, MASS_LIFT),
+  ];
 }
 
 /**

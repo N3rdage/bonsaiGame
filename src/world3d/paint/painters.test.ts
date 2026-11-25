@@ -104,7 +104,12 @@ describe('paintWood', () => {
     expect(hashRaster(paintWood(small))).toBe(hashRaster(a));
     expect(hashRaster(paintWood({ ...small, seed: 8 }))).not.toBe(hashRaster(a));
     expect(opaque(a)).toBe(true);
-    expect(hashRaster(a)).toBe('16f7cb4a');
+    expect(hashRaster(a)).toBe('75cc8e3e');
+  });
+
+  it('wobbles a grain line by 4 texels at the default size, so the default texture is pinned', () => {
+    expect((PAINT.wood.grainWobbleCm / 100) * texelsPerMetre(WOOD_DEFAULTS).v).toBe(4);
+    expect(hashRaster(paintWood())).toBe('c02e16f8');
   });
 
   it('has dark gap rows between its planks', () => {
@@ -116,6 +121,22 @@ describe('paintWood', () => {
       near(gap, SURFACES.floor.gap, 12);
       expect(brightness(gap)).toBeLessThan(brightness(mean(r, top + 3, top + 7)));
     }
+  });
+
+  it('staggers its rows round the repeat, so no column is a joint in every row', () => {
+    const r = paintWood({ size: 256 });
+    const rowHeight = 256 / PAINT.wood.rows;
+    const plank = brightness(mean(r, 0, 256));
+    let worst = 0;
+    for (let x = 0; x < r.width; x++) {
+      let dark = 0;
+      for (let row = 0; row < PAINT.wood.rows; row++) {
+        const mid = Math.round(row * rowHeight + rowHeight / 2);
+        if (brightness(mean(r, mid, mid + 1, x, x + 1)) < plank * 0.7) dark++;
+      }
+      worst = Math.max(worst, dark);
+    }
+    expect(worst).toBeLessThan(PAINT.wood.rows / 2);
   });
 
   it('is plank coloured between the gaps', () => {

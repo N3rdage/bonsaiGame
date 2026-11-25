@@ -207,6 +207,36 @@ test.describe('the 3D world', () => {
     },
   );
 
+  test(
+    'paints its surfaces once at start, and a room seen first or again paints nothing',
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.setTimeout(120_000);
+      await bootWorld(page);
+      await waitForRoom(page, 'shed');
+      await skipTutorial(page, true);
+      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      await waitForBuilt(page, ['lounge']);
+      const atStart = await world3d(page);
+      expect(atStart.painted).toBeGreaterThan(0);
+      expect(atStart.paintMs).toBeGreaterThan(0);
+
+      // Each step is a room the player has not been in (lounge, hallway, study) or one seen again (shed).
+      const steps: [() => Promise<unknown>, RoomKey][] = [
+        [() => shedToLounge(page), 'lounge'],
+        [() => loungeToShed(page), 'shed'],
+        [() => shedToLounge(page), 'lounge'],
+        [() => loungeToHallway(page), 'hallway'],
+        [() => hallwayToStudy(page), 'study'],
+      ];
+      for (const [go, room] of steps) {
+        await go();
+        await waitForRoom(page, room);
+        expect((await world3d(page)).painted).toBe(atStart.painted);
+      }
+    },
+  );
+
   test('builds the rooms behind the shed doors ahead, hidden', async ({ page }) => {
     test.setTimeout(120_000);
     await bootWorld(page);
@@ -688,27 +718,33 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-study.png');
   });
 
-  test("lays each room's own Inked floor tiles", { tag: '@walk' }, async ({ page }) => {
-    test.setTimeout(120_000);
-    await bootWorld(page);
-    await waitForRoom(page, 'shed');
-    await expect.poll(async () => (await world3d(page)).floorSheet, POLL).toBe('spr_floor_shed');
-    await shedToGarden(page);
-    await waitForRoom(page, 'garden');
-    await expect.poll(async () => (await world3d(page)).floorSheet, POLL).toBe('spr_floor_garden');
-  });
+  test(
+    "lays each room's floor: painted indoors, its own Inked tiles outdoors",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.setTimeout(120_000);
+      await bootWorld(page);
+      await waitForRoom(page, 'shed');
+      await expect.poll(async () => (await world3d(page)).floorSheet, POLL).toBe('paint.wood');
+      await shedToGarden(page);
+      await waitForRoom(page, 'garden');
+      await expect
+        .poll(async () => (await world3d(page)).floorSheet, POLL)
+        .toBe('spr_floor_garden');
+    },
+  );
 
   test(
-    "dresses each room's walls, caps and fences from its own Inked sheets",
+    "dresses each room's walls and caps: wallpaper indoors, its own Inked sheets for caps and fences",
     { tag: '@walk' },
     async ({ page }) => {
       test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       expect((await world3d(page)).wallSheets).toEqual([
+        'paint.wallpaper',
         'spr_shed_cap',
         'spr_shed_cap_v',
-        'spr_shed_wall',
       ]);
       await shedToGarden(page);
       await waitForRoom(page, 'garden');

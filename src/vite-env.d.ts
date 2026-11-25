@@ -83,10 +83,14 @@ interface BonsaiTestHook {
     readonly artDepthOffset: number;
     /** True while the lit meshes are lit through the look's soft ramp and hemisphere fill and inked; false while off. */
     readonly inked: boolean;
-    /** The key of the sheet the 3D floor's Inked tiles are cut from ('spr_floor_shed' in the shed), null until its texture has loaded and while off. */
+    /** The key of the sheet the 3D floor's Inked tiles are cut from ('spr_floor_garden' in the garden), or of the painted surface it wears ('paint.wood' in the shed), null until its texture has loaded and while off. */
     readonly floorSheet: string | null;
-    /** The keys of the sheets the 3D walls, caps and fences are cut from that have loaded, sorted ('spr_shed_cap', 'spr_shed_cap_v', 'spr_shed_wall' in the shed); empty until then and while off. */
+    /** The keys of the sheets the 3D walls, caps and fences are cut from that have loaded, and 'paint.wallpaper' where the walls are papered, sorted ('paint.wallpaper', 'spr_shed_cap', 'spr_shed_cap_v' in the shed); empty until then and while off. */
     readonly wallSheets: readonly string[];
+    /** How many surfaces the 3D world's paint cache has painted (wallpaper, wood, tiles) since the renderer started: all of them at start, so a room's first visit adds none; 0 while off. */
+    readonly painted: number;
+    /** How long painting them took at start-up, ms; 0 while off. */
+    readonly paintMs: number;
     /** How many modelled details the room has of each kind (the shed's `{ door: 2, window: 1 }`, the garden's `{ door: 1, planting: 3 }`); empty while off. */
     readonly details: Readonly<Record<string, number>>;
     /** The kind of weather drawn ('petals', 'fireflies', 'leaves' or 'snow': the season's, outdoors, with the weather setting on), null indoors, with the setting off, or while off. */

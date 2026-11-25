@@ -9,12 +9,14 @@
 import { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 import { VertexBuffer } from '@babylonjs/core/Buffers/buffer';
 import '@babylonjs/core/Culling/ray';
+import { Constants } from '@babylonjs/core/Engines/constants';
 import { Engine } from '@babylonjs/core/Engines/engine';
 import { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 import { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
+import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
@@ -48,6 +50,16 @@ import {
   type FurniturePart,
   type ModelPart,
 } from './furnitureModels';
+import { PaintCache } from './paint/cache';
+import {
+  RASTER_V_UP,
+  SURFACE_SPECS,
+  inkedWallSheets,
+  paintedFloor,
+  paintedFloorQuad,
+  paintedWalls,
+  type Surface,
+} from './paintedSurfaces';
 import { roundedBox } from './shapes';
 import { lightDirectionBabylon, shadowDarkness } from './light';
 import {
@@ -91,11 +103,14 @@ import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { SpotMat, TreeStand } from './trees';
 import {
   massLayout,
+  paintedFaces,
+  paintedMassFaces,
   paperedMasses,
   wallLayout,
   wallMeshData,
   wallPieces,
-  wallSheets,
+  type PieceQuads,
+  type WallQuad,
 } from './wallTiles';
 import { weatherKind, weatherSprites, type WeatherField } from './weather';
 
@@ -144,10 +159,14 @@ export interface RendererSnapshot {
   readonly artDepthOffset: number;
   /** True while the lit meshes take the look light and ink. */
   readonly inked: boolean;
-  /** The key of the sheet the floor's tiles are cut from, null until its texture has loaded. */
+  /** The key of the sheet the floor's tiles are cut from, or of the painted surface it wears (`paint.wood`), null until it has loaded. */
   readonly floorSheet: string | null;
-  /** The keys of the sheets the walls' art is cut from that have loaded, sorted. */
+  /** The keys of the sheets the walls' art is cut from that have loaded, and `paint.wallpaper` where they are papered, sorted. */
   readonly wallSheets: readonly string[];
+  /** How many surfaces the paint cache has painted since the renderer started. */
+  readonly painted: number;
+  /** How long painting them took at start-up, ms. */
+  readonly paintMs: number;
   /** How many modelled details the room has of each kind ('door', 'window', 'hedge', 'planting'). */
   readonly details: Readonly<Record<string, number>>;
   /** The kind of weather drawn (petals, fireflies, leaves, snow), null where none is. */
@@ -355,6 +374,10 @@ export class Renderer {
   private ahead: RoomKey[] = [];
   /** Every sheet's texture, by URL: loaded once and shared by the rooms that use it. */
   private readonly sheets = new Map<string, SheetTexture>();
+  /** The session's one cache of painted rasters, and the texture each became (once, by paint key). */
+  private readonly paints = new PaintCache();
+  private readonly painting = new Map<string, RawTexture>();
+  private paintMs = 0;
   /** The invisible boxes taps pick props by, each under its prop's key. */
   private hotspots = new Map<AbstractMesh, string>();
   /** The prop keys the hotspots were made for, so a placed item's spots add or drop theirs. */
@@ -456,8 +479,11 @@ export class Renderer {
     this.shadows.addShadowCaster(this.player);
     this.ink(this.player);
     for (const room of Object.values(ROOMS)) {
-      this.sheetTexture(floorTiles(room).sheet);
-      for (const sheet of wallSheets(room)) this.sheetTexture(sheet);
+      const floor = paintedFloor(room);
+      if (floor) this.surfaceTexture(floor);
+      else this.sheetTexture(floorTiles(room).sheet);
+      if (paintedWalls(room)) this.surfaceTexture('wallpaper');
+      for (const sheet of inkedWallSheets(room)) this.sheetTexture(sheet);
     }
   }
 
@@ -514,6 +540,8 @@ export class Renderer {
       inked: true,
       floorSheet: this.shown?.floorArt?.sheet ?? null,
       wallSheets: [...(this.shown?.wallArt.keys() ?? [])].sort(),
+      painted: this.paints.painted,
+      paintMs: this.paintMs,
       details: this.shown?.detailCounts ?? {},
       weather: this.weatherKind,
       hotspots: this.hotspotPoints()
@@ -872,6 +900,9 @@ export class Renderer {
     this.shown = undefined;
     for (const { texture } of this.sheets.values()) texture.dispose();
     this.sheets.clear();
+    for (const texture of this.painting.values()) texture.dispose();
+    this.painting.clear();
+    this.paints.clear();
     this.scene.dispose();
     this.engine.dispose();
     this.canvas.remove();
@@ -946,7 +977,7 @@ export class Renderer {
       floorArt: undefined,
       wallArt: new Map(),
       disposed: false,
-      pending: 1 + wallSheets(room).length,
+      pending: (paintedFloor(room) ? 0 : 1) + inkedWallSheets(room).length,
       started,
       change: undefined,
       laidAt: undefined,
@@ -1010,12 +1041,23 @@ export class Renderer {
   }
 
   /**
-   * Lays `room`'s Inked floor tiles just over the floor box's top once the
-   * sheet's PNG (the one Phaser loads) has loaded: one merged quad mesh,
-   * mipmapped, look lit and shadowed like the floor
-   * under it.
+   * Lays `room`'s floor just over the floor box's top: its painted surface
+   * (one quad, laid at once, the texture being made at start) or, where the
+   * floor keeps its Inked tiles, those once the sheet's PNG (the one Phaser
+   * loads) has loaded as one merged quad mesh. Mipmapped, look lit and
+   * shadowed like the floor under it.
    */
   private tile(set: RoomSet, room: Room): void {
+    const surface = paintedFloor(room);
+    if (surface) {
+      const material = this.sheetMaterial(`floor.${surface}`, this.surfaceTexture(surface), false);
+      const data = floorMeshData([paintedFloorQuad(surface, room)]);
+      const mesh = this.texturedMesh(`floor.${surface}`, data, material);
+      mesh.parent = set.root;
+      mesh.receiveShadows = true;
+      set.floorArt = { mesh, material, sheet: `paint.${surface}` };
+      return;
+    }
     const sheet = floorTiles(room).sheet;
     this.loadSheet(set, sheet, (texture) => {
       const { width, height } = texture.getSize();
@@ -1032,58 +1074,117 @@ export class Renderer {
   }
 
   /**
-   * Dresses `plan`'s walls in the Inked art of the 2D room's runs, once each
-   * sheet's PNG has loaded. A piece the camera can cut away (`cuttable`) gets
-   * one mesh per sheet parented to its box, so the cut, which scales and
-   * lowers the box, takes its art with it (one mesh over several pieces could
-   * not follow their separate cuts); the pieces that stand for good, a
-   * garden's fences and a room's papered masses, share one merged mesh per
-   * sheet. A sheet's meshes share one material, mipmapped, look lit, with no
-   * outline and
-   * no shadows, as the boxes are.
+   * Dresses `plan`'s walls: with wallpaper (`paintedWalls`) on the faces that
+   * look into the room, laid at once from the texture made at start, and in
+   * the Inked art of the 2D room's runs (the caps, and all of an outdoor
+   * room's), once each sheet's PNG has loaded. A piece the camera can cut away
+   * (`cuttable`) gets one mesh per surface parented to its box, so the cut,
+   * which scales and lowers the box, takes its art with it (one mesh over
+   * several pieces could not follow their separate cuts); the pieces that
+   * stand for good, a garden's fences and a room's papered masses, share one
+   * merged mesh per surface. A surface's meshes share one material,
+   * mipmapped, look lit, with no outline and no shadows, as the boxes are.
    */
   private clothe(set: RoomSet, room: Room): void {
     const { plan } = set;
     const pieces = wallPieces(plan.walls).filter((piece) => set.pieces.has(piece.name));
     const movable = new Set(pieces.filter((p) => cuttable(plan, p)).map((p) => p.name));
-    for (const sheet of wallSheets(room)) {
+    if (paintedWalls(room)) {
+      const { metres } = SURFACE_SPECS.wallpaper;
+      const material = this.sheetMaterial('wall.paper', this.surfaceTexture('wallpaper'), true);
+      this.layWalls(
+        set,
+        'paint.wallpaper',
+        material,
+        paintedFaces(pieces, metres),
+        paperedMasses(room).flatMap((mass) => paintedMassFaces(mass, metres)),
+        movable,
+      );
+    }
+    for (const sheet of inkedWallSheets(room)) {
       this.loadSheet(set, sheet, (texture) => {
         const { width, height } = texture.getSize();
         const material = this.sheetMaterial(`wall.${sheet.key}`, texture, true);
-        const layout = wallLayout(room, pieces, sheet, width, height);
-        const meshes = layout
-          .filter(({ piece }) => movable.has(piece))
-          .flatMap(({ piece, quads }) => {
-            const box = pieces.find((p) => p.name === piece);
-            const parent = set.pieces.get(piece)?.mesh;
-            if (!box || !parent) return [];
-            const origin = {
-              x: (box.x0 + box.x1) / 2,
-              y: (box.y0 + box.y1) / 2,
-              z: (box.z0 + box.z1) / 2,
-            };
-            const mesh = this.texturedMesh(
-              `${piece}.${sheet.key}`,
-              wallMeshData(quads, origin),
-              material,
-            );
-            mesh.parent = parent;
-            return [mesh];
-          });
-        const fixed = [
-          ...layout.filter(({ piece }) => !movable.has(piece)).flatMap(({ quads }) => quads),
-          ...paperedMasses(room).flatMap((mass) => massLayout(room, mass, sheet, width, height)),
-        ];
-        if (fixed.length > 0) {
-          const data = wallMeshData(fixed, { x: 0, y: 0, z: 0 });
-          const whole = this.texturedMesh(`walls.${sheet.key}`, data, material);
-          whole.parent = set.root;
-          meshes.push(whole);
-        }
-        if (meshes.length === 0) material.dispose(false, false);
-        else set.wallArt.set(sheet.key, { meshes, material });
+        this.layWalls(
+          set,
+          sheet.key,
+          material,
+          wallLayout(room, pieces, sheet, width, height),
+          paperedMasses(room).flatMap((mass) => massLayout(room, mass, sheet, width, height)),
+          movable,
+        );
       });
     }
+  }
+
+  /**
+   * Lays `layout`'s quads on the wall pieces as one mesh per movable piece,
+   * parented to the piece's box, and `masses` with the pieces that stand for
+   * good as one mesh on the set's root; `key` names them in `set.wallArt`.
+   */
+  private layWalls(
+    set: RoomSet,
+    key: string,
+    material: StandardMaterial,
+    layout: readonly PieceQuads[],
+    masses: readonly WallQuad[],
+    movable: ReadonlySet<string>,
+  ): void {
+    const meshes = layout
+      .filter(({ piece }) => movable.has(piece))
+      .flatMap(({ piece, quads }) => {
+        const box = set.plan.walls.find((p) => p.name === piece);
+        const parent = set.pieces.get(piece)?.mesh;
+        if (!box || !parent) return [];
+        const origin = {
+          x: (box.x0 + box.x1) / 2,
+          y: (box.y0 + box.y1) / 2,
+          z: (box.z0 + box.z1) / 2,
+        };
+        const mesh = this.texturedMesh(`${piece}.${key}`, wallMeshData(quads, origin), material);
+        mesh.parent = parent;
+        return [mesh];
+      });
+    const fixed = [
+      ...layout.filter(({ piece }) => !movable.has(piece)).flatMap(({ quads }) => quads),
+      ...masses,
+    ];
+    if (fixed.length > 0) {
+      const whole = this.texturedMesh(
+        `walls.${key}`,
+        wallMeshData(fixed, { x: 0, y: 0, z: 0 }),
+        material,
+      );
+      whole.parent = set.root;
+      meshes.push(whole);
+    }
+    if (meshes.length === 0) material.dispose(false, false);
+    else set.wallArt.set(key, { meshes, material });
+  }
+
+  /** The texture of a painted surface: its raster painted once by the cache, then made a texture once, repeating, mipmapped and trilinear. */
+  private surfaceTexture(surface: Surface): RawTexture {
+    const { key, paint } = SURFACE_SPECS[surface];
+    const known = this.painting.get(key);
+    if (known) return known;
+    const started = performance.now();
+    const { width, height, data } = this.paints.get(key, paint);
+    const texture = new RawTexture(
+      new Uint8Array(data.buffer, data.byteOffset, data.byteLength),
+      width,
+      height,
+      Constants.TEXTUREFORMAT_RGBA,
+      this.scene,
+      true,
+      RASTER_V_UP,
+      Texture.TRILINEAR_SAMPLINGMODE,
+    );
+    texture.wrapU = Texture.WRAP_ADDRESSMODE;
+    texture.wrapV = Texture.WRAP_ADDRESSMODE;
+    texture.anisotropicFilteringLevel = ANISOTROPY;
+    this.painting.set(key, texture);
+    this.paintMs += performance.now() - started;
+    return texture;
   }
 
   /**

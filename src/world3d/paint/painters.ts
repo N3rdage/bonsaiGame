@@ -75,6 +75,8 @@ export const PAINT = {
     gapCm: 1.5,
     grainLines: 5,
     grainCm: 1.2,
+    /** How far a grain line may stray across its plank, centimetres (4 texels at the default 128 a metre). */
+    grainWobbleCm: 3.125,
     knotChance: 0.35,
     knotCm: 2.2,
   },
@@ -299,34 +301,48 @@ export function paintWood(params: Partial<WoodParams> = {}): Raster {
   for (let r = 0; r < w.rows; r++) {
     const top = Math.round(r * rowHeight);
     const height = Math.round((r + 1) * rowHeight) - top;
-    let x = 0;
-    let stagger = 0.2 + rand() * 0.8;
-    while (x < p.size) {
-      const length = Math.round(Math.max(1, scale.u * between(w.plankLengthM, rand()) * stagger));
-      stagger = 1;
-      const end = Math.min(p.size, x + length);
-      const area: Rect = { x, y: top, w: end - x, h: height };
+    // Each row's joints start at its own offset and its last plank wraps
+    // round the edge, so the repeat never lines every row's joint up at u 0.
+    const offset = Math.floor(rand() * p.size);
+    let x = offset;
+    while (x < offset + p.size) {
+      const length = Math.round(Math.max(1, scale.u * between(w.plankLengthM, rand())));
+      const end = Math.min(offset + p.size, x + length);
       const tone = mix(shade(p.plank, 0.84 + rand() * 0.26), p.worn, rand() * 0.25);
-      paintBrushFill(out, rand, area, tone, 'h', scale);
-      for (let g = 0; g < w.grainLines; g++) {
-        const gy = top + (0.15 + rand() * 0.7) * height;
-        stroke(
-          out,
-          { x, y: gy },
-          { x: x + area.w / 2, y: gy + (rand() - 0.5) * 4 },
-          { x: end, y: gy },
-          { width: texels(w.grainCm, scale.v), colour: shade(tone, 0.78), alpha: 0.25 },
-          area,
-        );
+      const parts =
+        x >= p.size
+          ? [{ from: x - p.size, to: end - p.size }]
+          : end > p.size
+            ? [
+                { from: x, to: p.size },
+                { from: 0, to: end - p.size },
+              ]
+            : [{ from: x, to: end }];
+      for (const { from, to } of parts) {
+        const area: Rect = { x: from, y: top, w: to - from, h: height };
+        paintBrushFill(out, rand, area, tone, 'h', scale);
+        for (let g = 0; g < w.grainLines; g++) {
+          const gy = top + (0.15 + rand() * 0.7) * height;
+          stroke(
+            out,
+            { x: from, y: gy },
+            { x: from + area.w / 2, y: gy + (rand() - 0.5) * texels(w.grainWobbleCm, scale.v) },
+            { x: to, y: gy },
+            { width: texels(w.grainCm, scale.v), colour: shade(tone, 0.78), alpha: 0.25 },
+            area,
+          );
+        }
       }
-      if (rand() < w.knotChance) {
-        const kx = x + (0.2 + rand() * 0.6) * area.w;
+      const piece = parts[0];
+      if (piece && rand() < w.knotChance) {
+        const kx = piece.from + (0.2 + rand() * 0.6) * (piece.to - piece.from);
         const ky = top + height / 2 + (rand() - 0.5) * height * 0.3;
         const radius = texels(w.knotCm, scale.v);
+        const area: Rect = { x: piece.from, y: top, w: piece.to - piece.from, h: height };
         dab(out, kx, ky, radius, shade(tone, 0.7), 0.35, area);
         dab(out, kx, ky, radius / 2, shade(tone, 0.6), 0.5, area);
       }
-      fillRect(out, { x, y: top, w: gapU, h: height }, p.gap);
+      fillRect(out, { x: x % p.size, y: top, w: gapU, h: height }, p.gap);
       x = end;
     }
     fillRect(out, { x: 0, y: top, w: p.size, h: gapV }, p.gap);

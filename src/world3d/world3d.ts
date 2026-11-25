@@ -158,6 +158,8 @@ export class World3d {
       inked: state?.inked ?? false,
       floorSheet: state?.floorSheet ?? null,
       wallSheets: state ? [...state.wallSheets] : [],
+      painted: state?.painted ?? 0,
+      paintMs: state?.paintMs ?? 0,
       details: state ? { ...state.details } : {},
       weather: state?.weather ?? null,
       built: state ? [...state.built] : [],
