@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOK, SURFACES, lookLight, outlineWidthMetres, rampGlsl, unitRgb } from './look';
+import { LOOK, OBJECTS, SURFACES, lookLight, outlineWidthMetres, rampGlsl, unitRgb } from './look';
 
 describe('LOOK', () => {
   it('pins the painterly numbers', () => {
@@ -100,5 +100,69 @@ describe('outlineWidthMetres', () => {
     expect(near).toBeCloseTo((1.4 * 2 * 4 * Math.tan(0.4)) / 600);
     expect(outlineWidthMetres(8, 0.8, 600)).toBeCloseTo(near * 2);
     expect(outlineWidthMetres(4, 0.8, 1200)).toBeCloseTo(near / 2);
+  });
+});
+
+describe('OBJECTS', () => {
+  it('pins the furniture palette', () => {
+    expect(OBJECTS).toEqual({
+      white: 0xffffff,
+      flame: 0xff9a3c,
+      flameCore: 0xffe9a0,
+      soot: 0x2e2622,
+      log: 0x8a5a3a,
+      bark: 0x6e4a34,
+      soil: 0x4a3426,
+      brass: 0xc8a050,
+      copper: 0xc87850,
+      ink: 0x3a2c28,
+      bread: 0xd8a060,
+      fruit1: 0xe05a3a,
+      fruit2: 0xf0c040,
+      fruit3: 0xf0d860,
+      cat: 0xe0904a,
+      catDark: 0xb86a34,
+      cream: 0xf6ecd6,
+      wood: 0xb07a4a,
+      woodDark: 0x7a4a30,
+      woodLight: 0xd4a46a,
+      sofa: 0xb85a48,
+      sofaLight: 0xcc7058,
+      cushionA: 0xe8c060,
+      cushionB: 0x4a7a8a,
+      throw: 0xf0e0c0,
+      chair: 0x5a8a6a,
+      chairLight: 0x6e9e7a,
+      shade: 0xf6e0b0,
+      ceramic: 0xf4ecdc,
+      ceramicB: 0x4a7a9a,
+      glaze: 0x2e6a7a,
+      terracotta: 0xc4643e,
+      leaf: 0x4a8a3e,
+      leafLight: 0x7aae4a,
+      leafDark: 0x2e6a3a,
+      stone: 0xb4a898,
+      frame: 0xc8a050,
+      frameDark: 0x4a3020,
+      curtain: 0xf0dcb0,
+      curtainDark: 0xd8c098,
+      sill: 0xf0e6d0,
+      sky: 0xd8eef8,
+      flower: 0xf06a7a,
+      book1: 0xa83a30,
+      book2: 0x2e5a7a,
+      book3: 0xe0a840,
+      book4: 0x4a7a4a,
+      book5: 0x7a4a7a,
+      wicker: 0xc49a60,
+      cabinet: 0xe8dcc0,
+      cabinetLight: 0xf2e8d0,
+      towel: 0x4a7aa0,
+      jar: 0xf2e8d0,
+      jarB: 0xc87048,
+      door: 0xe0d2b4,
+      doorDark: 0xccbc98,
+      coat: 0xa84a3a,
+    });
   });
 });

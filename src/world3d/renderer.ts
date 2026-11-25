@@ -42,7 +42,12 @@ import { RADIUS_DEFAULT, cameraRig, cutNames, cutSpan, cuttable, ease } from './
 import { countDetails, roomDetails, type Detail } from './details';
 import { floorLayout, floorMeshData, type QuadMeshData } from './floorTiles';
 import { furniturePieces, type FurniturePiece } from './furniture';
-import { FURNITURE_MODELS, type FurnitureKind, type ModelPart } from './furnitureModels';
+import {
+  FURNITURE_MODELS,
+  type FurnitureKind,
+  type FurniturePart,
+  type ModelPart,
+} from './furnitureModels';
 import { roundedBox } from './shapes';
 import { lightDirectionBabylon, shadowDarkness } from './light';
 import {
@@ -80,7 +85,7 @@ import {
 import { inFront, nearestSpot, type Picked, type ScreenSpot } from './tap';
 import { roomPlan3d, type Roof, type RoomPlan3d, type WashKey } from './plan';
 import { roofMesh } from './roofMeshes';
-import { LOOK, outlineWidthMetres, unitRgb } from './look';
+import { LOOK, OBJECTS, outlineWidthMetres, unitRgb } from './look';
 import { lookLit } from './lookPlugin';
 import { treeMeshData, type WorldMeshData } from './treeMeshes';
 import type { SpotMat, TreeStand } from './trees';
@@ -289,6 +294,11 @@ const GLASS_ALPHA = 0.4;
 /** The Babylon colour of a palette wash. */
 function washColour(wash: WashKey): Color3 {
   return washHex(PALETTE[wash]);
+}
+
+/** The Babylon colour of a model part: an object-palette colour for furniture, a wash for details. */
+function partColour(part: ModelPart | FurniturePart): Color3 {
+  return 'object' in part ? washHex(OBJECTS[part.object]) : washColour(part.wash);
 }
 
 /**
@@ -1213,7 +1223,7 @@ export class Renderer {
     }
   }
 
-  /** The one source mesh of `kind`, made the first time a room needs it: its parts' boxes, vertex-coloured by their washes, merged into one at the origin. */
+  /** The one source mesh of `kind`, made the first time a room needs it: its parts' boxes, vertex-coloured from the object palette, merged into one at the origin. */
   private modelMesh(kind: FurnitureKind): Mesh {
     const known = this.models.get(kind);
     if (known) return known;
@@ -1268,7 +1278,11 @@ export class Renderer {
    * there. Solid parts go on the shared colour material; glass parts
    * (`ModelPart.glass`) go into a child mesh on the translucent glass material.
    */
-  private partsMesh(name: string, parts: readonly ModelPart[], origin: Vec3): Mesh {
+  private partsMesh(
+    name: string,
+    parts: readonly (ModelPart | FurniturePart)[],
+    origin: Vec3,
+  ): Mesh {
     const solid = this.mergedParts(
       name,
       parts.filter((part) => part.glass !== true),
@@ -1285,7 +1299,7 @@ export class Renderer {
   }
 
   /** The box of `part` at the origin: sharp from `CreateBox`, or rounded from `roundedBox` when it has a radius. */
-  private partBox(name: string, part: ModelPart): Mesh {
+  private partBox(name: string, part: ModelPart | FurniturePart): Mesh {
     const width = part.x1 - part.x0;
     const height = part.z1 - part.z0;
     const depth = part.y1 - part.y0;
@@ -1301,8 +1315,12 @@ export class Renderer {
     return mesh;
   }
 
-  /** One mesh of `parts`, vertex-coloured by wash and positioned relative to `origin`; the caller gives it a material. */
-  private mergedParts(name: string, parts: readonly ModelPart[], origin: Vec3): Mesh {
+  /** One mesh of `parts`, vertex-coloured by wash (details) or object colour (furniture) and positioned relative to `origin`; the caller gives it a material. */
+  private mergedParts(
+    name: string,
+    parts: readonly (ModelPart | FurniturePart)[],
+    origin: Vec3,
+  ): Mesh {
     const boxes = parts.map((part, n) => {
       const box = this.partBox(`${name}.${String(n)}`, part);
       const centre = toBabylon({
@@ -1312,7 +1330,7 @@ export class Renderer {
       });
       box.position.set(centre.x, centre.y, centre.z);
       box.bakeCurrentTransformIntoVertices();
-      const { r, g, b } = washColour(part.wash);
+      const { r, g, b } = partColour(part);
       const rgba = [r, g, b, 1];
       box.setVerticesData(
         VertexBuffer.ColorKind,

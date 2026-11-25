@@ -1,12 +1,13 @@
 /**
  * The shapes the 3D world gives furniture, as pure data: each kind of piece is
- * a handful of rounded boxes in metres with a palette wash, built in code. A model is
+ * a handful of rounded boxes in metres with an object-palette colour, built in code. A model is
  * drawn once per kind and stood wherever that kind repeats (renderer.ts, thin
  * instances), scaled from its nominal `size` to the footprint and height the
  * room data gives the piece. Frame as plan.ts's: x east, y south, z up, the
  * middle of the footprint at x 0, y 0 and the floor at z 0.
  */
 
+import type { ObjectKey } from './look';
 import type { WashKey } from './plan';
 import { roundedBoxVertexCount } from './shapes';
 
@@ -38,10 +39,13 @@ export interface ModelPart {
   readonly z1: number;
 }
 
+/** A box of a furniture model: a `ModelPart` coloured from the object palette (look.ts) rather than a wash. */
+export type FurniturePart = Omit<ModelPart, 'wash'> & { readonly object: ObjectKey };
+
 /** A kind's model: the footprint and height its parts are drawn for. The tallest part ends at `size.h`. */
 export interface FurnitureModel {
   readonly size: { readonly w: number; readonly d: number; readonly h: number };
-  readonly parts: readonly ModelPart[];
+  readonly parts: readonly FurniturePart[];
 }
 
 /**
@@ -64,12 +68,12 @@ const ROUNDING = 0.03;
 
 /** A box `w` wide, `d` deep and `h` tall, its middle over (`x`, `y`) and its bottom at `z`, its edges rounded to suit its size. */
 function block(
-  wash: WashKey,
+  object: ObjectKey,
   [w, d, h]: readonly [number, number, number],
   [x, y, z]: readonly [number, number, number] = [0, 0, 0],
-): ModelPart {
+): FurniturePart {
   return {
-    wash,
+    object,
     x0: x - w / 2,
     x1: x + w / 2,
     y0: y - d / 2,
@@ -124,7 +128,7 @@ const KIOSK_COUNTER = 0.95;
 const KIOSK_SIGN = 0.3;
 
 /** The four legs of a table `w` by `d` tall `h`, one at each corner. */
-function legs(w: number, d: number, h: number): ModelPart[] {
+function legs(w: number, d: number, h: number): FurniturePart[] {
   const [x, y] = [(w - LEG) / 2, (d - LEG) / 2];
   return [
     block('wood', [LEG, LEG, h], [-x, -y, 0]),
@@ -156,14 +160,14 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
     parts: [
       block('wood', [FW, FD, PLANK], [0, 0, FH - PLANK]),
       block('wood', [FW - 2 * PLANK, FD, PLANK], [0, 0, FLOOR_SHELF_LOWER]),
-      block('floor', [PLANK, FD, FH], [-(FW - PLANK) / 2, 0, 0]),
-      block('floor', [PLANK, FD, FH], [(FW - PLANK) / 2, 0, 0]),
+      block('woodDark', [PLANK, FD, FH], [-(FW - PLANK) / 2, 0, 0]),
+      block('woodDark', [PLANK, FD, FH], [(FW - PLANK) / 2, 0, 0]),
     ],
   },
   shelf: {
     size: SHELF_SIZE,
     parts: [
-      block('floor', [SW, PLANK, SH], [0, (SD - PLANK) / 2, 0]),
+      block('woodDark', [SW, PLANK, SH], [0, (SD - PLANK) / 2, 0]),
       block('wood', [PLANK, SD, SH], [-(SW - PLANK) / 2, 0, 0]),
       block('wood', [PLANK, SD, SH], [(SW - PLANK) / 2, 0, 0]),
       block('wood', [SW, SD, PLANK], [0, 0, 0]),
@@ -175,32 +179,32 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
     size: TOOLS_SIZE,
     parts: [
       block('wood', [PLANK, PLANK, TOOLS_SIZE.h], [-0.1, 0, 0]),
-      block('asphalt', [0.12, 0.02, 0.25], [-0.1, 0, 0]),
+      block('soot', [0.12, 0.02, 0.25], [-0.1, 0, 0]),
       block('wood', [PLANK, PLANK, TOOLS_RAKE_HEIGHT], [0.1, 0, 0]),
-      block('asphalt', [0.14, 0.06, 0.03], [0.1, 0, TOOLS_RAKE_HEIGHT - 0.03]),
+      block('soot', [0.14, 0.06, 0.03], [0.1, 0, TOOLS_RAKE_HEIGHT - 0.03]),
     ],
   },
   watering_can: {
     size: CAN_SIZE,
     parts: [
-      block('paint', [0.28, CAN_SIZE.d, 0.2], [-0.05, 0, 0]),
-      block('paint', [0.2, 0.05, 0.05], [0.15, 0, 0.1]),
-      block('paint', [0.04, 0.05, CAN_SIZE.h - 0.2], [-0.05, 0, 0.2]),
+      block('glaze', [0.28, CAN_SIZE.d, 0.2], [-0.05, 0, 0]),
+      block('glaze', [0.2, 0.05, 0.05], [0.15, 0, 0.1]),
+      block('glaze', [0.04, 0.05, CAN_SIZE.h - 0.2], [-0.05, 0, 0.2]),
     ],
   },
   pot_stack: {
     size: POTS_SIZE,
     parts: [
-      block('tile', [POTS_SIZE.w, POTS_SIZE.d, 0.19]),
-      block('tile', [0.32, 0.22, 0.19], [0, 0, 0.19]),
-      block('tile', [0.26, 0.18, POTS_SIZE.h - 0.38], [0, 0, 0.38]),
+      block('terracotta', [POTS_SIZE.w, POTS_SIZE.d, 0.19]),
+      block('terracotta', [0.32, 0.22, 0.19], [0, 0, 0.19]),
+      block('terracotta', [0.26, 0.18, POTS_SIZE.h - 0.38], [0, 0, 0.38]),
     ],
   },
   sack: {
     size: SACK_SIZE,
     parts: [
-      block('render', [SACK_SIZE.w, SACK_SIZE.d, 0.4]),
-      block('render', [0.26, 0.16, SACK_SIZE.h - 0.4], [0, 0, 0.4]),
+      block('wicker', [SACK_SIZE.w, SACK_SIZE.d, 0.4]),
+      block('wicker', [0.26, 0.16, SACK_SIZE.h - 0.4], [0, 0, 0.4]),
     ],
   },
   workbench: {
@@ -243,7 +247,7 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
         [(KIOSK_SIZE.w - PLANK) / 2, -(KIOSK_SIZE.d - PLANK) / 2, KIOSK_COUNTER],
       ),
       block(
-        'tile',
+        'frame',
         [KIOSK_SIZE.w, PLANK, KIOSK_SIGN],
         [0, -(KIOSK_SIZE.d - PLANK) / 2, KIOSK_SIZE.h - KIOSK_SIGN],
       ),
