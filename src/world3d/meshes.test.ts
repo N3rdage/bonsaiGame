@@ -8,6 +8,7 @@ import {
   playerFeet,
   roomPx,
   toBabylon,
+  surfaceOwners,
   type MeshSpec,
 } from './meshes';
 import { WALL_HEIGHT, roomPlan3d } from './plan';
@@ -173,5 +174,18 @@ function surfaceFaults(specs: readonly MeshSpec[]): string[] {
 describe('meshSpecs surfaces', () => {
   it.each(KEYS)('%s: draws no box nested in, or coplanar with, another', (key) => {
     expect(surfaceFaults(meshSpecs(roomPlan3d(ROOMS[key])))).toEqual([]);
+  });
+
+  it("names the drawn box that stands for each box left out: the garden's building walls for their roofs and faces", () => {
+    const plan = roomPlan3d(ROOMS.garden);
+    const drawn = new Set(meshSpecs(plan).map((spec) => spec.name));
+    const owners = surfaceOwners(plan);
+    expect(owners.get('furniture.1.spr_house_face')).toBe('wall.4');
+    expect(owners.get('furniture.0.spr_house_roof')).toBe('wall.4');
+    expect(owners.get('furniture.5.spr_shed_face')).toBe('wall.5');
+    for (const [left, owner] of owners) {
+      expect(drawn.has(left)).toBe(false);
+      expect(drawn.has(owner)).toBe(true);
+    }
   });
 });

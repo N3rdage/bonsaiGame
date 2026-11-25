@@ -100,25 +100,40 @@ function cutBack(box: Box, over: Box): Box {
   return box;
 }
 
+interface Surfaces {
+  /** The boxes left, in the order given, the cut ones as cut. */
+  readonly drawn: Box[];
+  /** For each box left out, the name of the box it lies inside. */
+  readonly owners: Map<string, string>;
+}
+
 /**
  * The boxes with every surface once. Taller boxes come first (then the wider,
  * then the earlier): each is cut back from the ones before it that share a
  * face with it, and left out if that leaves it inside one, so no two boxes
  * have faces in one plane for the depth test to fight over.
  */
-function withoutSharedSurfaces(boxes: readonly Box[]): Box[] {
+function withoutSharedSurfaces(boxes: readonly Box[]): Surfaces {
   const area = (b: Box): number => (b.x1 - b.x0) * (b.y1 - b.y0);
   const ranked = [...boxes].sort((a, b) => b.z1 - a.z1 || area(b) - area(a));
   const kept: Box[] = [];
   const cut = new Map<Box, Box>();
+  const owners = new Map<string, string>();
   for (const box of ranked) {
     const trimmed = kept.reduce((b, over) => cutBack(b, over), box);
-    if (kept.some((over) => nested(trimmed, over))) continue;
+    const owner = kept.find((over) => nested(trimmed, over));
+    if (owner !== undefined) {
+      owners.set(box.name, owner.name);
+      continue;
+    }
     kept.push(trimmed);
     cut.set(box, trimmed);
   }
-  return boxes.flatMap((box) => cut.get(box) ?? []);
+  return { drawn: boxes.flatMap((box) => cut.get(box) ?? []), owners };
 }
+
+const surfacesOf = (plan: RoomPlan3d): Surfaces =>
+  withoutSharedSurfaces([...plan.floor, ...plan.walls, ...plan.furniture]);
 
 /**
  * Every box of the plan: the floor, then the walls, then the furniture that
@@ -128,8 +143,14 @@ function withoutSharedSurfaces(boxes: readonly Box[]): Box[] {
  * under a building's face), so two washes never share a surface.
  */
 export function meshSpecs(plan: RoomPlan3d): MeshSpec[] {
-  const drawn = withoutSharedSurfaces([...plan.floor, ...plan.walls, ...plan.furniture]);
-  return drawn.filter((box) => box.model === undefined).map(specOf);
+  return surfacesOf(plan)
+    .drawn.filter((box) => box.model === undefined)
+    .map(specOf);
+}
+
+/** The box that stands for each box `meshSpecs` leaves out, by name: the one it lies inside, which a detail hung on it hangs from instead. */
+export function surfaceOwners(plan: RoomPlan3d): ReadonlyMap<string, string> {
+  return surfacesOf(plan).owners;
 }
 
 /** The player's height, metres: the character's, which the camera looks at the middle of. */
