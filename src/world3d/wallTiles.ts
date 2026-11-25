@@ -10,7 +10,7 @@
 
 import type { Sheet } from '../world/assets';
 import { ROOM_STYLES, furnitureRuns, tileRuns, wallRuns, type WallRun } from '../world/roomArt';
-import type { Room } from '../world/shedRoom';
+import { ringWalls, type Room } from '../world/shedRoom';
 import type { QuadMeshData } from './floorTiles';
 import { toBabylon, type Vec3 } from './meshes';
 import { furnitureBox, isPapered, metres, pixels, type Box, type WallBox } from './plan';
@@ -40,6 +40,24 @@ export function wallPieces(walls: readonly WallBox[]): WallPiece[] {
     heights.set(wallOf(wall.name), Math.max(heights.get(wallOf(wall.name)) ?? 0, wall.z1));
   }
   return walls.map((wall) => ({ ...wall, height: heights.get(wallOf(wall.name)) ?? wall.z1 }));
+}
+
+/**
+ * Whether `piece` is a part of one of the room's ring walls, which the art
+ * runs dress. A building's wall box in the garden (render, over its roof's
+ * footprint) is not: its surface is its wash, and a fence's band laid on it
+ * would stand on the building's own faces.
+ */
+export function onRing(room: Room, piece: Box): boolean {
+  return ringWalls(room.bounds).some((r) => {
+    const [x0, x1, y0, y1] = [metres(r.x), metres(r.x + r.w), metres(r.y), metres(r.y + r.h)];
+    return (
+      piece.x0 >= x0 - EPSILON &&
+      piece.x1 <= x1 + EPSILON &&
+      piece.y0 >= y0 - EPSILON &&
+      piece.y1 <= y1 + EPSILON
+    );
+  });
 }
 
 /** The runs the walls wear: the ring's, without the windows, which the plan cuts as openings. */
@@ -305,7 +323,7 @@ export function wallLayout(
       : run.sheet.key === style.face.sheet.key
         ? 'face'
         : 'cap';
-    const claimed = pieces.filter((piece) => claims(kind, span, piece));
+    const claimed = pieces.filter((piece) => onRing(room, piece) && claims(kind, span, piece));
     const first = claimed[0];
     if (!first) continue;
     for (const piece of claimed.filter((p) => wallOf(p.name) === wallOf(first.name))) {

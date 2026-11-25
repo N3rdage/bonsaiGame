@@ -105,6 +105,7 @@ import {
   massLayout,
   paintedFaces,
   paintedMassFaces,
+  onRing,
   paperedMasses,
   wallLayout,
   wallMeshData,
@@ -985,6 +986,8 @@ export class Renderer {
       change: undefined,
       laidAt: undefined,
     };
+    // A building's wall box is inked as the furniture is: it stands where an inked face once did.
+    const buildings = new Set(plan.walls.filter((w) => !onRing(room, w)).map((w) => w.name));
     for (const spec of meshSpecs(plan)) {
       const mesh = CreateBox(
         spec.name,
@@ -995,7 +998,7 @@ export class Renderer {
       mesh.position.set(spec.center.x, spec.center.y, spec.center.z);
       mesh.material = this.material(spec.wash);
       mesh.receiveShadows = spec.name === 'floor';
-      if (spec.name.startsWith('furniture.')) this.ink(mesh);
+      if (spec.name.startsWith('furniture.') || buildings.has(spec.name)) this.ink(mesh);
       set.pieces.set(spec.name, {
         mesh,
         z0: spec.center.y - spec.height / 2,
