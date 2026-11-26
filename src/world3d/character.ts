@@ -46,6 +46,27 @@ export const BODY_MODEL_HEIGHT = 2.1783;
 /** The scale from the model's units to metres. */
 export const BODY_SCALE = CHARACTER_HEIGHT / BODY_MODEL_HEIGHT;
 
+/**
+ * The sizes the player's body can be drawn at, as a fraction of `CHARACTER_HEIGHT`. A feel setting
+ * (the rooms feel cramped around a full-size figure), not real scale: the sim keeps its units, and
+ * the rooms, furniture, plants, collision and speed ignore it.
+ */
+export const AVATAR_SCALES = [0.6, 0.7, 0.8, 0.9, 1] as const;
+export type AvatarScale = (typeof AVATAR_SCALES)[number];
+/** The size the body is drawn at until the Settings panel says otherwise. */
+export const AVATAR_SCALE_DEFAULT: AvatarScale = 0.7;
+
+/** The next size up, and from the largest back to the smallest. */
+export function nextAvatarScale(scale: AvatarScale): AvatarScale {
+  const next = AVATAR_SCALES.indexOf(scale) + 1;
+  return AVATAR_SCALES[next % AVATAR_SCALES.length] ?? AVATAR_SCALE_DEFAULT;
+}
+
+/** `value` if it is one of the allowed sizes, else undefined. */
+export function parseAvatarScale(value: unknown): AvatarScale | undefined {
+  return AVATAR_SCALES.find((scale) => scale === value);
+}
+
 /** The seconds a change between idle and walk takes. */
 const FADE_SECONDS = 0.2;
 /** The speed, metres a second, at which the walk clip is wholly in. */
@@ -95,9 +116,9 @@ export function fadeWeights(current: ClipWeights, speed: number, dt: number): Cl
   return { idle: 1 - walk, walk };
 }
 
-/** How fast the walk clip plays at `speed`, so the feet keep pace with the ground: 1 at `STRIDE_SPEED`. */
-export function walkRate(speed: number): number {
-  return Math.min(RATE_MAX, Math.max(RATE_MIN, speed / STRIDE_SPEED));
+/** How fast the walk clip plays at `speed` for a body drawn at `avatarScale`, so its (shorter) stride keeps pace with the ground: 1 at `STRIDE_SPEED * avatarScale`. */
+export function walkRate(speed: number, avatarScale: number): number {
+  return Math.min(RATE_MAX, Math.max(RATE_MIN, speed / (STRIDE_SPEED * avatarScale)));
 }
 
 /** One node's local transform in a pose: what the clips key of it. */

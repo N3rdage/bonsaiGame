@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { AVATAR_SCALES } from '../world3d/character';
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -26,6 +27,7 @@ describe('settings', () => {
       music: true,
       world3d: false,
       timeSpeed: 1,
+      avatarScale: 0.7,
     });
     expect(loadSettings(new MemorySettingsStorage())).toEqual(DEFAULT_SETTINGS);
   });
@@ -39,6 +41,7 @@ describe('settings', () => {
       music: true,
       world3d: true,
       timeSpeed: 4,
+      avatarScale: 0.9,
     };
     saveSettings(storage, settings);
     expect(JSON.parse(storage.text ?? '')).toEqual(settings);
@@ -50,6 +53,7 @@ describe('settings', () => {
       music: false,
       world3d: false,
       timeSpeed: 1,
+      avatarScale: 0.7,
     };
     saveSettings(storage, quiet);
     expect(loadSettings(storage)).toEqual(quiet);
@@ -63,6 +67,7 @@ describe('settings', () => {
       music: true,
       world3d: false,
       timeSpeed: 1,
+      avatarScale: 0.7,
     });
   });
 
@@ -77,6 +82,7 @@ describe('settings', () => {
     const loaded = loadSettings(odd);
     expect(loaded).toEqual(DEFAULT_SETTINGS);
     expect(Object.keys(loaded).sort()).toEqual([
+      'avatarScale',
       'fullscreen',
       'music',
       'sound',
@@ -107,6 +113,19 @@ describe('settings', () => {
     for (const bad of ['2', 3, 0, 8, null]) {
       const text = JSON.stringify({ timeSpeed: bad });
       expect(loadSettings(new MemorySettingsStorage(text)).timeSpeed).toBe(1);
+    }
+  });
+
+  it('saves and loads each avatar size, defaults to 70% and rejects anything else', () => {
+    expect(DEFAULT_SETTINGS.avatarScale).toBe(0.7);
+    for (const avatarScale of AVATAR_SCALES) {
+      const storage = new MemorySettingsStorage();
+      saveSettings(storage, { ...DEFAULT_SETTINGS, avatarScale });
+      expect(loadSettings(storage).avatarScale).toBe(avatarScale);
+    }
+    for (const bad of ['0.9', 0.75, 0, 3, null, true]) {
+      const text = JSON.stringify({ avatarScale: bad });
+      expect(loadSettings(new MemorySettingsStorage(text)).avatarScale).toBe(0.7);
     }
   });
 });

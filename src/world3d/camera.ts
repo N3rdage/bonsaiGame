@@ -267,14 +267,19 @@ function roofBuilding(roof: Roof): Box {
  * that is each wall on the side the camera is on (`facesCamera`); outdoors,
  * each tall wall or building piece, and each roof (over its building's
  * footprint from the floor, its overhang left out), the line from the camera
- * to the player's middle passes through. The camera is taken as centred on the player, which
+ * to the player's middle (half of `height`, the body's drawn height) passes through. The camera is taken as centred on the player, which
  * it is once eased.
  */
-export function cutNames(plan: RoomPlan3d, view: CameraView, player: Vec3): string[] {
+export function cutNames(
+  plan: RoomPlan3d,
+  view: CameraView,
+  player: Vec3,
+  height: number = PLAYER_HEIGHT,
+): string[] {
   if (!OUTDOORS.has(plan.key)) {
     return plan.walls.filter((wall) => facesCamera(wall.side, view.alpha)).map((wall) => wall.name);
   }
-  const middle = { ...player, z: player.z + PLAYER_HEIGHT / 2 };
+  const middle = { ...player, z: player.z + height / 2 };
   const eye = cameraPosition(view, middle);
   const pieces = [...plan.walls, ...plan.furniture]
     .filter((piece) => cuttable(plan, piece) && segmentCrossesBox(eye, middle, piece))

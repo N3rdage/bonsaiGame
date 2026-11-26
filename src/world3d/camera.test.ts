@@ -20,7 +20,8 @@ import {
   pressRoute,
   segmentCrossesBox,
 } from './camera';
-import { playerFeet } from './meshes';
+import { AVATAR_SCALES } from './character';
+import { PLAYER_HEIGHT, playerFeet } from './meshes';
 import { ROOF_OVERHANG, roomPlan3d } from './plan';
 
 const DEG = Math.PI / 180;
@@ -296,6 +297,28 @@ describe('cutNames', () => {
     expect(cutNames(plan, view(HEADING.S), player)).toEqual(['between']);
     expect(cutNames(plan, view(HEADING.N), player)).toEqual(['behind']);
     expect(cutNames(plan, view(HEADING.E), player)).toEqual([]);
+  });
+
+  it.each(AVATAR_SCALES)('cuts the same pieces for a player drawn at %s of full size', (scale) => {
+    const piece = (name: string, x0: number, y0: number, z1: number) => ({
+      name,
+      wash: 'render' as const,
+      x0,
+      x1: x0 + 2,
+      y0,
+      y1: y0 + 0.5,
+      z0: 0,
+      z1,
+      solid: true,
+    });
+    const plan = {
+      ...roomPlan3d(ROOMS.garden),
+      walls: [],
+      roofs: [],
+      furniture: [piece('between', 9, 11, 2.4), piece('fence', 9, 11.6, 0.5)],
+    };
+    const player = { x: 10, y: 10, z: 0 };
+    expect(cutNames(plan, view(HEADING.S), player, PLAYER_HEIGHT * scale)).toEqual(['between']);
   });
 
   it('cuts a roof over the line from the camera to the player, whole from the floor up', () => {

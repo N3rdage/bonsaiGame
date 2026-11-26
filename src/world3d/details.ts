@@ -58,9 +58,10 @@ const STEM_WIDTH = 0.08;
  * The opaque height of the player's standing frame and of each species' source
  * plant frame in the 2D sheets (`spr_player`, `spr_source_plant`), in sheet px
  * (the Inked sheets draw 4 px to a logical px). Only their ratio is used: a
- * plant stands that fraction of the 3D player's height, so it keeps its size
- * beside the player. `heightMetres` gives the same ratio but scales it to the
- * 2D player's 1.44 m, not to the 3D player's `CHARACTER_HEIGHT`.
+ * plant stands that fraction of the full-size figure's height
+ * (`CHARACTER_HEIGHT`), whatever avatar size (`AVATAR_SCALES`) the player is
+ * drawn at. `heightMetres` gives the same ratio but scales it to the 2D
+ * player's 1.44 m, not to the 3D player's `CHARACTER_HEIGHT`.
  */
 export const PLAYER_ART_PX = 123;
 export const SOURCE_PLANT_ART_PX: Record<SpeciesKey, number> = {
