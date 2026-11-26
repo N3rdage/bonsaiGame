@@ -60,8 +60,34 @@ describe('furniturePieces', () => {
     });
   });
 
-  it('has none in a room whose furniture has no model', () => {
-    expect(furniturePieces(LOUNGE_ROOM)).toEqual([]);
+  it("stands the lounge's seating over its 2D footprints, each as tall as its sprite stands", () => {
+    const [sofa, table, chair] = furniturePieces(LOUNGE_ROOM);
+    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(3);
+    expect(sofa).toMatchObject({
+      kind: 'sofa',
+      x: metres(176 + 14),
+      y: metres(98 + 30),
+      w: 0.875,
+      d: 1.875,
+      h: heightMetres(20),
+      rotation: 0,
+    });
+    expect(table).toMatchObject({ kind: 'coffee_table', w: 0.625, d: 1, h: heightMetres(8) });
+    expect(chair).toMatchObject({ kind: 'armchair', w: 0.75, d: 0.75, h: heightMetres(20) });
+  });
+
+  it("keeps the lounge's seating solid in the plan, where the renderer collides with it", () => {
+    const boxes = roomPlan3d(LOUNGE_ROOM).furniture.filter((b) => b.model !== undefined);
+    expect(boxes.map((b) => [b.model, b.solid])).toEqual([
+      ['sofa', true],
+      ['coffee_table', true],
+      ['armchair', true],
+    ]);
+    expect(boxes.map((b) => [b.x0, b.x1, b.y0, b.y1])).toEqual([
+      [5.5, 6.375, 3.0625, 4.9375],
+      [6.5625, 7.1875, 3.5, 4.5],
+      [8.625, 9.375, 3.5, 4.25],
+    ]);
   });
 
   it('leaves the modelled pieces out of the plan boxes the renderer draws', () => {
@@ -137,6 +163,10 @@ describe('the furniture vertex budget', () => {
       kinds.reduce((sum, kind) => sum + modelVertices(kind), 0),
     );
     expect(furnitureVertices(SHED_ROOM)).toBe(7560);
+  });
+
+  it("counts the lounge's three seats: 6,048 vertices", () => {
+    expect(furnitureVertices(LOUNGE_ROOM)).toBe(6048);
   });
 });
 
