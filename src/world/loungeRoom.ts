@@ -12,7 +12,9 @@
  * against the top wall carrying the two display
  * spots that were the shed's pedestals (saves from before version 4 move the
  * shed's displayed trees onto them). A sofa, a coffee table and an armchair
- * seat the middle of the room, clear of both doors' walks to the spots.
+ * seat the middle of the room, clear of both doors' walks to the spots; a tall
+ * bookcase stands against the top wall beside the fireplace, a floor lamp by the
+ * armchair and a potted plant before the east window.
  */
 
 import { SHEETS } from './assets';
@@ -160,6 +162,56 @@ export const ARMCHAIR: Furniture = {
 };
 
 /**
+ * The tall bookcase, 0.875 x 0.375 x 1.78 m (28 x 12 px, 38 tall), against the
+ * top wall between the fireplace and the east window, x 258..286 and y 64..76:
+ * east of the column x 232..248 that a walk up to the mantel takes, and clear
+ * of both windows, x 176..208 and 288..320.
+ */
+export const BOOKCASE: Furniture = {
+  sheet: SHEETS.bookcase,
+  x: 258,
+  y: 64,
+  w: 28,
+  h: 12,
+  solid: true,
+  sorted: true,
+  stands: { height: 38 },
+};
+
+/**
+ * A floor lamp, 0.4375 m square and 1.5 m tall (14 px, 32 tall), beside the
+ * armchair's south end, x 281..295 and y 140..154: below the armchair (y 112..136)
+ * and clear of the walk from the hallway's landing down to the kitchen.
+ */
+export const FLOOR_LAMP: Furniture = {
+  sheet: SHEETS.floorLamp,
+  x: 281,
+  y: 140,
+  w: 14,
+  h: 14,
+  solid: true,
+  sorted: true,
+  stands: { height: 32 },
+};
+
+/**
+ * A potted plant, 0.625 x 0.5 m and 1.125 m tall (20 x 16 px, 24 tall), on the
+ * top wall in front of the east window, x 294..314 and y 64..80: 8 px east of
+ * the bookcase, and 10 px above the row y 96 that the hallway landing's walk
+ * west to the side table takes.
+ */
+export const POTTED_PLANT: Furniture = {
+  sheet: SHEETS.pottedPlant,
+  x: 294,
+  y: 64,
+  w: 20,
+  h: 16,
+  solid: true,
+  sorted: true,
+  stands: { height: 24 },
+};
+
+/**
  * The kitchen counter, 0.6 m deep (20 px) and 0.9 m high: its run along the
  * kitchen's south wall and its run up the east wall from there to the block,
  * the east run its worktop alone (20 x 60), its south end joined to the south
@@ -183,6 +235,9 @@ const FURNITURE = [
   SOFA,
   COFFEE_TABLE,
   ARMCHAIR,
+  BOOKCASE,
+  FLOOR_LAMP,
+  POTTED_PLANT,
   ...KITCHEN_COUNTER,
 ];
 

@@ -66,6 +66,9 @@ describe('sprite sheets', () => {
       ['spr_sofa', 112, 320, 1],
       ['spr_armchair', 96, 176, 1],
       ['spr_coffee_table', 80, 160, 1],
+      ['spr_bookcase', 112, 200, 1],
+      ['spr_floor_lamp', 56, 184, 1],
+      ['spr_potted_plant', 80, 160, 1],
       ['spr_counter', 384, 160, 1],
       ['spr_counter_v', 80, 240, 1],
       ['spr_floor_hallway', 64, 64, 3],
@@ -148,6 +151,9 @@ describe('sprite sheets', () => {
       SHEETS.sofa,
       SHEETS.armchair,
       SHEETS.coffeeTable,
+      SHEETS.bookcase,
+      SHEETS.floorLamp,
+      SHEETS.pottedPlant,
       SHEETS.counter,
       SHEETS.counterV,
       SHEETS.floorHallway,
@@ -398,6 +404,9 @@ describe('sprite sheets', () => {
         SHEETS.sofa,
         SHEETS.armchair,
         SHEETS.coffeeTable,
+        SHEETS.bookcase,
+        SHEETS.floorLamp,
+        SHEETS.pottedPlant,
         SHEETS.counter,
         SHEETS.counterV,
         SHEETS.runner,
@@ -411,7 +420,8 @@ describe('sprite sheets', () => {
       [32, 24],
       // Each piece its front face (height x 21.33 px/m) over its footprint's depth, to 4 px: the
       // 0.9 m fireplace on 24, the 0.4 m side table on 16, the 0.9 m sofa on 60 and armchair on 24,
-      // the 0.4 m coffee table on 32, the 0.9 m counter on 20 (its east run
+      // the 0.4 m coffee table on 32, the 1.78 m bookcase on 12, the 1.5 m lamp on 14 and the 1.125 m
+      // plant on 20, the 0.9 m counter on 20 (its east run
       // its 60 px worktop alone, its south end joined to the south run with no front of its own),
       // the flat runner, the 0.75 m console table on 12 and desk on 16, the 0.6 m low bookcase
       // on 16.
@@ -419,6 +429,9 @@ describe('sprite sheets', () => {
       [16, 24],
       [28, 80],
       [24, 44],
+      [20, 40],
+      [28, 50],
+      [14, 46],
       [20, 40],
       [96, 40],
       [20, 60],

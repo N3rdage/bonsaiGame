@@ -60,9 +60,9 @@ describe('furniturePieces', () => {
     });
   });
 
-  it("stands the lounge's seating over its 2D footprints, each as tall as its sprite stands", () => {
-    const [sofa, table, chair] = furniturePieces(LOUNGE_ROOM);
-    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(3);
+  it("stands the lounge's furniture over its 2D footprints, each as tall as its sprite stands", () => {
+    const [sofa, table, chair, bookcase, lamp, plant] = furniturePieces(LOUNGE_ROOM);
+    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(6);
     expect(sofa).toMatchObject({
       kind: 'sofa',
       x: metres(176 + 14),
@@ -74,19 +74,45 @@ describe('furniturePieces', () => {
     });
     expect(table).toMatchObject({ kind: 'coffee_table', w: 0.625, d: 1, h: heightMetres(8) });
     expect(chair).toMatchObject({ kind: 'armchair', w: 0.75, d: 0.75, h: heightMetres(20) });
+    expect(bookcase).toMatchObject({
+      kind: 'bookcase',
+      x: metres(258 + 14),
+      y: metres(64 + 6),
+      w: 0.875,
+      d: 0.375,
+      h: heightMetres(38),
+    });
+    expect(lamp).toMatchObject({
+      kind: 'floor_lamp',
+      w: 0.4375,
+      d: 0.4375,
+      h: heightMetres(32),
+    });
+    expect(plant).toMatchObject({
+      kind: 'potted_plant',
+      w: 0.625,
+      d: 0.5,
+      h: heightMetres(24),
+    });
   });
 
-  it("keeps the lounge's seating solid in the plan, where the renderer collides with it", () => {
+  it("keeps the lounge's furniture solid in the plan, where the renderer collides with it", () => {
     const boxes = roomPlan3d(LOUNGE_ROOM).furniture.filter((b) => b.model !== undefined);
     expect(boxes.map((b) => [b.model, b.solid])).toEqual([
       ['sofa', true],
       ['coffee_table', true],
       ['armchair', true],
+      ['bookcase', true],
+      ['floor_lamp', true],
+      ['potted_plant', true],
     ]);
     expect(boxes.map((b) => [b.x0, b.x1, b.y0, b.y1])).toEqual([
       [5.5, 6.375, 3.0625, 4.9375],
       [6.5625, 7.1875, 3.5, 4.5],
       [8.625, 9.375, 3.5, 4.25],
+      [8.0625, 8.9375, 2, 2.375],
+      [8.78125, 9.21875, 4.375, 4.8125],
+      [9.1875, 9.8125, 2, 2.5],
     ]);
   });
 
@@ -165,8 +191,16 @@ describe('the furniture vertex budget', () => {
     expect(furnitureVertices(SHED_ROOM)).toBe(7560);
   });
 
-  it("counts the lounge's three seats: 6,048 vertices", () => {
-    expect(furnitureVertices(LOUNGE_ROOM)).toBe(6048);
+  it("counts the lounge's six pieces: 10,496 vertices, inside the budget", () => {
+    expect(furnitureVertices(LOUNGE_ROOM)).toBe(10496);
+    expect(furnitureVertices(LOUNGE_ROOM)).toBeLessThanOrEqual(FURNITURE_VERTEX_BUDGET);
+  });
+
+  it('counts a lamp and a plant from their round parts', () => {
+    // The base, pole and collar are cylinders and the shade a frustum.
+    expect(modelVertices('floor_lamp')).toBe(3 * 22 + 22);
+    // The pot, rim, soil and stem are cylinders; four balls of foliage.
+    expect(modelVertices('potted_plant')).toBe(4 * 22 + 4 * 42);
   });
 });
 
@@ -200,10 +234,20 @@ describe('furniture models', () => {
         expect(Math.max(part.x0, part.x1)).toBeLessThanOrEqual(size.w / 2 + eps);
         expect(part.y0).toBeGreaterThanOrEqual(-size.d / 2 - eps);
         expect(part.y1).toBeLessThanOrEqual(size.d / 2 + eps);
-        expect(part.radius).toBeGreaterThan(0);
-        expect(part.radius).toBeLessThanOrEqual(
-          Math.min(part.x1 - part.x0, part.y1 - part.y0, part.z1 - part.z0) / 2,
-        );
+        if (part.shape === undefined) {
+          expect(part.radius).toBeGreaterThan(0);
+          expect(part.radius).toBeLessThanOrEqual(
+            Math.min(part.x1 - part.x0, part.y1 - part.y0, part.z1 - part.z0) / 2,
+          );
+        } else {
+          expect(part.radius).toBeUndefined();
+        }
+        if (part.shape === 'cone') {
+          expect(part.taper ?? 0).toBeGreaterThanOrEqual(0);
+          expect(part.taper ?? 0).toBeLessThanOrEqual(1);
+        } else {
+          expect(part.taper).toBeUndefined();
+        }
       }
       expect(Math.min(...parts.map((p) => p.z0))).toBe(0);
       expect(Math.max(...parts.map((p) => p.z1))).toBeCloseTo(size.h, 9);
