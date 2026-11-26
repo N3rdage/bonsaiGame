@@ -149,6 +149,7 @@ export class World3d {
       cut: state ? [...state.cut] : [],
       facing: state?.facing ?? 0,
       playerModel: state?.model ?? null,
+      bodyLoaded: state?.bodyLoaded ?? false,
       clips: state ? { ...state.clips } : { idle: 0, walk: 0 },
       shadows: state?.shadows ?? false,
       shadowMap: state?.shadowMap

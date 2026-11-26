@@ -65,8 +65,10 @@ interface BonsaiTestHook {
     readonly cut: readonly string[];
     /** The way the player faces in the plan, radians (0 east, pi/2 south), from its last step; 0 while off. */
     readonly facing: number;
-    /** The model standing for the player ('character': the skinned gardener), null while off. */
+    /** The model standing for the player ('character': the loaded, skinned KayKit Rogue), null while off. */
     readonly playerModel: 'character' | null;
+    /** True once the player's body (its model and clips) has loaded and stands in the room; false before and while off. */
+    readonly bodyLoaded: boolean;
     /** How much of each clip the player's pose is made of now, 0 to 1 and summing to 1 (idle at rest, walk walking, between while they cross-fade); both 0 while off. */
     readonly clips: { readonly idle: number; readonly walk: number };
     /** True while something casts a shadow onto the floor (the player always does); false while off. */
