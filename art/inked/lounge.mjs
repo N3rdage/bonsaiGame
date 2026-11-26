@@ -15,6 +15,11 @@
 //   spr_fireplace       32 x 44 (1.0 x 0.75 x 0.9 m), the mantel shelf its top
 //                       face, the surround and the fire its front, cut out
 //   spr_side_table      16 x 24 (0.5 x 0.5 x 0.4 m), cut out
+//   spr_sofa            28 x 80 (0.875 x 1.875 x 0.9 m), its back against the
+//                       west wall, its seat facing east, cut out
+//   spr_armchair        24 x 44 (0.75 x 0.75 x 0.9 m), its back to the east,
+//                       cut out
+//   spr_coffee_table    20 x 40 (0.625 x 1.0 x 0.4 m), cut out
 //   spr_counter         the kitchen counter along the south wall, 96 x 40
 //                       (3.0 x 0.6 x 0.9 m), cut out
 //   spr_counter_v       its run up the east wall, 20 x 60 (0.6 x 1.9 x 0.9 m),
@@ -56,6 +61,9 @@ const SEEDS = {
   sideTable: 0x7a61,
   counter: 0x7a62,
   counterV: 0x7a63,
+  sofa: 0x7a64,
+  armchair: 0x7a65,
+  coffeeTable: 0x7a66,
 };
 
 // The carpet: one calm plane of short pile. On one variant in three, a worn
@@ -232,6 +240,61 @@ function sideTable() {
   return finishCutOut(page);
 }
 
+// The sofa, 0.875 x 1.875 x 0.9 m, its back (x 0..8) along the west wall and
+// its seat facing east: its top face (y 0..60) the back's top and two seat
+// cushions between an arm at each end; its front (y 60..80) the south end seen
+// from the room, the back's end beside the lower arm, on four short feet.
+function sofa() {
+  const page = createPage(28, 80, { seed: SEEDS.sofa, origin: [176, 78] });
+  const { k } = page;
+  for (const x of [1.4, 24.4]) k.box(x, 76.4, 2.2, 3.4, 'wood', { width: JOINT });
+  k.box(0.6, 0.6, 26.8, 66, 'sofa');
+  k.box(0.6, 0.6, 8, 66, 'sofa', { width: SEAM, hatching: rect(0.6, 0.6, 8, 66) });
+  for (const y of [5.4, 31.4]) k.box(9.4, y, 17.2, 24.2, 'sofa', { width: SEAM });
+  k.box(9.4, 0.6, 17.2, 4.4, 'sofa', { width: SEAM, hatching: true });
+  k.box(9.4, 56, 17.2, 4.4, 'sofa', { width: SEAM });
+  k.box(0.6, 60, 26.8, 18, 'sofa', { width: SEAM });
+  k.box(0.6, 60, 8, 18, 'sofa', { width: SEAM, hatching: rect(0.6, 60, 8, 18) });
+  k.box(9.4, 66, 17.2, 11, 'sofa', { width: SEAM, hatching: 'shadow' });
+  seg(k, 9, 66, 27, 66, MARK);
+  k.box(12, 9, 4.6, 9, 'brass', { width: MARK });
+  return finishCutOut(page);
+}
+
+// The armchair, 0.75 x 0.75 x 0.9 m, its back (x 17..24) to the east: its top
+// face (y 0..24) the back's top and a seat cushion between two arms; its front
+// (y 24..44) the south arm's end and the back's, on four short feet.
+function armchair() {
+  const page = createPage(24, 44, { seed: SEEDS.armchair, origin: [276, 92] });
+  const { k } = page;
+  for (const x of [1.2, 20.8]) k.box(x, 40.4, 2.2, 3.4, 'wood', { width: JOINT });
+  k.box(0.6, 0.6, 22.8, 28, 'armchair');
+  k.box(16.4, 0.6, 7, 28, 'armchair', { width: SEAM, hatching: rect(16.4, 0.6, 7, 28) });
+  k.box(5.4, 5, 11.4, 18, 'armchair', { width: SEAM });
+  k.box(0.6, 0.6, 15.8, 4, 'armchair', { width: SEAM, hatching: true });
+  k.box(0.6, 24, 22.8, 18, 'armchair', { width: SEAM });
+  k.box(16.4, 24, 7, 18, 'armchair', { width: SEAM, hatching: rect(16.4, 24, 7, 18) });
+  k.box(2, 31, 12.6, 10, 'armchair', { width: SEAM, hatching: 'shadow' });
+  seg(k, 1, 30, 16, 30, MARK);
+  return finishCutOut(page);
+}
+
+// The coffee table, 0.625 x 1.0 x 0.4 m: a planked top (y 0..32) with a book
+// and a bowl on it, an apron and four short legs, two seen, below it.
+function coffeeTable() {
+  const page = createPage(20, 40, { seed: SEEDS.coffeeTable, origin: [210, 104] });
+  const { k } = page;
+  k.box(3, 34, 14, 5.4, 'shadow', { edges: false, hatching: 'shadow', wear: false });
+  for (const x of [1, 16.6]) k.box(x, 32, 2.4, 7.6, 'wood', { width: SEAM });
+  k.box(0.8, 0.8, 18.4, 31, 'wood');
+  for (const y of [10.5, 21]) seg(k, 1, y, 19, y, JOINT);
+  k.box(0.8, 31.6, 18.4, 2.6, 'wood', { width: SEAM });
+  k.box(3.4, 5, 7, 5, 'cream', { width: MARK });
+  seg(k, 3.8, 6.6, 10.2, 6.6, JOINT);
+  k.blob(13.6, 21.4, 3, 2.6, 'terracotta', { width: SEAM });
+  return finishCutOut(page);
+}
+
 /** Stone darkened (by soot, by use) to sit below the floor: `stone` under a second layer of `shadow`, inked at `width`. */
 function darkStone(k, pts, width = 2.6) {
   k.shape(pts, 'stone', { edges: false });
@@ -308,4 +371,7 @@ writeSheets([
   ['spr_side_table', sideTable],
   ['spr_counter', counter],
   ['spr_counter_v', counterV],
+  ['spr_sofa', sofa],
+  ['spr_armchair', armchair],
+  ['spr_coffee_table', coffeeTable],
 ]);
