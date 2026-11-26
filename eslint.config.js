@@ -36,6 +36,13 @@ export default tseslint.config(
     },
   },
   {
+    // Babylon.js declares classes such as StandardMaterial over mixin bases
+    // (a constructor-typed const), which this rule cannot follow back to
+    // Material, so every Babylon material assignment reads as a non-instance.
+    files: ['src/world3d/**/*.ts'],
+    rules: { '@typescript-eslint/no-unsafe-class-instance-assignment': 'off' },
+  },
+  {
     // Plain JavaScript: the root configs and the art generators (Node
     // scripts, not in any tsconfig project) get @eslint/js recommended and
     // the global browser+node globals, without the type-checked rules.
