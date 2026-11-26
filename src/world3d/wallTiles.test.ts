@@ -382,14 +382,17 @@ describe('onDrawnPieces, coverage', () => {
     },
   );
 
-  it.each(rooms)('files each inked quad of %s that touches a drawn wall whole', (_key, room) => {
-    for (const lay of inked(room)) {
-      for (const q of quadsOf(lay)) {
-        const parts = onDrawnPieces([{ piece: 'q', quads: [q] }], drawnWalls(room));
-        if (parts.length > 0) expect(total(parts)).toBeGreaterThanOrEqual(areaOfQuad(q) - 1e-6);
+  it.each(rooms)(
+    'files each inked quad of %s that touches a drawn wall whole and once',
+    (_key, room) => {
+      for (const lay of inked(room)) {
+        for (const q of quadsOf(lay)) {
+          const parts = onDrawnPieces([{ piece: 'q', quads: [q] }], drawnWalls(room));
+          if (parts.length > 0) expect(total(parts)).toBeCloseTo(areaOfQuad(q), 6);
+        }
       }
-    }
-  });
+    },
+  );
 
   it("files all of the greenhouse's art, and the front garden's but four quads inside its walls and house", () => {
     const lost = (room: Room): number =>
