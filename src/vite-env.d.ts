@@ -75,8 +75,10 @@ interface BonsaiTestHook {
     readonly clips: { readonly idle: number; readonly walk: number; readonly run: number };
     /** How much of the player's upper body is the carry clip (Holding_A), 0 to 1: 1 while a tree is carried, 0 while off. */
     readonly carry: number;
-    /** The player's clip name of the one-shot under way ('interact', 'pickUp', 'lieDown', 'lieIdle' or 'lieStandUp'), null between them and while off. */
+    /** The player's clip name of the one-shot under way ('interact', 'pickUp', 'lieDown', 'lieIdle', 'lieStandUp', 'sitDown', 'sitIdle' or 'sitStandUp'), null between them and while off. */
     readonly shot: string | null;
+    /** The lounge seat the player's body is at, from the start of its sit to the end of its stand-up; null otherwise and while off. */
+    readonly seated: 'sofa' | 'armchair' | null;
     /** True while something casts a shadow onto the floor (the player always does); false while off. */
     readonly shadows: boolean;
     /** The sun's shadow map: `fixed` while its frustum is the one fitted to the room (not refitted to the casters, so it cannot change as the camera or the player moves), its texel `size`, `bias` and `normalBias`, and the frustum's `window` (left, right, bottom, top, minZ, maxZ in metres); zeros while off. */

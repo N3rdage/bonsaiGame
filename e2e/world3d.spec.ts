@@ -891,6 +891,71 @@ test.describe('the 3D world', () => {
     expect((await world3d(page)).shot).toBe('lieIdle');
   });
 
+  test('sits on the lounge sofa and armchair, and stands up on a move or Interact', async ({
+    page,
+  }) => {
+    test.setTimeout(240_000);
+    const shot = async (): Promise<string | null> => (await world3d(page)).shot;
+    const clip = (name: string) =>
+      page.waitForFunction((n) => window.__bonsai?.world3d?.shot === n, name, POLL);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await shedToLounge(page);
+    await waitForRoom(page, 'lounge');
+    await waitForAhead(page);
+    expect((await hook(page)).prompt).toBe('');
+
+    // Along the sofa's front, up its east face: the seat is in reach and nothing nearer.
+    await walkToRow(page, 150);
+    await walkToColumn(page, 205);
+    await walkToRow(page, 128);
+    const beside = (await hook(page)).player;
+    expect(await hook(page)).toMatchObject({ near: 'seat_sofa', prompt: 'E: Sit' });
+    await interact(page);
+    await clip('sitIdle');
+    expect((await world3d(page)).seated).toBe('sofa');
+    expect((await hook(page)).prompt).toBe('E: Stand');
+    if (test.info().project.name === 's22-landscape') {
+      await zoomIn(page, 3000, 4.5);
+      await expect(page).toHaveScreenshot('world3d-sitting-sofa.png', { timeout: 30_000 });
+    }
+
+    // A move key gets the player up and, once up, away; it does not slide off the seat.
+    await page.keyboard.down('ArrowDown');
+    await clip('sitStandUp');
+    expect((await hook(page)).player).toEqual(beside);
+    await page.waitForFunction(() => window.__bonsai?.world3d?.seated === null, undefined, POLL);
+    await page.waitForFunction((y) => (window.__bonsai?.player.y ?? 0) > y + 4, beside.y, POLL);
+    await page.keyboard.up('ArrowDown');
+
+    // Below the armchair's front: along the row under the table and up its west face.
+    await walkToRow(page, 150);
+    await walkToColumn(page, 270);
+    await walkToRow(page, 124);
+    expect(await hook(page)).toMatchObject({ near: 'seat_armchair', prompt: 'E: Sit' });
+    const armchair = (await hook(page)).player;
+    await interact(page);
+    await clip('sitIdle');
+    expect((await world3d(page)).seated).toBe('armchair');
+    if (test.info().project.name === 's22-landscape') {
+      // The floor lamp stands between the default camera and the chair: swing round to see the sitter.
+      for (let i = 0; i < 2; i++) await page.keyboard.press('q');
+      await expect
+        .poll(async () => (await world3d(page)).camera.alpha, POLL)
+        .toBeCloseTo(-Math.PI / 2 - Math.PI / 2, 1);
+      await page.waitForTimeout(500);
+      await expect(page).toHaveScreenshot('world3d-sitting-armchair.png', { timeout: 30_000 });
+    }
+
+    // Interact gets up too.
+    await interact(page);
+    await clip('sitStandUp');
+    await expect.poll(shot, POLL).toBeNull();
+    expect((await world3d(page)).seated).toBeNull();
+    expect((await hook(page)).player).toEqual(armchair);
+  });
+
   test("draws the garden's glazed doors", { tag: '@walk' }, async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
     test.setTimeout(120_000);

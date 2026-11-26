@@ -211,6 +211,7 @@ import { fullscreenState, onFullscreenChange, toggleSetting } from './settings';
 import { CameraGesture, WHEEL_ZOOM_PER_UNIT, cameraRig, pressRoute } from '../world3d/camera';
 import { DOOR_RULES, doorWalkedInto } from '../world3d/doorWalk';
 import { cameraRelative } from '../world3d/move';
+import { seatOf, seatTargets } from '../world3d/seats';
 import { TapTracker, routeInput } from '../world3d/tap';
 import { spotMats, treeStands } from '../world3d/trees';
 import { World3d, setSurround } from '../world3d/world3d';
@@ -1485,6 +1486,10 @@ export class WorldScene extends Phaser.Scene {
    */
   private interact(): void {
     if (!this.roomKeysLive()) return;
+    if (this.world3d.seated) {
+      this.world3d.standUp();
+      return;
+    }
     if (this.placing) {
       this.placeHere(this.placing.kind);
       return;
@@ -1495,6 +1500,11 @@ export class WorldScene extends Phaser.Scene {
     if ('tree' in near) {
       this.world3d.play('interact');
       this.openInspector(near.tree);
+      return;
+    }
+    const seat = seatOf(near.key);
+    if (seat) {
+      this.world3d.sit(seat);
       return;
     }
     const { pedestalKey, target, speciesKey, placedId } = near;
@@ -1927,6 +1937,7 @@ export class WorldScene extends Phaser.Scene {
         ? promptFor({ ...rect, key: kind, prompt: `Place ${PLACEABLES[kind].label}` })
         : refusalText(check);
     }
+    if (this.world3d.seated) return promptFor({ key: 'stand', prompt: 'Stand', x: 0, y: 0 });
     return this.near ? this.nearPrompt(this.near) : '';
   }
 
@@ -2056,6 +2067,8 @@ export class WorldScene extends Phaser.Scene {
     this.music.update(delta);
     const viewerOpen = this.viewer.isOpen;
     const modal = this.panel?.modal === true;
+    // A panel or the menu opening gets the body up.
+    if (this.panel) this.world3d.standUp();
     const showInteract =
       (this.near !== undefined || this.placing !== undefined) && !viewerOpen && !modal;
     this.hud.setVisible(!viewerOpen);
@@ -2090,13 +2103,16 @@ export class WorldScene extends Phaser.Scene {
     );
     this.accumulatorMs = accumulatorMs;
     if (steps === 0) return;
+    // A seated body gets up on the first move or tap-walk, and holds still until it has.
+    const seated = this.world3d.seated !== null;
     const raw = this.joystick?.input ?? this.keyboardMove();
+    if (seated && (raw.x !== 0 || raw.y !== 0 || this.goal)) this.world3d.standUp();
     const input = this.world3d.active ? cameraRelative(raw, cameraRig.alpha) : raw;
     // A key or the stick takes the player back from a tap's walk.
     if (raw.x !== 0 || raw.y !== 0) this.goal = undefined;
     for (let i = 0; i < steps; i += 1) {
       // obj_player_2d/Step_0: no movement while a UI panel is open.
-      if (!modal) {
+      if (!modal && !seated) {
         const prev = this.player.walkAnim;
         const before = this.player;
         const walk = this.walkStep();
@@ -2231,7 +2247,12 @@ export class WorldScene extends Phaser.Scene {
     const shadow = playerShadow(x, y);
     this.playerShadow.setPosition(shadow.x, shadow.y);
     // Placing suppresses the props and trees: E puts the ghost's kind down instead.
-    this.near = this.placing ? undefined : nearestInteractable(this.player, this.targets);
+    this.near = this.placing
+      ? undefined
+      : nearestInteractable(this.player, [
+          ...this.targets,
+          ...seatTargets(this.room.key, this.world3d.active),
+        ]);
     this.drawGhost();
     // Just above the head, the sprite's top edge.
     this.promptText.setText(this.prompt()).setPosition(x, y + PLAYER_FEET - PLAYER_H - 2);

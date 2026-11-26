@@ -26,7 +26,9 @@ import {
   parseAvatarScale,
   parseLieSeconds,
   poseOf,
+  release,
   sampleTrack,
+  seatBlend,
   shotAt,
   shotLength,
   smoothSpeed,
@@ -89,7 +91,7 @@ function playerClips(): PlayerClips {
 }
 
 describe('the player files', () => {
-  it('play Idle_A at rest, Walking_A and Running_A on the move, and the carry, reach and lying clips', () => {
+  it('play Idle_A at rest, Walking_A and Running_A on the move, and the carry, reach, lying and sitting clips', () => {
     expect(PLAYER_CLIPS).toEqual({
       idle: 'Idle_A',
       walk: 'Walking_A',
@@ -100,6 +102,9 @@ describe('the player files', () => {
       lieDown: 'Lie_Down',
       lieIdle: 'Lie_Idle',
       lieStandUp: 'Lie_StandUp',
+      sitDown: 'Sit_Chair_Down',
+      sitIdle: 'Sit_Chair_Idle',
+      sitStandUp: 'Sit_Chair_StandUp',
     });
   });
 
@@ -604,6 +609,90 @@ describe('which clip plays', () => {
       layersOf(lying, playerClips(), still)[1]?.clips[0]?.time;
     expect(time(false)).toBeCloseTo(0.5, 1);
     expect(time(true)).toBe(0);
+  });
+
+  describe('a sit', () => {
+    const down = clip('Sit_Chair_Down').duration;
+    const standUp = clip('Sit_Chair_StandUp').duration;
+    const sat = (seconds: number): Motion =>
+      run(seconds, {}, { ...AT_REST, shot: startShot('sit') });
+    const now = (motion: Motion): string | undefined =>
+      motion.shot && shotAt(motion.shot, playerClips())?.clip;
+
+    it('sits down, then holds Sit_Chair_Idle without end, over the whole body', () => {
+      expect(now(sat(down / 2))).toBe('sitDown');
+      expect(now(sat(down + 0.5))).toBe('sitIdle');
+      expect(now(sat(600))).toBe('sitIdle');
+      expect(shotLength(startShot('sit'), playerClips())).toBe(Infinity);
+      expect(layersOf(sat(1), playerClips(), false)[1]?.mask).toBe('all');
+    });
+
+    it('stands up when released, then the shot ends', () => {
+      const held = sat(down + 5);
+      const released = run(0, {}, { ...held, shot: held.shot && release(held.shot) });
+      expect(now(released)).toBe('sitStandUp');
+      expect(now(run(standUp / 2, {}, released))).toBe('sitStandUp');
+      expect(run(standUp + 0.1, {}, released).shot).toBeUndefined();
+      expect(playing(run(standUp + 0.1, {}, released))).toEqual([['idle']]);
+    });
+
+    it('lets Sit_Chair_Down finish when released during it, then stands up with no idle between', () => {
+      const early = sat(down / 2);
+      const released = { ...early, shot: early.shot && release(early.shot) };
+      expect(shotLength(released.shot ?? startShot('sit'), playerClips())).toBeCloseTo(
+        down + standUp,
+        2,
+      );
+      expect(now(run(down / 2 - 0.05, {}, released))).toBe('sitDown');
+      expect(now(run(down / 2 + 0.1, {}, released))).toBe('sitStandUp');
+    });
+
+    it('is released once: a later release does not move the stand-up', () => {
+      const first = release({ ...startShot('sit'), elapsed: 2 });
+      expect(first.releasedAt).toBe(2);
+      const later = { ...first, elapsed: 3 };
+      expect(release(later)).toBe(later);
+    });
+
+    it('releases nothing but a sit', () => {
+      const sleep = startShot('sleep');
+      expect(release(sleep)).toBe(sleep);
+    });
+
+    it('fades in over the first 0.2 s and out over the last, the clips between running unfaded', () => {
+      const clips = playerClips();
+      const sit = release({ ...startShot('sit'), elapsed: 2 });
+      const at = (elapsed: number) => shotAt({ ...sit, elapsed }, clips);
+      expect(at(0.1)?.amount).toBeCloseTo(0.5, 5);
+      expect(at(down)?.amount).toBe(1);
+      expect(at(2 + standUp - 0.1)?.amount).toBeCloseTo(0.5, 5);
+      expect(at(2 + standUp)).toBeUndefined();
+    });
+
+    it('moves the body from the standing spot to the seat over the sit-down and back over the stand-up', () => {
+      const clips = playerClips();
+      const sit = release({ ...startShot('sit'), elapsed: 2 });
+      const blend = (elapsed: number): number => seatBlend({ ...sit, elapsed }, clips);
+      expect(blend(0)).toBe(0);
+      expect(blend(down / 2)).toBeCloseTo(0.5, 5);
+      expect(blend(down)).toBe(1);
+      expect(blend(1.5)).toBe(1);
+      expect(blend(2 + standUp / 2)).toBeCloseTo(0.5, 5);
+      expect(blend(2 + standUp)).toBe(0);
+      expect(seatBlend(startShot('sleep'), clips)).toBe(0);
+    });
+
+    it('holds Sit_Chair_Idle at its first pose with reduced motion', () => {
+      const seated = sat(down + 0.5);
+      const time = (still: boolean): number | undefined =>
+        layersOf(seated, playerClips(), still)[1]?.clips[0]?.time;
+      expect(time(false)).toBeCloseTo(0.5, 1);
+      expect(time(true)).toBe(0);
+    });
+
+    it('is replaced by another one-shot, which a sit never outlives', () => {
+      expect(now({ ...sat(3), shot: startShot('sleep') })).toBe('lieDown');
+    });
   });
 
   it('lets the locomotion go on under every one-shot, so the walk never stops', () => {

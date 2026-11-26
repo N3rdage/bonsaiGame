@@ -12,6 +12,7 @@ import type { Season } from '../sim/seasons';
 import type { Room, RoomKey } from '../world/shedRoom';
 import { cameraRig } from './camera';
 import { AVATAR_SCALE_DEFAULT, type OneShotKind } from './character';
+import type { Seat, SeatKey } from './seats';
 import { showBench, showPanel } from './benchPanel';
 import { roomTimeLines } from './roomTimes';
 import type { Renderer } from './renderer';
@@ -113,6 +114,21 @@ export class World3d {
     this.renderer?.play(kind);
   }
 
+  /** The player's body sits at `seat`; nothing while the renderer or the body is not up. */
+  sit(seat: Seat): void {
+    this.renderer?.sit(seat);
+  }
+
+  /** The player's body gets up from its seat. */
+  standUp(): void {
+    this.renderer?.standUp();
+  }
+
+  /** The seat the body is at, from sitting down to the end of standing up; null otherwise, and while off. */
+  get seated(): SeatKey | null {
+    return this.renderer?.seated() ?? null;
+  }
+
   /** Starts a benchmark run in the room shown, taking down the last result's panel; nothing while the renderer is not up. */
   startBench(): void {
     this.benchPanel?.remove();
@@ -164,6 +180,7 @@ export class World3d {
       clips: state ? { ...state.clips } : { idle: 0, walk: 0, run: 0 },
       carry: state?.carry ?? 0,
       shot: state?.shot ?? null,
+      seated: state?.seated ?? null,
       shadows: state?.shadows ?? false,
       shadowMap: state?.shadowMap
         ? { ...state.shadowMap, window: [...state.shadowMap.window] }
