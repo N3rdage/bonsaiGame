@@ -87,9 +87,10 @@ import {
   layersOf,
   poseOf,
   release,
+  released,
   seatBlend,
   shotAt,
-  startShot,
+  startOver,
 } from './character';
 import { bodyPlace, type BodyPlace, type Seat, type SeatKey } from './seats';
 import { readClips, readGlb } from './glb';
@@ -592,7 +593,7 @@ export class Renderer {
    */
   play(kind: OneShotKind): void {
     if (!this.body) return;
-    this.motion = { ...this.motion, shot: startShot(kind, this.lieSeconds) };
+    this.motion = { ...this.motion, shot: startOver(this.motion.shot, kind, this.lieSeconds) };
   }
 
   /** Sits the body at `seat` from now, on the game clock; it replaces a one-shot under way. Nothing before the body loads. */
@@ -610,6 +611,16 @@ export class Renderer {
   /** The seat the body is at, from the start of its sit to the end of its stand-up; null otherwise. */
   seated(): SeatKey | null {
     return this.motion.shot?.kind === 'sit' ? (this.seat?.key ?? null) : null;
+  }
+
+  /** True once the player's body has loaded. */
+  hasBody(): boolean {
+    return this.body !== undefined;
+  }
+
+  /** True while the body is sat and has not been told to stand: the sit's release (`standUp`) is still to come. */
+  standable(): boolean {
+    return this.seated() !== null && !released(this.motion.shot);
   }
 
   /** The clip of the one-shot under way, if any. */

@@ -68,6 +68,11 @@ export class World3d {
     return this.renderer !== undefined;
   }
 
+  /** True once the player's body has loaded, which is when it can play a clip or sit; false while off. */
+  get bodyLoaded(): boolean {
+    return this.renderer?.hasBody() ?? false;
+  }
+
   /** Follows the setting (`roomOf` gives a room's live data, which the rooms behind the doors are built ahead from): starts loading the renderer when it turns on, drops it when it turns off, and draws a frame while it is up. */
   sync(
     on: boolean,
@@ -127,6 +132,11 @@ export class World3d {
   /** The seat the body is at, from sitting down to the end of standing up; null otherwise, and while off. */
   get seated(): SeatKey | null {
     return this.renderer?.seated() ?? null;
+  }
+
+  /** True while the body is sat and not yet told to stand: the moment the Stand prompt is offered, and no longer once the stand-up is under way. */
+  get standable(): boolean {
+    return this.renderer?.standable() ?? false;
   }
 
   /** Starts a benchmark run in the room shown, taking down the last result's panel; nothing while the renderer is not up. */

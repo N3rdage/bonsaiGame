@@ -72,7 +72,7 @@ function seatProp({ key, on }: Seat): Prop {
   };
 }
 
-/** The seats of `room` as targets; none unless the 3D world draws it, which is the only place a body sits. */
+/** The seats of `room` as targets; none unless the 3D world draws it with its body loaded (`world3d`), which is the only place a body sits. */
 export function seatTargets(room: RoomKey, world3d: boolean): readonly Prop[] {
   return world3d ? SEATS.filter((seat) => seat.room === room).map(seatProp) : [];
 }
