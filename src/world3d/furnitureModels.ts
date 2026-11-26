@@ -235,7 +235,7 @@ const LAMP_SIZE = { w: 0.4375, d: 0.4375, h: 1.5 } as const;
 /** The potted plant: 0.625 m wide, 0.5 m deep and 1.125 m tall (20 x 16 px, 24 tall), a round terracotta pot, a stem and balls of foliage. */
 const PLANT_SIZE = { w: 0.625, d: 0.5, h: 1.125 } as const;
 
-/** The books of the upper shelf `n`, standing on its plank from the west side with a hair between them, their backs against the case's back. */
+/** The books of the upper shelf `n`, standing on its plank from the west side with a hair between them, their spines 2 cm short of the open front. */
 function books(n: number): FurniturePart[] {
   const shelf = BOOKCASE_SHELVES[n + 1] ?? 0;
   const { w, d } = BOOKCASE_SIZE;

@@ -6,6 +6,7 @@ import {
   coneVertexCount,
   cylinder,
   cylinderVertexCount,
+  RIM_LEAN,
   roundedBox,
   roundedBoxVertexCount,
   type ShapeData,
@@ -25,6 +26,10 @@ const cross = (a: Triple, b: Triple): Triple => [
   a[2] * b[0] - a[0] * b[2],
   a[0] * b[1] - a[1] * b[0],
 ];
+const unit = (a: Triple): Triple => {
+  const length = Math.hypot(...a);
+  return [a[0] / length, a[1] / length, a[2] / length];
+};
 
 const CASES = [
   { w: 1, h: 0.5, d: 0.25, r: 0.05, bands: 2 },
@@ -197,6 +202,57 @@ describe('round shapes', () => {
     expect(topRing).toHaveLength(8);
     for (const [x, , z] of topRing) expect(Math.hypot(x, z)).toBeCloseTo(0.25, 9);
   });
+
+  it('give a sphere normals that run out from its middle through each vertex', () => {
+    const { positions, normals } = ball(0.46, 0.46, 0.46);
+    for (let n = 0; n < positions.length / 3; n++) {
+      const expected = unit(at(positions, n));
+      at(normals, n).forEach((v, axis) => {
+        expect(v).toBeCloseTo(expected[axis] ?? 0, 9);
+      });
+    }
+  });
+
+  it('give an ellipsoid normals along its gradient (x / a², y / b², z / c²)', () => {
+    const [a, b, c] = [0.3, 0.15, 0.45];
+    const { positions, normals } = ball(2 * a, 2 * b, 2 * c, 8, 4);
+    for (let n = 0; n < positions.length / 3; n++) {
+      const [x, y, z] = at(positions, n);
+      const expected = unit([x / a ** 2, y / b ** 2, z / c ** 2]);
+      at(normals, n).forEach((v, axis) => {
+        expect(v).toBeCloseTo(expected[axis] ?? 0, 9);
+      });
+    }
+  });
+
+  it.each([
+    ['a cylinder', 0.4, 1.2, 0.6, 1],
+    ['a cone', 0.6, 0.9, 0.4, 0],
+    ['a lamp-shade frustum', 0.5, 0.3, 0.4, 0.55],
+  ] as const)(
+    'give %s rims the side’s true normal leaning RIM_LEAN toward the cap',
+    (_name, w, h, d, taper) => {
+      const segments = 12;
+      const { positions, normals } = cone(w, h, d, segments, taper);
+      const [a, c] = [w / 2, d / 2];
+      for (let i = 0; i < segments; i++) {
+        const base = at(positions, i);
+        const top = at(positions, taper > 0 ? segments + i : segments);
+        // The side through this vertex holds the slant edge up to the top and the ring's tangent.
+        const tangent: Triple = [-(a ** 2) * base[2], 0, c ** 2 * base[0]];
+        const side = unit(cross(sub(top, base), tangent));
+        expect(dot(side, [base[0], 0, base[2]])).toBeGreaterThan(0);
+        const rims: [number, number][] = [[i, -1]];
+        if (taper > 0) rims.push([segments + i, 1]);
+        for (const [vertex, cap] of rims) {
+          const expected = unit([side[0], side[1] + RIM_LEAN * cap, side[2]]);
+          at(normals, vertex).forEach((v, axis) => {
+            expect(v).toBeCloseTo(expected[axis] ?? 0, 9);
+          });
+        }
+      }
+    },
+  );
 
   it('refuse a taper outside 0 to 1', () => {
     expect(() => cone(1, 1, 1, 8, 1.5)).toThrow(RangeError);

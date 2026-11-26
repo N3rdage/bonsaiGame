@@ -134,11 +134,13 @@ export function roundedBox(
 export const ROUND_SEGMENTS = 10;
 export const BALL_STACKS = 5;
 
-/** The unit normal `n` for a shape stretched `a` wide and `c` deep: its x and z shrink by the stretch, which keeps it normal to the surface. */
-function stretched(n: Triple, a: number, c: number): Triple {
-  const m: Triple = [n[0] / a, n[1], n[2] / c];
-  const length = Math.hypot(...m);
-  return [m[0] / length, m[1] / length, m[2] / length];
+/** How far a cone's rim normals lean from the side's true normal toward the cap's: the cap's unit normal is added at this weight. */
+export const RIM_LEAN = 0.5;
+
+/** `n` scaled to unit length. */
+function unit(n: Triple): Triple {
+  const length = Math.hypot(...n);
+  return [n[0] / length, n[1] / length, n[2] / length];
 }
 
 /** The angle of side `i` of `n`. */
@@ -146,8 +148,8 @@ function theta(i: number, n: number): number {
   return (2 * Math.PI * i) / n;
 }
 
-/** Collects a round shape's vertices one at a time, each normal stretched to the shape's half-width `a` and half-depth `c`, uvs projected from above. */
-function collector(a: number, c: number): ShapeData & { add(p: Triple, n: Triple): number } {
+/** Collects a round shape's vertices one at a time, each normal scaled to unit length, uvs projected from above. */
+function collector(): ShapeData & { add(p: Triple, n: Triple): number } {
   const positions: number[] = [];
   const normals: number[] = [];
   const uvs: number[] = [];
@@ -158,7 +160,7 @@ function collector(a: number, c: number): ShapeData & { add(p: Triple, n: Triple
     indices: [],
     add(p, n) {
       positions.push(...p);
-      normals.push(...stretched(n, a, c));
+      normals.push(...unit(n));
       uvs.push(p[0], p[2]);
       return positions.length / 3 - 1;
     },
@@ -174,8 +176,8 @@ export function coneVertexCount(segments = ROUND_SEGMENTS, taper = 0): number {
  * A cone of base `w` x `d` and height `h` (y up, centred on the origin) whose
  * top ring is `taper` times as wide as its base: a frustum, a point at 0 and a
  * cylinder at 1. The base and top caps are fans that share their rings with
- * the side, whose normals lean toward the cap, so the ink outline stays closed
- * at the rims.
+ * the side, so the ink outline stays closed at the rims: a rim's normal is the
+ * side's true normal there plus `RIM_LEAN` of the cap's.
  */
 export function cone(
   w: number,
@@ -187,16 +189,20 @@ export function cone(
   if (!(taper >= 0 && taper <= 1))
     throw new RangeError(`a taper runs 0 to 1, got ${String(taper)}`);
   const [a, c] = [w / 2, d / 2];
-  const shape = collector(a, c);
-  // How far the side leans out for each unit of height.
-  const lean = (a * (1 - taper)) / h;
-  const ring = (y: number, scale: number, tilt: number): number[] =>
+  const shape = collector();
+  // The side is (a r cos, y, c r sin), r falling from 1 to `taper` over the
+  // height, so its normal is (cos / a, (1 - taper) / h, sin / c).
+  const ring = (y: number, scale: number, cap: number): number[] =>
     Array.from({ length: segments }, (_, i) => {
       const [x, z] = [Math.cos(theta(i, segments)), Math.sin(theta(i, segments))];
-      return shape.add([a * scale * x, y, c * scale * z], [x, lean + tilt, z]);
+      const side = unit([x / a, (1 - taper) / h, z / c]);
+      return shape.add(
+        [a * scale * x, y, c * scale * z],
+        [side[0], side[1] + RIM_LEAN * cap, side[2]],
+      );
     });
-  const base = ring(-h / 2, 1, -0.5);
-  const top = taper > 0 ? ring(h / 2, taper, 0.5) : [shape.add([0, h / 2, 0], [0, 1, 0])];
+  const base = ring(-h / 2, 1, -1);
+  const top = taper > 0 ? ring(h / 2, taper, 1) : [shape.add([0, h / 2, 0], [0, 1, 0])];
   const middle = shape.add([0, -h / 2, 0], [0, -1, 0]);
   const cap = taper > 0 ? shape.add([0, h / 2, 0], [0, 1, 0]) : 0;
   for (let i = 0; i < segments; i++) {
@@ -242,7 +248,7 @@ export function ball(
   stacks = BALL_STACKS,
 ): ShapeData {
   const [a, b, c] = [w / 2, h / 2, d / 2];
-  const shape = collector(a, c);
+  const shape = collector();
   const south = shape.add([0, -b, 0], [0, -1, 0]);
   const rings = Array.from({ length: stacks - 1 }, (_, s) => {
     const latitude = -Math.PI / 2 + (Math.PI * (s + 1)) / stacks;
@@ -252,7 +258,8 @@ export function ball(
         Math.sin(latitude),
         Math.cos(latitude) * Math.sin(theta(i, segments)),
       ];
-      return shape.add([a * x, b * y, c * z], [x, y, z]);
+      // The surface is (a x, b y, c z) for the unit sphere's (x, y, z), so its normal is (x / a, y / b, z / c).
+      return shape.add([a * x, b * y, c * z], [x / a, y / b, z / c]);
     });
   });
   const north = shape.add([0, b, 0], [0, 1, 0]);
