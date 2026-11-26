@@ -346,7 +346,7 @@ describe('onDrawnPieces, a hand-built corner', () => {
     { x: 0, y: 0, z: 1 },
   );
   const filed = onDrawnPieces([{ piece: 'north', quads: [inner, outer, capped] }], [north, west]);
-  const on = (name: string): WallQuad[] => filed.find((p) => p.piece === name)?.quads ?? [];
+  const on = (name: string): readonly WallQuad[] => filed.find((p) => p.piece === name)?.quads ?? [];
   const xs = (q: WallQuad): number[] => q.corners.map((c) => c.x);
 
   it('keeps on the cut wall the part of each quad over its own box', () => {
