@@ -12,7 +12,8 @@
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
   },
   "mimeTypes": {
-    ".webmanifest": "application/manifest+json"
+    ".webmanifest": "application/manifest+json",
+    ".glb": "model/gltf-binary"
   },
   "routes": [
     {
@@ -25,6 +26,10 @@
     },
     {
       "route": "/assets/audio/*",
+      "headers": { "Cache-Control": "no-cache" }
+    },
+    {
+      "route": "/assets/player/*",
       "headers": { "Cache-Control": "no-cache" }
     },
     {

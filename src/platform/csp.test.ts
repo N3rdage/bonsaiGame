@@ -111,10 +111,10 @@ describe('Cache-Control routes', () => {
   const cacheControl = (urlPath: string): string | undefined =>
     firstMatch(routes, urlPath)?.headers?.['Cache-Control'];
 
-  it('revalidates fixed-name sprite sheets and sounds, ahead of the immutable /assets/* route', () => {
+  it('revalidates fixed-name sprite sheets, sounds and player files, ahead of the immutable /assets/* route', () => {
     const assets = indexOf('/assets/*');
     expect(assets).toBeGreaterThanOrEqual(0);
-    for (const route of ['/assets/spr_*', '/assets/audio/*']) {
+    for (const route of ['/assets/spr_*', '/assets/audio/*', '/assets/player/*']) {
       const index = indexOf(route);
       expect(index, route).toBeGreaterThanOrEqual(0);
       expect(index, `${route} before /assets/*`).toBeLessThan(assets);
@@ -130,6 +130,7 @@ describe('Cache-Control routes', () => {
   it.each([
     ['/assets/spr_player.png', NO_CACHE],
     ['/assets/audio/click.wav', NO_CACHE],
+    ['/assets/player/rogue.glb', NO_CACHE],
     ['/assets/index-abc123.js', IMMUTABLE],
     ['/assets/phaser-abc123.js', IMMUTABLE],
     ['/sw.js', NO_CACHE],
@@ -140,6 +141,8 @@ describe('Cache-Control routes', () => {
   it.each([
     ['public/assets', '/assets/', '.png'],
     ['public/assets/audio', '/assets/audio/', '.wav'],
+    ['public/assets/player', '/assets/player/', '.glb'],
+    ['public/assets/player', '/assets/player/', '.png'],
   ])('every %s file served in place resolves to no-cache', (dir, urlPrefix, extension) => {
     const files = readdirSync(path.join(root, dir)).filter((name) => name.endsWith(extension));
     expect(files.length).toBeGreaterThan(0);
