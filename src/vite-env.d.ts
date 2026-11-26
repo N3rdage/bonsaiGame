@@ -225,6 +225,7 @@ interface BonsaiTestHook {
     readonly sound: boolean;
     readonly music: boolean;
     readonly timeSpeed: number;
+    readonly avatarScale: number;
   };
   /** Both scenes: the last sound effect key the scene's SoundPlayer asked Phaser to play after the Sound gate, or ''. It does not prove audio came out (the e2e suite has no audio device). */
   readonly lastSound: string;
