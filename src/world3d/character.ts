@@ -24,6 +24,9 @@ export const CLIP_NAMES = [
   'lieDown',
   'lieIdle',
   'lieStandUp',
+  'sitDown',
+  'sitIdle',
+  'sitStandUp',
 ] as const;
 export type ClipName = (typeof CLIP_NAMES)[number];
 /** The clips that blend on speed: the base of every pose. */
@@ -44,15 +47,13 @@ export const PLAYER_CLIPS: Readonly<Record<ClipName, string>> = {
   lieDown: 'Lie_Down',
   lieIdle: 'Lie_Idle',
   lieStandUp: 'Lie_StandUp',
+  sitDown: 'Sit_Chair_Down',
+  sitIdle: 'Sit_Chair_Idle',
+  sitStandUp: 'Sit_Chair_StandUp',
 };
 
-/** Every clip the animations file carries: the player's, and the three chair-sitting ones nothing plays yet. */
-export const ANIMATION_CLIPS = [
-  ...Object.values(PLAYER_CLIPS),
-  'Sit_Chair_Down',
-  'Sit_Chair_Idle',
-  'Sit_Chair_StandUp',
-] as const;
+/** Every clip the animations file carries: the player's. */
+export const ANIMATION_CLIPS = Object.values(PLAYER_CLIPS);
 
 /** The player's clips as read from the animations file. */
 export type PlayerClips = Readonly<Record<ClipName, Clip>>;
@@ -76,7 +77,7 @@ export const UPPER_BODY: ReadonlySet<string> = new Set(
   ),
 );
 
-/** The bones each clip drives: carrying and the two reaches use the arms only, so a walk goes on under them; lying down takes the whole body. */
+/** The bones each clip drives: carrying and the two reaches use the arms only, so a walk goes on under them; lying down and sitting take the whole body. */
 export const CLIP_MASKS: Readonly<Record<ClipName, Mask>> = {
   idle: 'all',
   walk: 'all',
@@ -87,6 +88,9 @@ export const CLIP_MASKS: Readonly<Record<ClipName, Mask>> = {
   lieDown: 'all',
   lieIdle: 'all',
   lieStandUp: 'all',
+  sitDown: 'all',
+  sitIdle: 'all',
+  sitStandUp: 'all',
 };
 
 /** The figure's height, metres, top of its head over its feet: the model is scaled to it. */
@@ -310,14 +314,15 @@ export function poseOf(clips: PlayerClips, layers: readonly Layer[]): Map<string
   return pose;
 }
 
-/** The clips that play once, started by something the player does: a prop used, a tree picked up, a sleep. */
-export type OneShotKind = 'interact' | 'pickUp' | 'sleep';
+/** The clips that play once, started by something the player does: a prop used, a tree picked up, a sleep, a seat taken. */
+export type OneShotKind = 'interact' | 'pickUp' | 'sleep' | 'sit';
 
 /** The clips each one-shot plays in turn. */
 export const ONE_SHOT_CLIPS: Readonly<Record<OneShotKind, readonly ClipName[]>> = {
   interact: ['interact'],
   pickUp: ['pickUp'],
   sleep: ['lieDown', 'lieIdle', 'lieStandUp'],
+  sit: ['sitDown', 'sitIdle', 'sitStandUp'],
 };
 
 /** Seconds the sleep lies still between lying down and standing up. */
@@ -330,24 +335,47 @@ export function parseLieSeconds(search: string): number {
   return seconds >= 0 && seconds <= 3600 ? seconds : LIE_IDLE_SECONDS;
 }
 
-/** A one-shot under way: `elapsed` game seconds in, and how long `Lie_Idle` is held if it plays. */
+/**
+ * A one-shot under way: `elapsed` game seconds in, how long `Lie_Idle` is held
+ * if it plays, and for a sit the `elapsed` at which the player was released
+ * from the seat (undefined while still seated).
+ */
 export interface OneShot {
   readonly kind: OneShotKind;
   readonly elapsed: number;
   readonly lieSeconds: number;
+  readonly releasedAt: number | undefined;
 }
 
 /** A one-shot just started. */
 export function startShot(kind: OneShotKind, lieSeconds = LIE_IDLE_SECONDS): OneShot {
-  return { kind, elapsed: 0, lieSeconds };
+  return { kind, elapsed: 0, lieSeconds, releasedAt: undefined };
 }
 
-/** The clips a one-shot plays and for how long each: its own length, except `Lie_Idle`, held `lieSeconds`. */
+/**
+ * A sit told to end now: `Sit_Chair_Idle` stops being held and `Sit_Chair_StandUp`
+ * follows. A release during `Sit_Chair_Down` lets that clip finish, then stands
+ * up straight away. Any other shot, and a sit already released, is unchanged.
+ */
+export function release(shot: OneShot): OneShot {
+  return shot.kind === 'sit' && shot.releasedAt === undefined
+    ? { ...shot, releasedAt: shot.elapsed }
+    : shot;
+}
+
+/**
+ * The clips a one-shot plays and for how long each: its own length, except
+ * `Lie_Idle`, held `lieSeconds`, and `Sit_Chair_Idle`, held without end until
+ * the sit is released: from the end of `Sit_Chair_Down` to the release, none
+ * if the release came first.
+ */
 function segments(shot: OneShot, clips: PlayerClips): { clip: ClipName; seconds: number }[] {
-  return ONE_SHOT_CLIPS[shot.kind].map((clip) => ({
-    clip,
-    seconds: clip === 'lieIdle' ? shot.lieSeconds : clips[clip].duration,
-  }));
+  return ONE_SHOT_CLIPS[shot.kind].map((clip) => {
+    if (clip === 'lieIdle') return { clip, seconds: shot.lieSeconds };
+    if (clip !== 'sitIdle') return { clip, seconds: clips[clip].duration };
+    const held = (shot.releasedAt ?? Infinity) - clips.sitDown.duration;
+    return { clip, seconds: Math.max(0, held) };
+  });
 }
 
 /** How long a one-shot lasts. */
@@ -375,6 +403,19 @@ export function shotAt(
     start += seconds;
   }
   return undefined;
+}
+
+/**
+ * How far a sit has carried the body from where the player stands to the
+ * seat, 0 to 1: eased in over `Sit_Chair_Down`, 1 while seated, eased out over
+ * `Sit_Chair_StandUp`. 0 for any other shot and once the sit is over.
+ */
+export function seatBlend(shot: OneShot, clips: PlayerClips): number {
+  const playing = shot.kind === 'sit' ? shotAt(shot, clips) : undefined;
+  if (!playing || playing.clip === 'sitIdle') return playing ? 1 : 0;
+  const t = clamp(playing.time / clips[playing.clip].duration, 1);
+  const eased = t * t * (3 - 2 * t);
+  return playing.clip === 'sitDown' ? eased : 1 - eased;
 }
 
 /** The clocks of the clips that loop on their own, each seconds into its clip. */
@@ -446,8 +487,8 @@ export function advance(motion: Motion, step: MotionStep, clips: PlayerClips | u
  * What plays now, from the base up: the idle, walk and run blend on every
  * bone; the carry's `Holding_A` over the upper body by how far the carry has
  * faded in; and the one-shot's clip over its mask (the arms for a reach, the
- * whole body for lying down) by its fade. With `still`, `Lie_Idle` holds its
- * first pose.
+ * whole body for lying down or sitting) by its fade. With `still`, `Lie_Idle` and
+ * `Sit_Chair_Idle` hold their first pose.
  */
 export function layersOf(motion: Motion, clips: PlayerClips, still: boolean): Layer[] {
   const layers: Layer[] = [
@@ -470,7 +511,8 @@ export function layersOf(motion: Motion, clips: PlayerClips, still: boolean): La
   }
   const playing = motion.shot && shotAt(motion.shot, clips);
   if (playing) {
-    const time = still && playing.clip === 'lieIdle' ? 0 : playing.time;
+    const held = playing.clip === 'lieIdle' || playing.clip === 'sitIdle';
+    const time = still && held ? 0 : playing.time;
     layers.push({
       mask: CLIP_MASKS[playing.clip],
       amount: playing.amount,

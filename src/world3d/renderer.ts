@@ -86,9 +86,12 @@ import {
   advance,
   layersOf,
   poseOf,
+  release,
+  seatBlend,
   shotAt,
   startShot,
 } from './character';
+import { bodyPlace, type BodyPlace, type Seat, type SeatKey } from './seats';
 import { readClips, readGlb } from './glb';
 import { facingOf } from './move';
 import {
@@ -167,8 +170,10 @@ export interface RendererSnapshot {
   readonly clips: ClipWeights;
   /** How much of the upper body is the carry's clip, 0 to 1. */
   readonly carry: number;
-  /** The player's clip name of the one-shot under way (interact, pickUp, lieDown, lieIdle or lieStandUp), null between them. */
+  /** The player's clip name of the one-shot under way (interact, pickUp, lieDown, lieIdle, lieStandUp, sitDown, sitIdle or sitStandUp), null between them. */
   readonly shot: string | null;
+  /** The seat the body sits at, from the start of its sit to the end of its stand-up. */
+  readonly seated: SeatKey | null;
   /** True while something casts a shadow onto the floor. */
   readonly shadows: boolean;
   /** The sun's shadow map: its bias settings and its fixed window, the room's. */
@@ -400,6 +405,8 @@ export class Renderer {
   private motion: Motion = AT_REST;
   /** True while the player carries a tree, which the scene sets each frame. */
   private carrying = false;
+  /** The seat the last sit was at: the body is drawn there while the motion's one-shot is a sit. */
+  private seat: Seat | undefined;
   /** True when the browser asks for reduced motion: the idle and carry clips then hold their first pose, so a player at rest is still. */
   private readonly stillIdle = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   /** Seconds the sleep lies still; a `?lieSeconds=` in the page's address stretches it, so a test can capture the pose. */
@@ -588,6 +595,23 @@ export class Renderer {
     this.motion = { ...this.motion, shot: startShot(kind, this.lieSeconds) };
   }
 
+  /** Sits the body at `seat` from now, on the game clock; it replaces a one-shot under way. Nothing before the body loads. */
+  sit(seat: Seat): void {
+    if (!this.body) return;
+    this.seat = seat;
+    this.play('sit');
+  }
+
+  /** Ends a sit under way: the body stands up from the seat once its sit-down has finished. */
+  standUp(): void {
+    if (this.motion.shot) this.motion = { ...this.motion, shot: release(this.motion.shot) };
+  }
+
+  /** The seat the body is at, from the start of its sit to the end of its stand-up; null otherwise. */
+  seated(): SeatKey | null {
+    return this.motion.shot?.kind === 'sit' ? (this.seat?.key ?? null) : null;
+  }
+
   /** The clip of the one-shot under way, if any. */
   private shotClip(): string | null {
     const shot = this.body && this.motion.shot && shotAt(this.motion.shot, this.body.clips);
@@ -638,6 +662,7 @@ export class Renderer {
       clips: this.motion.weights,
       carry: this.motion.carry,
       shot: this.shotClip(),
+      seated: this.seated(),
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       shadowMap: this.shadowMapState(),
       artDepthOffset: this.shown?.floorArt?.material.zOffset ?? 0,
@@ -799,10 +824,13 @@ export class Renderer {
     }
     this.lastFeet = { x: plan.x, y: plan.y };
     if (fresh || moved > 0) this.movedAt = now;
+    // A seat is left behind with its room.
+    if (fresh && this.seated()) this.motion = { ...this.motion, shot: undefined };
     this.animate(moved, fresh ? 0 : gameSeconds);
+    const place = this.placeBody(plan);
     // The body faces its local +z, which a turn of theta about y points along (sin, cos) in x and z.
-    this.player.rotation.y = this.facing + Math.PI / 2;
-    const feet = toBabylon(plan);
+    this.player.rotation.y = place.heading + Math.PI / 2;
+    const feet = toBabylon(place);
     this.player.position.set(feet.x, feet.y, feet.z);
     this.follow(
       { x: feet.x, y: feet.y + (PLAYER_HEIGHT * this.avatarScale) / 2, z: feet.z },
@@ -871,6 +899,17 @@ export class Renderer {
     if (!finished) return;
     this.instrumentation?.dispose();
     this.instrumentation = undefined;
+  }
+
+  /** Where the body is drawn and the way it faces: at `plan`, the player's feet, except while a sit carries it to the seat and back. */
+  private placeBody(plan: Vec3): BodyPlace {
+    const { seat, body } = this;
+    const shot = this.motion.shot;
+    const blend = seat && body && shot ? seatBlend(shot, body.clips) : 0;
+    const standing = { x: plan.x, y: plan.y, heading: this.facing };
+    return seat && blend > 0
+      ? bodyPlace(standing, seat, blend, this.bodyScale())
+      : { ...standing, z: plan.z };
   }
 
   /**
