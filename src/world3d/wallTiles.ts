@@ -88,6 +88,91 @@ export interface PieceQuads {
   readonly quads: readonly WallQuad[];
 }
 
+/** The part of the line `from + k * span`, k in [0, 1], inside [lo, hi], as a range of k: empty when it is a point or less. */
+function inside(
+  from: number,
+  span: number,
+  lo: number,
+  hi: number,
+): readonly [number, number] | undefined {
+  const [a, b] = [(lo - from) / span, (hi - from) / span];
+  const range = [Math.max(0, Math.min(a, b)), Math.min(1, Math.max(a, b))] as const;
+  return range[1] - range[0] > EPSILON ? range : undefined;
+}
+
+/**
+ * The part of an axis-aligned `quad` that lies on `box`, or undefined when
+ * none does. Along the quad's own two axes it is cut exactly to the box's
+ * extent and its UVs follow linearly; across them, its plane must lie within
+ * `tolerance` of the box's span, since art stands a little off the face it
+ * dresses.
+ */
+export function clipQuad(quad: WallQuad, box: Box, tolerance: number): WallQuad | undefined {
+  const [c0, c1, , c3] = quad.corners;
+  const extent = { x: [box.x0, box.x1], y: [box.y0, box.y1], z: [box.z0, box.z1] } as const;
+  let [s0, s1, t0, t1] = [0, 1, 0, 1];
+  for (const axis of ['x', 'y', 'z'] as const) {
+    const [lo, hi] = extent[axis];
+    const [along, up] = [c1[axis] - c0[axis], c3[axis] - c0[axis]];
+    if (Math.abs(along) > EPSILON) {
+      const range = inside(c0[axis], along, lo, hi);
+      if (!range) return undefined;
+      [s0, s1] = range;
+    } else if (Math.abs(up) > EPSILON) {
+      const range = inside(c0[axis], up, lo, hi);
+      if (!range) return undefined;
+      [t0, t1] = range;
+    } else if (c0[axis] < lo - tolerance || c0[axis] > hi + tolerance) {
+      return undefined;
+    }
+  }
+  const at = (s: number, t: number): Vec3 => ({
+    x: c0.x + s * (c1.x - c0.x) + t * (c3.x - c0.x),
+    y: c0.y + s * (c1.y - c0.y) + t * (c3.y - c0.y),
+    z: c0.z + s * (c1.z - c0.z) + t * (c3.z - c0.z),
+  });
+  const [du, dv] = [quad.u1 - quad.u0, quad.v1 - quad.v0];
+  return {
+    frame: quad.frame,
+    normal: quad.normal,
+    corners: [at(s0, t0), at(s1, t0), at(s1, t1), at(s0, t1)],
+    u0: quad.u0 + s0 * du,
+    v0: quad.v0 + t0 * dv,
+    u1: quad.u0 + s1 * du,
+    v1: quad.v0 + t1 * dv,
+  };
+}
+
+/** Whether `quad` lies on the face of `box` its normal points out of, `WALL_LIFT` off it, rather than inside the box or behind its other face. */
+function onFace(quad: WallQuad, box: Box): boolean {
+  const { x, y, z } = quad.normal;
+  const [at, face] =
+    x !== 0
+      ? [quad.corners[0].x, x > 0 ? box.x1 : box.x0]
+      : y !== 0
+        ? [quad.corners[0].y, y > 0 ? box.y1 : box.y0]
+        : [quad.corners[0].z, z > 0 ? box.z1 : box.z0];
+  return Math.abs(at - face) <= WALL_LIFT + EPSILON;
+}
+
+/**
+ * A layout's quads handed to the drawn boxes they lie on, grouped by box in
+ * the order the boxes come. The layout is made on the plan's whole pieces, so
+ * one wall claims a corner run; here every quad is cut to each drawn box whose
+ * face it lies on, and the part over a neighbour's box rides that box, which
+ * the camera's cutaway moves with its art. A part inside a box is out of sight
+ * and a part on no drawn box would hang in the air, so both are dropped.
+ */
+export function onDrawnPieces(layout: readonly PieceQuads[], drawn: readonly Box[]): PieceQuads[] {
+  const quads = layout.flatMap((piece) => piece.quads);
+  return drawn.flatMap((box) => {
+    const parts = quads.flatMap((quad) =>
+      onFace(quad, box) ? (clipQuad(quad, box, WALL_LIFT + EPSILON) ?? []) : [],
+    );
+    return parts.length > 0 ? [{ piece: box.name, quads: parts }] : [];
+  });
+}
+
 /** A run in plan metres. */
 interface Span {
   readonly x0: number;
