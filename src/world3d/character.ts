@@ -1,10 +1,12 @@
 /**
  * The player's body in the 3D world: which files and clips it is, the size it
- * is drawn at, the rule that blends its idle and walk clips by speed, and the
- * sampler that turns the clips' keys into a pose. The body is the KayKit
- * Rogue (Kay Lousberg, CC0) on the `Rig_Medium` skeleton; renderer.ts loads
- * it and sets each bone's node to `poseOf`'s result. Pure data and
- * arithmetic, no Babylon, so the blend and the sampler are unit-tested.
+ * is drawn at, which clip plays for what the player is doing (idle, walk and
+ * run blended on speed; a carry over the upper body; one-shot reaches and a
+ * sleep's lying down, over the arms or the whole body), and the sampler that
+ * turns the clips' keys into a pose. The body is the KayKit Rogue (Kay
+ * Lousberg, CC0) on the `Rig_Medium` skeleton; renderer.ts loads it, feeds
+ * `advance` the frame's game time and sets each bone's node to `poseOf`'s
+ * result. Pure data and arithmetic, no Babylon, so the rules are unit-tested.
  *
  * Space: the model's own units, y up, the character faces +z, its feet on
  * y 0; renderer.ts scales it to metres. A rotation is a quaternion (x, y, z, w).
@@ -12,32 +14,80 @@
 
 import type { Clip, Track } from './glb';
 
-export const CLIP_NAMES = ['idle', 'walk'] as const;
+export const CLIP_NAMES = [
+  'idle',
+  'walk',
+  'run',
+  'hold',
+  'interact',
+  'pickUp',
+  'lieDown',
+  'lieIdle',
+  'lieStandUp',
+] as const;
 export type ClipName = (typeof CLIP_NAMES)[number];
+/** The clips that blend on speed: the base of every pose. */
+export const LOCOMOTION = ['idle', 'walk', 'run'] as const;
+export type Locomotion = (typeof LOCOMOTION)[number];
 
 type Vec3 = readonly [x: number, y: number, z: number];
 type Quat = readonly [x: number, y: number, z: number, w: number];
 
-/** The clip in the animations file each blend clip plays. */
+/** The clip in the animations file each of the player's clips plays. */
 export const PLAYER_CLIPS: Readonly<Record<ClipName, string>> = {
   idle: 'Idle_A',
   walk: 'Walking_A',
+  run: 'Running_A',
+  hold: 'Holding_A',
+  interact: 'Interact',
+  pickUp: 'PickUp',
+  lieDown: 'Lie_Down',
+  lieIdle: 'Lie_Idle',
+  lieStandUp: 'Lie_StandUp',
 };
 
-/** Every clip the animations file carries: idle and walk, a carry, two reaches, sitting on a chair and lying down. */
+/** Every clip the animations file carries: the player's, and the three chair-sitting ones nothing plays yet. */
 export const ANIMATION_CLIPS = [
-  'Idle_A',
-  'Walking_A',
-  'Holding_A',
-  'Interact',
-  'PickUp',
+  ...Object.values(PLAYER_CLIPS),
   'Sit_Chair_Down',
   'Sit_Chair_Idle',
   'Sit_Chair_StandUp',
-  'Lie_Down',
-  'Lie_Idle',
-  'Lie_StandUp',
 ] as const;
+
+/** The player's clips as read from the animations file. */
+export type PlayerClips = Readonly<Record<ClipName, Clip>>;
+
+/** Which bones a clip drives: all of them, or the upper body (`UPPER_BODY`), leaving the legs to the layers below. */
+export type Mask = 'all' | 'upper';
+
+/**
+ * The bones the arm and carry clips drive, by the rig's own names: the spine
+ * chain up through the chest to the head, and both arms down to the hand and
+ * its slot. The hips and the root, which bob and travel with the stride, and
+ * the legs, feet and toes stay with the idle, walk and run blend. Rig_Medium's
+ * other bones, `Rig_Medium` among them, are not keyed by any player clip.
+ */
+export const UPPER_BODY: ReadonlySet<string> = new Set(
+  ['spine', 'chest', 'head'].concat(
+    ['upperarm', 'lowerarm', 'wrist', 'hand', 'handslot'].flatMap((bone) => [
+      `${bone}.l`,
+      `${bone}.r`,
+    ]),
+  ),
+);
+
+/** The bones each clip drives: carrying and the two reaches use the arms only, so a walk goes on under them; lying down takes the whole body. */
+export const CLIP_MASKS: Readonly<Record<ClipName, Mask>> = {
+  idle: 'all',
+  walk: 'all',
+  run: 'all',
+  hold: 'upper',
+  interact: 'upper',
+  pickUp: 'upper',
+  lieDown: 'all',
+  lieIdle: 'all',
+  lieStandUp: 'all',
+};
 
 /** The figure's height, metres, top of its head over its feet: the model is scaled to it. */
 export const CHARACTER_HEIGHT = 1.7313;
@@ -67,27 +117,37 @@ export function parseAvatarScale(value: unknown): AvatarScale | undefined {
   return AVATAR_SCALES.find((scale) => scale === value);
 }
 
-/** The seconds a change between idle and walk takes. */
-const FADE_SECONDS = 0.2;
+/** The seconds a change between clips takes: idle to walk, a carry in or out, a reach in or out. */
+export const FADE_SECONDS = 0.2;
 /** The speed, metres a second, at which the walk clip is wholly in. */
 export const WALK_FULL_SPEED = 1;
+/** The speed, metres a second, at which the run clip is wholly in: the walk fades out on the way from `WALK_FULL_SPEED`. */
+export const RUN_FULL_SPEED = 2;
 /**
- * How fast a planted foot slides back under the hips in `Walking_A` played at
- * its own pace, model units a second: the median over the frames the foot is
- * within 1.5 cm of its lowest (character.test.ts measures it from the file).
+ * How fast a planted foot slides back under the hips in each gait clip played
+ * at its own pace, model units a second: the median over the frames the foot
+ * is within 1.5 cm of its lowest (character.test.ts measures them from the file).
  */
-export const WALK_FOOT_SPEED = 0.68;
-/** The speed, metres a second, at which the walk clip's feet do not slide: a planted foot's speed, scaled to metres. */
-export const STRIDE_SPEED = WALK_FOOT_SPEED * BODY_SCALE;
-/** The fastest and slowest the walk clip plays, as a multiple of its own speed. */
+export const FOOT_SPEEDS: Readonly<Record<'walk' | 'run', number>> = { walk: 0.68, run: 3.37 };
+/** The speed, metres a second, at which each gait clip's feet do not slide: a planted foot's speed, scaled to metres. */
+export const STRIDE_SPEEDS: Readonly<Record<'walk' | 'run', number>> = {
+  walk: FOOT_SPEEDS.walk * BODY_SCALE,
+  run: FOOT_SPEEDS.run * BODY_SCALE,
+};
+/** The fastest and slowest a gait clip plays, as a multiple of its own speed. */
 const RATE_MIN = 0.5;
-const RATE_MAX = 2;
+export const RATE_MAX = 2;
 
 /** Seconds over which the measured speed of a body's feet settles, so the fixed steps' jitter does not flicker the blend. */
 export const SPEED_SMOOTHING = 0.1;
 
-/** What each clip contributes to a pose, 0 to 1 and summing to 1. */
-export type ClipWeights = Readonly<Record<ClipName, number>>;
+/** What each locomotion clip contributes to a pose, 0 to 1 and summing to 1. */
+export type ClipWeights = Readonly<Record<Locomotion, number>>;
+
+/** `value` between 0 and `max`. */
+function clamp(value: number, max: number): number {
+  return Math.min(max, Math.max(0, value));
+}
 
 /**
  * `speed` (metres a second) moved toward `moved` metres over `dt` seconds of
@@ -99,26 +159,43 @@ export function smoothSpeed(speed: number, moved: number, dt: number): number {
   return speed + (moved / dt - speed) * Math.min(1, dt / SPEED_SMOOTHING);
 }
 
-/** The weights a body moving at `speed` metres a second settles to: walk rises linearly to 1 at `WALK_FULL_SPEED`, idle takes the rest. */
+/**
+ * Where a body sits on the gait axis: 0 idle, 1 walk, 2 run. The blend is
+ * always two neighbours, so the weights are a point on it, and a fade is a
+ * move along it.
+ */
+function gaitAt(speed: number): number {
+  const walking = clamp(speed / WALK_FULL_SPEED, 1);
+  const running = clamp((speed - WALK_FULL_SPEED) / (RUN_FULL_SPEED - WALK_FULL_SPEED), 1);
+  return walking + running;
+}
+
+/** The weights at a point on the gait axis. */
+function weightsAt(gait: number): ClipWeights {
+  return {
+    idle: Math.max(0, 1 - gait),
+    walk: gait <= 1 ? gait : Math.max(0, 2 - gait),
+    run: Math.max(0, gait - 1),
+  };
+}
+
+/** The weights a body moving at `speed` metres a second settles to: walk rises linearly to 1 at `WALK_FULL_SPEED`, then gives way to run, wholly in at `RUN_FULL_SPEED`. */
 export function targetWeights(speed: number): ClipWeights {
-  const walk = Math.min(1, Math.max(0, speed / WALK_FULL_SPEED));
-  return { idle: 1 - walk, walk };
+  return weightsAt(gaitAt(speed));
 }
 
-/** `current` weights moved toward `targetWeights(speed)` over `dt` seconds, so a change cross-fades in `FADE_SECONDS`. */
+/** `current` weights moved toward `targetWeights(speed)` over `dt` seconds, so a step between neighbouring clips cross-fades in `FADE_SECONDS`. */
 export function fadeWeights(current: ClipWeights, speed: number, dt: number): ClipWeights {
-  const target = targetWeights(speed).walk;
+  const at = current.walk + 2 * current.run;
+  const target = gaitAt(speed);
   const step = dt / FADE_SECONDS;
-  const walk =
-    current.walk < target
-      ? Math.min(target, current.walk + step)
-      : Math.max(target, current.walk - step);
-  return { idle: 1 - walk, walk };
+  return weightsAt(at < target ? Math.min(target, at + step) : Math.max(target, at - step));
 }
 
-/** How fast the walk clip plays at `speed` for a body drawn at `avatarScale`, so its (shorter) stride keeps pace with the ground: 1 at `STRIDE_SPEED * avatarScale`. */
-export function walkRate(speed: number, avatarScale: number): number {
-  return Math.min(RATE_MAX, Math.max(RATE_MIN, speed / (STRIDE_SPEED * avatarScale)));
+/** How fast a gait clip plays at `speed` for a body drawn at `avatarScale`, so its (shorter) stride keeps pace with the ground: 1 at `STRIDE_SPEEDS[clip] * avatarScale`; idle always plays at 1. */
+export function clipRate(clip: Locomotion, speed: number, avatarScale: number): number {
+  if (clip === 'idle') return 1;
+  return Math.min(RATE_MAX, Math.max(RATE_MIN, speed / (STRIDE_SPEEDS[clip] * avatarScale)));
 }
 
 /** One node's local transform in a pose: what the clips key of it. */
@@ -167,39 +244,59 @@ function slerp(a: readonly number[], b: readonly number[], f: number): number[] 
   return q.map((v) => v / length);
 }
 
+/** A clip playing `time` seconds in (it loops over its length), with `weight` among the clips of its layer. */
+export interface Playing {
+  readonly clip: ClipName;
+  readonly time: number;
+  readonly weight: number;
+}
+
+/** Clips mixed by their weights, laid over the layers before it on the bones of `mask`, `amount` (0 to 1) of the way. */
+export interface Layer {
+  readonly mask: Mask;
+  readonly amount: number;
+  readonly clips: readonly Playing[];
+}
+
 /**
- * The pose at each clip's own clock `times` (seconds), the clips mixed by
- * `weights`: per node, the rotations' weighted sum on one hemisphere,
- * normalised, and the translations' weighted mean, each over the clips that
- * key it. A node no clip keys is left out, so it keeps its bind pose.
+ * The pose of `layers`, the first the base and each later one laid over those
+ * before: per node, a layer takes its `amount` of what the layers above it
+ * left, and passes over nodes outside its mask. Within that, per node, the
+ * rotations' weighted sum on one hemisphere, normalised, and the
+ * translations' weighted mean, each over the clips that key it. A node no
+ * clip keys is left out, so it keeps its bind pose.
  */
-export function poseOf(
-  clips: Readonly<Record<ClipName, Clip>>,
-  weights: ClipWeights,
-  times: Readonly<Record<ClipName, number>>,
-): Map<string, NodePose> {
-  const names = new Set(CLIP_NAMES.flatMap((clip) => [...clips[clip].nodes.keys()]));
+export function poseOf(clips: PlayerClips, layers: readonly Layer[]): Map<string, NodePose> {
+  const names = new Set(
+    layers.flatMap((layer) => layer.clips.flatMap(({ clip }) => [...clips[clip].nodes.keys()])),
+  );
   const pose = new Map<string, NodePose>();
   for (const name of names) {
     const rotation = [0, 0, 0, 0];
     const translation = [0, 0, 0];
     let turned = 0;
     let moved = 0;
-    for (const clip of CLIP_NAMES) {
-      const weight = weights[clip];
-      const tracks = clips[clip].nodes.get(name);
-      if (weight <= 0 || !tracks) continue;
-      const { duration } = clips[clip];
-      if (tracks.rotation) {
-        const q = sampleTrack(tracks.rotation, 4, times[clip], duration);
-        const side = q.reduce((sum, v, i) => sum + v * (rotation[i] ?? 0), 0) < 0 ? -1 : 1;
-        q.forEach((v, i) => (rotation[i] = (rotation[i] ?? 0) + side * weight * v));
-        turned += weight;
-      }
-      if (tracks.translation) {
-        const v = sampleTrack(tracks.translation, 3, times[clip], duration);
-        v.forEach((x, i) => (translation[i] = (translation[i] ?? 0) + weight * x));
-        moved += weight;
+    let left = 1;
+    for (const layer of [...layers].reverse()) {
+      if (layer.mask === 'upper' && !UPPER_BODY.has(name)) continue;
+      const share = layer.amount * left;
+      left -= share;
+      for (const { clip, time, weight: within } of layer.clips) {
+        const weight = within * share;
+        const tracks = clips[clip].nodes.get(name);
+        if (weight <= 0 || !tracks) continue;
+        const { duration } = clips[clip];
+        if (tracks.rotation) {
+          const q = sampleTrack(tracks.rotation, 4, time, duration);
+          const side = q.reduce((sum, v, i) => sum + v * (rotation[i] ?? 0), 0) < 0 ? -1 : 1;
+          q.forEach((v, i) => (rotation[i] = (rotation[i] ?? 0) + side * weight * v));
+          turned += weight;
+        }
+        if (tracks.translation) {
+          const v = sampleTrack(tracks.translation, 3, time, duration);
+          v.forEach((x, i) => (translation[i] = (translation[i] ?? 0) + weight * x));
+          moved += weight;
+        }
       }
     }
     const [x = 0, y = 0, z = 0, w = 0] = rotation;
@@ -211,4 +308,174 @@ export function poseOf(
     });
   }
   return pose;
+}
+
+/** The clips that play once, started by something the player does: a prop used, a tree picked up, a sleep. */
+export type OneShotKind = 'interact' | 'pickUp' | 'sleep';
+
+/** The clips each one-shot plays in turn. */
+export const ONE_SHOT_CLIPS: Readonly<Record<OneShotKind, readonly ClipName[]>> = {
+  interact: ['interact'],
+  pickUp: ['pickUp'],
+  sleep: ['lieDown', 'lieIdle', 'lieStandUp'],
+};
+
+/** Seconds the sleep lies still between lying down and standing up. */
+export const LIE_IDLE_SECONDS = 1.5;
+
+/** The seconds the sleep lies still: `LIE_IDLE_SECONDS`, or the `lieSeconds` of a page address's query when that is a number from 0 to an hour. */
+export function parseLieSeconds(search: string): number {
+  const raw = new URLSearchParams(search).get('lieSeconds');
+  const seconds = raw ? Number(raw) : NaN;
+  return seconds >= 0 && seconds <= 3600 ? seconds : LIE_IDLE_SECONDS;
+}
+
+/** A one-shot under way: `elapsed` game seconds in, and how long `Lie_Idle` is held if it plays. */
+export interface OneShot {
+  readonly kind: OneShotKind;
+  readonly elapsed: number;
+  readonly lieSeconds: number;
+}
+
+/** A one-shot just started. */
+export function startShot(kind: OneShotKind, lieSeconds = LIE_IDLE_SECONDS): OneShot {
+  return { kind, elapsed: 0, lieSeconds };
+}
+
+/** The clips a one-shot plays and for how long each: its own length, except `Lie_Idle`, held `lieSeconds`. */
+function segments(shot: OneShot, clips: PlayerClips): { clip: ClipName; seconds: number }[] {
+  return ONE_SHOT_CLIPS[shot.kind].map((clip) => ({
+    clip,
+    seconds: clip === 'lieIdle' ? shot.lieSeconds : clips[clip].duration,
+  }));
+}
+
+/** How long a one-shot lasts. */
+export function shotLength(shot: OneShot, clips: PlayerClips): number {
+  return segments(shot, clips).reduce((sum, { seconds }) => sum + seconds, 0);
+}
+
+/**
+ * The clip a one-shot is on, how far into it, and how much of the pose it
+ * is: in over `FADE_SECONDS` at the start and out over the last, so the
+ * clips of a sequence run into each other unfaded. Undefined once it is over.
+ */
+export function shotAt(
+  shot: OneShot,
+  clips: PlayerClips,
+): { clip: ClipName; time: number; amount: number } | undefined {
+  const total = shotLength(shot, clips);
+  if (shot.elapsed >= total) return undefined;
+  let start = 0;
+  for (const { clip, seconds } of segments(shot, clips)) {
+    if (shot.elapsed < start + seconds) {
+      const amount = clamp(Math.min(shot.elapsed, total - shot.elapsed) / FADE_SECONDS, 1);
+      return { clip, time: shot.elapsed - start, amount };
+    }
+    start += seconds;
+  }
+  return undefined;
+}
+
+/** The clocks of the clips that loop on their own, each seconds into its clip. */
+export type Clocks = Readonly<Record<Locomotion | 'hold', number>>;
+
+/** Everything the body's pose carries from frame to frame. */
+export interface Motion {
+  /** Metres a second over the ground, smoothed. */
+  readonly speed: number;
+  readonly weights: ClipWeights;
+  /** How much of the upper body is the carry, 0 to 1, fading with `FADE_SECONDS`. */
+  readonly carry: number;
+  readonly clocks: Clocks;
+  readonly shot: OneShot | undefined;
+}
+
+/** A body at rest, empty-handed. */
+export const AT_REST: Motion = {
+  speed: 0,
+  weights: { idle: 1, walk: 0, run: 0 },
+  carry: 0,
+  clocks: { idle: 0, walk: 0, run: 0, hold: 0 },
+  shot: undefined,
+};
+
+/** What a frame feeds the body. */
+export interface MotionStep {
+  /** Metres the feet moved over `dt`. */
+  readonly moved: number;
+  /** Seconds of game time the frame's fixed steps covered. */
+  readonly dt: number;
+  readonly carrying: boolean;
+  readonly avatarScale: number;
+  /** Reduced motion: the idle and carry clips hold their first pose. */
+  readonly still: boolean;
+}
+
+/**
+ * `motion` moved on by `step`: the speed and the gait blend, the carry fading
+ * in or out, each looping clock (the gait clips at the rate that keeps their
+ * feet on the ground) and the one-shot under way, which ends when its clips
+ * do. `clips` is undefined until the body has loaded, when clocks just run.
+ */
+export function advance(motion: Motion, step: MotionStep, clips: PlayerClips | undefined): Motion {
+  const { dt } = step;
+  const speed = smoothSpeed(motion.speed, step.moved, dt);
+  const loop = (clip: ClipName, time: number): number => {
+    const duration = clips?.[clip].duration ?? 0;
+    return duration > 0 ? time % duration : time;
+  };
+  const { idle, walk, run, hold } = motion.clocks;
+  const elapsed = motion.shot ? motion.shot.elapsed + dt : 0;
+  const shot = motion.shot && { ...motion.shot, elapsed };
+  return {
+    speed,
+    weights: fadeWeights(motion.weights, speed, dt),
+    carry: clamp(motion.carry + (step.carrying ? dt : -dt) / FADE_SECONDS, 1),
+    clocks: {
+      idle: step.still ? idle : loop('idle', idle + dt),
+      walk: loop('walk', walk + dt * clipRate('walk', speed, step.avatarScale)),
+      run: loop('run', run + dt * clipRate('run', speed, step.avatarScale)),
+      hold: step.still ? hold : loop('hold', hold + dt),
+    },
+    shot: shot && clips && shotAt(shot, clips) ? shot : undefined,
+  };
+}
+
+/**
+ * What plays now, from the base up: the idle, walk and run blend on every
+ * bone; the carry's `Holding_A` over the upper body by how far the carry has
+ * faded in; and the one-shot's clip over its mask (the arms for a reach, the
+ * whole body for lying down) by its fade. With `still`, `Lie_Idle` holds its
+ * first pose.
+ */
+export function layersOf(motion: Motion, clips: PlayerClips, still: boolean): Layer[] {
+  const layers: Layer[] = [
+    {
+      mask: 'all',
+      amount: 1,
+      clips: LOCOMOTION.map((clip) => ({
+        clip,
+        time: motion.clocks[clip],
+        weight: motion.weights[clip],
+      })),
+    },
+  ];
+  if (motion.carry > 0) {
+    layers.push({
+      mask: CLIP_MASKS.hold,
+      amount: motion.carry,
+      clips: [{ clip: 'hold', time: motion.clocks.hold, weight: 1 }],
+    });
+  }
+  const playing = motion.shot && shotAt(motion.shot, clips);
+  if (playing) {
+    const time = still && playing.clip === 'lieIdle' ? 0 : playing.time;
+    layers.push({
+      mask: CLIP_MASKS[playing.clip],
+      amount: playing.amount,
+      clips: [{ clip: playing.clip, time, weight: 1 }],
+    });
+  }
+  return layers;
 }

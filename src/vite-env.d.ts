@@ -71,8 +71,12 @@ interface BonsaiTestHook {
     readonly bodyLoaded: boolean;
     /** How big the player's body is drawn, as a fraction of its full size (the Settings panel's Avatar size: 0.6 to 1); the default, 0.7, while off. */
     readonly avatarScale: number;
-    /** How much of each clip the player's pose is made of now, 0 to 1 and summing to 1 (idle at rest, walk walking, between while they cross-fade); both 0 while off. */
-    readonly clips: { readonly idle: number; readonly walk: number };
+    /** How much of each locomotion clip the player's pose is made of now, 0 to 1 and summing to 1 (idle at rest, walk walking, run at full speed, between while they cross-fade); all 0 while off. */
+    readonly clips: { readonly idle: number; readonly walk: number; readonly run: number };
+    /** How much of the player's upper body is the carry clip (Holding_A), 0 to 1: 1 while a tree is carried, 0 while off. */
+    readonly carry: number;
+    /** The player's clip name of the one-shot under way ('interact', 'pickUp', 'lieDown', 'lieIdle' or 'lieStandUp'), null between them and while off. */
+    readonly shot: string | null;
     /** True while something casts a shadow onto the floor (the player always does); false while off. */
     readonly shadows: boolean;
     /** The sun's shadow map: `fixed` while its frustum is the one fitted to the room (not refitted to the casters, so it cannot change as the camera or the player moves), its texel `size`, `bias` and `normalBias`, and the frustum's `window` (left, right, bottom, top, minZ, maxZ in metres); zeros while off. */
