@@ -39,8 +39,11 @@ jobs:
         include:
           - name: chromium
             args: --project=chromium
+          # One worker: this is the only project that takes the 3D walk screenshots, and on the
+          # runner's software GL two workers starve each other until a capture overruns its
+          # limit. Alone, a frame takes about half as long and the captures fit.
           - name: s22-landscape
-            args: --project=s22-landscape
+            args: --project=s22-landscape --workers=1
           - name: parity
             args: --project=s22-landscape-parity --no-deps
     steps:
