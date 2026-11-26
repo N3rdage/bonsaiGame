@@ -37,11 +37,14 @@ import { GREENHOUSE_ROOM } from './greenhouseRoom';
 import { INTERACT_RANGE, nearestInteractable } from './interactables';
 import { HALLWAY_BOUNDS, HALLWAY_ROOM } from './hallwayRoom';
 import {
+  ARMCHAIR,
+  COFFEE_TABLE,
   HALLWAY_BLOCK,
   HALLWAY_BLOCK_CAPS,
   KITCHEN_COUNTER,
   KITCHEN_FLOOR,
   LOUNGE_ROOM,
+  SOFA,
 } from './loungeRoom';
 import { STUDY_ROOM } from './studyRoom';
 import { propSprite } from './roomArt';
@@ -448,10 +451,14 @@ describe('lounge room', () => {
       { x: 144, y: 208, w: 304, h: 16 },
       { x: 144, y: 48, w: 16, h: 176 },
       { x: 432, y: 48, w: 16, h: 176 },
-      // The hallway's 3 x 2 m block, the fireplace, the side table and the kitchen counter's runs.
+      // The hallway's 3 x 2 m block, the fireplace, the side table, the sofa, the coffee table, the
+      // armchair and the kitchen counter's runs.
       { x: 336, y: 64, w: 96, h: 64 },
       { x: 224, y: 64, w: 32, h: 24 },
       { x: 160, y: 64, w: 16, h: 16 },
+      { x: 176, y: 98, w: 28, h: 60 },
+      { x: 210, y: 112, w: 20, h: 32 },
+      { x: 276, y: 112, w: 24, h: 24 },
       { x: 336, y: 188, w: 96, h: 20 },
       { x: 412, y: 128, w: 20, h: 60 },
     ]);
@@ -587,6 +594,73 @@ describe('lounge room', () => {
       for (let i = 0; i < 200; i += 1) p = stepPlayer(p, { x: 0, y: -1 }, LOUNGE_ROOM);
       expect([p.x, p.y]).toEqual(stop);
       expect(nearestInteractable(p, LOUNGE_ROOM.props)?.key).toBe('pedestal_2');
+    }
+  });
+
+  it('seats the room with a sofa, a coffee table and an armchair: solid, west of the kitchen, in the walls', () => {
+    const seating = [SOFA, COFFEE_TABLE, ARMCHAIR];
+    expect(
+      seating.map(({ sheet, x, y, w, h, solid, sorted }) => [sheet.key, x, y, w, h, solid, sorted]),
+    ).toEqual([
+      ['spr_sofa', 176, 98, 28, 60, true, true],
+      ['spr_coffee_table', 210, 112, 20, 32, true, true],
+      ['spr_armchair', 276, 112, 24, 24, true, true],
+    ]);
+    const floor = insideWalls(LOUNGE_ROOM);
+    for (const piece of seating) {
+      expect(LOUNGE_ROOM.furniture).toContain(piece);
+      expect(LOUNGE_ROOM.walls).toContainEqual({ x: piece.x, y: piece.y, w: piece.w, h: piece.h });
+      expect(piece.x).toBeGreaterThanOrEqual(floor.x);
+      expect(piece.x + piece.w).toBeLessThanOrEqual(336);
+      expect(hitsWall(LOUNGE_ROOM, piece.x + piece.w / 2, piece.y + piece.h / 2)).toBe(true);
+    }
+  });
+
+  it('keeps every door landing, display spot and the kitchen in reach of the start with the seating in', () => {
+    // A flood fill over 2 px cells for a player 12 px wide: a cell is free if its four corners, 6 px
+    // out, are clear of the walls.
+    const free = (x: number, y: number) =>
+      [-6, 6].every((dx) => [-6, 6].every((dy) => !hitsWall(LOUNGE_ROOM, x + dx, y + dy)));
+    const { x: sx, y: sy } = LOUNGE_ROOM.playerStart;
+    const seen = new Set<string>([`${String(sx)},${String(sy)}`]);
+    const queue: [number, number][] = [[sx, sy]];
+    for (let next = queue.shift(); next; next = queue.shift()) {
+      for (const [dx, dy] of [
+        [2, 0],
+        [-2, 0],
+        [0, 2],
+        [0, -2],
+      ] as const) {
+        const [x, y] = [next[0] + dx, next[1] + dy];
+        const key = `${String(x)},${String(y)}`;
+        if (!seen.has(key) && free(x, y)) {
+          seen.add(key);
+          queue.push([x, y]);
+        }
+      }
+    }
+    const reaches = (x: number, y: number, range: number) =>
+      [...seen].some((k) => {
+        const [cx = 0, cy = 0] = k.split(',').map(Number);
+        return Math.hypot(cx - x, cy - y) <= range;
+      });
+    // The landing from the hallway, and the spot beside the kitchen counter.
+    expect(reaches(318, 96, 0)).toBe(true);
+    expect(reaches(400, 150, 0)).toBe(true);
+    for (const spot of LOUNGE_ROOM.props.filter((p) => p.pedestalKey !== undefined)) {
+      expect(reaches(spot.x, spot.y, INTERACT_RANGE), spot.key).toBe(true);
+    }
+    // The seating itself is not stood in: neither landing, nor the start, touches a piece.
+    for (const p of [LOUNGE_ROOM.playerStart, { x: 318, y: 96 }]) {
+      for (const f of [SOFA, COFFEE_TABLE, ARMCHAIR]) {
+        const gap = Math.max(
+          f.x - p.x - 12,
+          p.x - f.x - f.w - 12,
+          f.y - p.y - 12,
+          p.y - f.y - f.h - 12,
+        );
+        expect(gap, `${String(p.x)},${String(p.y)} ${f.sheet.key}`).toBeGreaterThan(0);
+      }
     }
   });
 

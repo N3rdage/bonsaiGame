@@ -51,6 +51,9 @@ export const WASHES = {
   runner: [76, 128, 92],
   studyPaper: [184, 196, 208],
   parquet: [178, 116, 86],
+  // The lounge's seating: the sofa's upholstery and the armchair's.
+  sofa: [184, 90, 72],
+  armchair: [90, 138, 106],
   // The 3D viewer's textures are tinted by each species' colours: these are chosen to land near neutral.
   bark: [185, 175, 163],
   leaf: [199, 199, 186],
@@ -115,6 +118,8 @@ export const WEAR_BY_WASH = {
   top: 'wood',
   terracotta: 'pot',
   rug: 'cloth',
+  sofa: 'cloth',
+  armchair: 'cloth',
   runner: 'cloth',
   cream: 'cloth',
 };

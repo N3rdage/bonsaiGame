@@ -11,7 +11,8 @@
  * the block's west face on to the hallway, and a fireplace and a side table
  * against the top wall carrying the two display
  * spots that were the shed's pedestals (saves from before version 4 move the
- * shed's displayed trees onto them).
+ * shed's displayed trees onto them). A sofa, a coffee table and an armchair
+ * seat the middle of the room, clear of both doors' walks to the spots.
  */
 
 import { SHEETS } from './assets';
@@ -107,6 +108,58 @@ export const SIDE_TABLE: Furniture = {
 };
 
 /**
+ * The sofa, 0.875 x 1.875 x 0.9 m (28 x 60 px), its back along the west wall
+ * and its seat facing east, x 176..204 and y 98..158. It floats 16 px off the
+ * west wall, leaving the lane x 160..176 that a walk into that wall and up to
+ * the side table takes, and ends on y 158 so the floor-tree spots on y 160
+ * stay clear.
+ */
+export const SOFA: Furniture = {
+  sheet: SHEETS.sofa,
+  x: 176,
+  y: 98,
+  w: 28,
+  h: 60,
+  solid: true,
+  sorted: true,
+  stands: { height: 20 },
+};
+
+/**
+ * The coffee table, 0.625 x 1.0 x 0.4 m (20 x 32 px), 6 px in front of the
+ * sofa and centred on its length, x 210..230 and y 112..144: clear of the
+ * column x 232..248 that a walk up from the shed door's landing takes to the
+ * mantel.
+ */
+export const COFFEE_TABLE: Furniture = {
+  sheet: SHEETS.coffeeTable,
+  x: 210,
+  y: 112,
+  w: 20,
+  h: 32,
+  solid: true,
+  sorted: true,
+  stands: { height: 8 },
+};
+
+/**
+ * The armchair, 0.75 x 0.75 x 0.9 m (24 px square), its back to the east and
+ * turned toward the fire, x 276..300 and y 112..136: east of the mantel
+ * column and 18 px short of the hallway door's landing (x 318), below the row
+ * y 96 that landing's walk to the side table takes west.
+ */
+export const ARMCHAIR: Furniture = {
+  sheet: SHEETS.armchair,
+  x: 276,
+  y: 112,
+  w: 24,
+  h: 24,
+  solid: true,
+  sorted: true,
+  stands: { height: 20 },
+};
+
+/**
  * The kitchen counter, 0.6 m deep (20 px) and 0.9 m high: its run along the
  * kitchen's south wall and its run up the east wall from there to the block,
  * the east run its worktop alone (20 x 60), its south end joined to the south
@@ -127,6 +180,9 @@ const FURNITURE = [
   ...HALLWAY_BLOCK_CAPS,
   FIREPLACE,
   SIDE_TABLE,
+  SOFA,
+  COFFEE_TABLE,
+  ARMCHAIR,
   ...KITCHEN_COUNTER,
 ];
 
