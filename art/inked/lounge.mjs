@@ -20,6 +20,10 @@
 //   spr_armchair        24 x 44 (0.75 x 0.75 x 0.9 m), its back to the east,
 //                       cut out
 //   spr_coffee_table    20 x 40 (0.625 x 1.0 x 0.4 m), cut out
+//   spr_bookcase        28 x 50 (0.875 x 0.375 x 1.78 m), against the top
+//                       wall, cut out
+//   spr_floor_lamp      14 x 46 (0.4375 x 0.4375 x 1.5 m), cut out
+//   spr_potted_plant    20 x 40 (0.625 x 0.5 x 1.125 m), cut out
 //   spr_counter         the kitchen counter along the south wall, 96 x 40
 //                       (3.0 x 0.6 x 0.9 m), cut out
 //   spr_counter_v       its run up the east wall, 20 x 60 (0.6 x 1.9 x 0.9 m),
@@ -64,6 +68,9 @@ const SEEDS = {
   sofa: 0x7a64,
   armchair: 0x7a65,
   coffeeTable: 0x7a66,
+  bookcase: 0x7a67,
+  floorLamp: 0x7a68,
+  pottedPlant: 0x7a69,
 };
 
 // The carpet: one calm plane of short pile. On one variant in three, a worn
@@ -295,6 +302,109 @@ function coffeeTable() {
   return finishCutOut(page);
 }
 
+// The tall bookcase, 0.875 x 0.375 x 1.78 m, against the top wall: its top face
+// (y 0..12), then its open front (y 12..50) with books on three of its four
+// shelves, on a plinth.
+function bookcase() {
+  const page = createPage(28, 50, { seed: SEEDS.bookcase, origin: [258, 26] });
+  const { k } = page;
+  k.box(0.6, 0.6, 26.8, 11.4, 'top');
+  k.box(0.6, 12, 26.8, 37.4, 'wood');
+  k.box(2.4, 13.6, 23.2, 32.4, 'shadow', { width: SEAM, hatching: 'shadow', wear: false });
+  // Each shelf's plank (its top y) with the books standing on it: x, width, height, wash.
+  const shelves = [
+    [
+      39.2,
+      [
+        [3.2, 2, 6.5, 'terracotta'],
+        [5.4, 2.4, 7.5, 'glass'],
+        [8, 1.8, 6, 'brass'],
+        [10, 2.6, 7, 'foliage'],
+        [14, 2, 5.6, 'shirt'],
+      ],
+    ],
+    [
+      30.4,
+      [
+        [3.2, 2.2, 6.8, 'shirt'],
+        [5.6, 2, 5.4, 'brass'],
+        [7.9, 2.6, 7.2, 'foliage'],
+        [11, 2, 6, 'glass'],
+        [13.2, 2.4, 7, 'terracotta'],
+      ],
+    ],
+    [
+      21.6,
+      [
+        [3.2, 2.4, 7, 'foliage'],
+        [5.8, 2, 5.8, 'terracotta'],
+        [8, 2.2, 7.2, 'shirt'],
+        [10.6, 1.8, 6, 'glass'],
+        [12.6, 2.4, 6.6, 'brass'],
+      ],
+    ],
+  ];
+  for (const [y, books] of shelves) {
+    for (const [x, w, h, wash] of books) k.box(x, y - h, w, h, wash, { width: MARK });
+    k.box(2.4, y, 23.2, 1.6, 'wood', { width: SEAM });
+  }
+  k.box(2.4, 12.6, 23.2, 1.4, 'wood', { width: SEAM });
+  k.box(2.4, 46, 23.2, 1.6, 'wood', { width: SEAM });
+  k.box(0.6, 47.6, 26.8, 1.8, 'wood', { width: SEAM });
+  return finishCutOut(page);
+}
+
+// The floor lamp, 0.4375 m square and 1.5 m tall: a drum shade seen from above
+// and in front (its top y 1..10, its side y 5..14) on a thin brass pole over a
+// round base.
+function floorLamp() {
+  const page = createPage(14, 46, { seed: SEEDS.floorLamp, origin: [281, 108] });
+  const { k } = page;
+  k.blob(7, 42, 5.4, 2.6, 'shadow', { edges: false, hatching: 'shadow', wear: false });
+  k.blob(7, 41, 4.6, 2, 'wood', { width: SEAM });
+  k.box(6.2, 14, 1.6, 27, 'brass', { width: SEAM });
+  k.shape(
+    [
+      [1.6, 13.6],
+      [0.8, 5.6],
+      [13.2, 5.6],
+      [12.4, 13.6],
+    ],
+    'cream',
+    { width: SEAM },
+  );
+  k.blob(7, 5.6, 6.2, 4.4, 'lamp', { width: SEAM });
+  k.blob(7, 5.6, 2.4, 1.4, 'brass', { width: MARK });
+  return finishCutOut(page);
+}
+
+// The potted plant, 0.625 x 0.5 m and 1.125 m tall: balls of foliage over a
+// stem, in a round terracotta pot (y 30..40) with a rim.
+function pottedPlant() {
+  const page = createPage(20, 40, { seed: SEEDS.pottedPlant, origin: [294, 40] });
+  const { k } = page;
+  const leaves = { bump: 0.25, lobes: 7, hatching: FINE, width: SEAM };
+  k.blob(10, 38.4, 8.4, 2.6, 'shadow', { edges: false, hatching: 'shadow', wear: false });
+  k.box(9, 22, 2, 10, 'wood', { width: SEAM });
+  k.blob(5.6, 18, 5, 4.4, 'foliage', leaves);
+  k.blob(14.4, 14.4, 4.4, 4, 'foliage', leaves);
+  k.blob(10, 10.5, 6.4, 5.6, 'foliage', leaves);
+  k.blob(11.4, 4.6, 3.8, 3.4, 'foliage', leaves);
+  k.shape(
+    [
+      [4.4, 32.6],
+      [15.6, 32.6],
+      [14.4, 39.4],
+      [5.6, 39.4],
+    ],
+    'terracotta',
+    { width: SEAM },
+  );
+  k.box(3.4, 30.2, 13.2, 3.2, 'terracotta', { width: SEAM });
+  k.box(4.4, 30.6, 11.2, 1, 'soil', { edges: false });
+  return finishCutOut(page);
+}
+
 /** Stone darkened (by soot, by use) to sit below the floor: `stone` under a second layer of `shadow`, inked at `width`. */
 function darkStone(k, pts, width = 2.6) {
   k.shape(pts, 'stone', { edges: false });
@@ -374,4 +484,7 @@ writeSheets([
   ['spr_sofa', sofa],
   ['spr_armchair', armchair],
   ['spr_coffee_table', coffeeTable],
+  ['spr_bookcase', bookcase],
+  ['spr_floor_lamp', floorLamp],
+  ['spr_potted_plant', pottedPlant],
 ]);

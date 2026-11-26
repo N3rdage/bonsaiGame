@@ -38,12 +38,15 @@ import { INTERACT_RANGE, nearestInteractable } from './interactables';
 import { HALLWAY_BOUNDS, HALLWAY_ROOM } from './hallwayRoom';
 import {
   ARMCHAIR,
+  BOOKCASE,
   COFFEE_TABLE,
+  FLOOR_LAMP,
   HALLWAY_BLOCK,
   HALLWAY_BLOCK_CAPS,
   KITCHEN_COUNTER,
   KITCHEN_FLOOR,
   LOUNGE_ROOM,
+  POTTED_PLANT,
   SOFA,
 } from './loungeRoom';
 import { STUDY_ROOM } from './studyRoom';
@@ -452,13 +455,16 @@ describe('lounge room', () => {
       { x: 144, y: 48, w: 16, h: 176 },
       { x: 432, y: 48, w: 16, h: 176 },
       // The hallway's 3 x 2 m block, the fireplace, the side table, the sofa, the coffee table, the
-      // armchair and the kitchen counter's runs.
+      // armchair, the bookcase, the lamp, the plant and the kitchen counter's runs.
       { x: 336, y: 64, w: 96, h: 64 },
       { x: 224, y: 64, w: 32, h: 24 },
       { x: 160, y: 64, w: 16, h: 16 },
       { x: 176, y: 98, w: 28, h: 60 },
       { x: 210, y: 112, w: 20, h: 32 },
       { x: 276, y: 112, w: 24, h: 24 },
+      { x: 258, y: 64, w: 28, h: 12 },
+      { x: 281, y: 140, w: 14, h: 14 },
+      { x: 294, y: 64, w: 20, h: 16 },
       { x: 336, y: 188, w: 96, h: 20 },
       { x: 412, y: 128, w: 20, h: 60 },
     ]);
@@ -616,7 +622,43 @@ describe('lounge room', () => {
     }
   });
 
-  it('keeps every door landing, display spot and the kitchen in reach of the start with the seating in', () => {
+  it('dresses the room with a bookcase, a floor lamp and a potted plant: solid, in the walls, clear of the windows and the mantel column', () => {
+    const dressing = [BOOKCASE, FLOOR_LAMP, POTTED_PLANT];
+    expect(
+      dressing.map(({ sheet, x, y, w, h, solid, sorted, stands }) => [
+        sheet.key,
+        x,
+        y,
+        w,
+        h,
+        solid,
+        sorted,
+        stands?.height,
+      ]),
+    ).toEqual([
+      ['spr_bookcase', 258, 64, 28, 12, true, true, 38],
+      ['spr_floor_lamp', 281, 140, 14, 14, true, true, 32],
+      ['spr_potted_plant', 294, 64, 20, 16, true, true, 24],
+    ]);
+    const floor = insideWalls(LOUNGE_ROOM);
+    for (const piece of dressing) {
+      expect(LOUNGE_ROOM.furniture).toContain(piece);
+      expect(LOUNGE_ROOM.walls).toContainEqual({ x: piece.x, y: piece.y, w: piece.w, h: piece.h });
+      expect(piece.x).toBeGreaterThanOrEqual(floor.x);
+      expect(piece.x + piece.w).toBeLessThanOrEqual(336);
+      expect(piece.y).toBeGreaterThanOrEqual(floor.y);
+      expect(hitsWall(LOUNGE_ROOM, piece.x + piece.w / 2, piece.y + piece.h / 2)).toBe(true);
+    }
+    // The bookcase stands between the fireplace (to x 256) and the east window (from x 288), and
+    // the column x 232..248 a walk up to the mantel takes is clear of every piece.
+    expect(BOOKCASE.x).toBeGreaterThanOrEqual(256);
+    expect(BOOKCASE.x + BOOKCASE.w).toBeLessThanOrEqual(288);
+    for (const piece of dressing) expect(piece.x).toBeGreaterThan(248);
+    // The east window's pane is x 288..320, the plant stands before it, solid, centred on it.
+    expect(POTTED_PLANT.x + POTTED_PLANT.w / 2).toBe(304);
+  });
+
+  it('keeps every door landing, display spot and the kitchen in reach of the start with the furniture in', () => {
     // A flood fill over 2 px cells for a player 12 px wide: a cell is free if its four corners, 6 px
     // out, are clear of the walls.
     const free = (x: number, y: number) =>
@@ -650,9 +692,9 @@ describe('lounge room', () => {
     for (const spot of LOUNGE_ROOM.props.filter((p) => p.pedestalKey !== undefined)) {
       expect(reaches(spot.x, spot.y, INTERACT_RANGE), spot.key).toBe(true);
     }
-    // The seating itself is not stood in: neither landing, nor the start, touches a piece.
+    // No furniture is stood in: neither landing, nor the start, touches a piece.
     for (const p of [LOUNGE_ROOM.playerStart, { x: 318, y: 96 }]) {
-      for (const f of [SOFA, COFFEE_TABLE, ARMCHAIR]) {
+      for (const f of [SOFA, COFFEE_TABLE, ARMCHAIR, BOOKCASE, FLOOR_LAMP, POTTED_PLANT]) {
         const gap = Math.max(
           f.x - p.x - 12,
           p.x - f.x - f.w - 12,

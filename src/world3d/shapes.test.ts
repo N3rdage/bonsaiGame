@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { roundedBox, roundedBoxVertexCount } from './shapes';
+import {
+  ball,
+  ballVertexCount,
+  cone,
+  coneVertexCount,
+  cylinder,
+  cylinderVertexCount,
+  roundedBox,
+  roundedBoxVertexCount,
+  type ShapeData,
+} from './shapes';
 
 type Triple = readonly [number, number, number];
 
@@ -105,5 +115,91 @@ describe('roundedBox', () => {
   it('refuses a radius that is not above zero', () => {
     expect(() => roundedBox(1, 1, 1, 0)).toThrow(RangeError);
     expect(() => roundedBoxVertexCount(1, 1, 1, -1)).toThrow(RangeError);
+  });
+});
+
+const ROUND_CASES: readonly (readonly [string, () => ShapeData, number])[] = [
+  ['a cylinder', () => cylinder(0.4, 1.2, 0.4), cylinderVertexCount()],
+  ['a wide cylinder on 7 sides', () => cylinder(1, 0.2, 0.6, 7), cylinderVertexCount(7)],
+  ['a cone', () => cone(0.6, 0.9, 0.6), coneVertexCount()],
+  ['a frustum', () => cone(0.5, 0.3, 0.4, 12, 0.55), coneVertexCount(12, 0.55)],
+  ['a ball', () => ball(0.5, 0.5, 0.5), ballVertexCount()],
+  ['an ellipsoid', () => ball(0.6, 0.3, 0.9, 8, 4), ballVertexCount(8, 4)],
+];
+
+describe.each(ROUND_CASES)('%s', (_name, build, count) => {
+  it('has the vertices its count says, and a normal and uv for each', () => {
+    const shape = build();
+    expect(shape.positions.length / 3).toBe(count);
+    expect(shape.normals).toHaveLength(shape.positions.length);
+    expect(shape.uvs.length / 2).toBe(count);
+  });
+
+  it('has unit normals that point away from the middle', () => {
+    const { positions, normals } = build();
+    for (let n = 0; n < positions.length / 3; n++) {
+      expect(Math.hypot(...at(normals, n))).toBeCloseTo(1, 9);
+      expect(dot(at(normals, n), at(positions, n))).toBeGreaterThanOrEqual(-1e-9);
+    }
+  });
+
+  it('indexes in range and winds every triangle into the shape, as CreateBox does', () => {
+    const { positions, indices } = build();
+    const total = positions.length / 3;
+    expect(indices.length % 3).toBe(0);
+    expect(indices.every((i) => Number.isInteger(i) && i >= 0 && i < total)).toBe(true);
+    for (let t = 0; t < indices.length; t += 3) {
+      const [a, b, c] = [indices[t] ?? 0, indices[t + 1] ?? 0, indices[t + 2] ?? 0];
+      const [pa, pb, pc] = [at(positions, a), at(positions, b), at(positions, c)];
+      const area = cross(sub(pb, pa), sub(pc, pa));
+      const middle: Triple = [
+        (pa[0] + pb[0] + pc[0]) / 3,
+        (pa[1] + pb[1] + pc[1]) / 3,
+        (pa[2] + pb[2] + pc[2]) / 3,
+      ];
+      // Every shape is convex and centred on the origin, so a triangle facing out has its middle on the side its cross product leaves.
+      expect(dot(area, middle)).toBeLessThan(1e-12);
+    }
+  });
+
+  it('is deterministic', () => {
+    expect(build()).toEqual(build());
+  });
+});
+
+describe('round shapes', () => {
+  it('fill the box they are given', () => {
+    const boxes: [ShapeData, Triple][] = [
+      [cylinder(0.4, 1.2, 0.6, 12), [0.4, 1.2, 0.6]],
+      [cone(0.4, 1.2, 0.6, 12), [0.4, 1.2, 0.6]],
+      [ball(0.4, 1.2, 0.6, 12, 6), [0.4, 1.2, 0.6]],
+    ];
+    for (const [{ positions }, size] of boxes) {
+      for (let axis = 0; axis < 3; axis++) {
+        const coords = positions.filter((_, i) => i % 3 === axis);
+        expect(Math.max(...coords)).toBeCloseTo((size[axis] ?? 0) / 2, 9);
+        expect(Math.min(...coords)).toBeCloseTo(-(size[axis] ?? 0) / 2, 9);
+      }
+    }
+  });
+
+  it('count a cone as a ring, an apex and a base middle, and a cylinder as two rings and two middles', () => {
+    expect(coneVertexCount(10)).toBe(12);
+    expect(cylinderVertexCount(10)).toBe(22);
+    expect(ballVertexCount(10, 5)).toBe(42);
+  });
+
+  it('narrow a frustum to its taper at the top', () => {
+    const { positions } = cone(1, 1, 1, 8, 0.5);
+    const topRing = [...Array(positions.length / 3).keys()]
+      .map((n) => at(positions, n))
+      .filter(([x, y, z]) => y > 0.49 && Math.hypot(x, z) > 0.1);
+    expect(topRing).toHaveLength(8);
+    for (const [x, , z] of topRing) expect(Math.hypot(x, z)).toBeCloseTo(0.25, 9);
+  });
+
+  it('refuse a taper outside 0 to 1', () => {
+    expect(() => cone(1, 1, 1, 8, 1.5)).toThrow(RangeError);
+    expect(() => cone(1, 1, 1, 8, -0.1)).toThrow(RangeError);
   });
 });
