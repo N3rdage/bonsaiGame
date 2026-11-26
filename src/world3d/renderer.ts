@@ -73,6 +73,7 @@ import {
 } from './roomCache';
 import { shadowFrustum } from './shadowFrustum';
 import {
+  AVATAR_SCALE_DEFAULT,
   BODY_SCALE,
   PLAYER_CLIPS,
   type ClipName,
@@ -154,6 +155,8 @@ export interface RendererSnapshot {
   readonly model: 'character';
   /** True once the body's model and clips have loaded; before, the player's place is empty. */
   readonly bodyLoaded: boolean;
+  /** How big the body is drawn, as a fraction of its full size. */
+  readonly avatarScale: number;
   /** How much of each clip the player's pose is made of now, summing to 1. */
   readonly clips: ClipWeights;
   /** True while something casts a shadow onto the floor. */
@@ -370,8 +373,13 @@ export class Renderer {
         readonly meshes: readonly AbstractMesh[];
         readonly nodes: ReadonlyMap<string, TransformNode>;
         readonly clips: Readonly<Record<ClipName, Clip>>;
+        /** The body root and its scaling before the avatar size, which the glTF loader sets to turn the file's frame. */
+        readonly root: AbstractMesh;
+        readonly rootScaling: Vector3;
       }
     | undefined;
+  /** How big the body is drawn, as a fraction of its full size (AVATAR_SCALES). */
+  private avatarScale: number = AVATAR_SCALE_DEFAULT;
   /** True once `dispose` ran, so a body that loads after it is let go. */
   private disposed = false;
   /** The plan heading the player faces; a new session faces away from the default camera, north. */
@@ -524,7 +532,7 @@ export class Renderer {
     }
     container.addAllToScene();
     root.parent = this.player;
-    root.scaling.scaleInPlace(BODY_SCALE);
+    const rootScaling = root.scaling.clone();
     const material = new StandardMaterial('player', this.scene);
     // glTF's texture coordinates start at the image's top, so the atlas is not flipped.
     material.diffuseTexture = new Texture(BODY_FILES.texture, this.scene, false, false);
@@ -537,10 +545,30 @@ export class Renderer {
       // The bounds are the bind pose's; a swinging limb must not be culled with them.
       mesh.alwaysSelectAsActiveMesh = true;
       this.shadows.addShadowCaster(mesh);
-      this.ink(mesh, BODY_SCALE);
     }
     const nodes = new Map(container.transformNodes.map((node) => [node.name, node]));
-    this.body = { meshes, nodes, clips: { idle, walk } };
+    this.body = { meshes, nodes, clips: { idle, walk }, root, rootScaling };
+    this.sizeBody();
+  }
+
+  /** Draws the body at `scale` of its full size (a feel setting, AVATAR_SCALES): at once if it has loaded, else when it does. */
+  setAvatarScale(scale: number): void {
+    if (scale === this.avatarScale) return;
+    this.avatarScale = scale;
+    this.sizeBody();
+  }
+
+  /** The metres a unit of the body's model is drawn as: its full-size scale times the avatar size. */
+  private bodyScale(): number {
+    return BODY_SCALE * this.avatarScale;
+  }
+
+  /** Scales the body and its ink outline to the avatar size, the outline staying the same width on screen. */
+  private sizeBody(): void {
+    if (!this.body) return;
+    const scale = this.bodyScale();
+    this.body.root.scaling.copyFrom(this.body.rootScaling).scaleInPlace(scale);
+    for (const mesh of this.body.meshes) this.ink(mesh, scale);
   }
 
   /** Starts a benchmark run in the room shown (src/world3d/bench.ts), dropping any earlier one. */
@@ -570,6 +598,7 @@ export class Renderer {
       facing: this.facing,
       model: 'character',
       bodyLoaded: this.body !== undefined,
+      avatarScale: this.avatarScale,
       clips: this.clips,
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       shadowMap: this.shadowMapState(),
@@ -737,7 +766,11 @@ export class Renderer {
     this.player.rotation.y = this.facing + Math.PI / 2;
     const feet = toBabylon(plan);
     this.player.position.set(feet.x, feet.y, feet.z);
-    this.follow({ x: feet.x, y: feet.y + PLAYER_HEIGHT / 2, z: feet.z }, fresh, elapsed);
+    this.follow(
+      { x: feet.x, y: feet.y + (PLAYER_HEIGHT * this.avatarScale) / 2, z: feet.z },
+      fresh,
+      elapsed,
+    );
     this.cutAway(plan);
     this.fit();
     this.scene.render();
@@ -818,7 +851,8 @@ export class Renderer {
       return duration > 0 ? duration : Infinity;
     };
     if (!this.stillIdle) this.clocks.idle = (this.clocks.idle + dt) % loop('idle');
-    this.clocks.walk = (this.clocks.walk + dt * walkRate(this.speed)) % loop('walk');
+    this.clocks.walk =
+      (this.clocks.walk + dt * walkRate(this.speed, this.avatarScale)) % loop('walk');
     if (!this.body) return;
     for (const [name, { rotation, translation }] of poseOf(
       this.body.clips,
@@ -858,7 +892,7 @@ export class Renderer {
     if (!this.shown) return;
     const { plan, pieces } = this.shown;
     const { alpha, beta, radius } = this.camera;
-    const names = cutNames(plan, { alpha, beta, radius }, player)
+    const names = cutNames(plan, { alpha, beta, radius }, player, PLAYER_HEIGHT * this.avatarScale)
       .filter((name) => pieces.has(name))
       .sort();
     if (names.join() === this.cut.join()) return;
@@ -1596,6 +1630,6 @@ export class Renderer {
     for (const mesh of this.scene.meshes) {
       if (mesh.renderOutline) mesh.outlineWidth = this.outlineWidth;
     }
-    for (const mesh of this.body?.meshes ?? []) this.ink(mesh, BODY_SCALE);
+    for (const mesh of this.body?.meshes ?? []) this.ink(mesh, this.bodyScale());
   }
 }

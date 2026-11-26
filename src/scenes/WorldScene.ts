@@ -2145,6 +2145,7 @@ export class WorldScene extends Phaser.Scene {
       weather,
       (key) => this.liveRoomOf(ROOMS[key]),
       gameSeconds,
+      settings.avatarScale,
     );
     const on = this.world3d.active;
     if (this.worldCamera.visible === !on) return;

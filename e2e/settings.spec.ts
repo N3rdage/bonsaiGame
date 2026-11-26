@@ -22,6 +22,7 @@ const PANEL_CONTROLS = [
   'panel-music',
   'panel-world3d',
   'panel-timespeed',
+  'panel-avatarsize',
   'panel-close',
 ];
 

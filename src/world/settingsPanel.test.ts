@@ -20,6 +20,7 @@ describe('settings panel', () => {
       ['panel-music', 'Music: On', true],
       ['panel-world3d', '3D world (preview): Off', true],
       ['panel-timespeed', 'Time speed: 1x', true],
+      ['panel-avatarsize', 'Avatar size: 70%', true],
     ]);
   });
 
@@ -32,6 +33,7 @@ describe('settings panel', () => {
         music: false,
         world3d: true,
         timeSpeed: 2,
+        avatarScale: 0.9,
       },
       { available: true, active: true },
     );
@@ -42,6 +44,7 @@ describe('settings panel', () => {
       'Music: Off',
       '3D world (preview): On',
       'Time speed: 2x',
+      'Avatar size: 90%',
     ]);
   });
 

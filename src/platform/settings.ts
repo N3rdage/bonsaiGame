@@ -6,6 +6,7 @@
  * ported, a browser's canvas already fits its window.
  */
 
+import { AVATAR_SCALE_DEFAULT, parseAvatarScale, type AvatarScale } from '../world3d/character';
 import { parseTimeSpeed, type TimeSpeed } from '../sim/timeOfDay';
 
 export interface Settings {
@@ -19,6 +20,8 @@ export interface Settings {
   world3d: boolean;
   /** The day clock's speed (1x, 2x or 4x). Per machine: a save never carries it. */
   timeSpeed: TimeSpeed;
+  /** How big the 3D world draws the player, as a fraction of full size (AVATAR_SCALES): a feel setting, not real scale. */
+  avatarScale: AvatarScale;
 }
 
 /** init_settings: windowed, weather particles on; sound and music on (the prototype had no mixer). */
@@ -29,6 +32,7 @@ export const DEFAULT_SETTINGS: Readonly<Settings> = {
   music: true,
   world3d: false,
   timeSpeed: 1,
+  avatarScale: AVATAR_SCALE_DEFAULT,
 };
 
 /** Where the settings text lives; read gives undefined when there is none or it cannot be read. */
@@ -59,11 +63,14 @@ export function loadSettings(storage: SettingsStorage): Settings {
     if (typeof value === 'boolean') settings[key] = value;
   }
   settings.timeSpeed = parseTimeSpeed(stored.timeSpeed) ?? DEFAULT_SETTINGS.timeSpeed;
+  settings.avatarScale = parseAvatarScale(stored.avatarScale) ?? DEFAULT_SETTINGS.avatarScale;
   return settings;
 }
 
 /** save_settings. */
 export function saveSettings(storage: SettingsStorage, settings: Settings): void {
-  const { fullscreen, weather, sound, music, world3d, timeSpeed } = settings;
-  storage.write(JSON.stringify({ fullscreen, weather, sound, music, world3d, timeSpeed }));
+  const { fullscreen, weather, sound, music, world3d, timeSpeed, avatarScale } = settings;
+  storage.write(
+    JSON.stringify({ fullscreen, weather, sound, music, world3d, timeSpeed, avatarScale }),
+  );
 }

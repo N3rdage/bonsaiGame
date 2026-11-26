@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ANIMATION_CLIPS,
+  AVATAR_SCALES,
+  AVATAR_SCALE_DEFAULT,
   BODY_MODEL_HEIGHT,
   BODY_SCALE,
   CHARACTER_HEIGHT,
@@ -10,6 +12,8 @@ import {
   WALK_FOOT_SPEED,
   WALK_FULL_SPEED,
   fadeWeights,
+  nextAvatarScale,
+  parseAvatarScale,
   poseOf,
   sampleTrack,
   smoothSpeed,
@@ -315,9 +319,9 @@ describe('the blend', () => {
   });
 
   it('plays the walk at 1 at the stride speed, within 0.5 and 2 either side', () => {
-    expect(walkRate(STRIDE_SPEED)).toBeCloseTo(1);
-    expect(walkRate(0)).toBe(0.5);
-    expect(walkRate(100)).toBe(2);
+    expect(walkRate(STRIDE_SPEED, 1)).toBeCloseTo(1);
+    expect(walkRate(0, 1)).toBe(0.5);
+    expect(walkRate(100, 1)).toBe(2);
   });
 
   // The player's full speed, 2.34 m/s, is over four times the walk's own pace: the clip plays at
@@ -325,6 +329,31 @@ describe('the blend', () => {
   it('plays the walk at its fastest at the player full speed', () => {
     const full = (MOVE_SPEED * 60) / 32;
     expect(full / STRIDE_SPEED).toBeGreaterThan(4);
-    expect(walkRate(full)).toBe(2);
+    expect(walkRate(full, 1)).toBe(2);
+  });
+});
+
+describe('the avatar size', () => {
+  it('is a feel setting with five steps, 70% by default', () => {
+    expect(AVATAR_SCALES).toEqual([0.6, 0.7, 0.8, 0.9, 1]);
+    expect(AVATAR_SCALE_DEFAULT).toBe(0.7);
+  });
+
+  it('cycles up through the steps and from the largest back to the smallest', () => {
+    expect(AVATAR_SCALES.map(nextAvatarScale)).toEqual([0.7, 0.8, 0.9, 1, 0.6]);
+  });
+
+  it('parses only an allowed step', () => {
+    for (const scale of AVATAR_SCALES) expect(parseAvatarScale(scale)).toBe(scale);
+    for (const bad of [0.75, 0, 2, '0.7', null, undefined, NaN]) {
+      expect(parseAvatarScale(bad)).toBeUndefined();
+    }
+  });
+
+  it('scales the walk stride with the body, so the feet slide no more at any step', () => {
+    for (const scale of AVATAR_SCALES) {
+      expect(walkRate(STRIDE_SPEED * scale, scale)).toBeCloseTo(1);
+    }
+    expect(walkRate(STRIDE_SPEED * 0.7, 0.7)).toBeCloseTo(walkRate(STRIDE_SPEED, 1));
   });
 });

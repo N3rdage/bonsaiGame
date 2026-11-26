@@ -69,6 +69,8 @@ interface BonsaiTestHook {
     readonly playerModel: 'character' | null;
     /** True once the player's body (its model and clips) has loaded and stands in the room; false before and while off. */
     readonly bodyLoaded: boolean;
+    /** How big the player's body is drawn, as a fraction of its full size (the Settings panel's Avatar size: 0.6 to 1); the default, 0.7, while off. */
+    readonly avatarScale: number;
     /** How much of each clip the player's pose is made of now, 0 to 1 and summing to 1 (idle at rest, walk walking, between while they cross-fade); both 0 while off. */
     readonly clips: { readonly idle: number; readonly walk: number };
     /** True while something casts a shadow onto the floor (the player always does); false while off. */
@@ -297,7 +299,7 @@ interface BonsaiTestHook {
    * (enabled ones) and the Skip confirmation's 'panel-cancel' and 'panel-skip'; Plant's
    * 'panel-select-<species>' (unselected cuttings), 'panel-select-seed-<species>' (unselected seeds), 'panel-fancy' and 'panel-soil' (while shown) and 'panel-plant' (while enabled);
    * 'menu-settings' (the HUD menu's Settings row), 'menu-inventory' (its Inventory (I) row), 'menu-sleep' and 'menu-sleep-week' (its Sleep (Z) and Sleep a week rows), and the Settings panel's 'panel-fullscreen' (only where the browser offers
-   * fullscreen), 'panel-weather', 'panel-sound', 'panel-music', 'panel-world3d', 'panel-timespeed' and 'panel-close', in the world and on the title (whose menu button is 'settings').
+   * fullscreen), 'panel-weather', 'panel-sound', 'panel-music', 'panel-world3d', 'panel-timespeed', 'panel-avatarsize' and 'panel-close', in the world and on the title (whose menu button is 'settings').
    * `hit` is the control's tap target (the rect the scene gave Phaser's setInteractive) in logical px, top-left and
    * size: its text box grown to the UI metrics' `hit` (src/world/uiScale.ts) and kept inside the canvas.
    */
