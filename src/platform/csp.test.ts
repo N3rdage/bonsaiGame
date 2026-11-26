@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -144,5 +144,16 @@ describe('Cache-Control routes', () => {
     const files = readdirSync(path.join(root, dir)).filter((name) => name.endsWith(extension));
     expect(files.length).toBeGreaterThan(0);
     for (const name of files) expect(cacheControl(`${urlPrefix}${name}`), name).toBe(NO_CACHE);
+  });
+
+  it('serves no player body file from public/, so each is a hashed asset the immutable route covers', () => {
+    for (const name of ['rogue.glb', 'rogue_texture.png', 'animations.glb']) {
+      expect(existsSync(path.join(root, 'src/world3d/player', name)), name).toBe(true);
+    }
+    for (const name of ['rogue.glb', 'rogue_texture.png', 'animations.glb']) {
+      expect(existsSync(path.join(root, 'public/assets/player', name)), name).toBe(false);
+    }
+    expect(cacheControl('/assets/rogue-abc123.glb')).toBe(IMMUTABLE);
+    expect(cacheControl('/assets/rogue_texture-abc123.png')).toBe(IMMUTABLE);
   });
 });

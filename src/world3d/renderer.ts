@@ -1,6 +1,6 @@
 /**
  * The Babylon side of the 3D world: an engine on its own canvas laid under the
- * game's, a scene of boxes from `meshSpecs` and a skinned character for the player. The
+ * game's, a scene of boxes from `meshSpecs` and a loaded, skinned character for the player. The
  * only module that imports Babylon, and only world3d.ts reaches it, through a
  * dynamic import, so a player with the setting off downloads none of it. The
  * game stays the 2D game's Phaser scene: this draws what it is told.
@@ -20,8 +20,9 @@ import { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
 import { Texture } from '@babylonjs/core/Materials/Textures/texture';
 import { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 import { Matrix, Quaternion, Vector3 } from '@babylonjs/core/Maths/math.vector';
-import { Bone } from '@babylonjs/core/Bones/bone';
-import { Skeleton } from '@babylonjs/core/Bones/skeleton';
+import { LoadAssetContainerAsync } from '@babylonjs/core/Loading/sceneLoader';
+// The glTF 2.0 loader alone (it registers the .glb plugin), not the package's other formats or extensions.
+import '@babylonjs/loaders/glTF/2.0/glTFLoader';
 import { CreateBox } from '@babylonjs/core/Meshes/Builders/boxBuilder';
 import { CreateCylinder } from '@babylonjs/core/Meshes/Builders/cylinderBuilder';
 import { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
@@ -33,6 +34,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 import { Scene } from '@babylonjs/core/scene';
 import { Bench, type BenchResult } from './bench';
+import { BODY_FILES } from './bodyFiles';
 import type { Season } from '../sim/seasons';
 import { PALETTE } from '../world/palette';
 import { sheetUrl, type Sheet } from '../world/assets';
@@ -71,19 +73,16 @@ import {
 } from './roomCache';
 import { shadowFrustum } from './shadowFrustum';
 import {
-  JOINT_NAMES,
+  BODY_SCALE,
+  PLAYER_CLIPS,
   type ClipName,
   type ClipWeights,
-  type JointName,
-  characterMesh,
-  clipDuration,
   fadeWeights,
-  parentOf,
   poseOf,
-  restOffset,
   smoothSpeed,
   walkRate,
 } from './character';
+import { readClips, readGlb, type Clip } from './glb';
 import { facingOf } from './move';
 import {
   PLAYER_HEIGHT,
@@ -153,6 +152,8 @@ export interface RendererSnapshot {
   readonly facing: number;
   /** The kind of model standing for the player. */
   readonly model: 'character';
+  /** True once the body's model and clips have loaded; before, the player's place is empty. */
+  readonly bodyLoaded: boolean;
   /** How much of each clip the player's pose is made of now, summing to 1. */
   readonly clips: ClipWeights;
   /** True while something casts a shadow onto the floor. */
@@ -361,9 +362,18 @@ export class Renderer {
   private readonly camera: ArcRotateCamera;
   private readonly shadows: ShadowGenerator;
   private readonly sun: DirectionalLight;
-  /** The player's skinned body, its origin at the feet. */
-  private readonly player: Mesh;
-  private readonly bones: Readonly<Record<JointName, Bone>>;
+  /** The node at the player's feet, turned to its facing; the body hangs from it once loaded. */
+  private readonly player: TransformNode;
+  /** The loaded body: its meshes, its bones' nodes by name and the idle and walk clips. */
+  private body:
+    | {
+        readonly meshes: readonly AbstractMesh[];
+        readonly nodes: ReadonlyMap<string, TransformNode>;
+        readonly clips: Readonly<Record<ClipName, Clip>>;
+      }
+    | undefined;
+  /** True once `dispose` ran, so a body that loads after it is let go. */
+  private disposed = false;
   /** The plan heading the player faces; a new session faces away from the default camera, north. */
   private facing = -Math.PI / 2;
   /** Where the player stood last frame, plan metres. */
@@ -375,7 +385,6 @@ export class Renderer {
   private readonly clocks: Record<ClipName, number> = { idle: 0, walk: 0 };
   /** True when the browser asks for reduced motion: the idle clip then holds its first pose, so a player at rest is still. */
   private readonly stillIdle = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  private readonly boneMatrix = new Matrix();
   private room: Room['key'] | undefined;
   private roomChanges: RoomChange[] = [];
   private aheadBuilds: AheadBuild[] = [];
@@ -474,22 +483,10 @@ export class Renderer {
     this.glassMaterial.specularColor = Color3.Black();
     this.glassMaterial.alpha = GLASS_ALPHA;
     lookLit(this.glassMaterial, this.toLight);
-    const skeleton = new Skeleton('player', 'player', this.scene);
-    const bones: Partial<Record<JointName, Bone>> = {};
-    for (const joint of JOINT_NAMES) {
-      const [x, y, z] = restOffset(joint);
-      const parent = parentOf(joint);
-      bones[joint] = new Bone(
-        joint,
-        skeleton,
-        parent ? (bones[parent] ?? null) : null,
-        Matrix.Translation(x, y, z),
-      );
-    }
-    this.bones = bones as Record<JointName, Bone>;
-    this.player = this.skinned(skeleton);
-    this.shadows.addShadowCaster(this.player);
-    this.ink(this.player);
+    this.player = new TransformNode('player', this.scene);
+    this.loadBody().catch((error: unknown) => {
+      console.error('The player body did not load', error);
+    });
     for (const room of Object.values(ROOMS)) {
       const floor = paintedFloor(room);
       if (floor) this.surfaceTexture(floor);
@@ -499,24 +496,51 @@ export class Renderer {
     }
   }
 
-  /** The character's body as one mesh skinned to `skeleton`, whose bones are in `JOINT_NAMES` order. */
-  private skinned(skeleton: Skeleton): Mesh {
-    const body = characterMesh();
-    const mesh = new Mesh('player', this.scene);
-    const vertices = new VertexData();
-    vertices.positions = body.positions;
-    vertices.normals = body.normals;
-    vertices.colors = body.colors;
-    vertices.matricesIndices = body.joints;
-    vertices.matricesWeights = body.weights;
-    vertices.indices = body.indices;
-    vertices.applyToMesh(mesh);
-    mesh.skeleton = skeleton;
-    mesh.material = this.colourMaterial;
-    mesh.isPickable = false;
-    // The bounds are the bind pose's; a swinging limb must not be culled with them.
-    mesh.alwaysSelectAsActiveMesh = true;
-    return mesh;
+  /**
+   * Loads the player's body (`BODY_FILES`, bodyFiles.ts) and hangs it from
+   * the player's node, scaled to `CHARACTER_HEIGHT`; until it arrives the
+   * player's place is empty and the world draws on. The glTF loader turns the
+   * file's right-handed frame under its `__root__`, which keeps the model's
+   * front on +z. The clips are read from their file as plain keys
+   * (`readClips`), never played by Babylon, so they run on the game's clock.
+   */
+  private async loadBody(): Promise<void> {
+    const [container, clips] = await Promise.all([
+      LoadAssetContainerAsync(BODY_FILES.body, this.scene, {
+        pluginOptions: { gltf: { skipMaterials: true } },
+      }),
+      fetch(BODY_FILES.clips).then(async (response) => {
+        if (!response.ok) throw new Error(`${BODY_FILES.clips}: ${String(response.status)}`);
+        return readClips(readGlb(await response.arrayBuffer()));
+      }),
+    ]);
+    const idle = clips.get(PLAYER_CLIPS.idle);
+    const walk = clips.get(PLAYER_CLIPS.walk);
+    const root = container.meshes.find((mesh) => mesh.name === '__root__');
+    if (this.disposed || !idle || !walk || !root) {
+      container.dispose();
+      if (this.disposed) return;
+      throw new Error('the player body file has no root or its clips are missing');
+    }
+    container.addAllToScene();
+    root.parent = this.player;
+    root.scaling.scaleInPlace(BODY_SCALE);
+    const material = new StandardMaterial('player', this.scene);
+    // glTF's texture coordinates start at the image's top, so the atlas is not flipped.
+    material.diffuseTexture = new Texture(BODY_FILES.texture, this.scene, false, false);
+    material.specularColor = Color3.Black();
+    lookLit(material, this.toLight);
+    const meshes = container.meshes.filter((mesh) => mesh.getTotalVertices() > 0);
+    for (const mesh of meshes) {
+      mesh.material = material;
+      mesh.isPickable = false;
+      // The bounds are the bind pose's; a swinging limb must not be culled with them.
+      mesh.alwaysSelectAsActiveMesh = true;
+      this.shadows.addShadowCaster(mesh);
+      this.ink(mesh, BODY_SCALE);
+    }
+    const nodes = new Map(container.transformNodes.map((node) => [node.name, node]));
+    this.body = { meshes, nodes, clips: { idle, walk } };
   }
 
   /** Starts a benchmark run in the room shown (src/world3d/bench.ts), dropping any earlier one. */
@@ -545,6 +569,7 @@ export class Renderer {
       cut: this.cut,
       facing: this.facing,
       model: 'character',
+      bodyLoaded: this.body !== undefined,
       clips: this.clips,
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       shadowMap: this.shadowMapState(),
@@ -781,24 +806,29 @@ export class Renderer {
    * Moves the player's pose on by `dt` seconds of game time, the time the frame's
    * fixed steps covered (a slow frame on the wall clock does not stretch it):
    * its speed over the ground (the metres its feet moved in that time,
-   * smoothed) sets the clip weights and the walk clip's rate, and the bones
-   * take the blended pose.
+   * smoothed) sets the clip weights and the walk clip's rate, and, once the
+   * body has loaded, its bones' nodes take the blended pose.
    */
   private animate(moved: number, dt: number): void {
     this.speed = smoothSpeed(this.speed, moved, dt);
     this.clips = fadeWeights(this.clips, this.speed, dt);
-    if (!this.stillIdle) this.clocks.idle = (this.clocks.idle + dt) % clipDuration('idle');
-    this.clocks.walk = (this.clocks.walk + dt * walkRate(this.speed)) % clipDuration('walk');
-    const pose = poseOf(this.clips, this.clocks);
-    for (const joint of JOINT_NAMES) {
-      const { rotation, translation } = pose[joint];
-      Matrix.ComposeToRef(
-        Vector3.OneReadOnly,
-        new Quaternion(...rotation),
-        new Vector3(...translation),
-        this.boneMatrix,
-      );
-      this.bones[joint].updateMatrix(this.boneMatrix, false);
+    // A clip loops over its length; before the body loads its clock just runs.
+    const loop = (clip: ClipName): number => {
+      const duration = this.body?.clips[clip].duration ?? 0;
+      return duration > 0 ? duration : Infinity;
+    };
+    if (!this.stillIdle) this.clocks.idle = (this.clocks.idle + dt) % loop('idle');
+    this.clocks.walk = (this.clocks.walk + dt * walkRate(this.speed)) % loop('walk');
+    if (!this.body) return;
+    for (const [name, { rotation, translation }] of poseOf(
+      this.body.clips,
+      this.clips,
+      this.clocks,
+    )) {
+      const node = this.body.nodes.get(name);
+      if (!node) continue;
+      if (rotation) (node.rotationQuaternion ??= new Quaternion()).set(...rotation);
+      if (translation) node.position.set(...translation);
     }
   }
 
@@ -908,6 +938,7 @@ export class Renderer {
 
   /** Removes the canvas and everything on the GPU, and gives the game's canvas back its style. */
   dispose(): void {
+    this.disposed = true;
     for (const set of this.sets.values()) this.release(set);
     this.sets.clear();
     this.shown = undefined;
@@ -1471,11 +1502,15 @@ export class Renderer {
     return mesh;
   }
 
-  /** Draws `mesh` with the ink outline (`LOOK.ink`) in the width the canvas's size gives; Babylon outlines thin instances in the same one draw. */
-  private ink(mesh: AbstractMesh): void {
+  /**
+   * Draws `mesh` with the ink outline (`LOOK.ink`) in the width the canvas's size gives; Babylon
+   * outlines thin instances in the same one draw. The outline grows in the mesh's own units, so a
+   * mesh drawn at `scale` metres a unit gets a width of `1 / scale` of them.
+   */
+  private ink(mesh: AbstractMesh, scale = 1): void {
     mesh.renderOutline = true;
     mesh.outlineColor = new Color3(...unitRgb(LOOK.ink));
-    mesh.outlineWidth = this.outlineWidth;
+    mesh.outlineWidth = this.outlineWidth / scale;
   }
 
   /** Disposes a mesh that may cast a shadow, taking it off the shadow map's list first. */
@@ -1561,5 +1596,6 @@ export class Renderer {
     for (const mesh of this.scene.meshes) {
       if (mesh.renderOutline) mesh.outlineWidth = this.outlineWidth;
     }
+    for (const mesh of this.body?.meshes ?? []) this.ink(mesh, BODY_SCALE);
   }
 }

@@ -69,13 +69,14 @@ async function waitForAhead(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__bonsai?.world3d?.aheadPending === 0);
 }
 
-/** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid. */
+/** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid, and the player's body loaded. */
 async function waitForRoom(page: Page, room: RoomKey): Promise<void> {
   await page.waitForFunction(
     ([r, sheets]) =>
       window.__bonsai?.world3d?.room === r &&
       window.__bonsai.world3d.floorSheet !== null &&
-      window.__bonsai.world3d.wallSheets.length === sheets,
+      window.__bonsai.world3d.wallSheets.length === sheets &&
+      window.__bonsai.world3d.bodyLoaded,
     [room, wallSheets(ROOMS[room]).length] as const,
   );
 }

@@ -153,6 +153,8 @@ The game can save and load its entire state to JSON. Every tree, every branch, e
 
 Built collaboratively with **Claude** (Anthropic), who did a lot of the initial heavy lifting on architecture, design decisions, and code — from the data model and growth simulation through to the procedural 3D tree pipeline. Thanks Claude.
 
+The player's body in the 3D world is the Rogue from "KayKit: Adventurers Character Pack 2.0" and its clips come from "KayKit: Character Animations 1.1", both by Kay Lousberg (www.kaylousberg.com), released under CC0. The licence text is in [src/world3d/player/LICENSE-KayKit.txt](src/world3d/player/LICENSE-KayKit.txt).
+
 ## License
 
 Released under the MIT License. See [LICENSE](LICENSE) for the full text.

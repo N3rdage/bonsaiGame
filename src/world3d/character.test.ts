@@ -1,225 +1,270 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
+  ANIMATION_CLIPS,
+  BODY_MODEL_HEIGHT,
+  BODY_SCALE,
   CHARACTER_HEIGHT,
-  CLIP_NAMES,
-  GARDENER_PALETTE,
-  JOINT_NAMES,
+  PLAYER_CLIPS,
   STRIDE_SPEED,
+  WALK_FOOT_SPEED,
   WALK_FULL_SPEED,
-  characterMesh,
-  clipDuration,
   fadeWeights,
-  jointAt,
-  parentOf,
   poseOf,
-  restOffset,
+  sampleTrack,
   smoothSpeed,
   targetWeights,
   walkRate,
 } from './character';
-import { CreateBoxVertexData } from '@babylonjs/core/Meshes/Builders/boxBuilder';
+import { accessorFloats, readClips, readGlb, type Clip, type Glb, type GltfJson } from './glb';
 import { MOVE_SPEED } from '../world/player';
 
-/** Per triangle, the sign of (edge1 x edge2) . normal: the winding seen from outside. */
-function windings(
-  positions: ArrayLike<number>,
-  normals: ArrayLike<number>,
-  indices: ArrayLike<number>,
-): number[] {
-  const out: number[] = [];
-  const at = (list: ArrayLike<number>, i: number, o: number): number => list[i * 3 + o] ?? 0;
-  for (let t = 0; t < indices.length; t += 3) {
-    const a = indices[t] ?? 0;
-    const b = indices[t + 1] ?? 0;
-    const c = indices[t + 2] ?? 0;
-    const e1 = [0, 1, 2].map((o) => at(positions, b, o) - at(positions, a, o));
-    const e2 = [0, 1, 2].map((o) => at(positions, c, o) - at(positions, a, o));
-    const cross = [
-      (e1[1] ?? 0) * (e2[2] ?? 0) - (e1[2] ?? 0) * (e2[1] ?? 0),
-      (e1[2] ?? 0) * (e2[0] ?? 0) - (e1[0] ?? 0) * (e2[2] ?? 0),
-      (e1[0] ?? 0) * (e2[1] ?? 0) - (e1[1] ?? 0) * (e2[0] ?? 0),
-    ];
-    const dot = cross.reduce(
-      (sum, v, o) => sum + v * (at(normals, a, o) + at(normals, b, o) + at(normals, c, o)),
-      0,
-    );
-    if (Math.abs(dot) > 1e-9) out.push(Math.sign(dot));
-  }
-  return out;
+/** A committed file under src/world3d/player/ as a GLB. */
+function glbFile(path: string): Glb {
+  const bytes = readFileSync(new URL(`./player/${path}`, import.meta.url));
+  return readGlb(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
 }
 
-describe('the body mesh winding', () => {
-  it('winds every visible triangle the way Babylon does for its own boxes', () => {
-    const box = CreateBoxVertexData({ size: 1 });
-    const reference = windings(box.positions ?? [], box.normals ?? [], box.indices ?? []);
-    const front = reference[0];
-    expect(reference.every((w) => w === front)).toBe(true);
-    const body = characterMesh();
-    const mine = windings(body.positions, body.normals, body.indices);
-    expect(mine.length).toBeGreaterThan(0);
-    expect(mine.every((w) => w === front)).toBe(true);
-  });
-});
+interface Node {
+  readonly name?: string;
+  readonly children?: readonly number[];
+  readonly mesh?: number;
+  readonly skin?: number;
+  readonly translation?: readonly number[];
+  readonly rotation?: readonly number[];
+}
+interface Full extends GltfJson {
+  readonly nodes: readonly Node[];
+  readonly meshes?: readonly {
+    readonly name?: string;
+    readonly primitives: readonly {
+      readonly attributes: Readonly<Record<string, number>>;
+      readonly indices: number;
+    }[];
+  }[];
+  readonly skins?: readonly { readonly joints: readonly number[] }[];
+}
 
-describe('the skeleton', () => {
-  it('has seven joints under one root, hips', () => {
-    expect(JOINT_NAMES).toHaveLength(7);
-    const roots = JOINT_NAMES.filter((joint) => parentOf(joint) === undefined);
-    expect(roots).toEqual(['hips']);
+const clipsGlb = glbFile('animations.glb');
+const bodyGlb = glbFile('rogue.glb');
+const clips = readClips(clipsGlb);
+const bodyJson = bodyGlb.json as Full;
+
+function clip(name: string): Clip {
+  const found = clips.get(name);
+  if (!found) throw new Error(`no clip ${name}`);
+  return found;
+}
+
+describe('the player files', () => {
+  it('play Idle_A at rest and Walking_A on the move', () => {
+    expect(PLAYER_CLIPS).toEqual({ idle: 'Idle_A', walk: 'Walking_A' });
   });
 
-  it('hangs the spine and legs from the hips, the head and arms from the spine', () => {
-    expect(parentOf('spine')).toBe('hips');
-    expect(parentOf('legL')).toBe('hips');
-    expect(parentOf('legR')).toBe('hips');
-    expect(parentOf('head')).toBe('spine');
-    expect(parentOf('armL')).toBe('spine');
-    expect(parentOf('armR')).toBe('spine');
+  it('carry every clip the player needs, and no others', () => {
+    expect([...clips.keys()].sort()).toEqual([...ANIMATION_CLIPS].sort());
+    expect(clip('Idle_A').duration).toBeCloseTo(1.0667, 3);
+    expect(clip('Walking_A').duration).toBeCloseTo(1.0667, 3);
   });
 
-  it('places each joint at its parent plus its rest offset', () => {
-    for (const joint of JOINT_NAMES) {
-      const parent = parentOf(joint);
-      const base = parent ? jointAt(parent) : [0, 0, 0];
-      const offset = restOffset(joint);
-      jointAt(joint).forEach((value, i) => {
-        expect(value).toBeCloseTo((base[i] ?? 0) + (offset[i] ?? 0));
-      });
+  it('drop the animation file mannequin: its file has no meshes', () => {
+    expect((clipsGlb.json as Full).meshes ?? []).toEqual([]);
+  });
+
+  it('give the body one skinned mesh with no cape, hat or mask', () => {
+    expect(bodyJson.meshes?.map((m) => m.name)).toEqual(['Rogue']);
+    expect(bodyJson.nodes.filter((n) => n.mesh !== undefined).every((n) => n.skin === 0)).toBe(
+      true,
+    );
+  });
+
+  it('key only bones the body has, by name', () => {
+    const joints = new Set(bodyJson.skins?.[0]?.joints.map((j) => bodyJson.nodes[j]?.name));
+    for (const name of ANIMATION_CLIPS) {
+      for (const node of clip(name).nodes.keys()) {
+        if (node !== 'Rig_Medium') expect(joints).toContain(node);
+      }
     }
   });
 });
+
+/** The body mesh's positions, normals and triangle indices. */
+function bodyMesh(): { positions: Float32Array; normals: Float32Array; indices: number[] } {
+  const primitive = bodyJson.meshes?.[0]?.primitives[0];
+  if (!primitive) throw new Error('no body primitive');
+  const positions = accessorFloats(bodyGlb, primitive.attributes.POSITION ?? -1);
+  const normals = accessorFloats(bodyGlb, primitive.attributes.NORMAL ?? -1);
+  const accessor = bodyJson.accessors?.[primitive.indices];
+  const view = bodyJson.bufferViews?.[accessor?.bufferView ?? -1];
+  const start = (view?.byteOffset ?? 0) + (accessor?.byteOffset ?? 0);
+  const indices = Array.from({ length: accessor?.count ?? 0 }, (_, i) =>
+    bodyGlb.bin.getUint16(start + i * 2, true),
+  );
+  return { positions, normals, indices };
+}
 
 describe('the body', () => {
-  const mesh = characterMesh();
-  const vertices = mesh.positions.length / 3;
+  it('is drawn 1.73 m tall: the model, feet on y 0, scaled to the character height', () => {
+    expect(CHARACTER_HEIGHT).toBeCloseTo(1.73, 2);
+    const position =
+      bodyJson.accessors?.[bodyJson.meshes?.[0]?.primitives[0]?.attributes.POSITION ?? -1];
+    expect(position?.max?.[1]).toBeCloseTo(BODY_MODEL_HEIGHT, 3);
+    expect(Math.abs(position?.min?.[1] ?? 1)).toBeLessThan(0.01);
+    expect(BODY_MODEL_HEIGHT * BODY_SCALE).toBeCloseTo(CHARACTER_HEIGHT, 6);
+  });
 
-  it('stands 1.6 to 1.8 m tall with its feet on the ground', () => {
-    let low = Infinity;
-    let high = -Infinity;
-    for (let i = 1; i < mesh.positions.length; i += 3) {
-      low = Math.min(low, mesh.positions[i] ?? 0);
-      high = Math.max(high, mesh.positions[i] ?? 0);
+  // glTF's front faces wind counter-clockwise; the loader's handedness flip under its root
+  // turns that into Babylon's clockwise, so one winding throughout is a body drawn solid.
+  it('winds every visible triangle counter-clockwise about its normals, as glTF fronts do', () => {
+    const { positions: p, normals: n, indices } = bodyMesh();
+    const at = (list: Float32Array, i: number, o: number): number => list[i * 3 + o] ?? 0;
+    let outward = 0;
+    let inward = 0;
+    for (let t = 0; t < indices.length; t += 3) {
+      const [a = 0, b = 0, c = 0] = indices.slice(t, t + 3);
+      const e1 = [0, 1, 2].map((o) => at(p, b, o) - at(p, a, o));
+      const e2 = [0, 1, 2].map((o) => at(p, c, o) - at(p, a, o));
+      const [x1 = 0, y1 = 0, z1 = 0] = e1;
+      const [x2 = 0, y2 = 0, z2 = 0] = e2;
+      const cross = [y1 * z2 - z1 * y2, z1 * x2 - x1 * z2, x1 * y2 - y1 * x2];
+      const normal = [0, 1, 2].map((o) => at(n, a, o) + at(n, b, o) + at(n, c, o));
+      const dot = cross.reduce((sum, v, o) => sum + v * (normal[o] ?? 0), 0);
+      // Four of the head's triangles are specks (twice their area is under 1e-6 units^2), whose sign is float noise.
+      if (Math.hypot(...cross) < 1e-6) continue;
+      if (dot > 0) outward += 1;
+      else inward += 1;
     }
-    expect(low).toBeCloseTo(0, 5);
-    expect(high).toBeCloseTo(CHARACTER_HEIGHT, 5);
-    expect(CHARACTER_HEIGHT).toBeGreaterThanOrEqual(1.6);
-    expect(CHARACTER_HEIGHT).toBeLessThanOrEqual(1.8);
-  });
-
-  it('weights every vertex wholly to one of the seven joints', () => {
-    for (let v = 0; v < vertices; v++) {
-      expect(mesh.weights[v * 4]).toBe(1);
-      expect(mesh.weights[v * 4 + 1]).toBe(0);
-      const joint = mesh.joints[v * 4] ?? -1;
-      expect(Number.isInteger(joint)).toBe(true);
-      expect(joint).toBeGreaterThanOrEqual(0);
-      expect(joint).toBeLessThan(JOINT_NAMES.length);
-    }
-  });
-
-  it('has unit normals and indices inside the vertex arrays', () => {
-    for (let v = 0; v < vertices; v++) {
-      const [x = 0, y = 0, z = 0] = mesh.normals.slice(v * 3, v * 3 + 3);
-      expect(Math.hypot(x, y, z)).toBeCloseTo(1, 5);
-    }
-    expect(Math.max(...mesh.indices)).toBe(vertices - 1);
-    expect(mesh.colors).toHaveLength(vertices * 4);
-  });
-
-  it('stands about 1.7 to 1.75 m with its bun, bun and boots included', () => {
-    expect(CHARACTER_HEIGHT).toBeGreaterThanOrEqual(1.7);
-    expect(CHARACTER_HEIGHT).toBeLessThanOrEqual(1.75);
-  });
-
-  it('is 38 parts of 117 vertices each', () => {
-    expect(vertices).toBe(38 * 117);
-    expect(mesh.indices).toHaveLength(38 * 8 * 12 * 6);
-  });
-
-  it('binds the vertices to the joints they follow: limbs below their pivots, the head above its own', () => {
-    const count = [0, 0, 0, 0, 0, 0, 0];
-    for (let v = 0; v < vertices; v++) {
-      const joint = JOINT_NAMES[mesh.joints[v * 4] ?? -1] ?? 'hips';
-      const y = mesh.positions[v * 3 + 1] ?? 0;
-      count[mesh.joints[v * 4] ?? 0] = (count[mesh.joints[v * 4] ?? 0] ?? 0) + 1;
-      if (joint === 'legL' || joint === 'legR') expect(y).toBeLessThan(jointAt(joint)[1]);
-      if (joint === 'armL' || joint === 'armR') expect(y).toBeLessThan(jointAt(joint)[1]);
-      if (joint === 'head') expect(y).toBeGreaterThan(jointAt('head')[1] * 0.8);
-    }
-    expect(Object.fromEntries(JOINT_NAMES.map((j, i) => [j, (count[i] ?? 0) / 117]))).toEqual({
-      hips: 4,
-      spine: 4,
-      head: 18,
-      legL: 3,
-      legR: 3,
-      armL: 3,
-      armR: 3,
-    });
-  });
-
-  it('paints the same every build, within the colour range, lit from above', () => {
-    expect(characterMesh().colors).toEqual(mesh.colors);
-    expect(Math.min(...mesh.colors)).toBeGreaterThanOrEqual(0);
-    expect(Math.max(...mesh.colors)).toBeLessThanOrEqual(1);
-    // The first part's top pole is lighter than its bottom one (ring 0 is the bottom).
-    const top = mesh.colors[8 * 13 * 4] ?? 0;
-    const bottom = mesh.colors[0] ?? 0;
-    expect(top).toBeGreaterThan(bottom);
+    expect(outward).toBeGreaterThan(7400);
+    expect(inward).toBe(0);
   });
 });
 
-describe('the gardener', () => {
-  it('wears the painterly palette', () => {
-    expect(GARDENER_PALETTE).toEqual({
-      skin: 0xeab48c,
-      hair: 0x2e2a2e,
-      sprig: 0xe8c470,
-      leaf: 0x7ab85a,
-      band: 0x3a6a8a,
-      shirt: 0xd2604a,
-      apron: 0xe8d8b4,
-      trousers: 0x3a4a6a,
-      boots: 0x5a3828,
-      scarf: 0xf0d080,
-      cheek: 0xf08070,
-      eye: 0x1e1a1e,
-      handle: 0x8a5a3a,
-    });
+type V3 = [number, number, number];
+type Q = [number, number, number, number];
+const multiply = ([ax, ay, az, aw]: Q, [bx, by, bz, bw]: Q): Q => [
+  aw * bx + ax * bw + ay * bz - az * by,
+  aw * by - ax * bz + ay * bw + az * bx,
+  aw * bz + ax * by - ay * bx + az * bw,
+  aw * bw - ax * bx - ay * by - az * bz,
+];
+const rotate = (q: Q, [x, y, z]: V3): V3 => {
+  const [rx, ry, rz] = multiply(multiply(q, [x, y, z, 0]), [-q[0], -q[1], -q[2], q[3]]);
+  return [rx, ry, rz];
+};
+
+/** Where node `index` is and how it is turned in the model's space at `time` into `walk`: the clip's keys over the body's rest pose. */
+function worldOf(walk: Clip, index: number, time: number): { at: V3; turn: Q } {
+  const { nodes } = bodyJson;
+  const node = nodes[index];
+  const tracks = walk.nodes.get(node?.name ?? '');
+  const t = (
+    tracks?.translation
+      ? sampleTrack(tracks.translation, 3, time, walk.duration)
+      : (node?.translation ?? [0, 0, 0])
+  ) as V3;
+  const r = (
+    tracks?.rotation
+      ? sampleTrack(tracks.rotation, 4, time, walk.duration)
+      : (node?.rotation ?? [0, 0, 0, 1])
+  ) as Q;
+  const parent = nodes.findIndex((n) => n.children?.includes(index));
+  if (parent < 0) return { at: t, turn: r };
+  const up = worldOf(walk, parent, time);
+  const [x, y, z] = rotate(up.turn, t);
+  return { at: [up.at[0] + x, up.at[1] + y, up.at[2] + z], turn: multiply(up.turn, r) };
+}
+
+function boneAt(walk: Clip, bone: string, time: number): V3 {
+  return worldOf(
+    walk,
+    bodyJson.nodes.findIndex((n) => n.name === bone),
+    time,
+  ).at;
+}
+
+describe('the walk', () => {
+  it('slides a planted foot back at WALK_FOOT_SPEED model units a second, so the stride speed is that in metres', () => {
+    const walk = clip(PLAYER_CLIPS.walk);
+    const steps = 96;
+    const dt = walk.duration / steps;
+    const path = Array.from({ length: steps }, (_, i) => boneAt(walk, 'foot.l', i * dt));
+    const lowest = Math.min(...path.map(([, y]) => y));
+    const speeds = path
+      .map((at, i) => [at, path[(i + 1) % steps] ?? at] as const)
+      .filter(([a, b]) => a[1] - lowest < 0.015 && b[1] - lowest < 0.015)
+      .map(([a, b]) => (a[2] - b[2]) / dt)
+      .sort((a, b) => a - b);
+    const median = speeds[speeds.length >> 1] ?? 0;
+    expect(median / WALK_FOOT_SPEED).toBeGreaterThan(0.95);
+    expect(median / WALK_FOOT_SPEED).toBeLessThan(1.05);
+    expect(STRIDE_SPEED).toBeCloseTo(WALK_FOOT_SPEED * BODY_SCALE, 9);
+    expect(STRIDE_SPEED).toBeCloseTo(0.54, 2);
   });
 });
 
-describe('the clips', () => {
-  it('are idle and walk, looping over 3 s and 1 s', () => {
-    expect(CLIP_NAMES).toEqual(['idle', 'walk']);
-    expect(clipDuration('idle')).toBe(3);
-    expect(clipDuration('walk')).toBe(1);
+/** A one-node clip: `values` keyed at `times`, rotations or translations by their width. */
+function testClip(width: 3 | 4, times: number[], values: number[], duration: number): Clip {
+  const track = { times: Float32Array.from(times), values: Float32Array.from(values) };
+  return {
+    duration,
+    nodes: new Map([['bone', width === 4 ? { rotation: track } : { translation: track }]]),
+  };
+}
+
+describe('the clip sampler', () => {
+  const s = Math.SQRT1_2;
+  it('interpolates translations linearly and loops over the duration', () => {
+    const track = { times: Float32Array.of(0, 1), values: Float32Array.of(0, 0, 0, 2, 4, 6) };
+    expect(sampleTrack(track, 3, 0.5, 1)).toEqual([1, 2, 3]);
+    expect(sampleTrack(track, 3, 0.25, 1)).toEqual(sampleTrack(track, 3, 1.25, 1));
+    expect(sampleTrack(track, 3, -0.75, 1)).toEqual(sampleTrack(track, 3, 0.25, 1));
   });
 
-  it('swing the legs apart in the walk and not in the idle', () => {
-    const times = { idle: 0, walk: 0 };
-    const walking = poseOf({ idle: 0, walk: 1 }, times);
-    expect(walking.legL.rotation[0]).toBeGreaterThan(0.2);
-    expect(walking.legR.rotation[0]).toBeLessThan(-0.2);
-    const standing = poseOf({ idle: 1, walk: 0 }, times);
-    expect(standing.legL.rotation[0]).toBe(0);
+  it('turns rotations along the shorter arc, whatever sign a key was stored with', () => {
+    // From no turn to a quarter turn about y, the second key stored negated.
+    const track = {
+      times: Float32Array.of(0, 1),
+      values: Float32Array.of(0, 0, 0, 1, 0, -s, 0, -s),
+    };
+    const [x = 0, y = 0, z = 0, w = 0] = sampleTrack(track, 4, 0.5, 2);
+    expect(Math.hypot(x, y, z, w)).toBeCloseTo(1);
+    expect(Math.abs(2 * Math.atan2(y, w))).toBeCloseTo(Math.PI / 4);
   });
 
-  it('keep every rotation a unit quaternion and loop seamlessly', () => {
-    const weights = { idle: 0.4, walk: 0.6 };
-    const pose = poseOf(weights, { idle: 0.7, walk: 0.3 });
-    for (const joint of JOINT_NAMES) {
-      expect(Math.hypot(...pose[joint].rotation)).toBeCloseTo(1, 6);
+  it('holds the first and last keys outside them', () => {
+    const track = { times: Float32Array.of(0.2, 0.4), values: Float32Array.of(1, 1, 1, 3, 3, 3) };
+    expect(sampleTrack(track, 3, 0.1, 1)).toEqual([1, 1, 1]);
+    expect(sampleTrack(track, 3, 0.9, 1)).toEqual([3, 3, 3]);
+  });
+
+  it('mixes the clips by weight: translations as a weighted mean, rotations normalised', () => {
+    const idle = testClip(3, [0, 1], [0, 0, 0, 0, 0, 0], 1);
+    const walk = testClip(3, [0, 1], [4, 0, 0, 4, 0, 0], 1);
+    const times = { idle: 0.3, walk: 0.6 };
+    expect(
+      poseOf({ idle, walk }, { idle: 0.75, walk: 0.25 }, times).get('bone')?.translation,
+    ).toEqual([1, 0, 0]);
+    const still = testClip(4, [0, 1], [0, 0, 0, 1, 0, 0, 0, 1], 1);
+    const turned = testClip(4, [0, 1], [0, s, 0, s, 0, s, 0, s], 1);
+    const [, y = 0, , w = 0] =
+      poseOf({ idle: still, walk: turned }, { idle: 0.5, walk: 0.5 }, times).get('bone')
+        ?.rotation ?? [];
+    expect(2 * Math.atan2(y, w)).toBeCloseTo(Math.PI / 4);
+    expect(
+      poseOf({ idle: still, walk: turned }, { idle: 1, walk: 0 }, times).get('bone')?.rotation,
+    ).toEqual([0, 0, 0, 1]);
+  });
+
+  it('poses each bone of the real clips with a unit rotation, all idle at rest', () => {
+    const pose = poseOf(
+      { idle: clip(PLAYER_CLIPS.idle), walk: clip(PLAYER_CLIPS.walk) },
+      { idle: 1, walk: 0 },
+      { idle: 0.5, walk: 0 },
+    );
+    expect(pose.size).toBeGreaterThan(20);
+    for (const { rotation } of pose.values()) {
+      expect(Math.hypot(...(rotation ?? [0, 0, 0, 1]))).toBeCloseTo(1);
     }
-    const start = poseOf(weights, { idle: 0, walk: 0 });
-    const end = poseOf(weights, { idle: 3, walk: 1 });
-    expect(end.legL.rotation[0]).toBeCloseTo(start.legL.rotation[0], 6);
-  });
-
-  it('bob the hips in the walk and leave the others at their rest offsets', () => {
-    const rest = restOffset('spine');
-    const pose = poseOf({ idle: 0, walk: 1 }, { idle: 0, walk: 0.25 });
-    expect(pose.spine.translation).toEqual(rest);
-    expect(pose.hips.translation[1]).toBeLessThan(restOffset('hips')[1]);
   });
 });
 
@@ -275,9 +320,11 @@ describe('the blend', () => {
     expect(walkRate(100)).toBe(2);
   });
 
-  it('puts the player at full walking speed near the stride speed', () => {
+  // The player's full speed, 2.34 m/s, is over four times the walk's own pace: the clip plays at
+  // its fastest and the feet cover half the ground they would need to (see ARCHITECTURE.md).
+  it('plays the walk at its fastest at the player full speed', () => {
     const full = (MOVE_SPEED * 60) / 32;
-    expect(walkRate(full)).toBeGreaterThan(0.9);
-    expect(walkRate(full)).toBeLessThan(1.2);
+    expect(full / STRIDE_SPEED).toBeGreaterThan(4);
+    expect(walkRate(full)).toBe(2);
   });
 });
