@@ -318,6 +318,52 @@ function layoutsOf(room: Room): PieceQuads[][] {
 
 const length = (a: Vec3, b: Vec3): number => Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
 
+describe('onDrawnPieces, a hand-built corner', () => {
+  // A north wall over x 0..4, cut back to x 0.5..4 by a west wall over x 0..0.5, y 0..3.
+  const north: Box = { ...box(0.5, 4, 0, 0.5, 0, 2.4), name: 'north' };
+  const west: Box = { ...box(0, 0.5, 0, 3, 0, 2.4), name: 'west' };
+  const lift = WALL_LIFT;
+  /** A quad over x 0..4 from `c0`, its second axis `v`, facing `normal`. */
+  const quad = (c0: Vec3, v: Vec3, normal: Vec3): WallQuad => ({
+    frame: 0,
+    normal,
+    corners: [
+      c0,
+      { ...c0, x: 4 },
+      { x: 4, y: c0.y + v.y, z: c0.z + v.z },
+      { x: 0, y: c0.y + v.y, z: c0.z + v.z },
+    ],
+    u0: 0,
+    v0: 0,
+    u1: 1,
+    v1: 1,
+  });
+  const inner = quad({ x: 0, y: 0.5 + lift, z: 0 }, { x: 0, y: 0, z: 2.4 }, { x: 0, y: 1, z: 0 });
+  const outer = quad({ x: 0, y: -lift, z: 0 }, { x: 0, y: 0, z: 2.4 }, { x: 0, y: -1, z: 0 });
+  const capped = quad(
+    { x: 0, y: 0.5, z: 2.4 + lift },
+    { x: 0, y: -0.5, z: 0 },
+    { x: 0, y: 0, z: 1 },
+  );
+  const filed = onDrawnPieces([{ piece: 'north', quads: [inner, outer, capped] }], [north, west]);
+  const on = (name: string): WallQuad[] => filed.find((p) => p.piece === name)?.quads ?? [];
+  const xs = (q: WallQuad): number[] => q.corners.map((c) => c.x);
+
+  it('keeps on the cut wall the part of each quad over its own box', () => {
+    expect(on('north').map((q) => q.normal)).toEqual([inner.normal, outer.normal, capped.normal]);
+    expect(on('north').every((q) => Math.min(...xs(q)) === 0.5 && Math.max(...xs(q)) === 4)).toBe(
+      true,
+    );
+  });
+
+  it("hands the corner's outer face and top to the wall that keeps the corner, and drops the inner face buried in it", () => {
+    expect(on('west').map((q) => q.normal)).toEqual([outer.normal, capped.normal]);
+    expect(on('west').every((q) => Math.min(...xs(q)) === 0 && Math.max(...xs(q)) === 0.5)).toBe(
+      true,
+    );
+  });
+});
+
 describe('onDrawnPieces, the shed', () => {
   const shed = ROOMS.shed;
   const drawn = drawnWalls(shed);
