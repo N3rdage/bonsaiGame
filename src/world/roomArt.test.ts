@@ -955,6 +955,12 @@ describe('shadows', () => {
     expect(sprites(LOUNGE_ROOM)).toEqual([
       ['spr_fireplace', 240, 88, 1, 0.25, 88],
       ['spr_side_table', 168, 80, 1, 0.25, 80],
+      ['spr_sofa', 190, 158, 1, 0.25, 158],
+      ['spr_coffee_table', 220, 144, 1, 0.25, 144],
+      ['spr_armchair', 288, 136, 1, 0.25, 136],
+      ['spr_bookcase', 272, 76, 1, 0.25, 76],
+      ['spr_floor_lamp', 288, 154, 1, 0.25, 154],
+      ['spr_potted_plant', 304, 80, 1, 0.25, 80],
       ['spr_counter', 384, 208, 1, 0.25, 208],
       ['spr_counter_v', 422, 188, 1, 0.25, 188],
     ]);

@@ -135,7 +135,8 @@ export const SHEETS = {
   // The lounge-kitchen, drawn by art/inked/lounge.mjs: 3 variants each of its carpet and the
   // kitchen's quarry tiles (16 px), its back wall's 2.4 m face (16 x 48) and its 8 px caps (16 x 8,
   // 8 x 16), and, cut out, its window on the face between curtains, the fireplace (1.0 x 0.75 x
-  // 0.9 m), the low side table (0.4 m) and the kitchen counter's two runs (0.9 m).
+  // 0.9 m), the low side table (0.4 m), the sofa, armchair and coffee table, the bookcase, floor lamp and
+  // potted plant, and the kitchen counter's two runs (0.9 m).
   floorLounge: inked('spr_floor_lounge', 3, 16),
   floorKitchen: inked('spr_floor_kitchen', 3, 16),
   wallLounge: inked('spr_wall_lounge', 3, 16, 48),
@@ -144,6 +145,12 @@ export const SHEETS = {
   loungeWindow: inked('spr_lounge_window', 1, 32, 24),
   fireplace: inked('spr_fireplace', 1, 32, 44),
   sideTable: inked('spr_side_table', 1, 16, 24),
+  sofa: inked('spr_sofa', 1, 28, 80),
+  armchair: inked('spr_armchair', 1, 24, 44),
+  coffeeTable: inked('spr_coffee_table', 1, 20, 40),
+  bookcase: inked('spr_bookcase', 1, 28, 50),
+  floorLamp: inked('spr_floor_lamp', 1, 14, 46),
+  pottedPlant: inked('spr_potted_plant', 1, 20, 40),
   counter: inked('spr_counter', 1, 96, 40),
   counterV: inked('spr_counter_v', 1, 20, 60),
   // The hallway, drawn by art/inked/hallway.mjs: its floorboards, face and caps, 3 variants each,

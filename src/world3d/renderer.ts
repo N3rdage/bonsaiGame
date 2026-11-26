@@ -61,7 +61,7 @@ import {
   paintedWalls,
   type Surface,
 } from './paintedSurfaces';
-import { roundedBox } from './shapes';
+import { ball, cone, cylinder, roundedBox, type ShapeData } from './shapes';
 import { lightDirectionBabylon, shadowDarkness } from './light';
 import {
   logChange,
@@ -1447,13 +1447,21 @@ export class Renderer {
     return solid;
   }
 
-  /** The box of `part` at the origin: sharp from `CreateBox`, or rounded from `roundedBox` when it has a radius. */
+  /**
+   * The shape of `part` at the origin: a cylinder, cone or ball filling its box when it has a
+   * `shape`, else the box, sharp from `CreateBox` or rounded from `roundedBox` when it has a radius.
+   */
   private partBox(name: string, part: ModelPart | FurniturePart): Mesh {
     const width = part.x1 - part.x0;
     const height = part.z1 - part.z0;
     const depth = part.y1 - part.y0;
-    if (part.radius === undefined) return CreateBox(name, { width, height, depth }, this.scene);
-    const shape = roundedBox(width, height, depth, part.radius);
+    let shape: ShapeData;
+    if (part.shape === 'cylinder') shape = cylinder(width, height, depth);
+    else if (part.shape === 'cone') shape = cone(width, height, depth, undefined, part.taper);
+    else if (part.shape === 'ball') shape = ball(width, height, depth);
+    else if (part.radius === undefined)
+      return CreateBox(name, { width, height, depth }, this.scene);
+    else shape = roundedBox(width, height, depth, part.radius);
     const vertices = new VertexData();
     vertices.positions = shape.positions;
     vertices.normals = shape.normals;

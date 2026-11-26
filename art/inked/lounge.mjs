@@ -15,6 +15,15 @@
 //   spr_fireplace       32 x 44 (1.0 x 0.75 x 0.9 m), the mantel shelf its top
 //                       face, the surround and the fire its front, cut out
 //   spr_side_table      16 x 24 (0.5 x 0.5 x 0.4 m), cut out
+//   spr_sofa            28 x 80 (0.875 x 1.875 x 0.9 m), its back against the
+//                       west wall, its seat facing east, cut out
+//   spr_armchair        24 x 44 (0.75 x 0.75 x 0.9 m), its back to the east,
+//                       cut out
+//   spr_coffee_table    20 x 40 (0.625 x 1.0 x 0.4 m), cut out
+//   spr_bookcase        28 x 50 (0.875 x 0.375 x 1.78 m), against the top
+//                       wall, cut out
+//   spr_floor_lamp      14 x 46 (0.4375 x 0.4375 x 1.5 m), cut out
+//   spr_potted_plant    20 x 40 (0.625 x 0.5 x 1.125 m), cut out
 //   spr_counter         the kitchen counter along the south wall, 96 x 40
 //                       (3.0 x 0.6 x 0.9 m), cut out
 //   spr_counter_v       its run up the east wall, 20 x 60 (0.6 x 1.9 x 0.9 m),
@@ -56,6 +65,12 @@ const SEEDS = {
   sideTable: 0x7a61,
   counter: 0x7a62,
   counterV: 0x7a63,
+  sofa: 0x7a64,
+  armchair: 0x7a65,
+  coffeeTable: 0x7a66,
+  bookcase: 0x7a67,
+  floorLamp: 0x7a68,
+  pottedPlant: 0x7a69,
 };
 
 // The carpet: one calm plane of short pile. On one variant in three, a worn
@@ -232,6 +247,164 @@ function sideTable() {
   return finishCutOut(page);
 }
 
+// The sofa, 0.875 x 1.875 x 0.9 m, its back (x 0..8) along the west wall and
+// its seat facing east: its top face (y 0..60) the back's top and two seat
+// cushions between an arm at each end; its front (y 60..80) the south end seen
+// from the room, the back's end beside the lower arm, on four short feet.
+function sofa() {
+  const page = createPage(28, 80, { seed: SEEDS.sofa, origin: [176, 78] });
+  const { k } = page;
+  for (const x of [1.4, 24.4]) k.box(x, 76.4, 2.2, 3.4, 'wood', { width: JOINT });
+  k.box(0.6, 0.6, 26.8, 66, 'sofa');
+  k.box(0.6, 0.6, 8, 66, 'sofa', { width: SEAM, hatching: rect(0.6, 0.6, 8, 66) });
+  for (const y of [5.4, 31.4]) k.box(9.4, y, 17.2, 24.2, 'sofa', { width: SEAM });
+  k.box(9.4, 0.6, 17.2, 4.4, 'sofa', { width: SEAM, hatching: true });
+  k.box(9.4, 56, 17.2, 4.4, 'sofa', { width: SEAM });
+  k.box(0.6, 60, 26.8, 18, 'sofa', { width: SEAM });
+  k.box(0.6, 60, 8, 18, 'sofa', { width: SEAM, hatching: rect(0.6, 60, 8, 18) });
+  k.box(9.4, 66, 17.2, 11, 'sofa', { width: SEAM, hatching: 'shadow' });
+  seg(k, 9, 66, 27, 66, MARK);
+  k.box(12, 9, 4.6, 9, 'brass', { width: MARK });
+  return finishCutOut(page);
+}
+
+// The armchair, 0.75 x 0.75 x 0.9 m, its back (x 17..24) to the east: its top
+// face (y 0..24) the back's top and a seat cushion between two arms; its front
+// (y 24..44) the south arm's end and the back's, on four short feet.
+function armchair() {
+  const page = createPage(24, 44, { seed: SEEDS.armchair, origin: [276, 92] });
+  const { k } = page;
+  for (const x of [1.2, 20.8]) k.box(x, 40.4, 2.2, 3.4, 'wood', { width: JOINT });
+  k.box(0.6, 0.6, 22.8, 28, 'armchair');
+  k.box(16.4, 0.6, 7, 28, 'armchair', { width: SEAM, hatching: rect(16.4, 0.6, 7, 28) });
+  k.box(5.4, 5, 11.4, 18, 'armchair', { width: SEAM });
+  k.box(0.6, 0.6, 15.8, 4, 'armchair', { width: SEAM, hatching: true });
+  k.box(0.6, 24, 22.8, 18, 'armchair', { width: SEAM });
+  k.box(16.4, 24, 7, 18, 'armchair', { width: SEAM, hatching: rect(16.4, 24, 7, 18) });
+  k.box(2, 31, 12.6, 10, 'armchair', { width: SEAM, hatching: 'shadow' });
+  seg(k, 1, 30, 16, 30, MARK);
+  return finishCutOut(page);
+}
+
+// The coffee table, 0.625 x 1.0 x 0.4 m: a planked top (y 0..32) with a book
+// and a bowl on it, an apron and four short legs, two seen, below it.
+function coffeeTable() {
+  const page = createPage(20, 40, { seed: SEEDS.coffeeTable, origin: [210, 104] });
+  const { k } = page;
+  k.box(3, 34, 14, 5.4, 'shadow', { edges: false, hatching: 'shadow', wear: false });
+  for (const x of [1, 16.6]) k.box(x, 32, 2.4, 7.6, 'wood', { width: SEAM });
+  k.box(0.8, 0.8, 18.4, 31, 'wood');
+  for (const y of [10.5, 21]) seg(k, 1, y, 19, y, JOINT);
+  k.box(0.8, 31.6, 18.4, 2.6, 'wood', { width: SEAM });
+  k.box(3.4, 5, 7, 5, 'cream', { width: MARK });
+  seg(k, 3.8, 6.6, 10.2, 6.6, JOINT);
+  k.blob(13.6, 21.4, 3, 2.6, 'terracotta', { width: SEAM });
+  return finishCutOut(page);
+}
+
+// The tall bookcase, 0.875 x 0.375 x 1.78 m, against the top wall: its top face
+// (y 0..12), then its open front (y 12..50) with books on three of its four
+// shelves, on a plinth.
+function bookcase() {
+  const page = createPage(28, 50, { seed: SEEDS.bookcase, origin: [258, 26] });
+  const { k } = page;
+  k.box(0.6, 0.6, 26.8, 11.4, 'top');
+  k.box(0.6, 12, 26.8, 37.4, 'wood');
+  k.box(2.4, 13.6, 23.2, 32.4, 'shadow', { width: SEAM, hatching: 'shadow', wear: false });
+  // Each shelf's plank (its top y) with the books standing on it: x, width, height, wash.
+  const shelves = [
+    [
+      39.2,
+      [
+        [3.2, 2, 6.5, 'terracotta'],
+        [5.4, 2.4, 7.5, 'glass'],
+        [8, 1.8, 6, 'brass'],
+        [10, 2.6, 7, 'foliage'],
+        [14, 2, 5.6, 'shirt'],
+      ],
+    ],
+    [
+      30.4,
+      [
+        [3.2, 2.2, 6.8, 'shirt'],
+        [5.6, 2, 5.4, 'brass'],
+        [7.9, 2.6, 7.2, 'foliage'],
+        [11, 2, 6, 'glass'],
+        [13.2, 2.4, 7, 'terracotta'],
+      ],
+    ],
+    [
+      21.6,
+      [
+        [3.2, 2.4, 7, 'foliage'],
+        [5.8, 2, 5.8, 'terracotta'],
+        [8, 2.2, 7.2, 'shirt'],
+        [10.6, 1.8, 6, 'glass'],
+        [12.6, 2.4, 6.6, 'brass'],
+      ],
+    ],
+  ];
+  for (const [y, books] of shelves) {
+    for (const [x, w, h, wash] of books) k.box(x, y - h, w, h, wash, { width: MARK });
+    k.box(2.4, y, 23.2, 1.6, 'wood', { width: SEAM });
+  }
+  k.box(2.4, 12.6, 23.2, 1.4, 'wood', { width: SEAM });
+  k.box(2.4, 46, 23.2, 1.6, 'wood', { width: SEAM });
+  k.box(0.6, 47.6, 26.8, 1.8, 'wood', { width: SEAM });
+  return finishCutOut(page);
+}
+
+// The floor lamp, 0.4375 m square and 1.5 m tall: a drum shade seen from above
+// and in front (its top y 1..10, its side y 5..14) on a thin brass pole over a
+// round base.
+function floorLamp() {
+  const page = createPage(14, 46, { seed: SEEDS.floorLamp, origin: [281, 108] });
+  const { k } = page;
+  k.blob(7, 42, 5.4, 2.6, 'shadow', { edges: false, hatching: 'shadow', wear: false });
+  k.blob(7, 41, 4.6, 2, 'wood', { width: SEAM });
+  k.box(6.2, 14, 1.6, 27, 'brass', { width: SEAM });
+  k.shape(
+    [
+      [1.6, 13.6],
+      [0.8, 5.6],
+      [13.2, 5.6],
+      [12.4, 13.6],
+    ],
+    'cream',
+    { width: SEAM },
+  );
+  k.blob(7, 5.6, 6.2, 4.4, 'lamp', { width: SEAM });
+  k.blob(7, 5.6, 2.4, 1.4, 'brass', { width: MARK });
+  return finishCutOut(page);
+}
+
+// The potted plant, 0.625 x 0.5 m and 1.125 m tall: balls of foliage over a
+// stem, in a round terracotta pot (y 30..40) with a rim.
+function pottedPlant() {
+  const page = createPage(20, 40, { seed: SEEDS.pottedPlant, origin: [294, 40] });
+  const { k } = page;
+  const leaves = { bump: 0.25, lobes: 7, hatching: FINE, width: SEAM };
+  k.blob(10, 38.4, 8.4, 2.6, 'shadow', { edges: false, hatching: 'shadow', wear: false });
+  k.box(9, 22, 2, 10, 'wood', { width: SEAM });
+  k.blob(5.6, 18, 5, 4.4, 'foliage', leaves);
+  k.blob(14.4, 14.4, 4.4, 4, 'foliage', leaves);
+  k.blob(10, 10.5, 6.4, 5.6, 'foliage', leaves);
+  k.blob(11.4, 4.6, 3.8, 3.4, 'foliage', leaves);
+  k.shape(
+    [
+      [4.4, 32.6],
+      [15.6, 32.6],
+      [14.4, 39.4],
+      [5.6, 39.4],
+    ],
+    'terracotta',
+    { width: SEAM },
+  );
+  k.box(3.4, 30.2, 13.2, 3.2, 'terracotta', { width: SEAM });
+  k.box(4.4, 30.6, 11.2, 1, 'soil', { edges: false });
+  return finishCutOut(page);
+}
+
 /** Stone darkened (by soot, by use) to sit below the floor: `stone` under a second layer of `shadow`, inked at `width`. */
 function darkStone(k, pts, width = 2.6) {
   k.shape(pts, 'stone', { edges: false });
@@ -308,4 +481,10 @@ writeSheets([
   ['spr_side_table', sideTable],
   ['spr_counter', counter],
   ['spr_counter_v', counterV],
+  ['spr_sofa', sofa],
+  ['spr_armchair', armchair],
+  ['spr_coffee_table', coffeeTable],
+  ['spr_bookcase', bookcase],
+  ['spr_floor_lamp', floorLamp],
+  ['spr_potted_plant', pottedPlant],
 ]);

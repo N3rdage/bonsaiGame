@@ -11,7 +11,10 @@
  * the block's west face on to the hallway, and a fireplace and a side table
  * against the top wall carrying the two display
  * spots that were the shed's pedestals (saves from before version 4 move the
- * shed's displayed trees onto them).
+ * shed's displayed trees onto them). A sofa, a coffee table and an armchair
+ * seat the middle of the room, clear of both doors' walks to the spots; a tall
+ * bookcase stands against the top wall beside the fireplace, a floor lamp by the
+ * armchair and a potted plant before the east window.
  */
 
 import { SHEETS } from './assets';
@@ -107,6 +110,108 @@ export const SIDE_TABLE: Furniture = {
 };
 
 /**
+ * The sofa, 0.875 x 1.875 x 0.9 m (28 x 60 px), its back along the west wall
+ * and its seat facing east, x 176..204 and y 98..158. It floats 16 px off the
+ * west wall, leaving the lane x 160..176 that a walk into that wall and up to
+ * the side table takes, and ends on y 158 so the floor-tree spots on y 160
+ * stay clear.
+ */
+export const SOFA: Furniture = {
+  sheet: SHEETS.sofa,
+  x: 176,
+  y: 98,
+  w: 28,
+  h: 60,
+  solid: true,
+  sorted: true,
+  stands: { height: 20 },
+};
+
+/**
+ * The coffee table, 0.625 x 1.0 x 0.4 m (20 x 32 px), 6 px in front of the
+ * sofa and centred on its length, x 210..230 and y 112..144: clear of the
+ * column x 232..248 that a walk up from the shed door's landing takes to the
+ * mantel.
+ */
+export const COFFEE_TABLE: Furniture = {
+  sheet: SHEETS.coffeeTable,
+  x: 210,
+  y: 112,
+  w: 20,
+  h: 32,
+  solid: true,
+  sorted: true,
+  stands: { height: 8 },
+};
+
+/**
+ * The armchair, 0.75 x 0.75 x 0.9 m (24 px square), its back to the east and
+ * turned toward the fire, x 276..300 and y 112..136: east of the mantel
+ * column and 18 px short of the hallway door's landing (x 318), below the row
+ * y 96 that landing's walk to the side table takes west.
+ */
+export const ARMCHAIR: Furniture = {
+  sheet: SHEETS.armchair,
+  x: 276,
+  y: 112,
+  w: 24,
+  h: 24,
+  solid: true,
+  sorted: true,
+  stands: { height: 20 },
+};
+
+/**
+ * The tall bookcase, 0.875 x 0.375 x 1.78 m (28 x 12 px, 38 tall), against the
+ * top wall between the fireplace and the east window, x 258..286 and y 64..76:
+ * east of the column x 232..248 that a walk up to the mantel takes, and clear
+ * of both windows, x 176..208 and 288..320.
+ */
+export const BOOKCASE: Furniture = {
+  sheet: SHEETS.bookcase,
+  x: 258,
+  y: 64,
+  w: 28,
+  h: 12,
+  solid: true,
+  sorted: true,
+  stands: { height: 38 },
+};
+
+/**
+ * A floor lamp, 0.4375 m square and 1.5 m tall (14 px, 32 tall), beside the
+ * armchair's south end, x 281..295 and y 140..154: below the armchair (y 112..136)
+ * and clear of the walk from the hallway's landing down to the kitchen.
+ */
+export const FLOOR_LAMP: Furniture = {
+  sheet: SHEETS.floorLamp,
+  x: 281,
+  y: 140,
+  w: 14,
+  h: 14,
+  solid: true,
+  sorted: true,
+  stands: { height: 32 },
+};
+
+/**
+ * A potted plant, 0.625 x 0.5 m and 1.125 m tall (20 x 16 px, 24 tall), on the
+ * top wall in front of the east window, x 294..314 and y 64..80: 8 px east of
+ * the bookcase, and 10 px above the row y 96 that the hallway landing's walk
+ * west to the side table takes.
+ */
+export const POTTED_PLANT: Furniture = {
+  sheet: SHEETS.pottedPlant,
+  x: 294,
+  y: 64,
+  w: 20,
+  h: 16,
+  solid: true,
+  sorted: true,
+  stands: { height: 24 },
+};
+
+/**
  * The kitchen counter, 0.6 m deep (20 px) and 0.9 m high: its run along the
  * kitchen's south wall and its run up the east wall from there to the block,
  * the east run its worktop alone (20 x 60), its south end joined to the south
@@ -127,6 +232,12 @@ const FURNITURE = [
   ...HALLWAY_BLOCK_CAPS,
   FIREPLACE,
   SIDE_TABLE,
+  SOFA,
+  COFFEE_TABLE,
+  ARMCHAIR,
+  BOOKCASE,
+  FLOOR_LAMP,
+  POTTED_PLANT,
   ...KITCHEN_COUNTER,
 ];
 
