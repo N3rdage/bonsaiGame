@@ -1937,7 +1937,9 @@ export class WorldScene extends Phaser.Scene {
         ? promptFor({ ...rect, key: kind, prompt: `Place ${PLACEABLES[kind].label}` })
         : refusalText(check);
     }
-    if (this.world3d.seated) return promptFor({ key: 'stand', prompt: 'Stand', x: 0, y: 0 });
+    if (this.world3d.seated) {
+      return this.world3d.standable ? promptFor({ key: 'stand', prompt: 'Stand', x: 0, y: 0 }) : '';
+    }
     return this.near ? this.nearPrompt(this.near) : '';
   }
 
@@ -2251,7 +2253,7 @@ export class WorldScene extends Phaser.Scene {
       ? undefined
       : nearestInteractable(this.player, [
           ...this.targets,
-          ...seatTargets(this.room.key, this.world3d.active),
+          ...seatTargets(this.room.key, this.world3d.active && this.world3d.bodyLoaded),
         ]);
     this.drawGhost();
     // Just above the head, the sprite's top edge.

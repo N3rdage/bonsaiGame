@@ -891,6 +891,20 @@ test.describe('the 3D world', () => {
     expect((await world3d(page)).shot).toBe('lieIdle');
   });
 
+  test('stands up from a short sleep and is free again', { tag: '@walk' }, async ({ page }) => {
+    test.setTimeout(240_000);
+    await bootWorld(page, '/?lieSeconds=0.5');
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await sleepOneNight(page);
+    await page.waitForFunction(
+      () => window.__bonsai?.world3d?.shot === 'lieStandUp',
+      undefined,
+      POLL,
+    );
+    await expect.poll(async () => (await world3d(page)).shot, POLL).toBeNull();
+  });
+
   test('sits on the lounge sofa and armchair, and stands up on a move or Interact', async ({
     page,
   }) => {
@@ -924,6 +938,7 @@ test.describe('the 3D world', () => {
     // A move key gets the player up and, once up, away; it does not slide off the seat.
     await page.keyboard.down('ArrowDown');
     await clip('sitStandUp');
+    await expect.poll(async () => (await hook(page)).prompt, POLL).toBe('');
     expect((await hook(page)).player).toEqual(beside);
     await page.waitForFunction(() => window.__bonsai?.world3d?.seated === null, undefined, POLL);
     await page.waitForFunction((y) => (window.__bonsai?.player.y ?? 0) > y + 4, beside.y, POLL);
@@ -951,6 +966,7 @@ test.describe('the 3D world', () => {
     // Interact gets up too.
     await interact(page);
     await clip('sitStandUp');
+    await expect.poll(async () => (await hook(page)).prompt, POLL).toBe('');
     await expect.poll(shot, POLL).toBeNull();
     expect((await world3d(page)).seated).toBeNull();
     expect((await hook(page)).player).toEqual(armchair);

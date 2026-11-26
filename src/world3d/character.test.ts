@@ -11,6 +11,7 @@ import {
   CLIP_MASKS,
   CLIP_NAMES,
   FOOT_SPEEDS,
+  LANDING_OFFSETS,
   LIE_IDLE_SECONDS,
   PLAYER_CLIPS,
   RATE_MAX,
@@ -21,17 +22,21 @@ import {
   advance,
   clipRate,
   fadeWeights,
+  gaitRate,
+  gaitTime,
   layersOf,
   nextAvatarScale,
   parseAvatarScale,
   parseLieSeconds,
   poseOf,
   release,
+  released,
   sampleTrack,
   seatBlend,
   shotAt,
   shotLength,
   smoothSpeed,
+  startOver,
   startShot,
   targetWeights,
   type ClipName,
@@ -255,6 +260,59 @@ describe('the gaits', () => {
       expect(STRIDE_SPEEDS[gait]).toBeCloseTo(FOOT_SPEEDS[gait] * BODY_SCALE, 9);
     },
   );
+
+  /** The seconds into `gait` at which the left foot lands: the first frame of its planted run, found by stepping the clip in 240ths. */
+  function landing(gait: 'walk' | 'run'): { time: number; step: number } {
+    const played = clip(PLAYER_CLIPS[gait]);
+    const steps = 240;
+    const step = played.duration / steps;
+    const path = Array.from({ length: steps }, (_, i) => boneAt(played, 'foot.l', i * step));
+    const lowest = Math.min(...path.map(([, y]) => y));
+    const planted = path.map(([, y]) => y - lowest < 0.015);
+    const first = planted.findIndex((on, i) => on && !planted[(i + steps - 1) % steps]);
+    return { time: first * step, step };
+  }
+
+  it.each(['walk', 'run'] as const)(
+    'land the left foot at LANDING_OFFSETS.%s, to within a frame of 240 steps',
+    (gait) => {
+      const { time, step } = landing(gait);
+      expect(Math.abs(time - LANDING_OFFSETS[gait])).toBeLessThanOrEqual(step);
+    },
+  );
+
+  it('keep the walk and run in phase through any speeds, both clips at their landing at phase 0', () => {
+    const clips = playerClips();
+    const phaseIn = (motion: Motion, gait: 'walk' | 'run'): number => {
+      const time = layersOf(motion, clips, false)[0]?.clips.find((c) => c.clip === gait)?.time ?? 0;
+      return (time - LANDING_OFFSETS[gait]) / clips[gait].duration;
+    };
+    let motion = AT_REST;
+    expect(gaitTime('walk', 0, clips)).toBe(LANDING_OFFSETS.walk);
+    expect(gaitTime('run', 0, clips)).toBe(LANDING_OFFSETS.run);
+    for (const speed of [0.3, 1, 1.4, 2.5, 0.8, 1.9, 0]) {
+      motion = run(0.7, { speed }, motion);
+      const walk = phaseIn(motion, 'walk');
+      expect(((walk % 1) + 1) % 1).toBeCloseTo(motion.gait, 6);
+      expect(((phaseIn(motion, 'run') % 1) + 1) % 1).toBeCloseTo(motion.gait, 6);
+    }
+  });
+
+  it('advance the stride phase at the weighted blend of the clips cycle frequencies', () => {
+    const clips = playerClips();
+    const frequency = (g: 'walk' | 'run', speed: number): number =>
+      clipRate(g, speed, 1) / clips[g].duration;
+    const rate = (walk: number, run: number, speed: number): number =>
+      gaitRate({ idle: 1 - walk - run, walk, run }, speed, 1, clips);
+    expect(rate(1, 0, 1)).toBeCloseTo(frequency('walk', 1), 9);
+    expect(rate(0, 1, 3)).toBeCloseTo(frequency('run', 3), 9);
+    expect(rate(0, 0, 0)).toBeCloseTo(frequency('walk', 0), 9);
+    const blend = 0.5 * frequency('walk', 1.5) + 0.5 * frequency('run', 1.5);
+    expect(rate(0.5, 0.5, 1.5)).toBeCloseTo(blend, 9);
+    const settled = run(1, { speed: 3 });
+    const next = run(1 / 60, { speed: 3 }, settled);
+    expect(((next.gait - settled.gait + 1) % 1) * 60).toBeCloseTo(frequency('run', 3), 4);
+  });
 
   it('pin the strides: about 0.54 m/s walking and 2.68 m/s running for the full-size figure', () => {
     expect(STRIDE_SPEEDS.walk).toBeCloseTo(0.54, 2);
@@ -549,7 +607,7 @@ describe('which clip plays', () => {
       { ...walking, shot: startShot('interact') },
     );
     expect(playing(reaching)).toEqual([['walk'], ['interact']]);
-    expect(reaching.clocks.walk).not.toBe(walking.clocks.walk);
+    expect(reaching.gait).not.toBe(walking.gait);
   });
 
   it('fades a reach in and out over 0.2 s', () => {
@@ -609,6 +667,30 @@ describe('which clip plays', () => {
       layersOf(lying, playerClips(), still)[1]?.clips[0]?.time;
     expect(time(false)).toBeCloseTo(0.5, 1);
     expect(time(true)).toBe(0);
+  });
+
+  it('ignores a reach during any part of a sleep, and starts one otherwise', () => {
+    const sleep = startShot('sleep', 3);
+    const length = shotLength(sleep, playerClips());
+    for (const elapsed of [0, 0.1, clip('Lie_Down').duration + 1, length - 0.1]) {
+      const lying = { ...sleep, elapsed };
+      for (const reach of ['interact', 'pickUp'] as const) {
+        expect(startOver(lying, reach, 3)).toBe(lying);
+      }
+    }
+    expect(startOver(undefined, 'interact', 3)).toEqual(startShot('interact', 3));
+    expect(startOver(startShot('pickUp'), 'interact')).toEqual(startShot('interact'));
+    expect(startOver(startShot('interact'), 'sleep', 3)).toEqual(sleep);
+    expect(startOver({ ...sleep, elapsed: 1 }, 'sleep', 3)).toEqual(sleep);
+    expect(startOver({ ...sleep, elapsed: 1 }, 'sit')).toEqual(startShot('sit'));
+    expect(startOver(startShot('sit'), 'sit')).toEqual(startShot('sit'));
+  });
+
+  it('counts a sit as released from the moment it is told to end', () => {
+    expect(released(undefined)).toBe(false);
+    expect(released(startShot('sit'))).toBe(false);
+    expect(released(release(startShot('sit')))).toBe(true);
+    expect(released(release(startShot('sleep')))).toBe(false);
   });
 
   describe('a sit', () => {
@@ -697,7 +779,7 @@ describe('which clip plays', () => {
 
   it('lets the locomotion go on under every one-shot, so the walk never stops', () => {
     const started = { ...AT_REST, shot: startShot('sleep') };
-    expect(run(0.5, { speed: 1 }, started).clocks.walk).toBeGreaterThan(0);
+    expect(run(0.5, { speed: 1 }, started).gait).toBeGreaterThan(0);
   });
 });
 
