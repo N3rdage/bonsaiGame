@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { Page } from '@playwright/test';
 import { serializeState } from '../src/sim/save';
 import { createNewGameState } from '../src/sim/state';
-import { createTree } from '../src/sim/tree';
+import { CARRIED, createTree } from '../src/sim/tree';
 import { ROOMS } from '../src/world/gardenRoom';
 import type { RoomKey } from '../src/world/shedRoom';
 import { wallSheets } from '../src/world3d/wallTiles';
@@ -20,6 +20,7 @@ import {
   interact,
   openSettingsFromMenu,
   skipTutorial,
+  sleepOneNight,
   startPlacing,
   tapControl,
   test,
@@ -415,7 +416,7 @@ test.describe('the 3D world', () => {
   );
 
   test(
-    'the player is a character that idles at rest, walks on the move and idles again',
+    'the player is a character that idles at rest, runs at full speed and idles again',
     { tag: '@walk' },
     async ({ page }) => {
       test.setTimeout(120_000);
@@ -425,11 +426,12 @@ test.describe('the 3D world', () => {
 
       expect((await world3d(page)).playerModel).toBe('character');
       await expect.poll(async () => (await world3d(page)).clips.idle, POLL).toBeGreaterThan(0.99);
+      expect((await world3d(page)).carry).toBe(0);
 
       await page.keyboard.down('ArrowRight');
-      await expect.poll(async () => (await world3d(page)).clips.walk, POLL).toBeGreaterThan(0.99);
+      await expect.poll(async () => (await world3d(page)).clips.run, POLL).toBeGreaterThan(0.99);
       const walking = (await world3d(page)).clips;
-      expect(walking.idle + walking.walk).toBeCloseTo(1, 5);
+      expect(walking.idle + walking.walk + walking.run).toBeCloseTo(1, 5);
       await page.keyboard.up('ArrowRight');
       await expect.poll(async () => (await world3d(page)).clips.idle, POLL).toBeGreaterThan(0.99);
     },
@@ -825,6 +827,68 @@ test.describe('the 3D world', () => {
     // The wheel zooms to the camera's nearest, which frames the player from head to boots.
     await zoomIn(page, 3000, 4.5);
     await expect(page).toHaveScreenshot('world3d-gardener.png', { timeout: 30_000 });
+  });
+
+  test(
+    'carries a tree in the upper body, and keeps running with it',
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.setTimeout(120_000);
+      const state = createNewGameState();
+      const [starter] = state.trees;
+      if (!starter) throw new Error('no starter');
+      starter.location = CARRIED;
+      await page.goto('/');
+      await page.evaluate(
+        (text) => {
+          localStorage.setItem('bonsai.save.1', text);
+        },
+        serializeState(state, new Date(2026, 10, 11, 0, 0)),
+      );
+      await toTitle(page);
+      await continueGame(page);
+      await waitForRoom(page, 'shed');
+      await skipTutorial(page, true);
+      expect((await hook(page)).carrying).toBe("Granny's");
+      await expect.poll(async () => (await world3d(page)).carry, POLL).toBe(1);
+      expect((await world3d(page)).shot).toBeNull();
+
+      if (test.info().project.name === 's22-landscape') {
+        for (let i = 0; i < 3; i++) await page.keyboard.press('q');
+        await expect
+          .poll(async () => (await world3d(page)).camera.alpha, POLL)
+          .toBeCloseTo(-Math.PI / 2 - (3 * Math.PI) / 4, 1);
+        await zoomIn(page, 3000, 4.5);
+        await expect(page).toHaveScreenshot('world3d-carrying.png', { timeout: 30_000 });
+      }
+
+      await page.keyboard.down('ArrowRight');
+      await expect.poll(async () => (await world3d(page)).clips.run, POLL).toBeGreaterThan(0.99);
+      expect((await world3d(page)).carry).toBe(1);
+      await page.keyboard.up('ArrowRight');
+    },
+  );
+
+  test('lies down for a sleep, lies still, and stands up', { tag: '@walk' }, async ({ page }) => {
+    test.setTimeout(240_000);
+    // Lie_Idle is held for ten minutes of game time, so the pose can be captured at rest.
+    await bootWorld(page, '/?lieSeconds=600');
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    expect((await world3d(page)).shot).toBeNull();
+    if (test.info().project.name === 's22-landscape') {
+      for (let i = 0; i < 3; i++) await page.keyboard.press('q');
+      await zoomIn(page, 3000, 4.5);
+    }
+
+    await sleepOneNight(page);
+    await expect.poll(async () => (await world3d(page)).shot, POLL).toBe('lieIdle');
+    await expect.poll(async () => (await hook(page)).toast, { timeout: 100_000 }).toBe('');
+    expect((await world3d(page)).clips.idle).toBeGreaterThan(0.99);
+    if (test.info().project.name === 's22-landscape') {
+      await expect(page).toHaveScreenshot('world3d-lying.png', { timeout: 30_000 });
+    }
+    expect((await world3d(page)).shot).toBe('lieIdle');
   });
 
   test("draws the garden's glazed doors", { tag: '@walk' }, async ({ page }) => {

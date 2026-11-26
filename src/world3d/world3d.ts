@@ -11,7 +11,7 @@ import { SURROUND } from '../scenes/textStyle';
 import type { Season } from '../sim/seasons';
 import type { Room, RoomKey } from '../world/shedRoom';
 import { cameraRig } from './camera';
-import { AVATAR_SCALE_DEFAULT } from './character';
+import { AVATAR_SCALE_DEFAULT, type OneShotKind } from './character';
 import { showBench, showPanel } from './benchPanel';
 import { roomTimeLines } from './roomTimes';
 import type { Renderer } from './renderer';
@@ -79,6 +79,7 @@ export class World3d {
     roomOf: (key: RoomKey) => Room,
     gameSeconds = 0,
     avatarScale: number = AVATAR_SCALE_DEFAULT,
+    carrying = false,
   ): void {
     if (on && !this.renderer && !this.loading && !this.failed) {
       this.loading = true;
@@ -98,12 +99,18 @@ export class World3d {
     }
     if (!on) this.dispose();
     this.renderer?.setAvatarScale(avatarScale);
+    this.renderer?.setCarrying(carrying);
     this.renderer?.frame(room, player, trees, mats, season, weather, roomOf, gameSeconds);
     const bench = this.renderer?.benchState().result;
     if (bench && bench !== this.benchShown) {
       this.benchShown = bench;
       this.benchPanel = showBench(bench);
     }
+  }
+
+  /** The player's body plays a one-shot (character.ts): an Interact, a pick-up or a sleep; nothing while the renderer or the body is not up. */
+  play(kind: OneShotKind): void {
+    this.renderer?.play(kind);
   }
 
   /** Starts a benchmark run in the room shown, taking down the last result's panel; nothing while the renderer is not up. */
@@ -154,7 +161,9 @@ export class World3d {
       playerModel: state?.model ?? null,
       bodyLoaded: state?.bodyLoaded ?? false,
       avatarScale: state?.avatarScale ?? AVATAR_SCALE_DEFAULT,
-      clips: state ? { ...state.clips } : { idle: 0, walk: 0 },
+      clips: state ? { ...state.clips } : { idle: 0, walk: 0, run: 0 },
+      carry: state?.carry ?? 0,
+      shot: state?.shot ?? null,
       shadows: state?.shadows ?? false,
       shadowMap: state?.shadowMap
         ? { ...state.shadowMap, window: [...state.shadowMap.window] }

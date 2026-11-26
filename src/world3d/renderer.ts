@@ -75,15 +75,21 @@ import { shadowFrustum } from './shadowFrustum';
 import {
   AVATAR_SCALE_DEFAULT,
   BODY_SCALE,
+  AT_REST,
+  CLIP_NAMES,
+  parseLieSeconds,
   PLAYER_CLIPS,
-  type ClipName,
   type ClipWeights,
-  fadeWeights,
+  type Motion,
+  type OneShotKind,
+  type PlayerClips,
+  advance,
+  layersOf,
   poseOf,
-  smoothSpeed,
-  walkRate,
+  shotAt,
+  startShot,
 } from './character';
-import { readClips, readGlb, type Clip } from './glb';
+import { readClips, readGlb } from './glb';
 import { facingOf } from './move';
 import {
   PLAYER_HEIGHT,
@@ -157,8 +163,12 @@ export interface RendererSnapshot {
   readonly bodyLoaded: boolean;
   /** How big the body is drawn, as a fraction of its full size. */
   readonly avatarScale: number;
-  /** How much of each clip the player's pose is made of now, summing to 1. */
+  /** How much of each locomotion clip the player's pose is made of now, summing to 1. */
   readonly clips: ClipWeights;
+  /** How much of the upper body is the carry's clip, 0 to 1. */
+  readonly carry: number;
+  /** The player's clip name of the one-shot under way (interact, pickUp, lieDown, lieIdle or lieStandUp), null between them. */
+  readonly shot: string | null;
   /** True while something casts a shadow onto the floor. */
   readonly shadows: boolean;
   /** The sun's shadow map: its bias settings and its fixed window, the room's. */
@@ -367,12 +377,12 @@ export class Renderer {
   private readonly sun: DirectionalLight;
   /** The node at the player's feet, turned to its facing; the body hangs from it once loaded. */
   private readonly player: TransformNode;
-  /** The loaded body: its meshes, its bones' nodes by name and the idle and walk clips. */
+  /** The loaded body: its meshes, its bones' nodes by name and the player's clips. */
   private body:
     | {
         readonly meshes: readonly AbstractMesh[];
         readonly nodes: ReadonlyMap<string, TransformNode>;
-        readonly clips: Readonly<Record<ClipName, Clip>>;
+        readonly clips: PlayerClips;
         /** The body root and its scaling before the avatar size, which the glTF loader sets to turn the file's frame. */
         readonly root: AbstractMesh;
         readonly rootScaling: Vector3;
@@ -386,13 +396,14 @@ export class Renderer {
   private facing = -Math.PI / 2;
   /** Where the player stood last frame, plan metres. */
   private lastFeet: { x: number; y: number } | undefined;
-  /** The player's speed over the ground, metres a second, smoothed. */
-  private speed = 0;
-  /** How much of each clip shows, and where each clip's clock is, seconds. */
-  private clips: ClipWeights = { idle: 1, walk: 0 };
-  private readonly clocks: Record<ClipName, number> = { idle: 0, walk: 0 };
-  /** True when the browser asks for reduced motion: the idle clip then holds its first pose, so a player at rest is still. */
+  /** What the pose carries from frame to frame: speed, gait blend, carry, clocks and the one-shot (character.ts). */
+  private motion: Motion = AT_REST;
+  /** True while the player carries a tree, which the scene sets each frame. */
+  private carrying = false;
+  /** True when the browser asks for reduced motion: the idle and carry clips then hold their first pose, so a player at rest is still. */
   private readonly stillIdle = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  /** Seconds the sleep lies still; a `?lieSeconds=` in the page's address stretches it, so a test can capture the pose. */
+  private readonly lieSeconds = parseLieSeconds(window.location.search);
   private room: Room['key'] | undefined;
   private roomChanges: RoomChange[] = [];
   private aheadBuilds: AheadBuild[] = [];
@@ -522,10 +533,9 @@ export class Renderer {
         return readClips(readGlb(await response.arrayBuffer()));
       }),
     ]);
-    const idle = clips.get(PLAYER_CLIPS.idle);
-    const walk = clips.get(PLAYER_CLIPS.walk);
+    const played = CLIP_NAMES.map((name) => [name, clips.get(PLAYER_CLIPS[name])] as const);
     const root = container.meshes.find((mesh) => mesh.name === '__root__');
-    if (this.disposed || !idle || !walk || !root) {
+    if (this.disposed || played.some(([, clip]) => !clip) || !root) {
       container.dispose();
       if (this.disposed) return;
       throw new Error('the player body file has no root or its clips are missing');
@@ -547,7 +557,13 @@ export class Renderer {
       this.shadows.addShadowCaster(mesh);
     }
     const nodes = new Map(container.transformNodes.map((node) => [node.name, node]));
-    this.body = { meshes, nodes, clips: { idle, walk }, root, rootScaling };
+    this.body = {
+      meshes,
+      nodes,
+      clips: Object.fromEntries(played) as PlayerClips,
+      root,
+      rootScaling,
+    };
     this.sizeBody();
   }
 
@@ -556,6 +572,26 @@ export class Renderer {
     if (scale === this.avatarScale) return;
     this.avatarScale = scale;
     this.sizeBody();
+  }
+
+  /** Whether the player carries a tree: the body's upper body holds it from the next frame on. */
+  setCarrying(carrying: boolean): void {
+    this.carrying = carrying;
+  }
+
+  /**
+   * Starts a one-shot (an Interact, a pick-up, a sleep) on the body's game
+   * clock, from now; it replaces one under way. Nothing before the body loads.
+   */
+  play(kind: OneShotKind): void {
+    if (!this.body) return;
+    this.motion = { ...this.motion, shot: startShot(kind, this.lieSeconds) };
+  }
+
+  /** The clip of the one-shot under way, if any. */
+  private shotClip(): string | null {
+    const shot = this.body && this.motion.shot && shotAt(this.motion.shot, this.body.clips);
+    return shot ? shot.clip : null;
   }
 
   /** The metres a unit of the body's model is drawn as: its full-size scale times the avatar size. */
@@ -599,7 +635,9 @@ export class Renderer {
       model: 'character',
       bodyLoaded: this.body !== undefined,
       avatarScale: this.avatarScale,
-      clips: this.clips,
+      clips: this.motion.weights,
+      carry: this.motion.carry,
+      shot: this.shotClip(),
       shadows: (this.shadows.getShadowMap()?.renderList?.length ?? 0) > 0,
       shadowMap: this.shadowMapState(),
       artDepthOffset: this.shown?.floorArt?.material.zOffset ?? 0,
@@ -843,22 +881,20 @@ export class Renderer {
    * body has loaded, its bones' nodes take the blended pose.
    */
   private animate(moved: number, dt: number): void {
-    this.speed = smoothSpeed(this.speed, moved, dt);
-    this.clips = fadeWeights(this.clips, this.speed, dt);
-    // A clip loops over its length; before the body loads its clock just runs.
-    const loop = (clip: ClipName): number => {
-      const duration = this.body?.clips[clip].duration ?? 0;
-      return duration > 0 ? duration : Infinity;
-    };
-    if (!this.stillIdle) this.clocks.idle = (this.clocks.idle + dt) % loop('idle');
-    this.clocks.walk =
-      (this.clocks.walk + dt * walkRate(this.speed, this.avatarScale)) % loop('walk');
+    this.motion = advance(
+      this.motion,
+      {
+        moved,
+        dt,
+        carrying: this.carrying,
+        avatarScale: this.avatarScale,
+        still: this.stillIdle,
+      },
+      this.body?.clips,
+    );
     if (!this.body) return;
-    for (const [name, { rotation, translation }] of poseOf(
-      this.body.clips,
-      this.clips,
-      this.clocks,
-    )) {
+    const layers = layersOf(this.motion, this.body.clips, this.stillIdle);
+    for (const [name, { rotation, translation }] of poseOf(this.body.clips, layers)) {
       const node = this.body.nodes.get(name);
       if (!node) continue;
       if (rotation) (node.rotationQuaternion ??= new Quaternion()).set(...rotation);

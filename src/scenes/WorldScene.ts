@@ -1493,6 +1493,7 @@ export class WorldScene extends Phaser.Scene {
     if (!near) return;
     const { state } = this.ctx;
     if ('tree' in near) {
+      this.world3d.play('interact');
       this.openInspector(near.tree);
       return;
     }
@@ -1501,6 +1502,8 @@ export class WorldScene extends Phaser.Scene {
       this.pickUpPlaced(placedId, near.label);
       return;
     }
+    // A door is walked through, not used: the body reaches for everything else.
+    if (!target) this.world3d.play('interact');
     const tree = pedestalKey === undefined ? undefined : treeOnPedestal(state, pedestalKey);
     if (tree) {
       this.openInspector(tree);
@@ -1795,8 +1798,10 @@ export class WorldScene extends Phaser.Scene {
   private pickUp(tree: BonsaiTree): void {
     const carried = carriedTree(this.ctx.state);
     this.closePanel();
-    if (pickUpTree(this.ctx.state, tree)) this.relocated();
-    else if (carried) this.showToast(`Already carrying ${treeLabel(carried)}`);
+    if (pickUpTree(this.ctx.state, tree)) {
+      this.world3d.play('pickUp');
+      this.relocated();
+    } else if (carried) this.showToast(`Already carrying ${treeLabel(carried)}`);
   }
 
   /**
@@ -1824,6 +1829,7 @@ export class WorldScene extends Phaser.Scene {
   private pickUpPlaced(id: number, label: string): void {
     const result = pickUpItem(this.ctx.state, id);
     if (result === 'ok') {
+      this.world3d.play('pickUp');
       this.drawRoom();
       this.relocated();
       this.showToast(`Picked up ${label}`);
@@ -2146,6 +2152,7 @@ export class WorldScene extends Phaser.Scene {
       (key) => this.liveRoomOf(ROOMS[key]),
       gameSeconds,
       settings.avatarScale,
+      carriedTree(state) !== undefined,
     );
     const on = this.world3d.active;
     if (this.worldCamera.visible === !on) return;
@@ -2170,6 +2177,7 @@ export class WorldScene extends Phaser.Scene {
   private goToSleep(days: number): void {
     if (!this.roomKeysLive()) return;
     this.closePanel();
+    this.world3d.play('sleep');
     const slept = sleep(this.ctx.state, days);
     this.daysPassed(slept.days, slept.revenue, true);
   }
