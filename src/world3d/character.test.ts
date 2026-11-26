@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ANIMATION_CLIPS,
-  BODY_FILES,
   BODY_MODEL_HEIGHT,
   BODY_SCALE,
   CHARACTER_HEIGHT,
@@ -20,9 +19,9 @@ import {
 import { accessorFloats, readClips, readGlb, type Clip, type Glb, type GltfJson } from './glb';
 import { MOVE_SPEED } from '../world/player';
 
-/** A committed file under public/ as a GLB. */
+/** A committed file under src/world3d/player/ as a GLB. */
 function glbFile(path: string): Glb {
-  const bytes = readFileSync(new URL(`../../public/${path}`, import.meta.url));
+  const bytes = readFileSync(new URL(`./player/${path}`, import.meta.url));
   return readGlb(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
 }
 
@@ -46,8 +45,8 @@ interface Full extends GltfJson {
   readonly skins?: readonly { readonly joints: readonly number[] }[];
 }
 
-const clipsGlb = glbFile(BODY_FILES.clips);
-const bodyGlb = glbFile(BODY_FILES.body);
+const clipsGlb = glbFile('animations.glb');
+const bodyGlb = glbFile('rogue.glb');
 const clips = readClips(clipsGlb);
 const bodyJson = bodyGlb.json as Full;
 

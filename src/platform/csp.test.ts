@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -111,10 +111,10 @@ describe('Cache-Control routes', () => {
   const cacheControl = (urlPath: string): string | undefined =>
     firstMatch(routes, urlPath)?.headers?.['Cache-Control'];
 
-  it('revalidates fixed-name sprite sheets, sounds and player files, ahead of the immutable /assets/* route', () => {
+  it('revalidates fixed-name sprite sheets and sounds, ahead of the immutable /assets/* route', () => {
     const assets = indexOf('/assets/*');
     expect(assets).toBeGreaterThanOrEqual(0);
-    for (const route of ['/assets/spr_*', '/assets/audio/*', '/assets/player/*']) {
+    for (const route of ['/assets/spr_*', '/assets/audio/*']) {
       const index = indexOf(route);
       expect(index, route).toBeGreaterThanOrEqual(0);
       expect(index, `${route} before /assets/*`).toBeLessThan(assets);
@@ -130,7 +130,6 @@ describe('Cache-Control routes', () => {
   it.each([
     ['/assets/spr_player.png', NO_CACHE],
     ['/assets/audio/click.wav', NO_CACHE],
-    ['/assets/player/rogue.glb', NO_CACHE],
     ['/assets/index-abc123.js', IMMUTABLE],
     ['/assets/phaser-abc123.js', IMMUTABLE],
     ['/sw.js', NO_CACHE],
@@ -141,11 +140,20 @@ describe('Cache-Control routes', () => {
   it.each([
     ['public/assets', '/assets/', '.png'],
     ['public/assets/audio', '/assets/audio/', '.wav'],
-    ['public/assets/player', '/assets/player/', '.glb'],
-    ['public/assets/player', '/assets/player/', '.png'],
   ])('every %s file served in place resolves to no-cache', (dir, urlPrefix, extension) => {
     const files = readdirSync(path.join(root, dir)).filter((name) => name.endsWith(extension));
     expect(files.length).toBeGreaterThan(0);
     for (const name of files) expect(cacheControl(`${urlPrefix}${name}`), name).toBe(NO_CACHE);
+  });
+
+  it('serves no player body file from public/, so each is a hashed asset the immutable route covers', () => {
+    for (const name of ['rogue.glb', 'rogue_texture.png', 'animations.glb']) {
+      expect(existsSync(path.join(root, 'src/world3d/player', name)), name).toBe(true);
+    }
+    for (const name of ['rogue.glb', 'rogue_texture.png', 'animations.glb']) {
+      expect(existsSync(path.join(root, 'public/assets/player', name)), name).toBe(false);
+    }
+    expect(cacheControl('/assets/rogue-abc123.glb')).toBe(IMMUTABLE);
+    expect(cacheControl('/assets/rogue_texture-abc123.png')).toBe(IMMUTABLE);
   });
 });

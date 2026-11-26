@@ -34,6 +34,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 import { Scene } from '@babylonjs/core/scene';
 import { Bench, type BenchResult } from './bench';
+import { BODY_FILES } from './bodyFiles';
 import type { Season } from '../sim/seasons';
 import { PALETTE } from '../world/palette';
 import { sheetUrl, type Sheet } from '../world/assets';
@@ -72,7 +73,6 @@ import {
 } from './roomCache';
 import { shadowFrustum } from './shadowFrustum';
 import {
-  BODY_FILES,
   BODY_SCALE,
   PLAYER_CLIPS,
   type ClipName,
@@ -497,7 +497,7 @@ export class Renderer {
   }
 
   /**
-   * Loads the player's body (character.ts's `BODY_FILES`) and hangs it from
+   * Loads the player's body (`BODY_FILES`, bodyFiles.ts) and hangs it from
    * the player's node, scaled to `CHARACTER_HEIGHT`; until it arrives the
    * player's place is empty and the world draws on. The glTF loader turns the
    * file's right-handed frame under its `__root__`, which keeps the model's
@@ -505,12 +505,11 @@ export class Renderer {
    * (`readClips`), never played by Babylon, so they run on the game's clock.
    */
   private async loadBody(): Promise<void> {
-    const base = import.meta.env.BASE_URL;
     const [container, clips] = await Promise.all([
-      LoadAssetContainerAsync(`${base}${BODY_FILES.body}`, this.scene, {
+      LoadAssetContainerAsync(BODY_FILES.body, this.scene, {
         pluginOptions: { gltf: { skipMaterials: true } },
       }),
-      fetch(`${base}${BODY_FILES.clips}`).then(async (response) => {
+      fetch(BODY_FILES.clips).then(async (response) => {
         if (!response.ok) throw new Error(`${BODY_FILES.clips}: ${String(response.status)}`);
         return readClips(readGlb(await response.arrayBuffer()));
       }),
@@ -528,7 +527,7 @@ export class Renderer {
     root.scaling.scaleInPlace(BODY_SCALE);
     const material = new StandardMaterial('player', this.scene);
     // glTF's texture coordinates start at the image's top, so the atlas is not flipped.
-    material.diffuseTexture = new Texture(`${base}${BODY_FILES.texture}`, this.scene, false, false);
+    material.diffuseTexture = new Texture(BODY_FILES.texture, this.scene, false, false);
     material.specularColor = Color3.Black();
     lookLit(material, this.toLight);
     const meshes = container.meshes.filter((mesh) => mesh.getTotalVertices() > 0);

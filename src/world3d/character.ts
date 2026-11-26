@@ -18,13 +18,6 @@ export type ClipName = (typeof CLIP_NAMES)[number];
 type Vec3 = readonly [x: number, y: number, z: number];
 type Quat = readonly [x: number, y: number, z: number, w: number];
 
-/** The body's file, its texture atlas and its clips' file, under the app's base path. */
-export const BODY_FILES = {
-  body: 'assets/player/rogue.glb',
-  texture: 'assets/player/rogue_texture.png',
-  clips: 'assets/player/animations.glb',
-} as const;
-
 /** The clip in the animations file each blend clip plays. */
 export const PLAYER_CLIPS: Readonly<Record<ClipName, string>> = {
   idle: 'Idle_A',

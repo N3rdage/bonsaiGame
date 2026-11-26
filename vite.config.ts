@@ -50,7 +50,7 @@ export default defineConfig({
       workbox: {
         // woff2: the self-hosted UI font (src/scenes/textStyle.ts), so text draws in it offline.
         // wav: the sound effects (public/assets/audio), so the game sounds the same offline.
-        // glb: the player's 3D body and its clips (public/assets/player), so the 3D world has its player offline.
+        // glb: the player's 3D body and its clips (src/world3d/player, imported as hashed assets), so the 3D world has its player offline.
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2,wav,glb}'],
         // Phaser alone is over a megabyte; the default 2 MB cap would silently skip it.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
