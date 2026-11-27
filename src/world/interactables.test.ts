@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { FRONT_GARDEN_ROOM, SHOP_VEHICLE_KEY } from './frontGardenRoom';
 import { INTERACT_RANGE, nearestInteractable, promptFor } from './interactables';
 import { LOUNGE_ROOM } from './loungeRoom';
 import { SHED_ROOM, type Prop } from './shedRoom';
@@ -37,9 +38,12 @@ describe('interactables', () => {
     expect(SHED_ROOM.props.map((p) => [p.key, promptFor(p)])).toEqual([
       ['workbench', 'E: Make Pot'],
       ['planting_table', 'E: Plant Cutting'],
-      ['shop_kiosk', 'E: Shop'],
       ['door', 'E: To Garden'],
       ['door_lounge', 'E: To Lounge'],
+    ]);
+    expect(FRONT_GARDEN_ROOM.props.map((p) => [p.key, promptFor(p)])).toContainEqual([
+      SHOP_VEHICLE_KEY,
+      'E: Go to the shop',
     ]);
     expect(LOUNGE_ROOM.props.map(promptFor).slice(0, 2)).toEqual([
       'E: Use Pedestal',

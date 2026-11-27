@@ -15,7 +15,6 @@ import {
   loadGame,
   nextPlacingKind,
   openMenu,
-  openShop,
   placeTree,
   saveGame,
   sleepOneNight,
@@ -27,7 +26,7 @@ import {
   walkTo,
   walkToRow,
 } from './drive';
-import { gardenToGreenhouse, shedToGarden, throughDoor } from './rooms';
+import { bicycleToShed, gardenToGreenhouse, openShop, shedToGarden } from './rooms';
 
 // A version-6 save with a pedestal and a floor shelf in the inventory, nothing
 // placed (so the first placed item is placed_0), Granny's juniper carried. The
@@ -229,7 +228,8 @@ test.describe('placement mode', () => {
   });
 
   test('a floor shelf bought at the shop goes down in the greenhouse', async ({ page }) => {
-    // Three rooms' walks and the menu taps take about a minute on the S22's tap route.
+    // Out to the front garden's bicycle, back through the house and on to the greenhouse: seven
+    // rooms' walks and the menu taps, inside two minutes on the S22's tap route.
     test.setTimeout(120_000);
     const errors = collectErrors(page);
     await bootWorld(page);
@@ -245,9 +245,8 @@ test.describe('placement mode', () => {
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
 
-    // From the kiosk, left of the shed's garden door: down to its row and right to it.
-    await walkTo(page, 200, 'right', 'door');
-    await throughDoor(page, 'garden');
+    await bicycleToShed(page);
+    await shedToGarden(page);
     await gardenToGreenhouse(page);
 
     // The pedestal comes first in the stock; Next switches to the shelf.

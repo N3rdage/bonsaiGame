@@ -53,7 +53,6 @@ describe('sprite sheets', () => {
       ['spr_shed_door_s', 96, 64, 1],
       ['spr_workbench', 192, 160, 1],
       ['spr_planting_table', 128, 160, 1],
-      ['spr_shop_kiosk', 96, 224, 1],
       ['spr_shed_rug', 480, 280, 1],
       ['spr_floor_lounge', 64, 64, 3],
       ['spr_floor_kitchen', 64, 64, 3],
@@ -101,6 +100,7 @@ describe('sprite sheets', () => {
       ['spr_bed', 64, 64, 3],
       ['spr_front_door', 96, 160, 1],
       ['spr_roller_door', 308, 160, 1],
+      ['spr_bicycle', 216, 120, 1],
       ['spr_pedestal', 64, 112, 1],
       ['spr_floor_shelf', 128, 96, 1],
       ['spr_paper', 256, 256, 1],
@@ -138,7 +138,6 @@ describe('sprite sheets', () => {
       SHEETS.shedDoorS,
       SHEETS.workbench,
       SHEETS.plantingTable,
-      SHEETS.shopKiosk,
       SHEETS.shedRug,
       SHEETS.floorLounge,
       SHEETS.floorKitchen,
@@ -186,6 +185,7 @@ describe('sprite sheets', () => {
       SHEETS.bed,
       SHEETS.frontDoor,
       SHEETS.rollerDoor,
+      SHEETS.bicycle,
       SHEETS.pedestal,
       SHEETS.floorShelf,
       SHEETS.paper,
@@ -248,7 +248,6 @@ describe('sprite sheets', () => {
         SHEETS.shedDoorS,
         SHEETS.workbench,
         SHEETS.plantingTable,
-        SHEETS.shopKiosk,
         SHEETS.shedRug,
         SHEETS.shelf,
         SHEETS.tools,
@@ -266,10 +265,9 @@ describe('sprite sheets', () => {
       [32, 24],
       [24, 40],
       [24, 16],
-      // The 1.5 x 0.6 x 0.9 m workbench, the planting table, the kiosk, the rug.
+      // The 1.5 x 0.6 x 0.9 m workbench, the planting table, the rug.
       [48, 40],
       [32, 40],
-      [24, 56],
       [120, 70],
       // The decor.
       [24, 20],
@@ -362,6 +360,7 @@ describe('sprite sheets', () => {
         SHEETS.bed,
         SHEETS.frontDoor,
         SHEETS.rollerDoor,
+        SHEETS.bicycle,
       ].map(logical),
     ).toEqual([
       // A slice of the 3 m road, 18 of them across the room's 576 px.
@@ -374,6 +373,8 @@ describe('sprite sheets', () => {
       // A 0.8 x 2.0 m door front-on; the 2.4 m roller door, 76.8 px rounded to a whole 77.
       [24, 40],
       [77, 40],
+      // The 1.7 m long, 1 m tall bicycle.
+      [54, 30],
     ]);
     expect(576 % (SHEETS.road.frameWidth / sheetPxPerLogical(SHEETS.road))).toBe(0);
     for (const s of [SHEETS.road, SHEETS.fenceLow, SHEETS.drive, SHEETS.path, SHEETS.bed]) {

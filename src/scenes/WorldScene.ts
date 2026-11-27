@@ -136,7 +136,8 @@ import {
   sellPanel,
   stylePanel,
 } from '../world/treePanels';
-import { SHOP_KIOSK_KEY, shopItemFor, shopPanel } from '../world/shopPanel';
+import { SHOP_VEHICLE_KEY } from '../world/frontGardenRoom';
+import { shopItemFor, shopPanel } from '../world/shopPanel';
 import { INVENTORY_KEY, inventoryPanel, inventorySections } from '../world/inventoryPanel';
 import {
   NOTEBOOK_KEY,
@@ -1481,7 +1482,7 @@ export class WorldScene extends Phaser.Scene {
    * E or the Interact button: while placing, the ghost's kind goes down.
    * Otherwise a floor tree or an occupied pedestal opens the tree's
    * inspector, an empty pedestal the Display Pedestal panel, a door
-   * leads to its room, a source plant gives a cutting, the kiosk opens the
+   * leads to its room, a source plant gives a cutting, the bicycle opens the
    * shop, the workbench makes a pot and the planting table opens Plant.
    */
   private interact(): void {
@@ -1528,7 +1529,7 @@ export class WorldScene extends Phaser.Scene {
       this.enterRoom(target);
     } else if (speciesKey) {
       this.takeFromPlant(near.key, speciesKey);
-    } else if (near.key === SHOP_KIOSK_KEY) {
+    } else if (near.key === SHOP_VEHICLE_KEY) {
       this.openShop();
     } else if (near.key === WORKBENCH_KEY) {
       this.showToast(makePot(state));

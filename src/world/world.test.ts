@@ -90,7 +90,6 @@ describe('shed room', () => {
     expect(SHED_ROOM.props.map((p) => [p.key, p.x, p.y])).toEqual([
       ['workbench', 125, 90],
       ['planting_table', 165, 90],
-      ['shop_kiosk', 125, 145],
       ['door', 240, 216],
       ['door_lounge', 240, 56],
     ]);
@@ -864,15 +863,36 @@ describe('front garden room', () => {
     expect(insideWalls(room)).toEqual({ x: 16, y: 112, w: 544, h: 96 });
     expect(room.edgeMargin).toBe(SHED_ROOM.edgeMargin);
     expect([room.windows, room.floor]).toEqual([[], 0x30502c]);
-    // Not a placeable room, and no display spots or source plants: its props are its two doors.
-    expect(room.props.every((p) => p.wall !== undefined)).toBe(true);
+    // Not a placeable room, and no display spots or source plants: its props are its two doors and the shop's bicycle.
+    expect(room.props.filter((p) => p.wall === undefined).map((p) => p.key)).toEqual([
+      'shop_bicycle',
+    ]);
     // Nothing in it is solid: the road and the roofs lie outside bounds, the rest is drawn over the ring or the lawn.
     expect(furnitureWalls(room.furniture)).toEqual([]);
   });
 
+  it('has the shop bicycle on the lawn west of the path, in reach along a walk from the front door', () => {
+    expect(room.props.find((p) => p.key === 'shop_bicycle')).toMatchObject({
+      label: 'Bicycle',
+      prompt: 'Go to the shop',
+      x: 284,
+      y: 196,
+      w: 54,
+      h: 8,
+    });
+    const walked = walk(room.playerStart, { x: -1, y: 0 }, 50);
+    expect(nearestInteractable(walked, room.props)?.key).toBe('shop_bicycle');
+    // Open lawn between the drive and the path, clear of the south band's doors.
+    expect(284 - 27).toBeGreaterThan(DRIVE.x + DRIVE.w);
+    expect(284 + 27).toBeLessThan(PATH.x);
+    expect(196 + 4).toBeLessThanOrEqual(room.bounds.y + room.bounds.h - 16);
+  });
+
   it('has the front door and the side gate in its south band, each leading back to its far side', () => {
     expect(
-      room.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.wall, p.target]),
+      room.props
+        .filter((p) => p.wall !== undefined)
+        .map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.wall, p.target]),
     ).toEqual([
       [
         'door_house',

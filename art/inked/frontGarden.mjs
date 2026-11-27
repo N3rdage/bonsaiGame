@@ -16,6 +16,8 @@
 //   spr_front_door   the house's front door front-on, a solid panelled leaf
 //                    in its frame, 24 x 40, cut out
 //   spr_roller_door  the garage's closed roller door, 2.4 m wide, 77 x 40, cut out
+//   spr_bicycle      the bicycle on the lawn by the path, side-on, 1.7 m long and
+//                    1 m tall, 54 x 30, cut out
 //
 // A repeated tile has three variants, each on its own page and seed, joined
 // into one strip. Every page has its own seed in SEEDS, written out, and its
@@ -38,6 +40,7 @@ const SEEDS = {
   bed: [0x6c40, 0x6c41, 0x6c42],
   frontDoor: 0x6c50,
   rollerDoor: 0x6c60,
+  bicycle: 0x6c70,
 };
 
 /** Ink widths, art px: an outline, a seam, a small mark, a blade of grass. */
@@ -306,6 +309,59 @@ function rollerDoor() {
   return finishCutOut(page);
 }
 
+/** The bicycle's wheel: 0.7 m across, 22 px wide and 15 tall at the front garden's heights, centred on row `cy`. */
+const WHEEL = { rx: 11, ry: 7.5, cy: 21.5 };
+
+/** A frame tube between two points, a 1.6 px terracotta bar. */
+const tube = (k, [x0, y0], [x1, y1]) =>
+  k.shape(
+    [
+      [x0, y0 - 0.8],
+      [x1, y1 - 0.8],
+      [x1, y1 + 0.8],
+      [x0, y0 + 0.8],
+    ],
+    'terracotta',
+    { width: SEAM },
+  );
+
+// The bicycle, side-on, standing on the frame's bottom edge: two wheels a
+// metre apart with a tyre, a brass hub and a few spokes, a terracotta frame
+// (seat tube, top tube, down tube, stays and fork), a saddle at the rear,
+// handlebars at the front and a pedal at the crank.
+function bicycle() {
+  const page = createPage(54, 30, { seed: SEEDS.bicycle, origin: [257, 170] });
+  const { k } = page;
+  const hubs = [11, 43];
+  for (const cx of hubs) {
+    const tyre = Array.from({ length: 24 }, (_, i) => {
+      const a = (i / 24) * Math.PI * 2;
+      return [cx + Math.cos(a) * WHEEL.rx, WHEEL.cy + Math.sin(a) * WHEEL.ry];
+    });
+    k.line([...tyre, tyre[0], tyre[1]], 1.8);
+    for (const a of [0.4, 1.4, 2.5, 3.5]) {
+      const dx = Math.cos(a) * (WHEEL.rx - 1);
+      const dy = Math.sin(a) * (WHEEL.ry - 1);
+      seg(k, cx - dx, WHEEL.cy - dy, cx + dx, WHEEL.cy + dy, 0.6);
+    }
+  }
+  const seat = [18, 10];
+  const head = [37, 9];
+  const crank = [25, 22];
+  tube(k, [hubs[0], WHEEL.cy], seat);
+  tube(k, [hubs[0], WHEEL.cy], crank);
+  tube(k, seat, crank);
+  tube(k, seat, head);
+  tube(k, crank, head);
+  tube(k, head, [hubs[1], WHEEL.cy]);
+  for (const cx of hubs) k.blob(cx, WHEEL.cy, 1.3, 1.1, 'brass', { width: MARK });
+  k.blob(17, 8, 4, 1.5, 'wood', { width: SEAM });
+  seg(k, 37, 9, 36, 5.4, MARK);
+  seg(k, 34.4, 5.2, 40, 5.6, MARK);
+  seg(k, 22.6, 24, 27.4, 20, MARK);
+  return finishCutOut(page);
+}
+
 const strip = (n, draw) => () => joinStrip(Array.from({ length: n }, (_, i) => draw(i)));
 
 const SHEETS = [
@@ -316,6 +372,7 @@ const SHEETS = [
   ['spr_bed', strip(3, bedTile)],
   ['spr_front_door', frontDoor],
   ['spr_roller_door', rollerDoor],
+  ['spr_bicycle', bicycle],
 ];
 
 for (const [name, draw] of SHEETS) {

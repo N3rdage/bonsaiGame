@@ -15,7 +15,6 @@
 //                       wall shows no face in a three-quarter view
 //   spr_workbench       48 x 40 (1.5 x 0.6 x 0.9 m), cut out
 //   spr_planting_table  32 x 40 (1.0 x 0.6 x 0.9 m), cut out
-//   spr_shop_kiosk      24 x 56 (a 0.75 m counter 1 m high, 0.75 m deep, its sign to 1.6 m), cut out
 //   spr_shelf, spr_tools, spr_watering_can, spr_pot_stack, spr_sack
 //                       the decor, cut out, each standing on its frame's bottom edge
 //   spr_shed_rug        the rug, 120 x 70 at SHED_RUG's rect, cut out
@@ -46,7 +45,6 @@ const SEEDS = {
   doorS: 0x5d42,
   workbench: 0x5d50,
   plantingTable: 0x5d51,
-  kiosk: 0x5d52,
   shelf: 0x5d60,
   tools: 0x5d61,
   wateringCan: 0x5d62,
@@ -295,31 +293,6 @@ function plantingTable() {
   return finishCutOut(page);
 }
 
-// The shop kiosk: a counter 1 m high on a 0.75 m square footprint (top y
-// 12..36, front y 36..56) with a cash tin and a bell, two posts at its back
-// carrying a sign board.
-function kiosk() {
-  const page = createPage(24, 56, { seed: SEEDS.kiosk, origin: [113, 101] });
-  const { k } = page;
-  for (const x of [2.5, 18.5]) k.box(x, 6, 3, 8, 'wood', { width: SEAM });
-  k.box(1, 0.8, 22, 8.4, 'cream', { wear: false });
-  for (const [x0, x1] of [
-    [4, 9],
-    [10.5, 15],
-    [16.5, 20],
-  ]) {
-    seg(k, x0, 3.6, x1, 3.4, MARK);
-    seg(k, x0 + 0.5, 6.2, x1 - 0.5, 6, MARK);
-  }
-  k.box(1, 12.5, 22, 24, 'top');
-  k.box(3.5, 16, 9, 6, 'metal', { width: SEAM, hatching: rect(3.5, 19.5, 9, 2.5) });
-  k.blob(17.5, 26, 2.2, 1.6, 'brass', { width: SEAM });
-  k.box(1, 36, 22, 19.4, 'wood');
-  for (const x of [6.5, 12, 17.5]) seg(k, x, 37, x, 55);
-  k.hatchIn(rect(1.4, 36.4, 5, 18.6), FINE);
-  return finishCutOut(page);
-}
-
 // The decor, each cut out and standing on its frame's bottom edge.
 
 /** The shelf, a low two-tier rack 0.75 m wide, 0.25 m deep and 0.6 m high, with pots on it. */
@@ -492,7 +465,6 @@ const SHEETS = [
   ['spr_shed_door_s', gardenDoor],
   ['spr_workbench', workbench],
   ['spr_planting_table', plantingTable],
-  ['spr_shop_kiosk', kiosk],
   ['spr_shelf', shelf],
   ['spr_tools', tools],
   ['spr_watering_can', wateringCan],

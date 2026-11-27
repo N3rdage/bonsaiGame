@@ -2,15 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { SHOP_CATALOGUE, shopBuy } from '../sim/shop';
 import { createNewGameState } from '../sim/state';
 import { panelCloseLabel, PANEL_INSET, panelClose, panelTitleY } from './panels';
+import { FRONT_GARDEN_ROOM, SHOP_VEHICLE_KEY } from './frontGardenRoom';
 import { SHED_ROOM } from './shedRoom';
-import {
-  SHOP_KIOSK_KEY,
-  SHOP_PANEL,
-  SHOP_ROWS_PER_BLOCK,
-  shopColumns,
-  shopItemFor,
-  shopPanel,
-} from './shopPanel';
+import { SHOP_PANEL, SHOP_ROWS_PER_BLOCK, shopColumns, shopItemFor, shopPanel } from './shopPanel';
 
 // At 10 px, the layouts' bound of 0.6 em a character (Caveat's lines average 0.35 to 0.37 em and its digits 0.45, the sans-serif fallback's lowercase 0.49) and the 1.2 em line (Phaser draws Caveat 12 px tall): 6 px a glyph and a 12 px line. Generous upper bounds.
 const GLYPH_W = 6;
@@ -23,8 +17,11 @@ const lines = (state = createNewGameState()) => {
 };
 
 describe('shop panel', () => {
-  it('opens from the shed kiosk, titled Shop', () => {
-    expect(SHED_ROOM.props.find((p) => p.key === SHOP_KIOSK_KEY)?.prompt).toBe('Shop');
+  it('opens from the front garden bicycle, titled Shop, and from nothing in the shed', () => {
+    const bicycle = FRONT_GARDEN_ROOM.props.find((p) => p.key === SHOP_VEHICLE_KEY);
+    expect([bicycle?.key, bicycle?.prompt]).toEqual(['shop_bicycle', 'Go to the shop']);
+    expect(SHED_ROOM.props.map((p) => p.prompt)).not.toContain('Shop');
+    expect(SHED_ROOM.props.some((p) => p.key === SHOP_VEHICLE_KEY)).toBe(false);
     const model = shopPanel(createNewGameState());
     expect([model.key, model.title, model.box]).toEqual(['shop', 'Shop', SHOP_PANEL]);
   });

@@ -168,6 +168,9 @@ function southDoor(key: string, label: string, prompt: string, x: number): Prop 
   return { key, label, prompt, x, y: DOOR_Y, w: WALL_BAND, h: WALL_BAND, wall: 'S' };
 }
 
+/** The prop whose interaction opens the shop: the bicycle on the lawn. */
+export const SHOP_VEHICLE_KEY = 'shop_bicycle';
+
 export const FRONT_GARDEN_ROOM: Room = {
   key: 'frontGarden',
   width: FRONT_GARDEN_BOUNDS.w,
@@ -180,6 +183,19 @@ export const FRONT_GARDEN_ROOM: Room = {
   walls: ringWalls(FRONT_GARDEN_BOUNDS),
   furniture: FRONT_GARDEN_FURNITURE,
   props: [
+    // The bicycle leaning on the lawn west of the path, its 54 x 8 footprint centred on (284, 196):
+    // 9 px from the path's paving, between the lounge window and the front door, clear of the front
+    // door's landing and in the lawn's southern strip, so the drive, the path and the gate stay clear.
+    // It opens the shop.
+    {
+      key: SHOP_VEHICLE_KEY,
+      label: 'Bicycle',
+      prompt: 'Go to the shop',
+      x: 284,
+      y: 196,
+      w: 54,
+      h: 8,
+    },
     // B3 row 10: the front door in the house's front face at x 7 m, to the hallway's front door;
     // its solid panelled leaf front-on, standing on the face's foot.
     {
