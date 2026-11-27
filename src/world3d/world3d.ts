@@ -11,7 +11,7 @@ import { SURROUND } from '../scenes/textStyle';
 import type { Season } from '../sim/seasons';
 import type { Room, RoomKey } from '../world/shedRoom';
 import { cameraRig } from './camera';
-import { AVATAR_SCALE_DEFAULT, type OneShotKind } from './character';
+import type { OneShotKind } from './character';
 import type { Seat, SeatKey } from './seats';
 import { showBench, showPanel } from './benchPanel';
 import { roomTimeLines } from './roomTimes';
@@ -84,7 +84,6 @@ export class World3d {
     weather: WeatherField | undefined,
     roomOf: (key: RoomKey) => Room,
     gameSeconds = 0,
-    avatarScale: number = AVATAR_SCALE_DEFAULT,
     carrying = false,
   ): void {
     if (on && !this.renderer && !this.loading && !this.failed) {
@@ -104,7 +103,6 @@ export class World3d {
         });
     }
     if (!on) this.dispose();
-    this.renderer?.setAvatarScale(avatarScale);
     this.renderer?.setCarrying(carrying);
     this.renderer?.frame(room, player, trees, mats, season, weather, roomOf, gameSeconds);
     const bench = this.renderer?.benchState().result;
@@ -186,7 +184,6 @@ export class World3d {
       facing: state?.facing ?? 0,
       playerModel: state?.model ?? null,
       bodyLoaded: state?.bodyLoaded ?? false,
-      avatarScale: state?.avatarScale ?? AVATAR_SCALE_DEFAULT,
       clips: state ? { ...state.clips } : { idle: 0, walk: 0, run: 0 },
       carry: state?.carry ?? 0,
       shot: state?.shot ?? null,

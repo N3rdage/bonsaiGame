@@ -2,8 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ANIMATION_CLIPS,
-  AVATAR_SCALES,
-  AVATAR_SCALE_DEFAULT,
+  AVATAR_SCALE,
   BODY_MODEL_HEIGHT,
   BODY_SCALE,
   AT_REST,
@@ -25,8 +24,6 @@ import {
   gaitRate,
   gaitTime,
   layersOf,
-  nextAvatarScale,
-  parseAvatarScale,
   parseLieSeconds,
   poseOf,
   release,
@@ -489,17 +486,14 @@ describe('the blend', () => {
   });
 
   // The player's full speed, 2.34 m/s, is below the run's own pace for the full-size figure, and
-  // the slowest avatar size needs it played 1.5 times over: at every size the run keeps pace.
-  it('keeps the run in step with the ground at the player full speed, at every avatar size', () => {
+  // the drawn avatar needs it played 1.25 times over: the run keeps pace.
+  it('keeps the run in step with the ground at the player full speed', () => {
     const full = (MOVE_SPEED * 60) / 32;
-    for (const scale of AVATAR_SCALES) {
-      const rate = clipRate('run', full, scale);
-      expect(rate).toBeCloseTo(full / (STRIDE_SPEEDS.run * scale));
-      expect(rate).toBeLessThan(RATE_MAX);
-      expect(rate).toBeGreaterThan(0.5);
-    }
+    const rate = clipRate('run', full, AVATAR_SCALE);
+    expect(rate).toBeCloseTo(full / (STRIDE_SPEEDS.run * AVATAR_SCALE));
+    expect(rate).toBeLessThan(RATE_MAX);
+    expect(rate).toBeCloseTo(1.25, 2);
     expect(clipRate('run', full, 1)).toBeCloseTo(0.875, 2);
-    expect(clipRate('run', full, AVATAR_SCALE_DEFAULT)).toBeCloseTo(1.25, 2);
   });
 });
 
@@ -826,29 +820,15 @@ describe('the body mask', () => {
   });
 });
 
-describe('the avatar size', () => {
-  it('is a feel setting with five steps, 70% by default', () => {
-    expect(AVATAR_SCALES).toEqual([0.6, 0.7, 0.8, 0.9, 1]);
-    expect(AVATAR_SCALE_DEFAULT).toBe(0.7);
+describe('the avatar scale', () => {
+  it('is a feel factor: the body is drawn at 70% of full size', () => {
+    expect(AVATAR_SCALE).toBe(0.7);
   });
 
-  it('cycles up through the steps and from the largest back to the smallest', () => {
-    expect(AVATAR_SCALES.map(nextAvatarScale)).toEqual([0.7, 0.8, 0.9, 1, 0.6]);
-  });
-
-  it('parses only an allowed step', () => {
-    for (const scale of AVATAR_SCALES) expect(parseAvatarScale(scale)).toBe(scale);
-    for (const bad of [0.75, 0, 2, '0.7', null, undefined, NaN]) {
-      expect(parseAvatarScale(bad)).toBeUndefined();
-    }
-  });
-
-  it('scales the gait strides with the body, so the feet slide no more at any step', () => {
+  it('scales the gait strides with the body, so the feet do not slide', () => {
     for (const gait of ['walk', 'run'] as const) {
-      for (const scale of AVATAR_SCALES) {
-        expect(clipRate(gait, STRIDE_SPEEDS[gait] * scale, scale)).toBeCloseTo(1);
-      }
-      expect(clipRate(gait, STRIDE_SPEEDS[gait] * 0.7, 0.7)).toBeCloseTo(
+      expect(clipRate(gait, STRIDE_SPEEDS[gait] * AVATAR_SCALE, AVATAR_SCALE)).toBeCloseTo(1);
+      expect(clipRate(gait, STRIDE_SPEEDS[gait] * AVATAR_SCALE, AVATAR_SCALE)).toBeCloseTo(
         clipRate(gait, STRIDE_SPEEDS[gait], 1),
       );
     }

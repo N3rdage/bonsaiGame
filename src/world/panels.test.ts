@@ -222,7 +222,7 @@ describe('fitRows', () => {
     expect(closeHit.y).toBeGreaterThanOrEqual(box.y);
     expect(closeHit.y + closeHit.h).toBeLessThanOrEqual(270);
     const controls = model.rows.filter((r) => r.y !== close.y);
-    expect(controls).toHaveLength(7);
+    expect(controls).toHaveLength(6);
     expect(new Set(controls.map((r) => r.x ?? box.x + PANEL_INSET)).size).toBe(2);
     const hits = [closeHit];
     for (const row of controls) {
@@ -249,22 +249,21 @@ describe('fitRows', () => {
     expect(shop.box).toEqual({ ...SHOP_PANEL, y: 3, h: 264 });
     expect([...new Set(shop.rows.map((r) => r.y))]).toEqual([39, 65, 96, 127, 158, 189, 220, 251]);
     expect(panelClose(SHOP_PANEL).y).not.toBe(251);
-    // Settings' seven rows: PANEL grows to 269 tall, at the canvas top, Close's line at 253.
+    // Settings' six rows: PANEL grows to 238 tall, at y 16, Close's line at 238.
     const settings = fitRows(
       settingsPanel(DEFAULT_SETTINGS, { available: true, active: false }),
       PHONE_UI,
     );
-    expect(settings.box).toEqual({ ...PANEL, y: 0, h: 269 });
+    expect(settings.box).toEqual({ ...PANEL, y: 16, h: 238 });
     expect(settings.rows.map((r) => [r.id, r.y])).toEqual([
-      ['panel-fullscreen', 36],
-      ['panel-weather', 67],
-      ['panel-sound', 98],
-      ['panel-music', 129],
-      ['panel-world3d', 160],
-      ['panel-timespeed', 191],
-      ['panel-avatarsize', 222],
+      ['panel-fullscreen', 52],
+      ['panel-weather', 83],
+      ['panel-sound', 114],
+      ['panel-music', 145],
+      ['panel-world3d', 176],
+      ['panel-timespeed', 207],
     ]);
-    expect(panelClose(settings.box ?? PANEL).y).toBe(253);
+    expect(panelClose(settings.box ?? PANEL).y).toBe(238);
   });
 });
 

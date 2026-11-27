@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { onEscapeLockChange } from '../platform/fullscreen';
 import { nextTimeSpeed } from '../sim/timeOfDay';
-import { nextAvatarScale } from '../world3d/character';
 import { saveSettings } from '../platform/settings';
 import type { FullscreenState } from '../world/settingsPanel';
 import type { SharedSceneData } from './sceneData';
@@ -13,7 +12,7 @@ export function fullscreenState(scene: Phaser.Scene): FullscreenState {
 
 /**
  * Applies a Settings panel toggle (`panel-fullscreen`, `panel-weather`,
- * `panel-sound`, `panel-music`, `panel-world3d`, `panel-timespeed` or `panel-avatarsize`) to
+ * `panel-sound`, `panel-music`, `panel-world3d` or `panel-timespeed`) to
  * the shared settings and saves them. Called inside the tap, the user gesture
  * the browser requires before it enters fullscreen.
  */
@@ -31,8 +30,6 @@ export function toggleSetting(scene: Phaser.Scene, ctx: SharedSceneData, id: str
     ctx.settings.world3d = !ctx.settings.world3d;
   } else if (id === 'panel-timespeed') {
     ctx.settings.timeSpeed = nextTimeSpeed(ctx.settings.timeSpeed);
-  } else if (id === 'panel-avatarsize') {
-    ctx.settings.avatarScale = nextAvatarScale(ctx.settings.avatarScale);
   } else if (id === 'panel-music') {
     ctx.settings.music = !ctx.settings.music;
   } else {

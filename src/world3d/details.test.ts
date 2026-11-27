@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
-import { AVATAR_SCALES, CHARACTER_HEIGHT } from './character';
+import { AVATAR_SCALE, CHARACTER_HEIGHT } from './character';
 import {
   countDetails,
   plantHeight,
@@ -141,7 +141,7 @@ describe('roomDetails', () => {
     }
   });
 
-  it('sizes each source plant from the full-size figure, so no avatar size shrinks it', () => {
+  it('sizes each source plant from the full-size figure, so the avatar scale does not shrink it', () => {
     for (const species of Object.keys(
       SOURCE_PLANT_ART_PX,
     ) as (keyof typeof SOURCE_PLANT_ART_PX)[]) {
@@ -149,9 +149,7 @@ describe('roomDetails', () => {
         (SOURCE_PLANT_ART_PX[species] / PLAYER_ART_PX) * CHARACTER_HEIGHT,
         9,
       );
-      for (const scale of AVATAR_SCALES) {
-        expect(plantHeight(species)).toBeGreaterThanOrEqual(CHARACTER_HEIGHT * scale * 0.9);
-      }
+      expect(plantHeight(species)).toBeGreaterThanOrEqual(CHARACTER_HEIGHT * AVATAR_SCALE * 0.9);
     }
   });
 

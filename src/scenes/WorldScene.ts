@@ -2170,7 +2170,6 @@ export class WorldScene extends Phaser.Scene {
       weather,
       (key) => this.liveRoomOf(ROOMS[key]),
       gameSeconds,
-      settings.avatarScale,
       carriedTree(state) !== undefined,
     );
     const on = this.world3d.active;
