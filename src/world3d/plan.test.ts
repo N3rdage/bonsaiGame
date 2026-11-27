@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
 import { BACK_WALL_FACE, FENCE_HEIGHT, LOW_FENCE_HEIGHT } from '../world/roomArt';
 import { furnitureWalls, type RoomKey } from '../world/shedRoom';
+import { AVATAR_SCALE } from './character';
+import { BICYCLE_SCALE, TABLE_HEIGHT } from './furnitureModels';
+import { PLAYER_HEIGHT } from './meshes';
 import {
   DOOR_HEIGHT,
   FENCE_HEIGHT_M,
@@ -266,23 +269,32 @@ describe('roomPlan3d shed furniture props', () => {
     roomPlan3d(ROOMS.shed).furniture.find((b) => b.name === `prop.${key}`);
 
   it.each([
-    ['workbench', 40, 20, 20],
-    ['planting_table', 32, 20, 20],
-  ])('%s: stands on its %i x %i px footprint as tall as its %i px front face', (key, w, d, h) => {
+    ['workbench', 40, 20],
+    ['planting_table', 32, 20],
+  ])('%s: stands on its %i x %i px footprint at the waist of the player', (key, w, d) => {
     const prop = ROOMS.shed.props.find((p) => p.key === key);
     const box = standing(key);
     expect(prop).toBeDefined();
-    expect(box).toMatchObject({ z0: 0, z1: heightMetres(h), solid: false });
+    expect(TABLE_HEIGHT).toBe(0.65);
+    expect(box).toMatchObject({ z0: 0, z1: TABLE_HEIGHT, solid: false });
+    expect(TABLE_HEIGHT).toBeLessThan(PLAYER_HEIGHT * AVATAR_SCALE);
     expect((box?.x1 ?? 0) - (box?.x0 ?? 0)).toBeCloseTo(metres(w), 9);
     expect((box?.y1 ?? 0) - (box?.y0 ?? 0)).toBeCloseTo(metres(d), 9);
     expect(((box?.x0 ?? 0) + (box?.x1 ?? 0)) / 2).toBeCloseTo(metres(prop?.x ?? 0), 9);
     expect(((box?.y0 ?? 0) + (box?.y1 ?? 0)) / 2).toBeCloseTo(metres(prop?.y ?? 0), 9);
   });
 
-  it('stands the bicycle on its 54 x 8 px footprint in the front garden as tall as its 22 px frame', () => {
+  it('stands the bicycle at 70% of its 54 x 8 px footprint and 22 px frame, about the footprint middle', () => {
     const box = roomPlan3d(ROOMS.frontGarden).furniture.find((b) => b.name === 'prop.shop_bicycle');
-    expect(box).toMatchObject({ z0: 0, z1: heightMetres(22), solid: false, model: 'bicycle' });
-    expect(box?.x1 ?? 0).toBeCloseTo(metres(284 + 27), 9);
+    expect(BICYCLE_SCALE).toBe(0.7);
+    expect(box).toMatchObject({ z0: 0, solid: false, model: 'bicycle' });
+    expect(box?.z1 ?? 0).toBeCloseTo(heightMetres(22) * 0.7, 9);
+    expect((box?.x1 ?? 0) - (box?.x0 ?? 0)).toBeCloseTo(metres(54) * 0.7, 9);
+    expect((box?.y1 ?? 0) - (box?.y0 ?? 0)).toBeCloseTo(metres(8) * 0.7, 9);
+    expect(((box?.x0 ?? 0) + (box?.x1 ?? 0)) / 2).toBeCloseTo(metres(284), 9);
+    expect(((box?.y0 ?? 0) + (box?.y1 ?? 0)) / 2).toBeCloseTo(metres(196), 9);
+    // Its top, the handlebars, is about the player's waist, 0.72 m of their 1.21 m.
+    expect(box?.z1 ?? 0).toBeLessThan(0.75);
     expect(roomPlan3d(ROOMS.shed).furniture.some((b) => b.name === 'prop.shop_kiosk')).toBe(false);
   });
 
