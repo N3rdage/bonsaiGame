@@ -82,7 +82,7 @@ describe('floor', () => {
 
   it("tiles only the inside of each house room's own ring with its own floor, hashed as the shed's", () => {
     for (const [room, sheet, area, rows, columns] of [
-      [LOUNGE_ROOM, SHEETS.floorLounge, { x: 160, y: 64, w: 272, h: 144 }, 9, 17],
+      [LOUNGE_ROOM, SHEETS.floorLounge, { x: 96, y: 64, w: 336, h: 144 }, 9, 21],
       [HALLWAY_ROOM, SHEETS.floorHallway, { x: 192, y: 144, w: 96, h: 64 }, 4, 6],
       [STUDY_ROOM, SHEETS.floorStudy, { x: 160, y: 64, w: 144, h: 144 }, 9, 9],
       [GREENHOUSE_ROOM, SHEETS.floorGreenhouse, { x: 160, y: 80, w: 160, h: 112 }, 7, 10],
@@ -409,9 +409,9 @@ describe('walls', () => {
         SHEETS.wallLounge,
         SHEETS.loungeCap,
         SHEETS.loungeCapV,
-        [160, 16, 432, 64],
-        [152, 432],
-        [152, 208, 440, 216],
+        [96, 16, 432, 64],
+        [88, 432],
+        [88, 208, 440, 216],
       ],
       [
         HALLWAY_ROOM,
@@ -510,7 +510,7 @@ describe('walls', () => {
   it('has two windows in the lounge, one in the study and the shed, none in the hallway, the garden or the glass greenhouse', () => {
     // The lounge's both west of the hallway block (x 336), either side of the fireplace (x 224..256).
     expect(LOUNGE_ROOM.windows).toEqual([
-      { x: 176, w: 32 },
+      { x: 112, w: 32 },
       { x: 288, w: 32 },
     ]);
     // The study's between the desk (x 160..192) and the bookcase (x 256..304).
@@ -952,9 +952,9 @@ describe('shadows', () => {
       furnitureSprites(room).map((s) => [s.sheet.key, s.x, s.y, s.originY, s.scale, s.depth]);
     expect(sprites(LOUNGE_ROOM)).toEqual([
       ['spr_fireplace', 240, 88, 1, 0.25, 88],
-      ['spr_side_table', 168, 80, 1, 0.25, 80],
-      ['spr_sofa', 190, 158, 1, 0.25, 158],
-      ['spr_coffee_table', 220, 144, 1, 0.25, 144],
+      ['spr_side_table', 104, 80, 1, 0.25, 80],
+      ['spr_sofa', 126, 158, 1, 0.25, 158],
+      ['spr_coffee_table', 156, 144, 1, 0.25, 144],
       ['spr_armchair', 288, 136, 1, 0.25, 136],
       ['spr_bookcase', 272, 76, 1, 0.25, 76],
       ['spr_floor_lamp', 288, 154, 1, 0.25, 154],

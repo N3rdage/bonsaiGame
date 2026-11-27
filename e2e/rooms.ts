@@ -13,12 +13,12 @@ import {
 // Walks between the shed and the house rooms (src/world/*Room.ts, pinned in
 // world.test.ts), plan B3's shapes. Shed lounge door (240, 56), in the top
 // wall, to the lounge at (240, 190); lounge door (240, 216) back to the shed
-// at (240, 82). The lounge-kitchen's floor is x 160..432, y 64..208, with the
+// at (240, 82). The lounge-kitchen's floor is x 96..432, y 64..208, with the
 // hallway's block solid in its north-east corner (x 336..432, y 64..128) and
 // the kitchen open below it; its display spots are on its furniture against
 // the top wall, pedestal_1 lounge_mantel (240, 77) on the fireplace
 // (x 224..256, y 64..88) straight above the shed door's landing, and
-// pedestal_2 lounge_side_table (168, 74) on the side table (x 160..176,
+// pedestal_2 lounge_side_table (104, 74) on the side table (x 96..112,
 // y 64..80) in the top-left corner; both pieces stop the player. The
 // lounge's door_hallway (344, 96), in the block's west face, leads to the
 // hallway at (210, 176). The hallway's floor is x 192..288, y 144..208: its
@@ -333,12 +333,12 @@ export async function frontToHallway(page: Page): Promise<Crossing> {
 }
 
 /** The side table's east edge in the lounge: a walk up into it must start west of it. */
-const SIDE_TABLE_EAST = 176;
+const SIDE_TABLE_EAST = 112;
 
 /**
  * From the lounge's shed-door landing (240, 190): to the mantel straight up
  * into the fireplace; to the side table west until under it (a late release
- * ends at the left wall, x 160, still under it), then up into the table.
+ * ends at the left wall, x 96, still under it), then up into the table.
  */
 export async function toLoungePedestal(page: Page, pedestal: 1 | 2): Promise<void> {
   if (pedestal === 2) await holdUntilAtMost(page, 'ArrowLeft', 'x', SIDE_TABLE_EAST - 6);

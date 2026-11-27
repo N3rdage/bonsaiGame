@@ -31,7 +31,7 @@ describe('the seats', () => {
   });
 
   it('rest the hips on the cushion, 10 px back from the front edge and centred along it', () => {
-    expect([seat('sofa').x, seat('sofa').y]).toEqual([194, 128]);
+    expect([seat('sofa').x, seat('sofa').y]).toEqual([130, 128]);
     expect([seat('armchair').x, seat('armchair').y]).toEqual([286, 124]);
     for (const s of SEATS) {
       expect(s.x).toBeGreaterThan(s.on.x);
@@ -80,27 +80,27 @@ describe('the seat targets', () => {
     const targets = seatTargets('lounge', true);
     const at = (x: number, y: number): string | undefined =>
       nearestInteractable({ x, y }, targets)?.key;
-    expect(at(170, 128)).toBe('seat_sofa');
-    expect(at(205, 128)).toBe('seat_sofa');
+    expect(at(106, 128)).toBe('seat_sofa');
+    expect(at(141, 128)).toBe('seat_sofa');
     expect(at(275, 124)).toBe('seat_armchair');
     expect(at(240, 190)).toBeUndefined();
   });
 
   it('are stood next to off the solid furniture, within reach', () => {
     for (const [x, y] of [
-      [170, 128],
-      [205, 128],
+      [106, 128],
+      [141, 128],
       [275, 124],
     ] as const) {
       expect(hitsWall(LOUNGE_ROOM, x, y)).toBe(false);
     }
     const [sofa] = seatTargets('lounge', true);
-    expect(Math.hypot((sofa?.x ?? 0) - 205, (sofa?.y ?? 0) - 128)).toBeLessThan(INTERACT_RANGE);
+    expect(Math.hypot((sofa?.x ?? 0) - 141, (sofa?.y ?? 0) - 128)).toBeLessThan(INTERACT_RANGE);
   });
 });
 
 describe('where the body is drawn', () => {
-  const standing = { x: metres(207), y: metres(128), heading: Math.PI / 2 };
+  const standing = { x: metres(143), y: metres(128), heading: Math.PI / 2 };
   const scale = BODY_SCALE * 0.7;
 
   it('is the standing spot and heading at no blend, on the floor', () => {
@@ -110,7 +110,7 @@ describe('where the body is drawn', () => {
   it("puts the hips on the seat point facing out when seated: the origin forward of it by the clips' draw-back", () => {
     const placed = bodyPlace(standing, seat('sofa'), 1, scale);
     expect(placed.heading).toBeCloseTo(0, 9);
-    expect(placed.x).toBeCloseTo(metres(194) + SIT_HIPS_BACK * scale, 9);
+    expect(placed.x).toBeCloseTo(metres(130) + SIT_HIPS_BACK * scale, 9);
     expect(placed.y).toBeCloseTo(metres(128), 9);
     const chair = bodyPlace(standing, seat('armchair'), 1, scale);
     expect(chair.heading).toBeCloseTo(Math.PI, 9);

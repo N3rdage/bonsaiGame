@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { deserializeSave, serializeState } from '../sim/save';
 import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { BonsaiTree, GameState, PlacedItem } from '../sim/types';
@@ -100,7 +101,7 @@ describe('tree sprites', () => {
     // top; each piece's front edge plus 0.5 for the depth, so in front of the piece's sprite.
     expect(at(LOUNGE_ROOM)).toEqual([
       [1, 'lounge_mantel', 240, 66, 88.5],
-      [0, 'lounge_side_table', 168, 68, 80.5],
+      [0, 'lounge_side_table', 104, 68, 80.5],
     ]);
     expect(at(STUDY_ROOM)).toEqual([
       [2, 'study_desk', 176, 60, 80.5],
@@ -198,6 +199,39 @@ describe('tree sprites', () => {
     expect(TREE_PROMPT).toBe('Inspect');
     const near = nearestInteractable({ x: 170, y: 140 }, [...LOUNGE_ROOM.props, ...targets]);
     expect(near?.key).toBe('tree:0');
+  });
+
+  it('puts the trees of a save made before the lounge grew on the lounge spots, each on its own furniture', () => {
+    const text = serializeState(
+      stateWith('displayed:lounge_mantel', 'displayed:lounge_side_table'),
+      new Date(0),
+    );
+    const saved = (JSON.parse(text) as { trees: { location: string }[] }).trees.map(
+      (t) => t.location,
+    );
+    expect(saved).toEqual(['displayed:lounge_mantel', 'displayed:lounge_side_table']);
+    const sprites = treeSprites(deserializeSave(text), LOUNGE_ROOM);
+    expect(sprites.map((s) => [s.tree.id, s.pedestalKey])).toHaveLength(2);
+    for (const [id, key, piece] of [
+      [0, 'lounge_mantel', FIREPLACE],
+      [1, 'lounge_side_table', SIDE_TABLE],
+    ] as const) {
+      const spot = LOUNGE_ROOM.props.find((p) => p.pedestalKey === key);
+      const sprite = sprites.find((s) => s.pedestalKey === key);
+      expect(sprite?.tree.id, key).toBe(id);
+      // The spot and the tree drawn on it are over the piece the spot belongs to.
+      for (const x of [spot?.x, sprite?.x]) {
+        expect(x).toBeGreaterThanOrEqual(piece.x);
+        expect(x).toBeLessThanOrEqual(piece.x + piece.w);
+      }
+      expect(spot?.y).toBeGreaterThanOrEqual(piece.y);
+      expect(spot?.y).toBeLessThanOrEqual(piece.y + piece.h);
+    }
+    // Both spots keep their prop keys.
+    expect(LOUNGE_ROOM.props.filter((p) => p.pedestalKey).map((p) => p.key)).toEqual([
+      'pedestal_1',
+      'pedestal_2',
+    ]);
   });
 });
 

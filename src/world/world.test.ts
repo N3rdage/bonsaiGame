@@ -444,22 +444,22 @@ describe('garden room', () => {
 });
 
 describe('lounge room', () => {
-  it("is plan B3's lounge-kitchen on the shed's canvas, 8.5 x 4.5 m in a ring of its own, the hallway's block solid in its north-east corner", () => {
+  it("is plan B3's lounge-kitchen on the shed's canvas, 10.5 x 4.5 m in a ring of its own, the hallway's block solid in its north-east corner", () => {
     expect([LOUNGE_ROOM.key, LOUNGE_ROOM.width, LOUNGE_ROOM.height]).toEqual(['lounge', 480, 270]);
-    expect(LOUNGE_ROOM.bounds).toEqual({ x: 144, y: 48, w: 304, h: 176 });
+    expect(LOUNGE_ROOM.bounds).toEqual({ x: 80, y: 48, w: 368, h: 176 });
     expect(LOUNGE_ROOM.edgeMargin).toBe(SHED_ROOM.edgeMargin);
     expect(LOUNGE_ROOM.walls).toEqual([
-      { x: 144, y: 48, w: 304, h: 16 },
-      { x: 144, y: 208, w: 304, h: 16 },
-      { x: 144, y: 48, w: 16, h: 176 },
+      { x: 80, y: 48, w: 368, h: 16 },
+      { x: 80, y: 208, w: 368, h: 16 },
+      { x: 80, y: 48, w: 16, h: 176 },
       { x: 432, y: 48, w: 16, h: 176 },
       // The hallway's 3 x 2 m block, the fireplace, the side table, the sofa, the coffee table, the
       // armchair, the bookcase, the lamp, the plant and the kitchen counter's runs.
       { x: 336, y: 64, w: 96, h: 64 },
       { x: 224, y: 64, w: 32, h: 24 },
-      { x: 160, y: 64, w: 16, h: 16 },
-      { x: 176, y: 98, w: 28, h: 60 },
-      { x: 210, y: 112, w: 20, h: 32 },
+      { x: 96, y: 64, w: 16, h: 16 },
+      { x: 112, y: 98, w: 28, h: 60 },
+      { x: 146, y: 112, w: 20, h: 32 },
       { x: 276, y: 112, w: 24, h: 24 },
       { x: 258, y: 64, w: 28, h: 12 },
       { x: 281, y: 140, w: 14, h: 14 },
@@ -467,8 +467,8 @@ describe('lounge room', () => {
       { x: 336, y: 188, w: 96, h: 20 },
       { x: 412, y: 128, w: 20, h: 60 },
     ]);
-    // 17 x 9 tiles of 16 px, 8.5 x 4.5 m at 50 cm a tile.
-    expect(insideWalls(LOUNGE_ROOM)).toEqual({ x: 160, y: 64, w: 272, h: 144 });
+    // 21 x 9 tiles of 16 px, 10.5 x 4.5 m at 50 cm a tile.
+    expect(insideWalls(LOUNGE_ROOM)).toEqual({ x: 96, y: 64, w: 336, h: 144 });
     // The block, 6 x 4 tiles, in the floor's north-east corner, drawn as the paper, standing as
     // the walls do.
     expect(HALLWAY_BLOCK).toEqual({
@@ -537,14 +537,14 @@ describe('lounge room', () => {
       LOUNGE_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
       ['pedestal_1', 'Pedestal', 'Use Pedestal', 240, 77, 32, 22, 'lounge_mantel'],
-      ['pedestal_2', 'Pedestal', 'Use Pedestal', 168, 74, 16, 12, 'lounge_side_table'],
+      ['pedestal_2', 'Pedestal', 'Use Pedestal', 104, 74, 16, 12, 'lounge_side_table'],
       ['door', 'Door', 'Back to Shed', 240, 216, 16, 16, undefined],
       ['door_hallway', 'Door', 'To Hallway', 344, 96, 16, 16, undefined],
     ]);
     // Plan B3 row 3: the bottom wall is the shed's row, so the shed door's square stays at x 240,
-    // 2.5 m along the floor.
+    // 4.5 m along the floor.
     expect(door(LOUNGE_ROOM).y - door(LOUNGE_ROOM).h / 2).toBe(SHED_RING.y1);
-    expect(door(LOUNGE_ROOM).x - insideWalls(LOUNGE_ROOM).x).toBe(2.5 * 32);
+    expect(door(LOUNGE_ROOM).x - insideWalls(LOUNGE_ROOM).x).toBe(4.5 * 32);
     // Plan B3 row 4: in the block's west face, 1 m from its north end.
     const toHallway = door(LOUNGE_ROOM, 'door_hallway');
     expect([toHallway.x - 8, toHallway.y - HALLWAY_BLOCK.y]).toEqual([HALLWAY_BLOCK.x, 32]);
@@ -588,11 +588,11 @@ describe('lounge room', () => {
   });
 
   it('keeps the side table in reach of a walk into the left wall and up from either landing, stopped by the table', () => {
-    // On the 1.25 px step grid: from the shed door's landing (240, 190) to (160, 80), from the
-    // hallway door's (318, 96) to (160.5, 81).
+    // On the 1.25 px step grid: from the shed door's landing (240, 190) to (96.25, 80), from the
+    // hallway door's (318, 96) to (96.75, 81).
     for (const [start, stop] of [
-      [LOUNGE_ROOM.playerStart, [160, 80]],
-      [{ x: 318, y: 96 }, [160.5, 81]],
+      [LOUNGE_ROOM.playerStart, [96.25, 80]],
+      [{ x: 318, y: 96 }, [96.75, 81]],
     ] as const) {
       let p: PlayerState = { ...createPlayer(LOUNGE_ROOM), ...start };
       for (let i = 0; i < 400; i += 1) p = stepPlayer(p, { x: -1, y: 0 }, LOUNGE_ROOM);
@@ -607,8 +607,8 @@ describe('lounge room', () => {
     expect(
       seating.map(({ sheet, x, y, w, h, solid, sorted }) => [sheet.key, x, y, w, h, solid, sorted]),
     ).toEqual([
-      ['spr_sofa', 176, 98, 28, 60, true, true],
-      ['spr_coffee_table', 210, 112, 20, 32, true, true],
+      ['spr_sofa', 112, 98, 28, 60, true, true],
+      ['spr_coffee_table', 146, 112, 20, 32, true, true],
       ['spr_armchair', 276, 112, 24, 24, true, true],
     ]);
     const floor = insideWalls(LOUNGE_ROOM);
