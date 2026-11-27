@@ -28,7 +28,7 @@ export type FurnitureKind =
   | 'sack'
   | 'workbench'
   | 'planting_table'
-  | 'kiosk'
+  | 'bicycle'
   | 'sofa'
   | 'armchair'
   | 'coffee_table'
@@ -70,7 +70,7 @@ export interface FurnitureModel {
 
 /**
  * The sheets of room furniture that are drawn as a model, by the kind they
- * stand for. The workbench, planting table and kiosk are props, not furniture
+ * stand for. The workbench, planting table and bicycle are props, not furniture
  * (plan.ts's `propBox`), so they are not here.
  */
 export const MODELLED_SHEETS: Readonly<Record<string, FurnitureKind>> = {
@@ -187,10 +187,55 @@ const LEG = 0.06;
 const TABLE_SIZE = { w: 1, d: 0.625, h: 0.9375 } as const;
 const TRAY_RAISE = 0.05;
 
-/** The shop kiosk: 0.875 m by 0.75 m and 1.5 m tall (frame 56 px, 24 of it the top face), a counter with a sign on two posts behind it. */
-const KIOSK_SIZE = { w: 0.875, d: 0.75, h: 1.5 } as const;
-const KIOSK_COUNTER = 0.95;
-const KIOSK_SIGN = 0.3;
+/**
+ * The shop's bicycle: 1.7 m long, 0.25 m across and 1 m tall (frame 30 px, 8 of it the footprint's
+ * depth), two wheels a metre apart and a frame between them, its long side along x. Each wheel is
+ * a ring of small balls round a hub, each frame tube a run of them, a saddle and handlebars on top.
+ */
+const BICYCLE_SIZE = { w: 1.7, d: 0.25, h: 1 } as const;
+const WHEEL_RADIUS = 0.35;
+const TYRE = 0.05;
+const TUBE = 0.045;
+const BIKE_HUBS = [-0.5, 0.5] as const;
+const BIKE_CRANK: readonly [number, number] = [-0.08, 0.3];
+const BIKE_SEAT: readonly [number, number] = [-0.3, 0.85];
+const BIKE_HEAD: readonly [number, number] = [0.38, 0.88];
+
+/** Rounds away the float dust of a trig position, so a wheel's lowest ball rests on z 0 exactly. */
+const settle = (n: number): number => Math.round(n * 1e6) / 1e6;
+
+/** A run of balls `diameter` across from `from` to `to`, each given as [x, z] in the plane y 0. */
+function rod(
+  object: ObjectKey,
+  diameter: number,
+  from: readonly [number, number],
+  to: readonly [number, number],
+): FurniturePart[] {
+  const steps = Math.ceil(Math.hypot(to[0] - from[0], to[1] - from[1]) / (diameter * 1.3));
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    const t = i / steps;
+    return ball(object, diameter, [
+      settle(from[0] + (to[0] - from[0]) * t),
+      0,
+      settle(from[1] + (to[1] - from[1]) * t - diameter / 2),
+    ]);
+  });
+}
+
+/** A wheel centred on x `hx`: sixteen balls of tyre round a brass hub. */
+function wheel(hx: number): FurniturePart[] {
+  const ring = WHEEL_RADIUS - TYRE / 2;
+  return [
+    ...Array.from({ length: 16 }, (_, i) =>
+      ball('ink', TYRE, [
+        settle(hx + Math.sin((i / 16) * Math.PI * 2) * ring),
+        0,
+        settle(WHEEL_RADIUS - Math.cos((i / 16) * Math.PI * 2) * ring - TYRE / 2),
+      ]),
+    ),
+    ball('brass', 0.06, [hx, 0, WHEEL_RADIUS - 0.03]),
+  ];
+}
 
 /**
  * The sofa: 0.875 m by 1.875 m and 0.9375 m tall (28 x 60 px, 20 tall), its back along the west
@@ -467,26 +512,19 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
       ball('leaf', 0.28, [0.02, 0.06, PLANT_SIZE.h - 0.28]),
     ],
   },
-  kiosk: {
-    size: KIOSK_SIZE,
+  bicycle: {
+    size: BICYCLE_SIZE,
     parts: [
-      block('wood', [KIOSK_SIZE.w, KIOSK_SIZE.d, KIOSK_COUNTER - 0.04]),
-      block('stone', [KIOSK_SIZE.w, KIOSK_SIZE.d, 0.04], [0, 0, KIOSK_COUNTER - 0.04]),
-      block(
-        'wood',
-        [PLANK, PLANK, KIOSK_SIZE.h - KIOSK_COUNTER],
-        [-(KIOSK_SIZE.w - PLANK) / 2, -(KIOSK_SIZE.d - PLANK) / 2, KIOSK_COUNTER],
-      ),
-      block(
-        'wood',
-        [PLANK, PLANK, KIOSK_SIZE.h - KIOSK_COUNTER],
-        [(KIOSK_SIZE.w - PLANK) / 2, -(KIOSK_SIZE.d - PLANK) / 2, KIOSK_COUNTER],
-      ),
-      block(
-        'frame',
-        [KIOSK_SIZE.w, PLANK, KIOSK_SIGN],
-        [0, -(KIOSK_SIZE.d - PLANK) / 2, KIOSK_SIZE.h - KIOSK_SIGN],
-      ),
+      ...BIKE_HUBS.flatMap(wheel),
+      ...rod('terracotta', TUBE, [BIKE_HUBS[0], WHEEL_RADIUS], BIKE_SEAT),
+      ...rod('terracotta', TUBE, [BIKE_HUBS[0], WHEEL_RADIUS], BIKE_CRANK),
+      ...rod('terracotta', TUBE, BIKE_SEAT, BIKE_CRANK),
+      ...rod('terracotta', TUBE, BIKE_SEAT, BIKE_HEAD),
+      ...rod('terracotta', TUBE, BIKE_CRANK, BIKE_HEAD),
+      ...rod('terracotta', TUBE, BIKE_HEAD, [BIKE_HUBS[1], WHEEL_RADIUS]),
+      block('woodDark', [0.2, 0.1, 0.05], [BIKE_SEAT[0] - 0.03, 0, BIKE_SEAT[1]]),
+      block('ink', [PLANK, PLANK, 0.12], [BIKE_HEAD[0], 0, BIKE_HEAD[1]]),
+      block('ink', [PLANK, 0.24, PLANK], [BIKE_HEAD[0], 0, BICYCLE_SIZE.h - PLANK]),
     ],
   },
 };

@@ -474,12 +474,12 @@ function spriteTop({ sheet, y, originY, scale }: PropSprite): number {
 const PROP_SHEETS: Record<string, Sheet> = {
   workbench: SHEETS.workbench,
   planting_table: SHEETS.plantingTable,
-  shop_kiosk: SHEETS.shopKiosk,
+  shop_bicycle: SHEETS.bicycle,
 };
 
 /**
  * The prop's sprite on its rect (onFootprint): the shed's Inked workbench,
- * planting table and kiosk standing on their footprints' bottom edges, a door
+ * planting table and the front garden's bicycle standing on their footprints' bottom edges, a door
  * (any prop in a wall, the side gate too) in its own `sheet` if it has one
  * (the Inked doors stand on their rects' bottom edges, a side-on door in a
  * W or E wall against its band's inner edge, on the cap), else
@@ -599,7 +599,7 @@ export interface Caster {
  * light (lighting.ts), each clipped to the floor (castShadow): the ring's
  * four walls standing the style's `wallHeight` on their bands, every piece
  * of furniture that `stands`, sorted or baked, and each prop drawn standing
- * on its footprint (the shed's workbench, planting table and kiosk). All
+ * on its footprint (the shed's workbench and planting table, the front garden's bicycle). All
  * static, so the bake lays them once, after the floor, the walls' runs and
  * the `flat` furniture and before the standing furniture, which covers its
  * own shadow under it. Only a wall whose shadow falls into the room shows:

@@ -486,13 +486,6 @@ export async function openInspector(page: Page): Promise<void> {
 export const inspectorAction = (page: Page, id: string): Promise<void> =>
   tapControl(page, `panel-${id}`);
 
-/** Walks from the shed's start down to the kiosk's row and left to it, then opens the shop. */
-export async function openShop(page: Page): Promise<void> {
-  await walkTo(page, 145, 'left', 'shop_kiosk');
-  await interact(page);
-  await page.waitForFunction(() => window.__bonsai?.panel === 'shop');
-}
-
 /** Walks up to the planting table's row and left to it (from right of it), then opens the Plant panel. */
 export async function openPlanting(page: Page): Promise<void> {
   await walkTo(page, 90, 'left', 'planting_table');

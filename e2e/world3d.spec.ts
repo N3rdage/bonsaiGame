@@ -113,7 +113,6 @@ test.describe('the 3D world', () => {
         sack: 1,
         workbench: 1,
         planting_table: 1,
-        kiosk: 1,
       });
       if (test.info().project.name === 's22-landscape') {
         await skipTutorial(page, true);

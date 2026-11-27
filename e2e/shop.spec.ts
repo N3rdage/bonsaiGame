@@ -5,10 +5,11 @@ import {
   collectErrors,
   expect,
   hook,
-  openShop,
   tapControl,
   test,
+  walkTo,
 } from './drive';
+import { openShop, shedToFront } from './rooms';
 
 const SEEDS = ['panel-buy-seed_juniper', 'panel-buy-seed_maple', 'panel-buy-seed_pine'];
 const FURNITURE = ['panel-buy-pedestal', 'panel-buy-floor_shelf'];
@@ -26,7 +27,34 @@ async function buy(page: Page, item: string): Promise<BonsaiTestHook> {
   return h;
 }
 
-test.describe('shop kiosk', () => {
+test.describe('shop', () => {
+  test('opens from the bicycle in the front garden by touch and buys one item', async ({
+    page,
+  }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape, by touch');
+    const errors = collectErrors(page);
+    await bootWorld(page);
+    // The shed has nothing to shop at; the front garden's bicycle does.
+    expect((await hook(page)).room).toBe('shed');
+    await shedToFront(page);
+    await walkTo(page, 190, 'left', 'shop_bicycle');
+    let h = await hook(page);
+    expect([h.room, h.near, h.prompt]).toEqual([
+      'frontGarden',
+      'shop_bicycle',
+      'E: Go to the shop',
+    ]);
+    expect(h.controls.map((c) => c.id)).toContain('interact');
+    await tapControl(page, 'interact');
+    await page.waitForFunction(() => window.__bonsai?.panel === 'shop');
+    const clay = (await hook(page)).inventory.clay ?? 0;
+    h = await buy(page, 'clay');
+    expect([h.money, h.inventory.clay]).toEqual([96, clay + 1]);
+    await closePanel(page);
+    await page.waitForFunction(() => window.__bonsai?.panel === '');
+    expect(errors).toEqual([]);
+  });
+
   test('buys one Clay for $4, greys out what the money no longer covers, and closes', async ({
     page,
   }) => {
