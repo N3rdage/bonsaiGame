@@ -64,7 +64,7 @@ describe('furniturePieces', () => {
     expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(6);
     expect(sofa).toMatchObject({
       kind: 'sofa',
-      x: metres(176 + 14),
+      x: metres(112 + 14),
       y: metres(98 + 30),
       w: 0.875,
       d: 1.875,
@@ -106,8 +106,8 @@ describe('furniturePieces', () => {
       ['potted_plant', true],
     ]);
     expect(boxes.map((b) => [b.x0, b.x1, b.y0, b.y1])).toEqual([
-      [5.5, 6.375, 3.0625, 4.9375],
-      [6.5625, 7.1875, 3.5, 4.5],
+      [3.5, 4.375, 3.0625, 4.9375],
+      [4.5625, 5.1875, 3.5, 4.5],
       [8.625, 9.375, 3.5, 4.25],
       [8.0625, 8.9375, 2, 2.375],
       [8.78125, 9.21875, 4.375, 4.8125],

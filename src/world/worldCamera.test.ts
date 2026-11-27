@@ -98,18 +98,17 @@ describe('worldView', () => {
   });
 
   it('shows each house room and the greenhouse whole on a phone, the view still wherever the player is', () => {
-    // Lounge (144, 48) 304x176: centred across it would start at x 104, past the canvas's last
-    // start 480 - 384 = 96, so it stops there; y centred, 48 + (176 - 216) / 2.
+    // Lounge (80, 48) 368x176: centred across it starts at x 72 (384 - 368 = 16 spare, 8 each side), y centred, 48 + (176 - 216) / 2.
     // Study (144, 48) 176x176 and greenhouse (144, 64) 192x144: centred both ways.
     // Hallway (176, 128) 128x96: centred across; centred down it would start at y 68, past the
     // canvas's last start 270 - 216 = 54, so it stops there.
     for (const [bounds, scrollX, scrollY, spots] of [
       [
         LOUNGE_ROOM.bounds,
-        96,
+        72,
         28,
         [
-          { x: 160.5, y: 64.5 },
+          { x: 96.5, y: 64.5 },
           { x: 431.25, y: 207.5 },
         ],
       ],
