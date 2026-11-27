@@ -54,6 +54,16 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest,woff2,wav,glb}'],
         // Phaser alone is over a megabyte; the default 2 MB cap would silently skip it.
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // Babylon's glTF loader, texture loaders and material classes pull in lazy chunks the game
+        // never fetches: the GLBs load with skipMaterials, every texture is a PNG, and no PBR or
+        // OpenPBR material is made. Measured by recording the 3D world's script requests
+        // (shed plus the rooms built ahead). Precaching them only costs install bytes.
+        globIgnores: [
+          '**/assets/{pbr,openpbr}*.js',
+          '**/assets/{basis,dds,env,exr,hdr,ies,ktx,tga}TextureLoader-*.js',
+          '**/assets/{animationGroup,glTFLoaderAnimation}.pure-*.js',
+          '**/assets/{brdfTextureTools,cubemapToSphericalPolynomial,dumpTools.pure,textureProcessor}*.js',
+        ],
         // Only a file Vite named with a content hash may skip its revision. The plugin's default
         // skips everything under assets/, which is also where public/assets/ lands: the sprite
         // sheets and sounds keep their names when their content changes, and with no revision a

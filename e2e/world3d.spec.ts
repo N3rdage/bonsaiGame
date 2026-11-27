@@ -1134,6 +1134,24 @@ test.describe('the 3D world', () => {
       expect(errors).toEqual([]);
     },
   );
+
+  test('loads offline once the service worker has precached the build', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    await page.goto('/');
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, {
+      timeout: 15_000,
+    });
+    // Installing the worker precaches the build, so it is complete once the worker controls the page.
+    await context.setOffline(true);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    expect((await world3d(page)).bodyLoaded).toBe(true);
+    expect(errors).toEqual([]);
+  });
 });
 
 /** Scrolls the camera in by `wheel` units and waits for it to reach `radius` metres or nearer. */
