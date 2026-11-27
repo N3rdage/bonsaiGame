@@ -117,6 +117,34 @@ export const OBJECTS = {
 /** A name in the object palette. */
 export type ObjectKey = keyof typeof OBJECTS;
 
+/** The Rogue's atlas (`rogue_texture.png`): a grid of swatch cells, each a vertical gradient. */
+export const BODY_ATLAS = { columns: 8, rows: 4 } as const;
+
+/**
+ * The gardener's clothes: the atlas cell (column, row from the image's top)
+ * each part of the Rogue's body samples, and the colours, 0xRRGGBB, that
+ * cell's gradient is recoloured to, from its lightest end to its darkest.
+ * Skin, hair and eyes are cells left as drawn.
+ */
+export const BODY_PALETTE = {
+  /** The tunic, body and skirt: terracotta. */
+  tunic: { cell: [0, 1], light: 0xcf7a52, dark: 0x8f4a30 },
+  /** The scarf at the neck and a band on each arm: cream. */
+  scarf: { cell: [1, 1], light: 0xf4ead2, dark: 0xc9b68f },
+  /** The apron's strap over each shoulder and its waistband: cream, a shade warmer than the scarf. */
+  apron: { cell: [5, 0], light: 0xeedfbd, dark: 0xbfa57a },
+  /** The forearms' sleeves: linen. */
+  sleeves: { cell: [7, 2], light: 0xe8dcc0, dark: 0xa89870 },
+  /** The belt and the wrist guards: brown leather. */
+  belt: { cell: [3, 0], light: 0x7a5236, dark: 0x4a3020 },
+  /** The pouches on the hip: a lighter leather. */
+  pouches: { cell: [6, 0], light: 0x9a6a44, dark: 0x6a4630 },
+  /** The trousers: dark. */
+  trousers: { cell: [7, 1], light: 0x4a4038, dark: 0x2a2420 },
+  /** The boots: brown. */
+  boots: { cell: [3, 2], light: 0x7a4e30, dark: 0x3e2616 },
+} as const;
+
 /** The light's colours as the shader takes them: 0..1 triples, power folded in. */
 export function lookLight(): { sun: Rgb; sky: Rgb; ground: Rgb } {
   return {
