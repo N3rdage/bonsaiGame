@@ -6,6 +6,7 @@ import { AVATAR_SCALE } from './character';
 import { BICYCLE_SCALE, TABLE_HEIGHT } from './furnitureModels';
 import { PLAYER_HEIGHT } from './meshes';
 import {
+  ANCHOR_HEIGHT,
   DOOR_HEIGHT,
   FENCE_HEIGHT_M,
   LOW_FENCE_HEIGHT_M,
@@ -146,6 +147,12 @@ describe('roomPlan3d openings', () => {
     ]);
     // Nothing stands in the doorway between the floor and the lintel.
     expect(south.some((w) => w.x0 <= 7.5 && w.x1 >= 7.5 && w.z0 < DOOR_HEIGHT)).toBe(false);
+  });
+
+  it("anchors each prop at the player's hand, level with the shed's table tops", () => {
+    expect(ANCHOR_HEIGHT).toBe(0.7);
+    expect(ANCHOR_HEIGHT).toBeGreaterThanOrEqual(TABLE_HEIGHT);
+    for (const anchor of roomPlan3d(ROOMS.shed).anchors) expect(anchor.z).toBe(ANCHOR_HEIGHT);
   });
 
   it("draws every room's walkable doors 1.6 m high, 1.3 times the player", () => {
