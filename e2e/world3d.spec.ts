@@ -921,7 +921,7 @@ test.describe('the 3D world', () => {
 
     // Along the sofa's front, up its east face: the seat is in reach and nothing nearer.
     await walkToRow(page, 150);
-    await walkToColumn(page, 205);
+    await walkToColumn(page, 141);
     await walkToRow(page, 128);
     const beside = (await hook(page)).player;
     expect(await hook(page)).toMatchObject({ near: 'seat_sofa', prompt: 'E: Sit' });
