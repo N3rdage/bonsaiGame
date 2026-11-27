@@ -11,7 +11,7 @@ import { treeOnPedestal } from '../sim/tree';
 import type { BonsaiTree, GameState } from '../sim/types';
 import { treeSprites } from '../world/treeSprites';
 import type { Furniture, Room } from '../world/shedRoom';
-import { heightMetres, metres } from './plan';
+import { metres, standHeight } from './plan';
 
 /** A tree standing in the room: its feet (the middle of the bottom of the pot, on the surface it stands on) in plan metres. */
 export interface TreeStand {
@@ -41,7 +41,7 @@ const contains = (f: Furniture, x: number, y: number): boolean =>
 function surfaceAt(room: Room, x: number, y: number): number {
   const heights = room.furniture
     .filter((f) => f.flat !== true && contains(f, x, y))
-    .map((f) => heightMetres(f.stands?.height ?? 0));
+    .map(standHeight);
   return Math.max(0, ...heights);
 }
 

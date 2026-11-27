@@ -134,6 +134,27 @@ const FURNITURE_WASHES: Readonly<Record<string, WashKey>> = {
   spr_shed_rug: 'tile',
 };
 
+/**
+ * How tall the 3D world draws the two plain boxes that carry a display spot, metres: the lounge's
+ * fireplace (2D frame 0.94 m) and the study's desk (0.75 m). Feel numbers (#506, #516): the pot
+ * of a displayed tree stands on the top, and the player is drawn at 70%, 1.21 m, so the mantel is
+ * at the player's chest (0.8 m) and the desk, a work surface, at the same waist height as the
+ * shed's tables (0.65 m). The 2D plan and its shadows keep the sprite's height.
+ */
+export const MANTEL_HEIGHT = 0.8;
+export const DESK_HEIGHT = 0.65;
+
+/** The height the 3D world draws a sheet's furniture at when it is not the 2D frame's. */
+const DRAWN_HEIGHTS: Readonly<Record<string, number>> = {
+  spr_fireplace: MANTEL_HEIGHT,
+  spr_desk: DESK_HEIGHT,
+};
+
+/** How tall `f` stands in 3D, metres; 0 for a piece that does not `stand`. */
+export function standHeight(f: Furniture): number {
+  return DRAWN_HEIGHTS[f.sheet.key] ?? heightMetres(f.stands?.height ?? 0);
+}
+
 /** The sheet of the lounge's hallway mass: a papered wall, so it wears its room's wall wash and dressing, not furniture's. */
 const PAPER_SHEET = 'spr_paper';
 
@@ -442,7 +463,7 @@ export function furnitureBox(f: Furniture, index: number, room: RoomKey): Box {
   if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
   if (f.stands === undefined) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
-  const height = heightMetres(f.stands.height);
+  const height = standHeight(f);
   const model = MODELLED_SHEETS[f.sheet.key];
   return {
     ...box(name, wash, footprint(rect), 0, height, f.solid),
