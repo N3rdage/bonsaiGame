@@ -6,6 +6,9 @@
 # because those packages ship to players and a merge to main deploys; GitHub Actions bumps,
 # because they change what CI runs; and any update outside a group. Major bumps are left for a
 # person (or the orchestrator's `decision` issue), because they are the ones that break things.
+# The approval is for Dependabot's own work only: a PR that carries any commit Dependabot did not
+# write and sign (a fix pushed to its branch, a branch update) is not approved here and waits for
+# a person. To bring a Dependabot PR up to date, ask Dependabot to rebase it.
 # Requires "Allow auto-merge" in the repository settings.
 name: Dependabot auto-merge
 
@@ -13,15 +16,16 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   auto-merge:
     if: github.event.pull_request.user.login == 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Read update metadata
         id: meta
@@ -29,8 +33,33 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Count commits that are not Dependabot's own
+        id: commits
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # Dependabot's commits are authored by its account and signed by GitHub. A commit that
+          # only copies its name and email is not signed, so it counts as someone else's.
+          foreign=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/commits" \
+            --jq '[.[] | select(.author.login != "dependabot[bot]" or .commit.verification.verified != true)] | length' \
+            | awk '{ n += $1 } END { print n + 0 }')
+          echo "Commits not written and signed by Dependabot: $foreign"
+          echo "foreign=$foreign" >> "$GITHUB_OUTPUT"
+
+      - name: Leave a PR that carries someone else's commits for a person
+        if: steps.commits.outputs.foreign != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          FOREIGN: ${{ steps.commits.outputs.foreign }}
+        run: |
+          gh pr merge --disable-auto "$PR_URL" || true
+          gh pr comment "$PR_URL" --body "Not auto-approved: this PR carries $FOREIGN commit(s) that Dependabot did not write and sign. It waits for Drew. To bring a Dependabot PR up to date without this, ask Dependabot to rebase it."
+
       - name: Approve and enable auto-merge (dev-tooling group, minor and patch only)
-        if: steps.meta.outputs.dependency-group == 'dev-tooling' && (steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch')
+        if: steps.commits.outputs.foreign == '0' && steps.meta.outputs.dependency-group == 'dev-tooling' && (steps.meta.outputs.update-type == 'version-update:semver-minor' || steps.meta.outputs.update-type == 'version-update:semver-patch')
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_URL: ${{ github.event.pull_request.html_url }}
