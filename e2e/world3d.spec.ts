@@ -1134,6 +1134,94 @@ test.describe('the 3D world', () => {
     },
   );
 
+  test(
+    'draws the shed tables at the waist of the player beside them',
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await bootWorld(page);
+      await waitForRoom(page, 'shed');
+      await skipTutorial(page, true);
+      await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+      await waitForAhead(page);
+      // East of the planting table (x 149..181, y 80..100), the workbench (x 105..145) beyond it.
+      await walkToRow(page, 110);
+      await walkToColumn(page, 200);
+      await zoomIn(page, 2000, 6);
+      await waitForAhead(page);
+      await page.waitForTimeout(500);
+      await expect(page).toHaveScreenshot('world3d-shed-tables.png', { timeout: 30_000 });
+    },
+  );
+
+  test(
+    "draws the lounge mantel's tree and the player beside it",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await continueWithDisplayed(page, ['lounge_mantel']);
+      await waitForBuilt(page, ['garden', 'lounge']);
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await waitForAhead(page);
+      // West of the fireplace (x 224..256), up to its front.
+      await walkToColumn(page, 205);
+      await walkToRow(page, 100);
+      await zoomIn(page, 2000, 6);
+      await waitForAhead(page);
+      await expect(page).toHaveScreenshot('world3d-lounge-mantel.png', { timeout: 30_000 });
+    },
+  );
+
+  test(
+    "draws the study desk's tree beside the hallway door and the player",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await continueWithDisplayed(page, ['study_desk']);
+      await waitForBuilt(page, ['garden', 'lounge']);
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await waitForAhead(page);
+      await loungeToHallway(page);
+      await waitForRoom(page, 'hallway');
+      await waitForAhead(page);
+      await hallwayToStudy(page);
+      await waitForRoom(page, 'study');
+      await waitForAhead(page);
+      // The player lands at the hallway door (x 152) below the desk (x 160..192, y 64..80).
+      await zoomIn(page, 2000, 6);
+      await waitForAhead(page);
+      await page.waitForTimeout(3000);
+      await expect(page).toHaveScreenshot('world3d-study-desk.png', { timeout: 30_000 });
+    },
+  );
+
+  test('draws the shop bicycle beside the player', { tag: '@walk' }, async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    test.setTimeout(120_000);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await waitForBuilt(page, ['garden', 'lounge']);
+    await shedToLounge(page);
+    await waitForBuilt(page, ['hallway']);
+    await loungeToHallway(page);
+    await waitForBuilt(page, ['frontGarden', 'study']);
+    await hallwayToFrontByInteract(page);
+    await waitForRoom(page, 'frontGarden');
+    await waitForBuilt(page, ['garden']);
+    // The bicycle (x 257..311, y 192..200) lies just west of the landing (336, 190).
+    await zoomIn(page, 2000, 6);
+    await waitForAhead(page);
+    await page.waitForTimeout(500);
+    await expect(page).toHaveScreenshot('world3d-front-bicycle.png', { timeout: 30_000 });
+  });
+
   test('loads offline once the service worker has precached the build', async ({
     page,
     context,
@@ -1152,6 +1240,27 @@ test.describe('the 3D world', () => {
     expect(errors).toEqual([]);
   });
 });
+
+/** Continues a save with a tree on each display spot `spots` (a lounge or study spot's key), in the shed with the tutorial skipped. */
+async function continueWithDisplayed(page: Page, spots: readonly string[]): Promise<void> {
+  const state = createNewGameState();
+  state.trees = spots.map((spot, id) => ({
+    ...createTree('juniper', 'cutting', id),
+    location: `displayed:${spot}`,
+  }));
+  await page.goto('/');
+  await page.evaluate(
+    (text) => {
+      localStorage.setItem('bonsai.save.1', text);
+    },
+    serializeState(state, new Date(2026, 10, 11, 0, 0)),
+  );
+  await toTitle(page);
+  await continueGame(page);
+  await waitForRoom(page, 'shed');
+  await skipTutorial(page, true);
+  await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+}
 
 /** Scrolls the camera in by `wheel` units and waits for it to reach `radius` metres or nearer. */
 async function zoomIn(page: Page, wheel: number, radius: number): Promise<void> {
