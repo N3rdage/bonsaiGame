@@ -15,6 +15,15 @@ import { buildPotGeometry } from '../viewer/potGeometry';
 import { bothWindings } from '../viewer/toon';
 import { buildTreeMesh } from '../viewer/treeMesh';
 
+/**
+ * How much bigger than its real size every bonsai is drawn in the 3D world, tree
+ * and pot together, about the feet. Sizes in 3D are feel: the bonsai are meant to
+ * read well beside the player and the furniture, not to scale (compare
+ * `AVATAR_SCALE` in character.ts). Only the drawing changes; the tree's own
+ * numbers (`heightCm`, the trunk, the pot) are the simulation's and stay real.
+ */
+export const BONSAI_SCALE = 1.3;
+
 /** A mesh in Babylon's frame (y up) and metres, ready for `VertexData`. */
 export interface WorldMeshData {
   readonly positions: Float32Array;
@@ -28,17 +37,22 @@ export interface WorldMeshData {
 /**
  * The viewer's arrays (display units, z up, `DISPLAY_SCALE` of them to the
  * metre, soil at z 0) in Babylon's: metres, y up, raised by `lift` display
- * units. The viewer is right-handed and Babylon left-handed, so swapping y and
+ * units, then scaled by `scale` about the origin. The viewer is right-handed and Babylon left-handed, so swapping y and
  * z (a reflection) keeps the tree looking as it does there, not mirrored.
  */
-export function worldMeshData({ positions, normals, colors }: MeshArrays, lift = 0): WorldMeshData {
+export function worldMeshData(
+  { positions, normals, colors }: MeshArrays,
+  lift = 0,
+  scale = 1,
+): WorldMeshData {
+  const unit = scale / DISPLAY_SCALE;
   const count = positions.length / 3;
   const world = new Float32Array(positions.length);
   const worldNormals = new Float32Array(normals.length);
   const rgba = new Float32Array(count * 4);
   for (let v = 0; v < count; v += 1) {
     const [x = 0, y = 0, z = 0] = positions.subarray(v * 3, v * 3 + 3);
-    world.set([x / DISPLAY_SCALE, (z + lift) / DISPLAY_SCALE, y / DISPLAY_SCALE], v * 3);
+    world.set([x * unit, (z + lift) * unit, y * unit], v * 3);
     const [nx = 0, ny = 0, nz = 0] = normals.subarray(v * 3, v * 3 + 3);
     worldNormals.set([nx, nz, ny], v * 3);
     rgba.set([...colors.subarray(v * 3, v * 3 + 3), 1], v * 4);
@@ -65,7 +79,8 @@ function lowestZ({ positions }: MeshArrays): number {
  * the species is bare in `season`. The viewer puts the soil at z 0 with the pot
  * below it, so every part is lifted by the depth of the pot (feet included):
  * the lowest point of the pot is y 0, the surface it stands on, and the tree
- * stays in its pot.
+ * stays in its pot. The whole tree is then drawn `BONSAI_SCALE` times larger
+ * about that point, so its feet stay on the surface.
  */
 export function treeMeshData(
   tree: BonsaiTree,
@@ -80,5 +95,5 @@ export function treeMeshData(
   ];
   return parts
     .filter(([, arrays]) => arrays.positions.length > 0)
-    .map(([part, arrays]) => ({ part, data: worldMeshData(arrays, lift) }));
+    .map(([part, arrays]) => ({ part, data: worldMeshData(arrays, lift, BONSAI_SCALE) }));
 }
