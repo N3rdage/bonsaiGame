@@ -74,7 +74,7 @@ import {
 } from './roomCache';
 import { shadowFrustum } from './shadowFrustum';
 import {
-  AVATAR_SCALE_DEFAULT,
+  AVATAR_SCALE,
   BODY_SCALE,
   AT_REST,
   CLIP_NAMES,
@@ -166,8 +166,6 @@ export interface RendererSnapshot {
   readonly model: 'character';
   /** True once the body's model and clips have loaded; before, the player's place is empty. */
   readonly bodyLoaded: boolean;
-  /** How big the body is drawn, as a fraction of its full size. */
-  readonly avatarScale: number;
   /** How much of each locomotion clip the player's pose is made of now, summing to 1. */
   readonly clips: ClipWeights;
   /** How much of the upper body is the carry's clip, 0 to 1. */
@@ -410,8 +408,6 @@ export class Renderer {
         readonly rootScaling: Vector3;
       }
     | undefined;
-  /** How big the body is drawn, as a fraction of its full size (AVATAR_SCALES). */
-  private avatarScale: number = AVATAR_SCALE_DEFAULT;
   /** True once `dispose` ran, so a body that loads after it is let go. */
   private disposed = false;
   /** The plan heading the player faces; a new session faces away from the default camera, north. */
@@ -602,13 +598,6 @@ export class Renderer {
     this.sizeBody();
   }
 
-  /** Draws the body at `scale` of its full size (a feel setting, AVATAR_SCALES): at once if it has loaded, else when it does. */
-  setAvatarScale(scale: number): void {
-    if (scale === this.avatarScale) return;
-    this.avatarScale = scale;
-    this.sizeBody();
-  }
-
   /** Whether the player carries a tree: the body's upper body holds it from the next frame on. */
   setCarrying(carrying: boolean): void {
     this.carrying = carrying;
@@ -656,12 +645,12 @@ export class Renderer {
     return shot ? shot.clip : null;
   }
 
-  /** The metres a unit of the body's model is drawn as: its full-size scale times the avatar size. */
+  /** The metres a unit of the body's model is drawn as: its full-size scale times `AVATAR_SCALE`. */
   private bodyScale(): number {
-    return BODY_SCALE * this.avatarScale;
+    return BODY_SCALE * AVATAR_SCALE;
   }
 
-  /** Scales the body and its ink outline to the avatar size, the outline staying the same width on screen. */
+  /** Scales the body and its ink outline to `AVATAR_SCALE`, the outline staying the same width on screen. */
   private sizeBody(): void {
     if (!this.body) return;
     const scale = this.bodyScale();
@@ -696,7 +685,6 @@ export class Renderer {
       facing: this.facing,
       model: 'character',
       bodyLoaded: this.body !== undefined,
-      avatarScale: this.avatarScale,
       clips: this.motion.weights,
       carry: this.motion.carry,
       shot: this.shotClip(),
@@ -871,7 +859,7 @@ export class Renderer {
     const feet = toBabylon(place);
     this.player.position.set(feet.x, feet.y, feet.z);
     this.follow(
-      { x: feet.x, y: feet.y + (PLAYER_HEIGHT * this.avatarScale) / 2, z: feet.z },
+      { x: feet.x, y: feet.y + (PLAYER_HEIGHT * AVATAR_SCALE) / 2, z: feet.z },
       fresh,
       elapsed,
     );
@@ -964,7 +952,7 @@ export class Renderer {
         moved,
         dt,
         carrying: this.carrying,
-        avatarScale: this.avatarScale,
+        avatarScale: AVATAR_SCALE,
         still: this.stillIdle,
       },
       this.body?.clips,
@@ -1005,7 +993,7 @@ export class Renderer {
     if (!this.shown) return;
     const { plan, pieces } = this.shown;
     const { alpha, beta, radius } = this.camera;
-    const names = cutNames(plan, { alpha, beta, radius }, player, PLAYER_HEIGHT * this.avatarScale)
+    const names = cutNames(plan, { alpha, beta, radius }, player, PLAYER_HEIGHT * AVATAR_SCALE)
       .filter((name) => pieces.has(name))
       .sort();
     if (names.join() === this.cut.join()) return;

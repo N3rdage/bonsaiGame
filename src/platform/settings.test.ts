@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { AVATAR_SCALES } from '../world3d/character';
 import {
   DEFAULT_SETTINGS,
   loadSettings,
@@ -27,7 +26,6 @@ describe('settings', () => {
       music: true,
       world3d: false,
       timeSpeed: 1,
-      avatarScale: 0.7,
     });
     expect(loadSettings(new MemorySettingsStorage())).toEqual(DEFAULT_SETTINGS);
   });
@@ -41,7 +39,6 @@ describe('settings', () => {
       music: true,
       world3d: true,
       timeSpeed: 4,
-      avatarScale: 0.9,
     };
     saveSettings(storage, settings);
     expect(JSON.parse(storage.text ?? '')).toEqual(settings);
@@ -53,7 +50,6 @@ describe('settings', () => {
       music: false,
       world3d: false,
       timeSpeed: 1,
-      avatarScale: 0.7,
     };
     saveSettings(storage, quiet);
     expect(loadSettings(storage)).toEqual(quiet);
@@ -67,7 +63,6 @@ describe('settings', () => {
       music: true,
       world3d: false,
       timeSpeed: 1,
-      avatarScale: 0.7,
     });
   });
 
@@ -82,7 +77,6 @@ describe('settings', () => {
     const loaded = loadSettings(odd);
     expect(loaded).toEqual(DEFAULT_SETTINGS);
     expect(Object.keys(loaded).sort()).toEqual([
-      'avatarScale',
       'fullscreen',
       'music',
       'sound',
@@ -116,16 +110,12 @@ describe('settings', () => {
     }
   });
 
-  it('saves and loads each avatar size, defaults to 70% and rejects anything else', () => {
-    expect(DEFAULT_SETTINGS.avatarScale).toBe(0.7);
-    for (const avatarScale of AVATAR_SCALES) {
-      const storage = new MemorySettingsStorage();
-      saveSettings(storage, { ...DEFAULT_SETTINGS, avatarScale });
-      expect(loadSettings(storage).avatarScale).toBe(avatarScale);
-    }
-    for (const bad of ['0.9', 0.75, 0, 3, null, true]) {
-      const text = JSON.stringify({ avatarScale: bad });
-      expect(loadSettings(new MemorySettingsStorage(text)).avatarScale).toBe(0.7);
-    }
+  it('ignores an avatarScale stored by an older version and does not write one', () => {
+    const stored = new MemorySettingsStorage(JSON.stringify({ weather: false, avatarScale: 0.9 }));
+    const loaded = loadSettings(stored);
+    expect(loaded).toEqual({ ...DEFAULT_SETTINGS, weather: false });
+    expect(loaded).not.toHaveProperty('avatarScale');
+    saveSettings(stored, loaded);
+    expect(JSON.parse(stored.text ?? '')).not.toHaveProperty('avatarScale');
   });
 });

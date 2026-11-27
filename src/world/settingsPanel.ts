@@ -1,7 +1,7 @@
 /**
  * The Settings panel (obj_ui_settings) as a PanelModel in the standard PANEL:
  * `Fullscreen: On|Off`, `Weather effects: On|Off`, `Sound: On|Off`,
- * `Music: On|Off`, `3D world (preview): On|Off`, `Time speed: 1x|2x|4x` and `Avatar size: 60%..100%`, each a toggle, then Close (fitRows grows the box to hold
+ * `Music: On|Off`, `3D world (preview): On|Off` and `Time speed: 1x|2x|4x`, each a toggle, then Close (fitRows grows the box to hold
  * them at phone tap targets). Pure; the title and the world draw it, apply a toggle, save and
  * reopen it. The prototype's Window scale row is not ported.
  */
@@ -42,10 +42,6 @@ export function settingsPanel(settings: Settings, fullscreen: FullscreenState): 
         { text: `Music: ${onOff(settings.music)}`, id: 'panel-music' },
         { text: `3D world (preview): ${onOff(settings.world3d)}`, id: 'panel-world3d' },
         { text: `Time speed: ${String(settings.timeSpeed)}x`, id: 'panel-timespeed' },
-        {
-          text: `Avatar size: ${String(Math.round(settings.avatarScale * 100))}%`,
-          id: 'panel-avatarsize',
-        },
       ],
       SETTINGS_BOX,
     ),

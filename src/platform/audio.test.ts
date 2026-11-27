@@ -34,7 +34,6 @@ describe('audio', () => {
       music: false,
       world3d: false,
       timeSpeed: 1,
-      avatarScale: 0.7,
     };
     expect([audioAllowed(settings, 'sound'), audioAllowed(settings, 'music')]).toEqual([
       true,

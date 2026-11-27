@@ -100,26 +100,8 @@ export const BODY_MODEL_HEIGHT = 2.1783;
 /** The scale from the model's units to metres. */
 export const BODY_SCALE = CHARACTER_HEIGHT / BODY_MODEL_HEIGHT;
 
-/**
- * The sizes the player's body can be drawn at, as a fraction of `CHARACTER_HEIGHT`. A feel setting
- * (the rooms feel cramped around a full-size figure), not real scale: the sim keeps its units, and
- * the rooms, furniture, plants, collision and speed ignore it.
- */
-export const AVATAR_SCALES = [0.6, 0.7, 0.8, 0.9, 1] as const;
-export type AvatarScale = (typeof AVATAR_SCALES)[number];
-/** The size the body is drawn at until the Settings panel says otherwise. */
-export const AVATAR_SCALE_DEFAULT: AvatarScale = 0.7;
-
-/** The next size up, and from the largest back to the smallest. */
-export function nextAvatarScale(scale: AvatarScale): AvatarScale {
-  const next = AVATAR_SCALES.indexOf(scale) + 1;
-  return AVATAR_SCALES[next % AVATAR_SCALES.length] ?? AVATAR_SCALE_DEFAULT;
-}
-
-/** `value` if it is one of the allowed sizes, else undefined. */
-export function parseAvatarScale(value: unknown): AvatarScale | undefined {
-  return AVATAR_SCALES.find((scale) => scale === value);
-}
+/** A feel factor, not real scale: the body is drawn at 70% of `CHARACTER_HEIGHT`, since the rooms feel cramped around a full-size figure. The sim, rooms, furniture, plants, collision and speed ignore it. */
+export const AVATAR_SCALE = 0.7;
 
 /** The seconds a change between clips takes: idle to walk, a carry in or out, a reach in or out. */
 export const FADE_SECONDS = 0.2;
