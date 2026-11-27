@@ -403,7 +403,7 @@ export class Renderer {
         readonly meshes: readonly AbstractMesh[];
         readonly nodes: ReadonlyMap<string, TransformNode>;
         readonly clips: PlayerClips;
-        /** The body root and its scaling before the avatar size, which the glTF loader sets to turn the file's frame. */
+        /** The body root and the scaling the glTF loader gave it to turn the file's frame; `sizeBody` multiplies that by `bodyScale`, which holds `AVATAR_SCALE`. */
         readonly root: AbstractMesh;
         readonly rootScaling: Vector3;
       }

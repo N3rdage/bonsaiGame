@@ -66,9 +66,14 @@ export const LOW_FENCE_HEIGHT_M = 0.5;
 export const FLOOR_THICKNESS = 0.1;
 /** The thickness of a `flat` piece lying on the floor (a runner, the drive, the beds). */
 export const FLAT_THICKNESS = 0.01;
-/** A walkable door is 1 m wide at least (`doorWidth` gives a wider one its art's or its prop's width) and 2 m high. */
+/**
+ * A walkable door is 1 m wide at least (`doorWidth` gives a wider one its art's or its prop's
+ * width) and 1.6 m high. The height is a feel number (#506, #516): the player is drawn at 70%,
+ * 1.21 m, so a door of the scale rule's 2 m would be 1.65 times their height; 1.6 m is 1.3 times.
+ * The wall above it is filled to the wall's height (`cutWall`'s lintel).
+ */
 export const DOOR_WIDTH = 1;
-export const DOOR_HEIGHT = 2;
+export const DOOR_HEIGHT = 1.6;
 /** A window's sill and head above the floor: roomArt's 20 px (0.94 m) sill and 44 px (2.06 m) top, to the nearest 0.1 m. */
 export const WINDOW_SILL = 0.9;
 export const WINDOW_HEAD = 2;

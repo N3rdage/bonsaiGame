@@ -120,7 +120,7 @@ describe('roomPlan3d walls', () => {
 });
 
 describe('roomPlan3d openings', () => {
-  it("opens the shed's south wall for the door: 1 m wide, 2 m high, a lintel over it", () => {
+  it("opens the shed's south wall for the door: 1 m wide, DOOR_HEIGHT high, a lintel over it", () => {
     const plan = roomPlan3d(ROOMS.shed);
     expect(plan.openings.find((o) => o.name === 'door')).toEqual({
       name: 'door',
@@ -147,6 +147,65 @@ describe('roomPlan3d openings', () => {
     // Nothing stands in the doorway between the floor and the lintel.
     expect(south.some((w) => w.x0 <= 7.5 && w.x1 >= 7.5 && w.z0 < DOOR_HEIGHT)).toBe(false);
   });
+
+  it("draws every room's walkable doors 1.6 m high, 1.3 times the player", () => {
+    expect(DOOR_HEIGHT).toBe(1.6);
+    expect(DOOR_HEIGHT / (PLAYER_HEIGHT * AVATAR_SCALE)).toBeCloseTo(1.3, 1);
+    for (const key of KEYS) {
+      for (const door of roomPlan3d(ROOMS[key]).openings.filter((o) => o.kind === 'door')) {
+        expect(door.z1, `${key} ${door.name}`).toBeLessThanOrEqual(DOOR_HEIGHT);
+      }
+    }
+    expect(
+      roomPlan3d(ROOMS.shed)
+        .openings.filter((o) => o.kind === 'door')
+        .map((o) => o.z1),
+    ).toEqual([DOOR_HEIGHT, DOOR_HEIGHT]);
+  });
+
+  it.each(KEYS)(
+    '%s: the wall above each door meets the opening, with no gap, and reaches the wall top',
+    (key) => {
+      const plan = roomPlan3d(ROOMS[key]);
+      const E = 1e-6;
+      for (const door of plan.openings.filter((o) => o.kind === 'door')) {
+        const label = `${key} ${door.name}`;
+        const beside = (w: Box): boolean =>
+          w.x0 <= door.x1 + E && w.x1 >= door.x0 - E && w.y0 <= door.y1 + E && w.y1 >= door.y0 - E;
+        // The door's own wall: the pieces beside it that run through the opening's whole depth or width.
+        const aligned = (w: Box): boolean =>
+          (Math.abs(w.y0 - door.y0) < E && Math.abs(w.y1 - door.y1) < E) ||
+          (Math.abs(w.x0 - door.x0) < E && Math.abs(w.x1 - door.x1) < E);
+        const height = Math.max(
+          ...plan.walls.filter((w) => beside(w) && aligned(w)).map((w) => w.z1),
+        );
+        const over = plan.walls.filter(
+          (w) =>
+            w.x0 < door.x1 - E && w.x1 > door.x0 + E && w.y0 < door.y1 - E && w.y1 > door.y0 + E,
+        );
+        // Nothing stands in the clear span below the door's head.
+        expect(
+          over.every((w) => w.z0 >= door.z1),
+          label,
+        ).toBe(true);
+        if (height <= door.z1) {
+          // A fence under the head: the opening is the whole of its height, with no wall over it.
+          expect(over, label).toEqual([]);
+          continue;
+        }
+        // The wall above starts at the head and reaches the wall's top, over the opening's footprint.
+        expect(over, label).toHaveLength(1);
+        expect(over[0], label).toMatchObject({
+          x0: door.x0,
+          x1: door.x1,
+          y0: door.y0,
+          y1: door.y1,
+          z0: door.z1,
+          z1: height,
+        });
+      }
+    },
+  );
 
   it("opens the front garden's low south wall for the front door and the gate", () => {
     const plan = roomPlan3d(ROOMS.frontGarden);
