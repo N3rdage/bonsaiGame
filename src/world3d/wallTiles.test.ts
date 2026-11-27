@@ -82,8 +82,8 @@ describe('wallLayout, the shed', () => {
 
   it('cuts the face where the window opens the wall: a sill under it and a lintel over it', () => {
     const pieces = layout('shed', SHEETS.shedWall);
-    const sill = pieces.find((p) => p.piece.includes('.sill.'));
-    const lintel = pieces.find((p) => p.piece.includes('.lintel.'));
+    const sill = pieces.find((p) => p.piece.includes('.sill.window'));
+    const lintel = pieces.find((p) => p.piece.includes('.lintel.window'));
     const top = (q: WallQuad): number => q.corners[2].z;
     expect(sill && Math.max(...sill.quads.map(top))).toBeCloseTo(0.9);
     expect(lintel && Math.min(...lintel.quads.map((q) => q.corners[0].z))).toBeCloseTo(2);

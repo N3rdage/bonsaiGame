@@ -41,7 +41,7 @@ describe('roomDetails', () => {
     }
   });
 
-  it("fills the shed door's opening with a frame and a leaf 2 m high", () => {
+  it("fills the shed door's opening with a frame and a leaf, DOOR_HEIGHT high", () => {
     const door = detailsOf('shed').find((d) => d.name === 'door');
     const opening = roomPlan3d(ROOMS.shed).openings.find((o) => o.name === 'door');
     expect(door?.host).toMatch(/\.lintel\.door$/);
@@ -51,7 +51,7 @@ describe('roomDetails', () => {
       x1: opening?.x1,
       y0: opening?.y0,
       y1: opening?.y1,
-      z1: 2,
+      z1: DOOR_HEIGHT,
     });
   });
 
@@ -104,7 +104,7 @@ describe('roomDetails', () => {
       }
     }
     const shed = detailsOf('shed').find((d) => d.name === 'door');
-    expect(shed && extent(shed).z1).toBe(2);
+    expect(shed && extent(shed).z1).toBe(DOOR_HEIGHT);
   });
 
   it("stands a shrub on each of the garden's source plants", () => {

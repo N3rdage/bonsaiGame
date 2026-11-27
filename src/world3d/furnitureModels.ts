@@ -178,19 +178,34 @@ const POTS_SIZE = { w: 0.375, d: 0.25, h: 0.5625 } as const;
 /** The sack: 0.5 m wide and 0.25 m deep, 0.5625 m tall (12 px), a body and a tied neck. */
 const SACK_SIZE = { w: 0.5, d: 0.25, h: 0.5625 } as const;
 
-/** The workbench: 1.25 m by 0.625 m and 0.9375 m tall (frame 40 px, 20 of it the top face), a top, four legs and a lower shelf. */
-const BENCH_SIZE = { w: 1.25, d: 0.625, h: 0.9375 } as const;
+/**
+ * How tall the shed's two tables stand, metres. A feel number (backlog #506, #516), not the scale
+ * rule's 0.94 m: the player is drawn at 70% (character.ts's AVATAR_SCALE), 1.21 m, so a top at the
+ * player's waist, where hands work, is 0.65 m.
+ */
+export const TABLE_HEIGHT = 0.65;
+
+/** The workbench: 1.25 m by 0.625 m and `TABLE_HEIGHT` tall, a top, four legs and a lower shelf. */
+const BENCH_SIZE = { w: 1.25, d: 0.625, h: TABLE_HEIGHT } as const;
 const TABLE_TOP = 0.06;
 const LEG = 0.06;
 
-/** The planting table: 1 m by 0.625 m and 0.9375 m tall (frame 40 px, 20 of it the top face), a top with a soil tray on it, on four legs. */
-const TABLE_SIZE = { w: 1, d: 0.625, h: 0.9375 } as const;
+/** The planting table: 1 m by 0.625 m and `TABLE_HEIGHT` tall, a top with a soil tray on it, on four legs. */
+const TABLE_SIZE = { w: 1, d: 0.625, h: TABLE_HEIGHT } as const;
 const TRAY_RAISE = 0.05;
 
 /**
- * The shop's bicycle: 1.7 m long, 0.25 m across and 1 m tall (frame 30 px, 8 of it the footprint's
- * depth), two wheels a metre apart and a frame between them, its long side along x. Each wheel is
- * a ring of small balls round a hub, each frame tube a run of them, a saddle and handlebars on top.
+ * How much of its footprint and frame the bicycle is drawn at, length, width and height together.
+ * A feel number (#506, #516): at the scale rule's size the saddle stood as high as the player
+ * (1.21 m), so the whole bike is drawn at 70% and its saddle sits near the player's waist.
+ */
+export const BICYCLE_SCALE = 0.7;
+
+/**
+ * The shop's bicycle as modelled at the scale rule's size (its instance is drawn at
+ * `BICYCLE_SCALE` of it): 1.7 m long, 0.25 m across and 1 m tall, two wheels a metre apart and a
+ * frame between them, its long side along x. Each wheel is a ring of small balls round a hub,
+ * each frame tube a run of them, a saddle and handlebars on top.
  */
 const BICYCLE_SIZE = { w: 1.7, d: 0.25, h: 1 } as const;
 const WHEEL_RADIUS = 0.35;

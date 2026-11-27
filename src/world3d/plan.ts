@@ -24,7 +24,12 @@ import {
   type RoomKey,
   type Wall,
 } from '../world/shedRoom';
-import { MODELLED_SHEETS, type FurnitureKind } from './furnitureModels';
+import {
+  BICYCLE_SCALE,
+  MODELLED_SHEETS,
+  TABLE_HEIGHT,
+  type FurnitureKind,
+} from './furnitureModels';
 
 /** An Inked wash: a key of `PALETTE`, each mirroring art/inked/style.mjs's WASHES. */
 export type WashKey = keyof typeof PALETTE;
@@ -61,16 +66,25 @@ export const LOW_FENCE_HEIGHT_M = 0.5;
 export const FLOOR_THICKNESS = 0.1;
 /** The thickness of a `flat` piece lying on the floor (a runner, the drive, the beds). */
 export const FLAT_THICKNESS = 0.01;
-/** A walkable door is 1 m wide at least (`doorWidth` gives a wider one its art's or its prop's width) and 2 m high. */
+/**
+ * A walkable door is 1 m wide at least (`doorWidth` gives a wider one its art's or its prop's
+ * width) and 1.6 m high. The height is a feel number (#506, #516): the player is drawn at 70%,
+ * 1.21 m, so a door of the scale rule's 2 m would be 1.65 times their height; 1.6 m is 1.3 times.
+ * The wall above it is filled to the wall's height (`cutWall`'s lintel).
+ */
 export const DOOR_WIDTH = 1;
-export const DOOR_HEIGHT = 2;
+export const DOOR_HEIGHT = 1.6;
 /** A window's sill and head above the floor: roomArt's 20 px (0.94 m) sill and 44 px (2.06 m) top, to the nearest 0.1 m. */
 export const WINDOW_SILL = 0.9;
 export const WINDOW_HEAD = 2;
 /** How far a window's frame or the roller door stands proud of the building's face, on each side of it, metres. */
 export const FACE_RELIEF = 0.04;
-/** Where a prop's anchor point sits above the floor, about where a hand reaches. */
-export const ANCHOR_HEIGHT = 1;
+/**
+ * Where a prop's anchor point sits above the floor, about where the player's hand reaches. A feel
+ * number (#506, #516): a metre at full size, 70% of that for the player drawn at 70%, level with
+ * the shed's table tops.
+ */
+export const ANCHOR_HEIGHT = 0.7;
 
 /** Wall heights by the px `ROOM_STYLES` give them, in metres; a height that is none of these converts by `heightMetres`. */
 const STYLE_HEIGHTS = new Map<number, number>([
@@ -125,6 +139,27 @@ const FURNITURE_WASHES: Readonly<Record<string, WashKey>> = {
   spr_shed_rug: 'tile',
 };
 
+/**
+ * How tall the 3D world draws the two plain boxes that carry a display spot, metres: the lounge's
+ * fireplace (2D frame 0.94 m) and the study's desk (0.75 m). Feel numbers (#506, #516): the pot
+ * of a displayed tree stands on the top, and the player is drawn at 70%, 1.21 m, so the mantel is
+ * at the player's chest (0.8 m) and the desk, a work surface, at the same waist height as the
+ * shed's tables (0.65 m). The 2D plan and its shadows keep the sprite's height.
+ */
+export const MANTEL_HEIGHT = 0.8;
+export const DESK_HEIGHT = 0.65;
+
+/** The height the 3D world draws a sheet's furniture at when it is not the 2D frame's. */
+const DRAWN_HEIGHTS: Readonly<Record<string, number>> = {
+  spr_fireplace: MANTEL_HEIGHT,
+  spr_desk: DESK_HEIGHT,
+};
+
+/** How tall `f` stands in 3D, metres; 0 for a piece that does not `stand`. */
+export function standHeight(f: Furniture): number {
+  return DRAWN_HEIGHTS[f.sheet.key] ?? heightMetres(f.stands?.height ?? 0);
+}
+
 /** The sheet of the lounge's hallway mass: a papered wall, so it wears its room's wall wash and dressing, not furniture's. */
 const PAPER_SHEET = 'spr_paper';
 
@@ -150,13 +185,25 @@ const isCap = (f: Furniture): boolean => /_cap(_v)?$/.test(f.sheet.key);
 /** Whether the plan draws `f` as a box or model of its own: not a cap, and not a fixture of a face. */
 export const isBoxed = (f: Furniture): boolean => !isCap(f) && !isFaceFixture(f);
 
-/** The working furniture and the shop's bicycle, props that stand as a model over their footprint, as tall as their 2D frame. */
+/**
+ * The working furniture and the shop's bicycle, props that stand as a model over their footprint.
+ * A model is as tall as its 2D frame unless it gives its `height` (metres), and is drawn at its
+ * `scale` of the footprint and the height together (1 when absent), about the footprint's middle.
+ */
 const PROP_MODELS: Readonly<
-  Record<string, { readonly sheet: Sheet; readonly model: FurnitureKind }>
+  Record<
+    string,
+    {
+      readonly sheet: Sheet;
+      readonly model: FurnitureKind;
+      readonly height?: number;
+      readonly scale?: number;
+    }
+  >
 > = {
-  workbench: { sheet: SHEETS.workbench, model: 'workbench' },
-  planting_table: { sheet: SHEETS.plantingTable, model: 'planting_table' },
-  shop_bicycle: { sheet: SHEETS.bicycle, model: 'bicycle' },
+  workbench: { sheet: SHEETS.workbench, model: 'workbench', height: TABLE_HEIGHT },
+  planting_table: { sheet: SHEETS.plantingTable, model: 'planting_table', height: TABLE_HEIGHT },
+  shop_bicycle: { sheet: SHEETS.bicycle, model: 'bicycle', scale: BICYCLE_SCALE },
 };
 
 /** The side of the room a wall bounds, or `interior` for a wall against none of its edges. */
@@ -421,7 +468,7 @@ export function furnitureBox(f: Furniture, index: number, room: RoomKey): Box {
   if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
   if (f.stands === undefined) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
-  const height = heightMetres(f.stands.height);
+  const height = standHeight(f);
   const model = MODELLED_SHEETS[f.sheet.key];
   return {
     ...box(name, wash, footprint(rect), 0, height, f.solid),
@@ -458,16 +505,21 @@ export function roofOf(name: string, eaves: Box, strip: boolean): Roof {
 /**
  * The box of a prop that stands as a model (the shed's workbench, planting
  * table and the front garden's bicycle): over the prop's footprint, as tall as its 2D frame rises
- * above it (the frame's logical px less the footprint's depth, the top face).
- * Not solid: the 2D collision of a prop is its interact box.
+ * above it (the frame's logical px less the footprint's depth, the top face), or as its
+ * `PROP_MODELS` entry says. Not solid: the 2D collision of a prop is its interact box.
  */
 export function propBox(prop: Prop): Box | undefined {
   const stands = PROP_MODELS[prop.key];
   if (stands === undefined) return undefined;
-  const { sheet, model } = stands;
-  const height = heightMetres(sheet.frameHeight / sheetPxPerLogical(sheet) - prop.h);
+  const { sheet, model, scale = 1 } = stands;
+  const frame = heightMetres(sheet.frameHeight / sheetPxPerLogical(sheet) - prop.h);
+  const height = (stands.height ?? frame) * scale;
   const rect = { x: prop.x - prop.w / 2, y: prop.y - prop.h / 2, w: prop.w, h: prop.h };
-  return { ...box(`prop.${prop.key}`, 'wood', footprint(rect), 0, height, false), model };
+  const { x0, x1, y0, y1 } = footprint(rect);
+  const [cx, cy] = [(x0 + x1) / 2, (y0 + y1) / 2];
+  const [hw, hd] = [((x1 - x0) / 2) * scale, ((y1 - y0) / 2) * scale];
+  const fit = { x0: cx - hw, x1: cx + hw, y0: cy - hd, y1: cy + hd };
+  return { ...box(`prop.${prop.key}`, 'wood', fit, 0, height, false), model };
 }
 
 /** True if no part of `r` is inside `bounds`: ground beyond the walkable floor, as the front garden's road. */

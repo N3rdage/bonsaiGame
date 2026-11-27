@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { ROOMS } from '../world/gardenRoom';
 import { BACK_WALL_FACE, FENCE_HEIGHT, LOW_FENCE_HEIGHT } from '../world/roomArt';
 import { furnitureWalls, type RoomKey } from '../world/shedRoom';
+import { AVATAR_SCALE } from './character';
+import { BICYCLE_SCALE, TABLE_HEIGHT } from './furnitureModels';
+import { PLAYER_HEIGHT } from './meshes';
 import {
+  ANCHOR_HEIGHT,
   DOOR_HEIGHT,
   FENCE_HEIGHT_M,
   LOW_FENCE_HEIGHT_M,
@@ -117,7 +121,7 @@ describe('roomPlan3d walls', () => {
 });
 
 describe('roomPlan3d openings', () => {
-  it("opens the shed's south wall for the door: 1 m wide, 2 m high, a lintel over it", () => {
+  it("opens the shed's south wall for the door: 1 m wide, DOOR_HEIGHT high, a lintel over it", () => {
     const plan = roomPlan3d(ROOMS.shed);
     expect(plan.openings.find((o) => o.name === 'door')).toEqual({
       name: 'door',
@@ -144,6 +148,71 @@ describe('roomPlan3d openings', () => {
     // Nothing stands in the doorway between the floor and the lintel.
     expect(south.some((w) => w.x0 <= 7.5 && w.x1 >= 7.5 && w.z0 < DOOR_HEIGHT)).toBe(false);
   });
+
+  it("anchors each prop at the player's hand, level with the shed's table tops", () => {
+    expect(ANCHOR_HEIGHT).toBe(0.7);
+    expect(ANCHOR_HEIGHT).toBeGreaterThanOrEqual(TABLE_HEIGHT);
+    for (const anchor of roomPlan3d(ROOMS.shed).anchors) expect(anchor.z).toBe(ANCHOR_HEIGHT);
+  });
+
+  it("draws every room's walkable doors 1.6 m high, 1.3 times the player", () => {
+    expect(DOOR_HEIGHT).toBe(1.6);
+    expect(DOOR_HEIGHT / (PLAYER_HEIGHT * AVATAR_SCALE)).toBeCloseTo(1.3, 1);
+    for (const key of KEYS) {
+      for (const door of roomPlan3d(ROOMS[key]).openings.filter((o) => o.kind === 'door')) {
+        expect(door.z1, `${key} ${door.name}`).toBeLessThanOrEqual(DOOR_HEIGHT);
+      }
+    }
+    expect(
+      roomPlan3d(ROOMS.shed)
+        .openings.filter((o) => o.kind === 'door')
+        .map((o) => o.z1),
+    ).toEqual([DOOR_HEIGHT, DOOR_HEIGHT]);
+  });
+
+  it.each(KEYS)(
+    '%s: the wall above each door meets the opening, with no gap, and reaches the wall top',
+    (key) => {
+      const plan = roomPlan3d(ROOMS[key]);
+      const E = 1e-6;
+      for (const door of plan.openings.filter((o) => o.kind === 'door')) {
+        const label = `${key} ${door.name}`;
+        const beside = (w: Box): boolean =>
+          w.x0 <= door.x1 + E && w.x1 >= door.x0 - E && w.y0 <= door.y1 + E && w.y1 >= door.y0 - E;
+        // The door's own wall: the pieces beside it that run through the opening's whole depth or width.
+        const aligned = (w: Box): boolean =>
+          (Math.abs(w.y0 - door.y0) < E && Math.abs(w.y1 - door.y1) < E) ||
+          (Math.abs(w.x0 - door.x0) < E && Math.abs(w.x1 - door.x1) < E);
+        const height = Math.max(
+          ...plan.walls.filter((w) => beside(w) && aligned(w)).map((w) => w.z1),
+        );
+        const over = plan.walls.filter(
+          (w) =>
+            w.x0 < door.x1 - E && w.x1 > door.x0 + E && w.y0 < door.y1 - E && w.y1 > door.y0 + E,
+        );
+        // Nothing stands in the clear span below the door's head.
+        expect(
+          over.every((w) => w.z0 >= door.z1),
+          label,
+        ).toBe(true);
+        if (height <= door.z1) {
+          // A fence under the head: the opening is the whole of its height, with no wall over it.
+          expect(over, label).toEqual([]);
+          continue;
+        }
+        // The wall above starts at the head and reaches the wall's top, over the opening's footprint.
+        expect(over, label).toHaveLength(1);
+        expect(over[0], label).toMatchObject({
+          x0: door.x0,
+          x1: door.x1,
+          y0: door.y0,
+          y1: door.y1,
+          z0: door.z1,
+          z1: height,
+        });
+      }
+    },
+  );
 
   it("opens the front garden's low south wall for the front door and the gate", () => {
     const plan = roomPlan3d(ROOMS.frontGarden);
@@ -266,23 +335,32 @@ describe('roomPlan3d shed furniture props', () => {
     roomPlan3d(ROOMS.shed).furniture.find((b) => b.name === `prop.${key}`);
 
   it.each([
-    ['workbench', 40, 20, 20],
-    ['planting_table', 32, 20, 20],
-  ])('%s: stands on its %i x %i px footprint as tall as its %i px front face', (key, w, d, h) => {
+    ['workbench', 40, 20],
+    ['planting_table', 32, 20],
+  ])('%s: stands on its %i x %i px footprint at the waist of the player', (key, w, d) => {
     const prop = ROOMS.shed.props.find((p) => p.key === key);
     const box = standing(key);
     expect(prop).toBeDefined();
-    expect(box).toMatchObject({ z0: 0, z1: heightMetres(h), solid: false });
+    expect(TABLE_HEIGHT).toBe(0.65);
+    expect(box).toMatchObject({ z0: 0, z1: TABLE_HEIGHT, solid: false });
+    expect(TABLE_HEIGHT).toBeLessThan(PLAYER_HEIGHT * AVATAR_SCALE);
     expect((box?.x1 ?? 0) - (box?.x0 ?? 0)).toBeCloseTo(metres(w), 9);
     expect((box?.y1 ?? 0) - (box?.y0 ?? 0)).toBeCloseTo(metres(d), 9);
     expect(((box?.x0 ?? 0) + (box?.x1 ?? 0)) / 2).toBeCloseTo(metres(prop?.x ?? 0), 9);
     expect(((box?.y0 ?? 0) + (box?.y1 ?? 0)) / 2).toBeCloseTo(metres(prop?.y ?? 0), 9);
   });
 
-  it('stands the bicycle on its 54 x 8 px footprint in the front garden as tall as its 22 px frame', () => {
+  it('stands the bicycle at 70% of its 54 x 8 px footprint and 22 px frame, about the footprint middle', () => {
     const box = roomPlan3d(ROOMS.frontGarden).furniture.find((b) => b.name === 'prop.shop_bicycle');
-    expect(box).toMatchObject({ z0: 0, z1: heightMetres(22), solid: false, model: 'bicycle' });
-    expect(box?.x1 ?? 0).toBeCloseTo(metres(284 + 27), 9);
+    expect(BICYCLE_SCALE).toBe(0.7);
+    expect(box).toMatchObject({ z0: 0, solid: false, model: 'bicycle' });
+    expect(box?.z1 ?? 0).toBeCloseTo(heightMetres(22) * 0.7, 9);
+    expect((box?.x1 ?? 0) - (box?.x0 ?? 0)).toBeCloseTo(metres(54) * 0.7, 9);
+    expect((box?.y1 ?? 0) - (box?.y0 ?? 0)).toBeCloseTo(metres(8) * 0.7, 9);
+    expect(((box?.x0 ?? 0) + (box?.x1 ?? 0)) / 2).toBeCloseTo(metres(284), 9);
+    expect(((box?.y0 ?? 0) + (box?.y1 ?? 0)) / 2).toBeCloseTo(metres(196), 9);
+    // Its top, the handlebars, is about the player's waist, 0.72 m of their 1.21 m.
+    expect(box?.z1 ?? 0).toBeLessThan(0.75);
     expect(roomPlan3d(ROOMS.shed).furniture.some((b) => b.name === 'prop.shop_kiosk')).toBe(false);
   });
 

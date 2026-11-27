@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
 import type { GameState } from '../sim/types';
+import { ROOMS } from '../world/gardenRoom';
 import { LOUNGE_ROOM } from '../world/loungeRoom';
 import { SHED_ROOM, type Room } from '../world/shedRoom';
 import { STUDY_ROOM } from '../world/studyRoom';
 import { floorSpot, treeSprites } from '../world/treeSprites';
-import { heightMetres, metres } from './plan';
+import { DESK_HEIGHT, MANTEL_HEIGHT, heightMetres, metres, roomPlan3d } from './plan';
 import { spotMats, treeKey, treeStands } from './trees';
 
 function stateWith(...locations: string[]): GameState {
@@ -48,6 +49,36 @@ describe('treeStands', () => {
     expect(onFloor?.z).toBe(0);
   });
 
+  it('stands the mantel tree at 0.8 m and the desk tree at 0.65 m', () => {
+    const mantel = treeStands(stateWith('displayed:lounge_mantel'), LOUNGE_ROOM, 'spring');
+    const desk = treeStands(stateWith('displayed:study_desk'), STUDY_ROOM, 'spring');
+    expect(MANTEL_HEIGHT).toBe(0.8);
+    expect(DESK_HEIGHT).toBe(0.65);
+    expect(mantel[0]?.z).toBe(MANTEL_HEIGHT);
+    expect(desk[0]?.z).toBe(DESK_HEIGHT);
+  });
+
+  it.each(Object.values(ROOMS).filter((room) => room.props.some((p) => p.pedestalKey)))(
+    '$key: each displayed tree stands on the top of the box under it, not floating or inside it',
+    (room) => {
+      const spots = room.props.flatMap((p) => (p.pedestalKey ? [p.pedestalKey] : []));
+      const stands = treeStands(
+        stateWith(...spots.map((spot) => `displayed:${spot}`)),
+        room,
+        'spring',
+      );
+      expect(stands).toHaveLength(spots.length);
+      const boxes = roomPlan3d(room).furniture.filter((b) => b.z1 - b.z0 > 0.1);
+      for (const stand of stands) {
+        const under = boxes.filter(
+          (b) => b.x0 <= stand.x && stand.x < b.x1 && b.y0 <= stand.y && stand.y < b.y1,
+        );
+        expect(under.length).toBeGreaterThan(0);
+        expect(stand.z).toBeCloseTo(Math.max(...under.map((b) => b.z1)), 9);
+      }
+    },
+  );
+
   it('stands exactly the trees the 2D world draws, and none for an empty room', () => {
     const state = stateWith('displayed:lounge_mantel', 'lounge', 'displayed:lounge_side_table');
     expect(treeStands(state, LOUNGE_ROOM, 'spring').map((s) => s.tree.id)).toEqual(
@@ -67,14 +98,14 @@ describe('spotMats', () => {
   it('marks each empty spot of the lounge in the middle of the spot, on the top of its furniture', () => {
     const mats = spotMats(stateWith(), LOUNGE_ROOM);
     expect(mats).toEqual([
-      { key: 'lounge_mantel', ...at(LOUNGE_ROOM, 'lounge_mantel'), z: heightMetres(20) },
+      { key: 'lounge_mantel', ...at(LOUNGE_ROOM, 'lounge_mantel'), z: MANTEL_HEIGHT },
       { key: 'lounge_side_table', ...at(LOUNGE_ROOM, 'lounge_side_table'), z: heightMetres(8) },
     ]);
   });
 
   it('marks each empty spot of the study on the desk and the bookcase', () => {
     expect(spotMats(stateWith(), STUDY_ROOM)).toEqual([
-      { key: 'study_desk', ...at(STUDY_ROOM, 'study_desk'), z: heightMetres(16) },
+      { key: 'study_desk', ...at(STUDY_ROOM, 'study_desk'), z: DESK_HEIGHT },
       { key: 'study_bookshelf', ...at(STUDY_ROOM, 'study_bookshelf'), z: heightMetres(12) },
     ]);
   });
