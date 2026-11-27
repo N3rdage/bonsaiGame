@@ -7,7 +7,7 @@ import { HALLWAY_ROOM } from './hallwayRoom';
 import { HALLWAY_BLOCK, LOUNGE_ROOM } from './loungeRoom';
 import { INTERACT_RANGE } from './interactables';
 import type { Facing } from './player';
-import { SHED_ROOM, type Rect, type Room, type Wall } from './shedRoom';
+import { SHED_ROOM, hitsWall, type Rect, type Room, type Wall } from './shedRoom';
 import { STUDY_ROOM } from './studyRoom';
 
 const INWARD: Record<Wall, Facing> = { N: 'down', S: 'up', E: 'left', W: 'right' };
@@ -220,5 +220,30 @@ describe('doors', () => {
     });
     // Row 12, the back garden's gate: into the front garden just above its gate, facing up.
     expect(landing(front, wallDoor(front, 'gate'))).toEqual({ x: 544, y: 190, facing: 'up' });
+  });
+});
+
+describe('the lounge', () => {
+  it('keeps both doors and their landings in place, on open floor inside its outline', () => {
+    expect(LOUNGE_ROOM.bounds).toEqual({ x: 80, y: 48, w: 368, h: 176 });
+    const toShed = wallDoor(LOUNGE_ROOM, 'door');
+    const toHallway = wallDoor(LOUNGE_ROOM, 'door_hallway');
+    expect([toShed.x, toShed.y, toShed.wall]).toEqual([240, 216, 'S']);
+    expect([toHallway.x, toHallway.y, toHallway.wall]).toEqual([344, 96, 'E']);
+    const landings = [landing(LOUNGE_ROOM, toShed), landing(LOUNGE_ROOM, toHallway)];
+    expect(landings).toEqual([
+      { x: 240, y: 190, facing: 'up' },
+      { x: 318, y: 96, facing: 'left' },
+    ]);
+    for (const at of [LOUNGE_ROOM.playerStart, ...landings]) {
+      for (const dx of [-PLAYER_HALF, PLAYER_HALF]) {
+        for (const dy of [-PLAYER_HALF, PLAYER_HALF]) {
+          expect(
+            hitsWall(LOUNGE_ROOM, at.x + dx, at.y + dy),
+            `${String(at.x)},${String(at.y)}`,
+          ).toBe(false);
+        }
+      }
+    }
   });
 });

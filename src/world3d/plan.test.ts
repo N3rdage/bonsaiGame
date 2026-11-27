@@ -268,7 +268,6 @@ describe('roomPlan3d shed furniture props', () => {
   it.each([
     ['workbench', 40, 20, 20],
     ['planting_table', 32, 20, 20],
-    ['shop_kiosk', 28, 24, 32],
   ])('%s: stands on its %i x %i px footprint as tall as its %i px front face', (key, w, d, h) => {
     const prop = ROOMS.shed.props.find((p) => p.key === key);
     const box = standing(key);
@@ -278,6 +277,13 @@ describe('roomPlan3d shed furniture props', () => {
     expect((box?.y1 ?? 0) - (box?.y0 ?? 0)).toBeCloseTo(metres(d), 9);
     expect(((box?.x0 ?? 0) + (box?.x1 ?? 0)) / 2).toBeCloseTo(metres(prop?.x ?? 0), 9);
     expect(((box?.y0 ?? 0) + (box?.y1 ?? 0)) / 2).toBeCloseTo(metres(prop?.y ?? 0), 9);
+  });
+
+  it('stands the bicycle on its 54 x 8 px footprint in the front garden as tall as its 22 px frame', () => {
+    const box = roomPlan3d(ROOMS.frontGarden).furniture.find((b) => b.name === 'prop.shop_bicycle');
+    expect(box).toMatchObject({ z0: 0, z1: heightMetres(22), solid: false, model: 'bicycle' });
+    expect(box?.x1 ?? 0).toBeCloseTo(metres(284 + 27), 9);
+    expect(roomPlan3d(ROOMS.shed).furniture.some((b) => b.name === 'prop.shop_kiosk')).toBe(false);
   });
 
   it("lays the rug flat on the floor over the rug's 120 x 70 px rect", () => {

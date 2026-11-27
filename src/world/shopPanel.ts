@@ -1,5 +1,5 @@
 /**
- * The shop kiosk's panel (obj_shop_kiosk, obj_ui_shop) as a PanelModel:
+ * The shop's panel (obj_shop_kiosk, obj_ui_shop) as a PanelModel:
  * `Item`, `Price` and `Owned` headers over each block, one line per
  * SHOP_CATALOGUE entry with its `Buy` button, and the `Money: $N` footer. Pure; WorldScene draws it and
  * buys through `shopBuy`, then reopens it with the new state.
@@ -11,9 +11,6 @@ import { SHOP_CATALOGUE, type ShopItem } from '../sim/shop';
 import type { GameState } from '../sim/types';
 import { PANEL_INSET, needsFit, panelClose, rowY, type PanelModel, type PanelRow } from './panels';
 import { DESKTOP_UI, type UiMetrics } from './uiScale';
-
-/** The prop whose interaction opens the shop. */
-export const SHOP_KIOSK_KEY = 'shop_kiosk';
 
 /**
  * The shop's box, centred on the canvas: two blocks side by side, each with

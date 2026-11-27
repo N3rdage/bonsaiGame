@@ -130,7 +130,6 @@ export const SHEETS = {
   // The shed's furniture at the scale rule's heights and its rug, drawn by art/inked/shed.mjs.
   workbench: inked('spr_workbench', 1, 48, 40),
   plantingTable: inked('spr_planting_table', 1, 32, 40),
-  shopKiosk: inked('spr_shop_kiosk', 1, 24, 56),
   shedRug: inked('spr_shed_rug', 1, 120, 70),
   // The lounge-kitchen, drawn by art/inked/lounge.mjs: 3 variants each of its carpet and the
   // kitchen's quarry tiles (16 px), its back wall's 2.4 m face (16 x 48) and its 8 px caps (16 x 8,
@@ -199,6 +198,8 @@ export const SHEETS = {
   bed: inked('spr_bed', 3, 16),
   frontDoor: inked('spr_front_door', 1, 24, 40),
   rollerDoor: inked('spr_roller_door', 1, 77, 40),
+  // The bicycle on the front garden's lawn, side-on, drawn by art/inked/frontGarden.mjs: 1.7 m long and 1 m tall.
+  bicycle: inked('spr_bicycle', 1, 54, 30),
   // The placed furniture, drawn by art/inked/placeables.mjs at the scale rule's heights, cut out:
   // the 0.6 m pedestal on its 16 x 16 footprint and the 0.4 m floor shelf on its 32 x 16 one.
   pedestal: inked('spr_pedestal', 1, 16, 28),

@@ -13,12 +13,12 @@ import {
 // Walks between the shed and the house rooms (src/world/*Room.ts, pinned in
 // world.test.ts), plan B3's shapes. Shed lounge door (240, 56), in the top
 // wall, to the lounge at (240, 190); lounge door (240, 216) back to the shed
-// at (240, 82). The lounge-kitchen's floor is x 160..432, y 64..208, with the
+// at (240, 82). The lounge-kitchen's floor is x 96..432, y 64..208, with the
 // hallway's block solid in its north-east corner (x 336..432, y 64..128) and
 // the kitchen open below it; its display spots are on its furniture against
 // the top wall, pedestal_1 lounge_mantel (240, 77) on the fireplace
 // (x 224..256, y 64..88) straight above the shed door's landing, and
-// pedestal_2 lounge_side_table (168, 74) on the side table (x 160..176,
+// pedestal_2 lounge_side_table (104, 74) on the side table (x 96..112,
 // y 64..80) in the top-left corner; both pieces stop the player. The
 // lounge's door_hallway (344, 96), in the block's west face, leads to the
 // hallway at (210, 176). The hallway's floor is x 192..288, y 144..208: its
@@ -333,14 +333,51 @@ export async function frontToHallway(page: Page): Promise<Crossing> {
 }
 
 /** The side table's east edge in the lounge: a walk up into it must start west of it. */
-const SIDE_TABLE_EAST = 176;
+const SIDE_TABLE_EAST = 112;
 
 /**
  * From the lounge's shed-door landing (240, 190): to the mantel straight up
  * into the fireplace; to the side table west until under it (a late release
- * ends at the left wall, x 160, still under it), then up into the table.
+ * ends at the left wall, x 96, still under it), then up into the table.
  */
 export async function toLoungePedestal(page: Page, pedestal: 1 | 2): Promise<void> {
   if (pedestal === 2) await holdUntilAtMost(page, 'ArrowLeft', 'x', SIDE_TABLE_EAST - 6);
   await holdUntilNear(page, 'ArrowUp', `pedestal_${String(pedestal)}`);
+}
+
+/**
+ * From the shed's start, out of the house to the front garden: up through the
+ * lounge door, across the lounge to the hallway and out of the front door,
+ * landing at (336, 190).
+ */
+export async function shedToFront(page: Page): Promise<Crossing> {
+  await shedToLounge(page);
+  await loungeToHallway(page);
+  return hallwayToFront(page);
+}
+
+/**
+ * From the shed's start: out to the front garden, left along its landing row
+ * to the bicycle (284, 196), whose centre comes in reach 20 px along, and
+ * Interact (on the tap route, the Interact button) opens the shop.
+ */
+export async function openShop(page: Page): Promise<void> {
+  await shedToFront(page);
+  await walkTo(page, 190, 'left', 'shop_bicycle');
+  await interact(page);
+  await page.waitForFunction(() => window.__bonsai?.panel === 'shop');
+}
+
+/**
+ * From the bicycle's side in the front garden, back to the shed's start:
+ * right along the lawn to the front door's x 336 (at most 6.25 px past it),
+ * down into the house's front face and in, across the hallway to the lounge
+ * door and through the lounge to the shed door, landing at (240, 82).
+ */
+export async function bicycleToShed(page: Page): Promise<Crossing> {
+  await holdUntilAtLeast(page, 'ArrowRight', 'x', 336);
+  await holdUntilNear(page, 'ArrowDown', 'door_house');
+  await throughDoor(page, 'hallway');
+  await hallwayToLounge(page);
+  return loungeToShed(page);
 }

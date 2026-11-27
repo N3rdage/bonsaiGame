@@ -17,6 +17,7 @@ import {
   toTitle,
   walkTo,
 } from './drive';
+import { shedToFront } from './rooms';
 
 /** A real GameMaker save (version 1), so the title has a slot to show in its picker. */
 const PROTOTYPE_SAVE = readFileSync(
@@ -102,10 +103,11 @@ test.describe('tap targets', () => {
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
 
-    // Next to the kiosk, Interact joins the HUD beside the tutorial box's Skip.
-    await walkTo(page, 145, 'left', 'shop_kiosk');
+    // Next to the bicycle out the front, Interact joins the HUD beside the tutorial box's Skip.
+    await shedToFront(page);
+    await walkTo(page, 190, 'left', 'shop_bicycle');
     expect((await hook(page)).controls.map((c) => c.id)).toContain('interact');
-    await expectTapTargets(page, 'HUD in reach of the kiosk');
+    await expectTapTargets(page, 'HUD in reach of the bicycle');
     await interact(page);
     await page.waitForFunction(() => window.__bonsai?.panel === 'shop');
     expect((await hook(page)).controls.filter((c) => c.id.startsWith('panel-buy-'))).toHaveLength(

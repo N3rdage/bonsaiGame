@@ -34,6 +34,7 @@ import { TransformNode } from '@babylonjs/core/Meshes/transformNode';
 import { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 import { Scene } from '@babylonjs/core/scene';
 import { Bench, type BenchResult } from './bench';
+import { dressAtlas } from './bodyAtlas';
 import { BODY_FILES } from './bodyFiles';
 import type { Season } from '../sim/seasons';
 import { PALETTE } from '../world/palette';
@@ -87,9 +88,10 @@ import {
   layersOf,
   poseOf,
   release,
+  released,
   seatBlend,
   shotAt,
-  startShot,
+  startOver,
 } from './character';
 import { bodyPlace, type BodyPlace, type Seat, type SeatKey } from './seats';
 import { readClips, readGlb } from './glb';
@@ -373,6 +375,21 @@ function centreOf(piece: Piece): Vec3 {
   return { x, y: -z, z: (piece.z0 + piece.z1) / 2 };
 }
 
+/** Decodes the body's atlas image to RGBA bytes (same-origin, so no blob: or data: URL is made). */
+async function readAtlas(url: string): Promise<ImageData> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url}: ${String(response.status)}`);
+  const image = await createImageBitmap(await response.blob(), { colorSpaceConversion: 'none' });
+  const canvas = document.createElement('canvas');
+  canvas.width = image.width;
+  canvas.height = image.height;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('no 2D canvas to decode the body atlas');
+  context.drawImage(image, 0, 0);
+  image.close();
+  return context.getImageData(0, 0, canvas.width, canvas.height);
+}
+
 export class Renderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly engine: Engine;
@@ -531,7 +548,7 @@ export class Renderer {
    * (`readClips`), never played by Babylon, so they run on the game's clock.
    */
   private async loadBody(): Promise<void> {
-    const [container, clips] = await Promise.all([
+    const [container, clips, atlas] = await Promise.all([
       LoadAssetContainerAsync(BODY_FILES.body, this.scene, {
         pluginOptions: { gltf: { skipMaterials: true } },
       }),
@@ -539,6 +556,7 @@ export class Renderer {
         if (!response.ok) throw new Error(`${BODY_FILES.clips}: ${String(response.status)}`);
         return readClips(readGlb(await response.arrayBuffer()));
       }),
+      readAtlas(BODY_FILES.texture),
     ]);
     const played = CLIP_NAMES.map((name) => [name, clips.get(PLAYER_CLIPS[name])] as const);
     const root = container.meshes.find((mesh) => mesh.name === '__root__');
@@ -552,7 +570,17 @@ export class Renderer {
     const rootScaling = root.scaling.clone();
     const material = new StandardMaterial('player', this.scene);
     // glTF's texture coordinates start at the image's top, so the atlas is not flipped.
-    material.diffuseTexture = new Texture(BODY_FILES.texture, this.scene, false, false);
+    dressAtlas(atlas.data, atlas.width, atlas.height);
+    material.diffuseTexture = new RawTexture(
+      new Uint8Array(atlas.data.buffer),
+      atlas.width,
+      atlas.height,
+      Constants.TEXTUREFORMAT_RGBA,
+      this.scene,
+      true,
+      false,
+      Texture.TRILINEAR_SAMPLINGMODE,
+    );
     material.specularColor = Color3.Black();
     lookLit(material, this.toLight);
     const meshes = container.meshes.filter((mesh) => mesh.getTotalVertices() > 0);
@@ -592,7 +620,7 @@ export class Renderer {
    */
   play(kind: OneShotKind): void {
     if (!this.body) return;
-    this.motion = { ...this.motion, shot: startShot(kind, this.lieSeconds) };
+    this.motion = { ...this.motion, shot: startOver(this.motion.shot, kind, this.lieSeconds) };
   }
 
   /** Sits the body at `seat` from now, on the game clock; it replaces a one-shot under way. Nothing before the body loads. */
@@ -610,6 +638,16 @@ export class Renderer {
   /** The seat the body is at, from the start of its sit to the end of its stand-up; null otherwise. */
   seated(): SeatKey | null {
     return this.motion.shot?.kind === 'sit' ? (this.seat?.key ?? null) : null;
+  }
+
+  /** True once the player's body has loaded. */
+  hasBody(): boolean {
+    return this.body !== undefined;
+  }
+
+  /** True while the body is sat and has not been told to stand: the sit's release (`standUp`) is still to come. */
+  standable(): boolean {
+    return this.seated() !== null && !released(this.motion.shot);
   }
 
   /** The clip of the one-shot under way, if any. */

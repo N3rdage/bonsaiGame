@@ -150,13 +150,13 @@ const isCap = (f: Furniture): boolean => /_cap(_v)?$/.test(f.sheet.key);
 /** Whether the plan draws `f` as a box or model of its own: not a cap, and not a fixture of a face. */
 export const isBoxed = (f: Furniture): boolean => !isCap(f) && !isFaceFixture(f);
 
-/** The shed's working furniture, props that stand as a model over their footprint, as tall as their 2D frame. */
+/** The working furniture and the shop's bicycle, props that stand as a model over their footprint, as tall as their 2D frame. */
 const PROP_MODELS: Readonly<
   Record<string, { readonly sheet: Sheet; readonly model: FurnitureKind }>
 > = {
   workbench: { sheet: SHEETS.workbench, model: 'workbench' },
   planting_table: { sheet: SHEETS.plantingTable, model: 'planting_table' },
-  shop_kiosk: { sheet: SHEETS.shopKiosk, model: 'kiosk' },
+  shop_bicycle: { sheet: SHEETS.bicycle, model: 'bicycle' },
 };
 
 /** The side of the room a wall bounds, or `interior` for a wall against none of its edges. */
@@ -457,7 +457,7 @@ export function roofOf(name: string, eaves: Box, strip: boolean): Roof {
 
 /**
  * The box of a prop that stands as a model (the shed's workbench, planting
- * table and kiosk): over the prop's footprint, as tall as its 2D frame rises
+ * table and the front garden's bicycle): over the prop's footprint, as tall as its 2D frame rises
  * above it (the frame's logical px less the footprint's depth, the top face).
  * Not solid: the 2D collision of a prop is its interact box.
  */

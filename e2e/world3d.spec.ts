@@ -113,7 +113,6 @@ test.describe('the 3D world', () => {
         sack: 1,
         workbench: 1,
         planting_table: 1,
-        kiosk: 1,
       });
       if (test.info().project.name === 's22-landscape') {
         await skipTutorial(page, true);
@@ -891,6 +890,20 @@ test.describe('the 3D world', () => {
     expect((await world3d(page)).shot).toBe('lieIdle');
   });
 
+  test('stands up from a short sleep and is free again', { tag: '@walk' }, async ({ page }) => {
+    test.setTimeout(240_000);
+    await bootWorld(page, '/?lieSeconds=0.5');
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await sleepOneNight(page);
+    await page.waitForFunction(
+      () => window.__bonsai?.world3d?.shot === 'lieStandUp',
+      undefined,
+      POLL,
+    );
+    await expect.poll(async () => (await world3d(page)).shot, POLL).toBeNull();
+  });
+
   test('sits on the lounge sofa and armchair, and stands up on a move or Interact', async ({
     page,
   }) => {
@@ -908,7 +921,7 @@ test.describe('the 3D world', () => {
 
     // Along the sofa's front, up its east face: the seat is in reach and nothing nearer.
     await walkToRow(page, 150);
-    await walkToColumn(page, 205);
+    await walkToColumn(page, 141);
     await walkToRow(page, 128);
     const beside = (await hook(page)).player;
     expect(await hook(page)).toMatchObject({ near: 'seat_sofa', prompt: 'E: Sit' });
@@ -924,6 +937,7 @@ test.describe('the 3D world', () => {
     // A move key gets the player up and, once up, away; it does not slide off the seat.
     await page.keyboard.down('ArrowDown');
     await clip('sitStandUp');
+    await expect.poll(async () => (await hook(page)).prompt, POLL).toBe('');
     expect((await hook(page)).player).toEqual(beside);
     await page.waitForFunction(() => window.__bonsai?.world3d?.seated === null, undefined, POLL);
     await page.waitForFunction((y) => (window.__bonsai?.player.y ?? 0) > y + 4, beside.y, POLL);
@@ -951,6 +965,7 @@ test.describe('the 3D world', () => {
     // Interact gets up too.
     await interact(page);
     await clip('sitStandUp');
+    await expect.poll(async () => (await hook(page)).prompt, POLL).toBe('');
     await expect.poll(shot, POLL).toBeNull();
     expect((await world3d(page)).seated).toBeNull();
     expect((await hook(page)).player).toEqual(armchair);
@@ -1118,6 +1133,24 @@ test.describe('the 3D world', () => {
       expect(errors).toEqual([]);
     },
   );
+
+  test('loads offline once the service worker has precached the build', async ({
+    page,
+    context,
+  }) => {
+    test.setTimeout(120_000);
+    const errors = collectErrors(page);
+    await page.goto('/');
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, {
+      timeout: 15_000,
+    });
+    // Installing the worker precaches the build, so it is complete once the worker controls the page.
+    await context.setOffline(true);
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    expect((await world3d(page)).bodyLoaded).toBe(true);
+    expect(errors).toEqual([]);
+  });
 });
 
 /** Scrolls the camera in by `wheel` units and waits for it to reach `radius` metres or nearer. */

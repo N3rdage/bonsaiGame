@@ -95,7 +95,7 @@ export function tutorialStepFlavour(step: number): string {
     case TUTORIAL_PLANT:
       return 'A cutting needs a pot to live in. The planting table at the workbench takes one cutting and one pot and creates a new tree at sapling size (8cm). Fancy pots cost more but earn more daily revenue when the tree is on display.';
     case TUTORIAL_DONE:
-      return 'Granny would be proud. The basic care, training, and propagation loop is yours now. Try selling a tree once it scores well, or buying a fancier pot from the shop kiosk. The notebook stays - flip back here any time with J.';
+      return 'Granny would be proud. The basic care, training, and propagation loop is yours now. Try selling a tree once it scores well, or taking the bicycle out the front to the shop for a fancier pot. The notebook stays - flip back here any time with J.';
   }
   return '';
 }

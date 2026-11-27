@@ -3,8 +3,9 @@
  * interiors), plan B3's lounge with its open-plan kitchen as one walkable room
  * (docs/site-plan/README.md), an indoor display room through the shed's top
  * door. It reuses the shed's conventions (the same canvas, an inset ring of
- * solid walls framed by the dark background): 8.5 x 4.5 m at 1 m to 32 px,
- * the hallway's 3 x 2 m block solid in its north-east corner as the back
+ * solid walls framed by the dark background): 10.5 x 4.5 m at 1 m to 32 px
+ * (the interior is drawn 2 m wider than the house's 5.5 m lounge footprint on
+ * the site plan: rooms favour feel over exact scale), the hallway's 3 x 2 m block solid in its north-east corner as the back
  * garden's house and shed footprints are, the kitchen open below that block
  * with its counter along its south and east walls. Two windows in the
  * lounge's top wall, a door drawn on the bottom wall back to the shed, one in
@@ -32,12 +33,13 @@ import {
 } from './shedRoom';
 
 /**
- * The 272x144 floor (8.5 x 4.5 m), x 160..432 and y 64..208, grown by the
- * 16 px wall band: x 144..448 and y 48..224. Its bottom wall is the shed's
+ * The 336x144 floor (10.5 x 4.5 m), x 96..432 and y 64..208, grown by the
+ * 16 px wall band: x 80..448 and y 48..224. The sitting area west of the
+ * kitchen (x 96..336) is 7.5 x 4.5 m. Its bottom wall is the shed's
  * top row, so the shed door's square stays at x 240, and it fits a phone's
  * zoomed view (384x216).
  */
-export const LOUNGE_BOUNDS: Rect = { x: 144, y: 48, w: 304, h: 176 };
+export const LOUNGE_BOUNDS: Rect = { x: 80, y: 48, w: 368, h: 176 };
 
 /**
  * The hallway's 3 x 2 m (96x64) in the floor's north-east corner, x 336..432
@@ -100,7 +102,7 @@ export const FIREPLACE: Furniture = {
  */
 export const SIDE_TABLE: Furniture = {
   sheet: SHEETS.sideTable,
-  x: 160,
+  x: 96,
   y: 64,
   w: 16,
   h: 16,
@@ -111,14 +113,14 @@ export const SIDE_TABLE: Furniture = {
 
 /**
  * The sofa, 0.875 x 1.875 x 0.9 m (28 x 60 px), its back along the west wall
- * and its seat facing east, x 176..204 and y 98..158. It floats 16 px off the
- * west wall, leaving the lane x 160..176 that a walk into that wall and up to
+ * and its seat facing east, x 112..140 and y 98..158. It floats 16 px off the
+ * west wall, leaving the lane x 96..112 that a walk into that wall and up to
  * the side table takes, and ends on y 158 so the floor-tree spots on y 160
  * stay clear.
  */
 export const SOFA: Furniture = {
   sheet: SHEETS.sofa,
-  x: 176,
+  x: 112,
   y: 98,
   w: 28,
   h: 60,
@@ -129,13 +131,13 @@ export const SOFA: Furniture = {
 
 /**
  * The coffee table, 0.625 x 1.0 x 0.4 m (20 x 32 px), 6 px in front of the
- * sofa and centred on its length, x 210..230 and y 112..144: clear of the
+ * sofa and centred on its length, x 146..166 and y 112..144: clear of the
  * column x 232..248 that a walk up from the shed door's landing takes to the
  * mantel.
  */
 export const COFFEE_TABLE: Furniture = {
   sheet: SHEETS.coffeeTable,
-  x: 210,
+  x: 146,
   y: 112,
   w: 20,
   h: 32,
@@ -165,7 +167,7 @@ export const ARMCHAIR: Furniture = {
  * The tall bookcase, 0.875 x 0.375 x 1.78 m (28 x 12 px, 38 tall), against the
  * top wall between the fireplace and the east window, x 258..286 and y 64..76:
  * east of the column x 232..248 that a walk up to the mantel takes, and clear
- * of both windows, x 176..208 and 288..320.
+ * of both windows, x 112..144 and 288..320.
  */
 export const BOOKCASE: Furniture = {
   sheet: SHEETS.bookcase,
@@ -247,7 +249,7 @@ export const LOUNGE_ROOM: Room = {
   height: fromPrototype(540),
   bounds: LOUNGE_BOUNDS,
   windows: [
-    { x: 176, w: 32 },
+    { x: 112, w: 32 },
     { x: 288, w: 32 },
   ],
   edgeMargin: SHED_ROOM.edgeMargin,
@@ -262,11 +264,11 @@ export const LOUNGE_ROOM: Room = {
     // (240, 77).
     displaySpot('pedestal_1', 'lounge_mantel', FIREPLACE, 66),
     // On the table top, y 56..72: a walk into the left wall and then up
-    // stops against the table at (160, 80) from the shed door's landing,
-    // (160.5, 81) from the hallway door's, on the 1.25 px step grid, each
-    // within 10.3 px of the spot's centre (168, 74).
+    // stops against the table at (96.25, 80) from the shed door's landing,
+    // (96.75, 81) from the hallway door's, on the 1.25 px step grid, each
+    // within 10.1 px of the spot's centre (104, 74).
     displaySpot('pedestal_2', 'lounge_side_table', SIDE_TABLE, 68),
-    // Plan B3 row 3: the shed garden door's square in the bottom wall, 2.5 m along, back to
+    // Plan B3 row 3: the shed garden door's square in the bottom wall, 4.5 m along its floor, back to
     // below the shed's lounge door.
     {
       ...prop('door', 'Door', 'Back to Shed', 464 + 16, 416 + 16, 16, 16),

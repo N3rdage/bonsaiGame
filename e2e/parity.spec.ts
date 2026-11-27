@@ -9,7 +9,6 @@ import {
   inspectorAction,
   interact,
   openInspector,
-  openShop,
   pickUpTree,
   placeTree,
   pressHotspot,
@@ -19,14 +18,21 @@ import {
   test,
   walkTo,
 } from './drive';
-import { gardenToShed, shedToLounge, throughDoor, toLoungePedestal } from './rooms';
+import {
+  bicycleToShed,
+  gardenToShed,
+  openShop,
+  shedToLounge,
+  throughDoor,
+  toLoungePedestal,
+} from './rooms';
 
 // Epic #8's acceptance: the whole loop in one flow on the phone profile, walking
 // on the arrow keys and taking every action by tap. It runs in the
 // `s22-landscape-parity` project only (playwright.config.ts), after the four
 // per-step projects; they cover the same actions one step at a time.
 // Shed: floor spot 0 (170, 160), workbench (125, 90), planting table
-// (165, 90), kiosk (125, 145), door (240, 216) in the bottom wall to the garden
+// (165, 90), door (240, 216) in the bottom wall to the garden
 // at (80, 274); garden: juniper (80, 472) straight down from there, door
 // (80, 248) in the shed's south face back to (240, 190); the lounge's mantel
 // through the shed's top door (rooms.ts).
@@ -34,7 +40,7 @@ import { gardenToShed, shedToLounge, throughDoor, toLoungePedestal } from './roo
 test.describe('parity', () => {
   test('plays the loop from a new game through save, reload and Continue', async ({ page }) => {
     // A single flow through every room and panel: longer than one step's spec.
-    test.setTimeout(90_000);
+    test.setTimeout(150_000);
     const errors = collectErrors(page);
     await bootWorld(page);
 
@@ -100,13 +106,14 @@ test.describe('parity', () => {
     expect([h.inventory.clay, h.inventory.pot, h.inventory.cutting_juniper]).toEqual([4, 2, 0]);
     expect(h.tutorialStep).toBe(-1);
 
-    // Buy fertiliser at the kiosk.
+    // Buy fertiliser at the shop: out the front door to the bicycle, and back to the shed.
     await openShop(page);
     expect((await hook(page)).money).toBe(100);
     await tapControl(page, 'panel-buy-fertilizer');
     await page.waitForFunction(() => window.__bonsai?.money === 90);
     await closePanel(page);
     await page.waitForFunction(() => window.__bonsai?.panel === '');
+    await bicycleToShed(page);
 
     // Display Granny's juniper on the lounge's mantel.
     await shedToLounge(page);

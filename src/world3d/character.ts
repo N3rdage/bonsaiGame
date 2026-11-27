@@ -133,6 +133,13 @@ export const RUN_FULL_SPEED = 2;
  * is within 1.5 cm of its lowest (character.test.ts measures them from the file).
  */
 export const FOOT_SPEEDS: Readonly<Record<'walk' | 'run', number>> = { walk: 0.68, run: 3.37 };
+/**
+ * Seconds into each gait clip at which the left foot lands: the first frame of
+ * the run of frames its foot is within 1.5 cm of its lowest (character.test.ts
+ * measures them from the file). The walk and run strides are played from one
+ * phase, 0 at these moments, so they stay in step while they blend.
+ */
+export const LANDING_OFFSETS: Readonly<Record<'walk' | 'run', number>> = { walk: 1.062, run: 0.08 };
 /** The speed, metres a second, at which each gait clip's feet do not slide: a planted foot's speed, scaled to metres. */
 export const STRIDE_SPEEDS: Readonly<Record<'walk' | 'run', number>> = {
   walk: FOOT_SPEEDS.walk * BODY_SCALE,
@@ -353,6 +360,25 @@ export function startShot(kind: OneShotKind, lieSeconds = LIE_IDLE_SECONDS): One
 }
 
 /**
+ * The one-shot a `kind` started now becomes, given the `current` one: a reach
+ * (`interact`, `pickUp`) does not cut into a sleep, from lying down to standing
+ * up, and leaves it; anything else starts over.
+ */
+export function startOver(
+  current: OneShot | undefined,
+  kind: OneShotKind,
+  lieSeconds = LIE_IDLE_SECONDS,
+): OneShot {
+  const reach = kind === 'interact' || kind === 'pickUp';
+  return current?.kind === 'sleep' && reach ? current : startShot(kind, lieSeconds);
+}
+
+/** True once a sit has been told to end: its stand-up is coming or under way. */
+export function released(shot: OneShot | undefined): boolean {
+  return shot?.kind === 'sit' && shot.releasedAt !== undefined;
+}
+
+/**
  * A sit told to end now: `Sit_Chair_Idle` stops being held and `Sit_Chair_StandUp`
  * follows. A release during `Sit_Chair_Down` lets that clip finish, then stands
  * up straight away. Any other shot, and a sit already released, is unchanged.
@@ -418,8 +444,8 @@ export function seatBlend(shot: OneShot, clips: PlayerClips): number {
   return playing.clip === 'sitDown' ? eased : 1 - eased;
 }
 
-/** The clocks of the clips that loop on their own, each seconds into its clip. */
-export type Clocks = Readonly<Record<Locomotion | 'hold', number>>;
+/** The clocks of the idle and carry clips, each seconds into its clip; the walk and run share `Motion.gait`. */
+export type Clocks = Readonly<Record<'idle' | 'hold', number>>;
 
 /** Everything the body's pose carries from frame to frame. */
 export interface Motion {
@@ -429,6 +455,8 @@ export interface Motion {
   /** How much of the upper body is the carry, 0 to 1, fading with `FADE_SECONDS`. */
   readonly carry: number;
   readonly clocks: Clocks;
+  /** Where the body is in its stride, 0 to 1 over a cycle; 0 is the left foot landing in both the walk and the run clip. */
+  readonly gait: number;
   readonly shot: OneShot | undefined;
 }
 
@@ -437,7 +465,8 @@ export const AT_REST: Motion = {
   speed: 0,
   weights: { idle: 1, walk: 0, run: 0 },
   carry: 0,
-  clocks: { idle: 0, walk: 0, run: 0, hold: 0 },
+  clocks: { idle: 0, hold: 0 },
+  gait: 0,
   shot: undefined,
 };
 
@@ -454,9 +483,33 @@ export interface MotionStep {
 }
 
 /**
+ * How many strides a second the blend of the walk and run clips takes: each
+ * clip's cycle frequency at `speed`, weighted by its weight (the walk's alone
+ * when neither is in, so a body at rest starts off at the walking pace).
+ */
+export function gaitRate(
+  weights: ClipWeights,
+  speed: number,
+  avatarScale: number,
+  clips: PlayerClips,
+): number {
+  const frequency = (clip: 'walk' | 'run'): number =>
+    clipRate(clip, speed, avatarScale) / clips[clip].duration;
+  const total = weights.walk + weights.run;
+  if (total <= 0) return frequency('walk');
+  return (weights.walk * frequency('walk') + weights.run * frequency('run')) / total;
+}
+
+/** Seconds into `clip` (walk or run) at stride phase `gait`. */
+export function gaitTime(clip: 'walk' | 'run', gait: number, clips: PlayerClips): number {
+  const { duration } = clips[clip];
+  return (LANDING_OFFSETS[clip] + gait * duration) % duration;
+}
+
+/**
  * `motion` moved on by `step`: the speed and the gait blend, the carry fading
- * in or out, each looping clock (the gait clips at the rate that keeps their
- * feet on the ground) and the one-shot under way, which ends when its clips
+ * in or out, the looping clocks (the stride phase advancing at the blend of
+ * the gait clips' rates, which keeps their feet on the ground) and the one-shot under way, which ends when its clips
  * do. `clips` is undefined until the body has loaded, when clocks just run.
  */
 export function advance(motion: Motion, step: MotionStep, clips: PlayerClips | undefined): Motion {
@@ -466,19 +519,20 @@ export function advance(motion: Motion, step: MotionStep, clips: PlayerClips | u
     const duration = clips?.[clip].duration ?? 0;
     return duration > 0 ? time % duration : time;
   };
-  const { idle, walk, run, hold } = motion.clocks;
+  const { idle, hold } = motion.clocks;
   const elapsed = motion.shot ? motion.shot.elapsed + dt : 0;
   const shot = motion.shot && { ...motion.shot, elapsed };
+  const weights = fadeWeights(motion.weights, speed, dt);
+  const strides = clips ? gaitRate(weights, speed, step.avatarScale, clips) * dt : 0;
   return {
     speed,
-    weights: fadeWeights(motion.weights, speed, dt),
+    weights,
     carry: clamp(motion.carry + (step.carrying ? dt : -dt) / FADE_SECONDS, 1),
     clocks: {
       idle: step.still ? idle : loop('idle', idle + dt),
-      walk: loop('walk', walk + dt * clipRate('walk', speed, step.avatarScale)),
-      run: loop('run', run + dt * clipRate('run', speed, step.avatarScale)),
       hold: step.still ? hold : loop('hold', hold + dt),
     },
+    gait: (motion.gait + strides) % 1,
     shot: shot && clips && shotAt(shot, clips) ? shot : undefined,
   };
 }
@@ -497,7 +551,7 @@ export function layersOf(motion: Motion, clips: PlayerClips, still: boolean): La
       amount: 1,
       clips: LOCOMOTION.map((clip) => ({
         clip,
-        time: motion.clocks[clip],
+        time: clip === 'idle' ? motion.clocks.idle : gaitTime(clip, motion.gait, clips),
         weight: motion.weights[clip],
       })),
     },

@@ -47,7 +47,6 @@ describe('furniturePieces', () => {
       'sack',
       'workbench',
       'planting_table',
-      'kiosk',
     ]);
     // spr_shelf: (208, 67, 24, 20) px, 12 px tall on the bottom 8 px of its frame.
     expect(pieces[0]).toMatchObject({
@@ -65,7 +64,7 @@ describe('furniturePieces', () => {
     expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(6);
     expect(sofa).toMatchObject({
       kind: 'sofa',
-      x: metres(176 + 14),
+      x: metres(112 + 14),
       y: metres(98 + 30),
       w: 0.875,
       d: 1.875,
@@ -107,8 +106,8 @@ describe('furniturePieces', () => {
       ['potted_plant', true],
     ]);
     expect(boxes.map((b) => [b.x0, b.x1, b.y0, b.y1])).toEqual([
-      [5.5, 6.375, 3.0625, 4.9375],
-      [6.5625, 7.1875, 3.5, 4.5],
+      [3.5, 4.375, 3.0625, 4.9375],
+      [4.5625, 5.1875, 3.5, 4.5],
       [8.625, 9.375, 3.5, 4.25],
       [8.0625, 8.9375, 2, 2.375],
       [8.78125, 9.21875, 4.375, 4.8125],
@@ -118,7 +117,7 @@ describe('furniturePieces', () => {
 
   it('leaves the modelled pieces out of the plan boxes the renderer draws', () => {
     const plan = roomPlan3d(SHED_ROOM);
-    expect(plan.furniture.filter((b) => b.model !== undefined)).toHaveLength(8);
+    expect(plan.furniture.filter((b) => b.model !== undefined)).toHaveLength(7);
     expect(
       meshSpecs(plan)
         .map((spec) => spec.name)
@@ -188,7 +187,7 @@ describe('the furniture vertex budget', () => {
     expect(furnitureVertices(SHED_ROOM)).toBe(
       kinds.reduce((sum, kind) => sum + modelVertices(kind), 0),
     );
-    expect(furnitureVertices(SHED_ROOM)).toBe(7560);
+    expect(furnitureVertices(SHED_ROOM)).toBe(6480);
   });
 
   it("counts the lounge's six pieces: 10,496 vertices, inside the budget", () => {
@@ -208,7 +207,7 @@ describe('furniture models', () => {
   const kinds = Object.keys(FURNITURE_MODELS) as FurnitureKind[];
 
   it('has a model for every kind a sheet maps to, and a sheet or a shed prop for every model', () => {
-    const propKinds: FurnitureKind[] = ['workbench', 'planting_table', 'kiosk'];
+    const propKinds: FurnitureKind[] = ['workbench', 'planting_table', 'bicycle'];
     expect(new Set([...Object.values(MODELLED_SHEETS), ...propKinds])).toEqual(new Set(kinds));
   });
 

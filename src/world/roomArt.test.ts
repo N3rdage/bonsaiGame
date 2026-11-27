@@ -82,7 +82,7 @@ describe('floor', () => {
 
   it("tiles only the inside of each house room's own ring with its own floor, hashed as the shed's", () => {
     for (const [room, sheet, area, rows, columns] of [
-      [LOUNGE_ROOM, SHEETS.floorLounge, { x: 160, y: 64, w: 272, h: 144 }, 9, 17],
+      [LOUNGE_ROOM, SHEETS.floorLounge, { x: 96, y: 64, w: 336, h: 144 }, 9, 21],
       [HALLWAY_ROOM, SHEETS.floorHallway, { x: 192, y: 144, w: 96, h: 64 }, 4, 6],
       [STUDY_ROOM, SHEETS.floorStudy, { x: 160, y: 64, w: 144, h: 144 }, 9, 9],
       [GREENHOUSE_ROOM, SHEETS.floorGreenhouse, { x: 160, y: 80, w: 160, h: 112 }, 7, 10],
@@ -409,9 +409,9 @@ describe('walls', () => {
         SHEETS.wallLounge,
         SHEETS.loungeCap,
         SHEETS.loungeCapV,
-        [160, 16, 432, 64],
-        [152, 432],
-        [152, 208, 440, 216],
+        [96, 16, 432, 64],
+        [88, 432],
+        [88, 208, 440, 216],
       ],
       [
         HALLWAY_ROOM,
@@ -510,7 +510,7 @@ describe('walls', () => {
   it('has two windows in the lounge, one in the study and the shed, none in the hallway, the garden or the glass greenhouse', () => {
     // The lounge's both west of the hallway block (x 336), either side of the fireplace (x 224..256).
     expect(LOUNGE_ROOM.windows).toEqual([
-      { x: 176, w: 32 },
+      { x: 112, w: 32 },
       { x: 288, w: 32 },
     ]);
     // The study's between the desk (x 160..192) and the bookcase (x 256..304).
@@ -649,19 +649,17 @@ describe('props', () => {
     // The workbench's 40 x 20 footprint centred on (125, 90): its bottom edge y 100.
     expect(at('workbench')).toEqual(['spr_workbench', 0, 125, 100, 1, 0.25]);
     expect(at('planting_table')).toEqual(['spr_planting_table', 0, 165, 100, 1, 0.25]);
-    expect(at('shop_kiosk')).toEqual(['spr_shop_kiosk', 0, 125, 157, 1, 0.25]);
     expect(at('door')).toEqual(['spr_shed_door_s', 0, 240, 224, 1, 0.25]);
     expect(at('door_lounge')).toEqual(['spr_shed_door', 0, 240, 64, 1, 0.25]);
-    // Drawn at the scale rule's sizes: the workbench 48 x 40, the planting table 32 x 40, the kiosk
-    // 24 x 56, the lounge door 24 x 40 front-on, the garden door's opening 24 x 16.
+    // Drawn at the scale rule's sizes: the workbench 48 x 40, the planting table 32 x 40, the lounge door
+    // 24 x 40 front-on, the garden door's opening 24 x 16.
     const size = (key: string) => {
       const s = propSprite(propByKey(SHED_ROOM.props, key));
       return s && [s.sheet.frameWidth * s.scale, s.sheet.frameHeight * s.scale];
     };
-    expect(['workbench', 'planting_table', 'shop_kiosk', 'door_lounge', 'door'].map(size)).toEqual([
+    expect(['workbench', 'planting_table', 'door_lounge', 'door'].map(size)).toEqual([
       [48, 40],
       [32, 40],
-      [24, 56],
       [24, 40],
       [24, 16],
     ]);
@@ -954,9 +952,9 @@ describe('shadows', () => {
       furnitureSprites(room).map((s) => [s.sheet.key, s.x, s.y, s.originY, s.scale, s.depth]);
     expect(sprites(LOUNGE_ROOM)).toEqual([
       ['spr_fireplace', 240, 88, 1, 0.25, 88],
-      ['spr_side_table', 168, 80, 1, 0.25, 80],
-      ['spr_sofa', 190, 158, 1, 0.25, 158],
-      ['spr_coffee_table', 220, 144, 1, 0.25, 144],
+      ['spr_side_table', 104, 80, 1, 0.25, 80],
+      ['spr_sofa', 126, 158, 1, 0.25, 158],
+      ['spr_coffee_table', 156, 144, 1, 0.25, 144],
       ['spr_armchair', 288, 136, 1, 0.25, 136],
       ['spr_bookcase', 272, 76, 1, 0.25, 76],
       ['spr_floor_lamp', 288, 154, 1, 0.25, 154],
@@ -1021,8 +1019,8 @@ describe('cast shadows', () => {
       [157, 86],
       [157, 106],
     ]);
-    // The planting table and the kiosk cast too; a door, a source plant and a display spot do not.
-    expect(propCaster(propByKey(SHED_ROOM.props, 'shop_kiosk'))?.height).toBe(32);
+    // The planting table and the front garden's bicycle (30 px tall on an 8 px footprint) cast too; a door, a source plant and a display spot do not.
+    expect(propCaster(propByKey(FRONT_GARDEN_ROOM.props, 'shop_bicycle'))?.height).toBe(22);
     expect(propCaster(propByKey(SHED_ROOM.props, 'door'))).toBeUndefined();
     expect(propCaster(propByKey(GARDEN_ROOM.props, 'source_juniper'))).toBeUndefined();
     for (const p of LOUNGE_ROOM.props.filter((q) => q.pedestalKey !== undefined)) {
@@ -1079,9 +1077,9 @@ describe('cast shadows', () => {
       [115.2, 64],
       [115.2, 208],
     ]);
-    // Then the props (workbench, planting table, kiosk) and the decor, the shelf first: the south
+    // Then the props (workbench, planting table) and the decor, the shelf first: the south
     // and east walls cast nothing on the floor.
-    expect(rest).toHaveLength(3 + 5);
+    expect(rest).toHaveLength(2 + 5);
     expect(ROOM_STYLES.shed.wallHeight).toEqual({ row: 48, column: 48 });
     expect(ROOM_STYLES.garden.wallHeight).toEqual({ row: 16, column: 16 });
     expect(ROOM_STYLES.frontGarden.wallHeight).toEqual({ row: 11, column: 16 });
