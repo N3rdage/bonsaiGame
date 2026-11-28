@@ -5,11 +5,11 @@
 # Why these paths (security audit 2026-11-14): they decide what CI runs, which secrets a job can
 # reach and how dependencies arrive, so a change to them is Drew's to approve, not the
 # autonomous reviewer's. This file is listed too, so the list cannot be shortened without him.
-# The agent configuration (CLAUDE.md, .claude-memory/, .claude/) decides what the autonomous
+# The agent configuration (CLAUDE.md at every level, .claude-memory/, .claude/) decides what the autonomous
 # agents do, and staticwebapp.config.json carries the site's security headers, so they are his too.
 
 /.github/ @N3rdage
-/CLAUDE.md @N3rdage
+CLAUDE.md @N3rdage
 /.claude-memory/ @N3rdage
 /.claude/ @N3rdage
 /public/staticwebapp.config.json @N3rdage
