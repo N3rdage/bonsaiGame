@@ -12,14 +12,80 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Three stages. `static` lints, typechecks, runs the unit tests and builds once. `e2e` runs the
-# browser suite against that one build, split across runners because it is the slow part: every
-# walk is paced by real frames on software GL, and the suite runs once on desktop and again by
-# touch on a phone. `checks` is the single required check; it passes only when both passed.
+# `changes` looks at which files the change touches and decides what is worth running. `static`
+# lints, typechecks, runs the unit tests and builds once. `e2e` runs the browser suite against
+# that one build, split across runners because it is the slow part: every walk is paced by real
+# frames on software GL, and the suite runs once on desktop and again by touch on a phone.
+# `checks` is the single required check; it passes only when every stage that had to run passed.
 # Tests tagged @walk are left out here and run on main from walk-tests.yml instead.
+#
+# What runs for what (the rules are in the `changes` job, and anything they do not name runs
+# everything):
+#   - text and repository housekeeping only (the blog, docs, Markdown, the archive, files under
+#     .github other than this one): nothing. No tool here reads those files; Prettier ignores
+#     Markdown and the blog.
+#   - code that cannot change the built game or a browser test (unit test files, the art
+#     scripts, lint and unit-test configuration): `static` only.
+#   - everything else: `static` and `e2e`.
 jobs:
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      static: ${{ steps.classify.outputs.static }}
+      browser: ${{ steps.classify.outputs.browser }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # A pull request is checked out as its merge with the base, whose first parent is the
+          # base: two commits are enough to compare them. A push compares with the commit before.
+          fetch-depth: 2
+
+      - name: Classify the changed files
+        id: classify
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # --no-renames lists a moved file under both its old and its new name, so moving code
+          # into a docs folder still counts as a code change.
+          if [ "$EVENT" = "pull_request" ]; then
+            files=$(git diff --no-renames --name-only HEAD^1 HEAD) || files=UNKNOWN
+          elif git fetch --quiet --depth=1 origin "$BEFORE" 2>/dev/null; then
+            files=$(git diff --no-renames --name-only "$BEFORE" HEAD) || files=UNKNOWN
+          else
+            files=UNKNOWN
+          fi
+          static=false
+          browser=false
+          if [ -z "$files" ] || [ "$files" = "UNKNOWN" ]; then
+            echo "Could not list the changed files: running everything."
+            static=true
+            browser=true
+          fi
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            case "$f" in
+              UNKNOWN) ;;
+              .github/workflows/ci.yml) static=true; browser=true; echo "all     $f" ;;
+              blog/* | docs/* | archive/* | .github/* | .claude-memory/* | *.md | LICENSE)
+                echo "nothing $f" ;;
+              art/* | src/*.test.ts | eslint.config.* | vitest.config.* | .prettierrc* | .prettierignore | .gitignore | .gitattributes)
+                static=true; echo "static  $f" ;;
+              *) static=true; browser=true; echo "all     $f" ;;
+            esac
+          done <<EOF_FILES
+          $files
+          EOF_FILES
+          echo "static: $static, browser: $browser"
+          echo "static=$static" >> "$GITHUB_OUTPUT"
+          echo "browser=$browser" >> "$GITHUB_OUTPUT"
+
   static:
     name: Lint, typecheck, unit tests, build
+    needs: changes
+    if: needs.changes.outputs.static == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -58,7 +124,8 @@ jobs:
 
   e2e:
     name: Browser tests (${{ matrix.name }})
-    needs: static
+    needs: [changes, static]
+    if: needs.changes.outputs.browser == 'true'
     runs-on: ubuntu-latest
     # A slice takes a few minutes; the limit leaves room for a slow runner without hiding a hang.
     timeout-minutes: 25
@@ -121,15 +188,23 @@ jobs:
   checks:
     # The required check: its name must not change without changing the ruleset.
     name: Lint, typecheck, test, build, e2e
-    needs: [static, e2e]
+    needs: [changes, static, e2e]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Every stage passed
+      - name: Every stage that had to run passed
         env:
+          CHANGES: ${{ needs.changes.result }}
+          WANT_STATIC: ${{ needs.changes.outputs.static }}
+          WANT_BROWSER: ${{ needs.changes.outputs.browser }}
           STATIC: ${{ needs.static.result }}
           E2E: ${{ needs.e2e.result }}
         run: |
+          echo "changes: $CHANGES (static wanted: $WANT_STATIC, browser wanted: $WANT_BROWSER)"
           echo "static: $STATIC, e2e: $E2E"
-          [ "$STATIC" = "success" ] && [ "$E2E" = "success" ]
+          # A stage may be skipped only when `changes` succeeded and said it was not needed.
+          # Anything else that is not a success fails the check.
+          [ "$CHANGES" = "success" ]
+          if [ "$WANT_STATIC" = "false" ]; then [ "$STATIC" = "skipped" ]; else [ "$STATIC" = "success" ]; fi
+          if [ "$WANT_BROWSER" = "false" ]; then [ "$E2E" = "skipped" ]; else [ "$E2E" = "success" ]; fi
