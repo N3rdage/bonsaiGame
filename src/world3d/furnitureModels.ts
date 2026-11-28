@@ -19,7 +19,7 @@ import {
   roundedBoxVertexCount,
 } from './shapes';
 
-/** The kinds of furniture that have a model: the player's placeables, the shed's clutter and the lounge's seating and dressing. */
+/** The kinds of furniture that have a model: the player's placeables, the shed's clutter, the lounge's dressing and the pack's pieces. */
 export type FurnitureKind =
   | 'pedestal'
   | 'floor_shelf'
@@ -31,11 +31,7 @@ export type FurnitureKind =
   | 'workbench'
   | 'planting_table'
   | 'bicycle'
-  | 'sofa'
-  | 'armchair'
-  | 'coffee_table'
   | 'bookcase'
-  | 'floor_lamp'
   | 'potted_plant'
   | 'fireplace'
   | PackKind;
@@ -261,16 +257,6 @@ function wheel(hx: number): FurniturePart[] {
 }
 
 /**
- * The sofa: 0.875 m by 1.875 m and 0.9375 m tall (28 x 60 px, 20 tall), its back along the west
- * edge (-x) and its seat facing east: a base on four feet between two arms, a back, and a seat
- * and a back cushion for each of its two places.
- */
-const SOFA_SIZE = { w: 0.875, d: 1.875, h: 0.9375 } as const;
-/** The armchair: 0.75 m square and 0.9375 m tall (24 px, 20 tall), its back along the east edge (+x), facing west. */
-const ARMCHAIR_SIZE = { w: 0.75, d: 0.75, h: 0.9375 } as const;
-/** The coffee table: 0.625 m by 1.0 m and 0.375 m tall (20 x 32 px, 8 tall), a top over four legs and a low shelf. */
-const COFFEE_TABLE_SIZE = { w: 0.625, d: 1, h: 0.375 } as const;
-/**
  * The tall bookcase: 0.875 m wide, 0.375 m deep and 1.78125 m tall (28 x 12 px, 38 tall), its back
  * along the north edge (-y) and its front open to the south: a plinth, two sides, a back, a top and
  * four shelves, with books standing on three of them.
@@ -298,8 +284,6 @@ const BOOKCASE_BOOKS: readonly (readonly (readonly [ObjectKey, number, number])[
     ['book5', 0.05, 0.27],
   ],
 ];
-/** The floor lamp: 0.4375 m square and 1.5 m tall (14 px, 32 tall), a round base, a pole and a tapering shade. */
-const LAMP_SIZE = { w: 0.4375, d: 0.4375, h: 1.5 } as const;
 /** The potted plant: 0.625 m wide, 0.5 m deep and 1.125 m tall (20 x 16 px, 24 tall), a round terracotta pot, a stem and balls of foliage. */
 const PLANT_SIZE = { w: 0.625, d: 0.5, h: 1.125 } as const;
 
@@ -329,21 +313,6 @@ function books(n: number): FurniturePart[] {
     x += width + 0.01;
     return part;
   });
-}
-
-/** How high an upholstered piece stands on its feet, and its base, arms and cushions, metres. */
-const FOOT = 0.08;
-const SEAT_BASE = 0.3;
-const ARM = 0.55;
-const BACK = 0.22;
-const CUSHION = 0.13;
-
-/** The four feet of a piece `w` by `d`, each 0.06 m square and `FOOT` tall, inset a little from its corners. */
-function feet(w: number, d: number): FurniturePart[] {
-  const [x, y] = [w / 2 - 0.06, d / 2 - 0.06];
-  return [-1, 1].flatMap((sx) =>
-    [-1, 1].map((sy) => block('woodDark', [0.06, 0.06, FOOT], [sx * x, sy * y, 0])),
-  );
 }
 
 /** The four legs of a table `w` by `d` tall `h`, one at each corner. */
@@ -382,6 +351,10 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
   side_table: packFallback('side_table'),
   desk: packFallback('desk'),
   low_bookcase: packFallback('low_bookcase'),
+  sofa: packFallback('sofa'),
+  armchair: packFallback('armchair'),
+  coffee_table: packFallback('coffee_table'),
+  floor_lamp: packFallback('floor_lamp'),
   pedestal: {
     size: PEDESTAL_SIZE,
     parts: [
@@ -470,58 +443,6 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
       ),
     ],
   },
-  sofa: {
-    size: SOFA_SIZE,
-    parts: [
-      ...feet(SOFA_SIZE.w, SOFA_SIZE.d),
-      block('sofa', [SOFA_SIZE.w, SOFA_SIZE.d, SEAT_BASE], [0, 0, FOOT]),
-      block('sofa', [BACK, SOFA_SIZE.d, SOFA_SIZE.h - FOOT], [-(SOFA_SIZE.w - BACK) / 2, 0, FOOT]),
-      ...[-1, 1].map((side) =>
-        block('sofa', [SOFA_SIZE.w, 0.2, ARM], [0, (side * (SOFA_SIZE.d - 0.2)) / 2, FOOT]),
-      ),
-      ...[-1, 1].flatMap((side) => [
-        block('sofaLight', [0.5, 0.75, CUSHION], [0.12, side * 0.4, FOOT + SEAT_BASE]),
-        block('sofaLight', [0.14, 0.75, 0.38], [-0.14, side * 0.4, FOOT + SEAT_BASE]),
-      ]),
-      block('cushionA', [0.12, 0.3, 0.28], [-0.04, -0.42, 0.52]),
-    ],
-  },
-  armchair: {
-    size: ARMCHAIR_SIZE,
-    parts: [
-      ...feet(ARMCHAIR_SIZE.w, ARMCHAIR_SIZE.d),
-      block('chair', [ARMCHAIR_SIZE.w, ARMCHAIR_SIZE.d, SEAT_BASE], [0, 0, FOOT]),
-      block(
-        'chair',
-        [BACK, ARMCHAIR_SIZE.d, ARMCHAIR_SIZE.h - FOOT],
-        [(ARMCHAIR_SIZE.w - BACK) / 2, 0, FOOT],
-      ),
-      ...[-1, 1].map((side) =>
-        block(
-          'chair',
-          [ARMCHAIR_SIZE.w, 0.18, ARM],
-          [0, (side * (ARMCHAIR_SIZE.d - 0.18)) / 2, FOOT],
-        ),
-      ),
-      block('chairLight', [0.46, 0.38, CUSHION], [-0.08, 0, FOOT + SEAT_BASE]),
-    ],
-  },
-  coffee_table: {
-    size: COFFEE_TABLE_SIZE,
-    parts: [
-      ...legs(COFFEE_TABLE_SIZE.w, COFFEE_TABLE_SIZE.d, COFFEE_TABLE_SIZE.h - TABLE_TOP),
-      block(
-        'wood',
-        [COFFEE_TABLE_SIZE.w, COFFEE_TABLE_SIZE.d, TABLE_TOP],
-        [0, 0, COFFEE_TABLE_SIZE.h - TABLE_TOP],
-      ),
-      block(
-        'woodDark',
-        [COFFEE_TABLE_SIZE.w - 2 * LEG, COFFEE_TABLE_SIZE.d - 2 * LEG, PLANK / 2],
-        [0, 0, 0.1],
-      ),
-    ],
-  },
   bookcase: {
     size: BOOKCASE_SIZE,
     parts: [
@@ -547,15 +468,6 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
       ),
       block('wood', [BOOKCASE_SIZE.w, BOOKCASE_SIZE.d, 0.05], [0, 0, BOOKCASE_SIZE.h - 0.05]),
       ...[0, 1, 2].flatMap(books),
-    ],
-  },
-  floor_lamp: {
-    size: LAMP_SIZE,
-    parts: [
-      column('woodDark', [0.3, 0.04], [0, 0, 0]),
-      column('brass', [0.03, 1.2], [0, 0, 0.04]),
-      column('brass', [0.06, 0.04], [0, 0, 1.24]),
-      column('shade', [LAMP_SIZE.w, 0.26], [0, 0, LAMP_SIZE.h - 0.26], 0.6),
     ],
   },
   potted_plant: {

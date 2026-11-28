@@ -47,8 +47,8 @@ describe('the seats', () => {
     expect(seat('armchair').on).toBe(ARMCHAIR);
   });
 
-  it('sit the body at the height of the cushions: 0.08 + 0.3 + 0.13 m', () => {
-    expect(SEAT_HEIGHT).toBeCloseTo(0.51, 9);
+  it("sit the body at the height of the pack models' cushions: 0.5 of 1.224, drawn 0.9375 m tall", () => {
+    expect(SEAT_HEIGHT).toBeCloseTo((0.5 * 0.9375) / 1.22406, 9);
   });
 
   it('draw the hips back from the body origin as far as Sit_Chair_Down keys them', () => {
