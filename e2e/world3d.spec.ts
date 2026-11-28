@@ -736,6 +736,25 @@ test.describe('the 3D world', () => {
     await expect(page).toHaveScreenshot('world3d-study.png');
   });
 
+  test("draws the hallway's runner and console table", { tag: '@walk' }, async ({ page }) => {
+    test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+    await bootWorld(page);
+    await waitForRoom(page, 'shed');
+    await skipTutorial(page, true);
+    await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
+    await waitForBuilt(page, ['garden', 'lounge']);
+    await shedToLounge(page);
+    await waitForRoom(page, 'lounge');
+    await waitForAhead(page);
+    await loungeToHallway(page);
+    await waitForRoom(page, 'hallway');
+    await waitForAhead(page);
+    await waitForPacked(page, 'runner_rug');
+    // The camera eases from the lounge door's landing to the player's place in the hallway.
+    await page.waitForTimeout(3000);
+    await expect(page).toHaveScreenshot('world3d-hallway.png');
+  });
+
   test(
     "lays each room's floor: painted indoors, its own Inked tiles outdoors",
     { tag: '@walk' },
