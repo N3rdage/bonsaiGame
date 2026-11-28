@@ -6,9 +6,6 @@ import { bootWorld, expect, hook, openMenu, skipTutorial, tapControl, test } fro
 const ON = JSON.stringify({ fullscreen: false, weather: false, world3d: true });
 const OFF = JSON.stringify({ fullscreen: false, weather: false, world3d: false });
 
-/** Software GL draws a frame in 150 to 250 ms; the run is 14 s of wall clock either way. */
-const RUN_TIMEOUT = 120_000;
-
 test.describe('the benchmark', () => {
   test.use({ reducedMotion: 'reduce' });
 
@@ -25,14 +22,11 @@ test.describe('the benchmark', () => {
   });
 
   test('runs from the menu, shows its result and gives the camera back', async ({ page }) => {
-    test.setTimeout(RUN_TIMEOUT * 2);
     await page.addInitScript((settings) => {
       localStorage.setItem('bonsai.settings', settings);
     }, ON);
     await bootWorld(page);
-    await page.waitForFunction(() => window.__bonsai?.world3d?.floorSheet != null, undefined, {
-      timeout: 60_000,
-    });
+    await page.waitForFunction(() => window.__bonsai?.world3d?.floorSheet != null);
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
 
@@ -50,12 +44,10 @@ test.describe('the benchmark', () => {
         return world?.bench.running === true && Math.abs(world.camera.radius - 9) > 1;
       },
       undefined,
-      { timeout: RUN_TIMEOUT, polling: 50 },
+      { polling: 50 },
     );
 
-    await page.waitForFunction(() => window.__bonsai?.world3d?.bench.result != null, undefined, {
-      timeout: RUN_TIMEOUT,
-    });
+    await page.waitForFunction(() => window.__bonsai?.world3d?.bench.result != null);
     const bench = (await hook(page)).world3d?.bench;
     expect(bench?.running).toBe(false);
     expect(bench?.result?.frames).toBeGreaterThan(0);
@@ -75,15 +67,11 @@ test.describe('the benchmark', () => {
     await close.click();
     await expect(panel).toHaveCount(0);
 
-    await page.waitForFunction(
-      () => {
-        const cam = window.__bonsai?.world3d?.camera;
-        return (
-          cam !== undefined && Math.abs(cam.radius - 9) < 0.5 && Math.abs(cam.alpha + 1.57) < 0.1
-        );
-      },
-      undefined,
-      { timeout: 60_000 },
-    );
+    await page.waitForFunction(() => {
+      const cam = window.__bonsai?.world3d?.camera;
+      return (
+        cam !== undefined && Math.abs(cam.radius - 9) < 0.5 && Math.abs(cam.alpha + 1.57) < 0.1
+      );
+    });
   });
 });

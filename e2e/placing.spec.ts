@@ -78,7 +78,6 @@ test.describe('placement mode', () => {
     { tag: '@walk' },
     async ({ page }) => {
       // Three rooms' walks, the menu taps and a save and reload take about a minute on the S22's tap route.
-      test.setTimeout(120_000);
       const errors = collectErrors(page);
       await seedAndContinue(page);
       expect(await menuRows(page)).not.toContain('menu-place');
@@ -215,7 +214,6 @@ test.describe('placement mode', () => {
   );
 
   test('Q leaves placement mode', async ({ page }) => {
-    test.setTimeout(120_000);
     const errors = collectErrors(page);
     await seedAndContinue(page);
     await shedToGarden(page);
@@ -230,7 +228,6 @@ test.describe('placement mode', () => {
   test('a floor shelf bought at the shop goes down in the greenhouse', async ({ page }) => {
     // Out to the front garden's bicycle, back through the house and on to the greenhouse: seven
     // rooms' walks and the menu taps, inside two minutes on the S22's tap route.
-    test.setTimeout(120_000);
     const errors = collectErrors(page);
     await bootWorld(page);
     let h = await hook(page);

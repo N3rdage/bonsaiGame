@@ -93,7 +93,6 @@ test.describe('the full loop', () => {
     { tag: '@walk' },
     async ({ page }) => {
       // Twelve doors' walks on software GL: well past the default budget.
-      test.setTimeout(240_000);
       const errors = collectErrors(page);
       await bootWorld(page);
       const start = await hook(page);

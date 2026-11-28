@@ -207,16 +207,10 @@ test.describe('the day clock', () => {
     expect(before.treeLocations).toEqual([
       { id: 0, name: "Granny's", location: 'displayed:lounge_mantel' },
     ]);
-    const handle = await page.waitForFunction(
-      (day) => {
-        const h = window.__bonsai;
-        return h && h.day > day
-          ? { day: h.day, money: h.money, toast: h.toast, hud: h.hud }
-          : false;
-      },
-      before.day,
-      { timeout: 10_000 },
-    );
+    const handle = await page.waitForFunction((day) => {
+      const h = window.__bonsai;
+      return h && h.day > day ? { day: h.day, money: h.money, toast: h.toast, hud: h.hud } : false;
+    }, before.day);
     const after = await handle.jsonValue();
     if (!after) throw new Error('no day passed');
     expect(after.day).toBe(before.day + 1);

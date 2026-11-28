@@ -86,7 +86,7 @@ test.describe('title', () => {
     expect(h.slots[0]?.slot).toBe(1);
     expect(h.slots[0]?.day).toBe(0);
     expect(h.slots[0]?.money).toBe(100);
-    await page.waitForFunction(() => window.__bonsai?.toast === '', undefined, { timeout: 5000 });
+    await page.waitForFunction(() => window.__bonsai?.toast === '');
 
     await toTitle(page);
     h = await hook(page);

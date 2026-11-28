@@ -46,7 +46,6 @@ test.describe('the front garden', () => {
     page,
   }) => {
     // Five rooms' walks on software GL take longer than the default budget.
-    test.setTimeout(120_000);
     const errors = collectErrors(page);
     await bootWorld(page);
     await shedToLounge(page);
@@ -81,7 +80,6 @@ test.describe('front garden screenshot', () => {
   // no petals move between runs, and the tutorial skipped so its corner box
   // does not cover the room.
   test('the front garden at the front door', async ({ page }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await openSettingsFromMenu(page);
     await tapControl(page, 'panel-weather');

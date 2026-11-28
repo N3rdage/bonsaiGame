@@ -6,7 +6,6 @@ import { bootWorld, expect, hook, skipTutorial, test } from './drive';
 import { shedToGarden } from './rooms';
 
 /** Tests run on software GL: a walk or a camera ease can take longer than the default 5 s poll. */
-const POLL = { timeout: 30_000 };
 
 const SETTINGS = JSON.stringify({ fullscreen: false, weather: false, world3d: true });
 
@@ -31,7 +30,7 @@ async function turnOnce(page: Page): Promise<void> {
   const before = (await world3d(page)).camera.alpha;
   await page.keyboard.press('q');
   await expect
-    .poll(async () => Math.abs((await world3d(page)).camera.alpha - before), POLL)
+    .poll(async () => Math.abs((await world3d(page)).camera.alpha - before))
     .toBeGreaterThan(0.7);
   let last = Number.NaN;
   await expect
@@ -40,7 +39,7 @@ async function turnOnce(page: Page): Promise<void> {
       const still = now === last;
       last = now;
       return still;
-    }, POLL)
+    })
     .toBe(true);
 }
 
@@ -59,7 +58,6 @@ test.describe('the 3D world shading', () => {
   test('the shed, indoors, has a fixed, biased shadow map that the camera cannot move', async ({
     page,
   }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -87,7 +85,6 @@ test.describe('the 3D world shading', () => {
       tag: '@walk',
     },
     async ({ page }) => {
-      test.setTimeout(180_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
@@ -100,7 +97,7 @@ test.describe('the 3D world shading', () => {
       await turnOnce(page);
       await page.keyboard.down('ArrowRight');
       await expect
-        .poll(async () => (await world3d(page)).player?.x ?? 0, POLL)
+        .poll(async () => (await world3d(page)).player?.x ?? 0)
         .toBeGreaterThan((before.player?.x ?? 0) + 0.5);
       await page.keyboard.up('ArrowRight');
       await turnOnce(page);

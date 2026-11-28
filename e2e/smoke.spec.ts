@@ -46,9 +46,7 @@ test.describe('boot', () => {
     expect(body.name).toBe('Bonsai Greenhouse');
     expect(body.icons?.length).toBeGreaterThan(0);
 
-    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, {
-      timeout: 15_000,
-    });
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
   });
 
   test('the service worker gives every fixed-name asset a revision', async ({ request }) => {
