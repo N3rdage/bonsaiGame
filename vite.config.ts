@@ -77,6 +77,9 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: true,
     chunkSizeWarningLimit: 2000,
+    // A model file is fetched (renderer.ts), and the page's connect-src does not allow data: URLs,
+    // so the small ones must not be inlined; everything else keeps Vite's 4 kB default.
+    assetsInlineLimit: (file, content) => (file.endsWith('.glb') ? false : content.length < 4096),
     rolldownOptions: {
       output: {
         // Phaser changes rarely; keeping it in its own chunk lets browsers cache it across app updates.
