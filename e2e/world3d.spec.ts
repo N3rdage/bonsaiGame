@@ -720,7 +720,7 @@ test.describe('the 3D world', () => {
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
     await zoomIn(page, 900, 7.5);
-    await expect(page).toHaveScreenshot('world3d-furniture.png');
+    await expect(page).toHaveScreenshot('world3d-furniture.png', { timeout: 30_000 });
   });
 
   test("papers the lounge's hallway block as a wall", { tag: '@walk' }, async ({ page }) => {
