@@ -10,7 +10,7 @@
  */
 
 import type { ObjectKey } from './look';
-import { PACK_MODELS, isPackKind, type PackKind } from './packModels';
+import { PACK_MODELS, isPackKind, packVertices, type PackKind } from './packModels';
 import type { WashKey } from './plan';
 import {
   ballVertexCount,
@@ -91,6 +91,8 @@ export const MODELLED_SHEETS: Readonly<Record<string, FurnitureKind>> = {
   spr_side_table: 'side_table',
   spr_desk: 'desk',
   spr_bookshelf: 'low_bookcase',
+  spr_counter: 'counter',
+  spr_counter_v: 'counter_v',
 };
 
 /** The most a furniture box's edges are rounded: a few cm on a big slab; a thin plank or pole rounds to a third of its thickness. */
@@ -355,6 +357,8 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
   armchair: packFallback('armchair'),
   coffee_table: packFallback('coffee_table'),
   floor_lamp: packFallback('floor_lamp'),
+  counter: packFallback('counter'),
+  counter_v: packFallback('counter_v'),
   pedestal: {
     size: PEDESTAL_SIZE,
     parts: [
@@ -533,7 +537,7 @@ const SHARP_BOX_VERTICES = 24;
 
 /** The vertices one instance of `kind`'s model draws: a pack kind's file's once it has loaded. */
 export function modelVertices(kind: FurnitureKind): number {
-  if (isPackKind(kind)) return PACK_MODELS[kind].vertices;
+  if (isPackKind(kind)) return packVertices(PACK_MODELS[kind]);
   return FURNITURE_MODELS[kind].parts.reduce((sum, part) => sum + partVertices(part), 0);
 }
 
