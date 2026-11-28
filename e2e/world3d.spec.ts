@@ -501,7 +501,6 @@ test.describe('the 3D world', () => {
 
       // A tap on the lounge door picks its hotspot id, walks there and goes through it.
       // The walk has ended and the camera has settled once the hotspots stop moving on screen.
-      // On software GL beside another 3D test that can take longer than the default 5 s.
       let before = '';
       await expect
         .poll(async () => {
@@ -971,7 +970,6 @@ test.describe('the 3D world', () => {
     await walkToColumn(page, 300);
     await walkToRow(page, 175);
     await page.waitForTimeout(2000);
-    // The garden's capture takes software GL longer than the default 5 s to settle.
     await expect(page).toHaveScreenshot('world3d-garden-doors.png');
   });
 

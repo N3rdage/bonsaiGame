@@ -92,7 +92,6 @@ test.describe('the full loop', () => {
     'every door from the shed round the house, the front garden and the back garden lands facing into the room',
     { tag: '@walk' },
     async ({ page }) => {
-      // Twelve doors' walks on software GL: well past the default budget.
       const errors = collectErrors(page);
       await bootWorld(page);
       const start = await hook(page);

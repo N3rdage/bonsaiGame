@@ -28,7 +28,6 @@ const FACE_Y = 208;
 for (const angle of ['south', 'cutaway', 'north']) {
   test(`the 3D front garden from the ${angle}`, async ({ page }) => {
     await openSpike(page, angle);
-    // Software GL draws a frame in a few hundred ms here, so two matching captures take longer than the default 5 s.
     await expect(page).toHaveScreenshot(`front-garden-3d-${angle}.png`);
   });
 }
@@ -56,7 +55,6 @@ for (const [angle, key] of [
 
 // The mean frame time, draw calls and triangles, as an annotation (`--reporter=json` shows it).
 test('records its frame time over 120 frames on this machine', async ({ page }) => {
-  // 120 frames of software GL at a phone's device pixel ratio take most of a minute.
   await openSpike(page, 'south');
   await page.waitForFunction(() => (window.__spike3d?.frameMs ?? 0) > 0);
   const hook = await page.evaluate(() => window.__spike3d);

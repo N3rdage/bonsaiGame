@@ -45,7 +45,6 @@ test.describe('the front garden', () => {
   test('the front door leads out to it, the side gate round to the back garden and back', async ({
     page,
   }) => {
-    // Five rooms' walks on software GL take longer than the default budget.
     const errors = collectErrors(page);
     await bootWorld(page);
     await shedToLounge(page);

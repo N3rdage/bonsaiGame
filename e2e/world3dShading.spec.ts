@@ -5,8 +5,6 @@ import { wallSheets } from '../src/world3d/wallTiles';
 import { bootWorld, expect, hook, skipTutorial, test } from './drive';
 import { shedToGarden } from './rooms';
 
-/** Tests run on software GL: a walk or a camera ease can take longer than the default 5 s poll. */
-
 const SETTINGS = JSON.stringify({ fullscreen: false, weather: false, world3d: true });
 
 async function world3d(page: Page): Promise<NonNullable<BonsaiTestHook['world3d']>> {
