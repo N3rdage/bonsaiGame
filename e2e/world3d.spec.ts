@@ -1226,6 +1226,54 @@ test.describe('the 3D world', () => {
     },
   );
 
+  test(
+    "draws the lounge side table's tree and the player beside it",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await continueWithDisplayed(page, ['lounge_side_table']);
+      await waitForBuilt(page, ['garden', 'lounge']);
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await waitForAhead(page);
+      // East of the side table (x 96..112, y 64..80), level with it, clear of the sofa below.
+      await walkToRow(page, 92);
+      await walkToColumn(page, 128);
+      await walkToRow(page, 72);
+      await zoomIn(page, 2000, 6);
+      await waitForAhead(page);
+      await expect(page).toHaveScreenshot('world3d-lounge-side-table.png', { timeout: 30_000 });
+    },
+  );
+
+  test(
+    "draws the study bookcase's tree and the player beside it",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await continueWithDisplayed(page, ['study_bookshelf']);
+      await waitForBuilt(page, ['garden', 'lounge']);
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await waitForAhead(page);
+      await loungeToHallway(page);
+      await waitForRoom(page, 'hallway');
+      await waitForAhead(page);
+      await hallwayToStudy(page);
+      await waitForRoom(page, 'study');
+      await waitForAhead(page);
+      // West of the bookcase (x 256..304, y 64..80), level with it.
+      await walkToColumn(page, 236);
+      await walkToRow(page, 72);
+      await zoomIn(page, 2000, 6);
+      await waitForAhead(page);
+      await page.waitForTimeout(3000);
+      await expect(page).toHaveScreenshot('world3d-study-bookcase.png', { timeout: 30_000 });
+    },
+  );
+
   test('draws the shop bicycle beside the player', { tag: '@walk' }, async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
     test.setTimeout(120_000);
