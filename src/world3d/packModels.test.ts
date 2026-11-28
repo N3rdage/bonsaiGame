@@ -483,6 +483,13 @@ describe("the hallway's runner rug", () => {
   const model = PACK_MODELS.runner_rug;
   const [part] = model.parts;
 
+  it('is the only model marked flat', () => {
+    const flat = Object.entries(PACK_MODELS)
+      .filter(([, m]) => m.flat === true)
+      .map(([kind]) => kind);
+    expect(flat).toEqual(['runner_rug']);
+  });
+
   it("is the pack's rug_rectangle_A: a 3 x 2 x 0.1 m file of 48 vertices", () => {
     expect(model.atlas).toBe('furniture');
     expect(model.parts).toHaveLength(1);

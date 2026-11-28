@@ -65,6 +65,12 @@ export interface PackModel {
   readonly parts: readonly PackPart[];
   /** For a seat: the top of its cushion over the feet in the file's own units, where a sitter's hips rest. */
   readonly seat?: number;
+  /**
+   * The model lies flat on the floor (a rug). It lies over the floor's Inked tiles, whose
+   * polygon offset pulls them toward the camera, so the renderer gives it a stronger one or
+   * the tiles would hide its top face.
+   */
+  readonly flat?: true;
 }
 
 /** A Furniture Bits model of one file, centred, drawn at the piece's size. */
@@ -263,13 +269,16 @@ export const PACK_MODELS: Readonly<Record<PackKind, PackModel>> = {
   ),
   counter: counterRun('north', 3, ['A', 'sink', 'B', 'stove', 'corner']),
   counter_v: counterRun('west', 1.875, ['B', 'A', 'B']),
-  runner_rug: whole(
-    'rug_rectangle_A.glb',
-    { w: 3, d: 2, h: 0.1 },
-    'south',
-    { w: 1.875, d: 0.75, h: RUG_THICKNESS },
-    48,
-  ),
+  runner_rug: {
+    ...whole(
+      'rug_rectangle_A.glb',
+      { w: 3, d: 2, h: 0.1 },
+      'south',
+      { w: 1.875, d: 0.75, h: RUG_THICKNESS },
+      48,
+    ),
+    flat: true,
+  },
 };
 
 /** The vertices a model draws: its parts' files', each counted once. */
