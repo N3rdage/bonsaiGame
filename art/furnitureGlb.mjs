@@ -17,7 +17,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(ROOT, 'src', 'world3d', 'furniture');
 
 /** The pack models the rooms draw: one mesh of one primitive each, so a piece is one draw call. */
-const MODELS = ['table_small', 'table_medium_long', 'cabinet_medium'];
+const MODELS = [
+  'table_small',
+  'table_medium_long',
+  'cabinet_medium',
+  'couch',
+  'armchair',
+  'table_low',
+  'lamp_standing',
+];
 
 const source = process.argv[2];
 if (source === undefined) {
