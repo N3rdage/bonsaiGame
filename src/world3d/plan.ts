@@ -140,7 +140,7 @@ const FURNITURE_WASHES: Readonly<Record<string, WashKey>> = {
 };
 
 /**
- * How tall the 3D world draws the two plain boxes that carry a display spot, metres: the lounge's
+ * How tall the 3D world draws the two pieces that carry a display spot (the fireplace a model, the desk a box), metres: the lounge's
  * fireplace (2D frame 0.94 m) and the study's desk (0.75 m). Feel numbers (#506, #516): the pot
  * of a displayed tree stands on the top, and the player is drawn at 70%, 1.21 m, so the mantel is
  * at the player's chest (0.8 m) and the desk, a work surface, at the same waist height as the

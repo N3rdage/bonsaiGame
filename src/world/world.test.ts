@@ -536,7 +536,7 @@ describe('lounge room', () => {
     expect(
       LOUNGE_ROOM.props.map((p) => [p.key, p.label, p.prompt, p.x, p.y, p.w, p.h, p.pedestalKey]),
     ).toEqual([
-      ['pedestal_1', 'Pedestal', 'Use Pedestal', 240, 77, 32, 22, 'lounge_mantel'],
+      ['pedestal_1', 'Mantel', 'Use Mantel', 240, 77, 32, 22, 'lounge_mantel'],
       ['pedestal_2', 'Pedestal', 'Use Pedestal', 104, 74, 16, 12, 'lounge_side_table'],
       ['door', 'Door', 'Back to Shed', 240, 216, 16, 16, undefined],
       ['door_hallway', 'Door', 'To Hallway', 344, 96, 16, 16, undefined],

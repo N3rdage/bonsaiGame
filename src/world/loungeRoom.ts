@@ -262,7 +262,7 @@ export const LOUNGE_ROOM: Room = {
     // straight up from the shed door's landing stops against the fireplace
     // at y 88.75 on the 1.25 px step grid, 11.75 px below the spot's centre
     // (240, 77).
-    displaySpot('pedestal_1', 'lounge_mantel', FIREPLACE, 66),
+    displaySpot('pedestal_1', 'lounge_mantel', FIREPLACE, 66, FIREPLACE.x, FIREPLACE.w, 'Mantel'),
     // On the table top, y 56..72: a walk into the left wall and then up
     // stops against the table at (96.25, 80) from the shed door's landing,
     // (96.75, 81) from the hallway door's, on the 1.25 px step grid, each

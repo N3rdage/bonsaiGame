@@ -21,7 +21,7 @@ import {
   type FurnitureKind,
 } from './furnitureModels';
 import { OBJECTS } from './look';
-import { heightMetres, metres, roomPlan3d } from './plan';
+import { MANTEL_HEIGHT, heightMetres, metres, roomPlan3d } from './plan';
 import { meshSpecs } from './meshes';
 import { treeStands } from './trees';
 
@@ -60,8 +60,8 @@ describe('furniturePieces', () => {
   });
 
   it("stands the lounge's furniture over its 2D footprints, each as tall as its sprite stands", () => {
-    const [sofa, table, chair, bookcase, lamp, plant] = furniturePieces(LOUNGE_ROOM);
-    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(6);
+    const [fireplace, sofa, table, chair, bookcase, lamp, plant] = furniturePieces(LOUNGE_ROOM);
+    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(7);
     expect(sofa).toMatchObject({
       kind: 'sofa',
       x: metres(112 + 14),
@@ -70,6 +70,15 @@ describe('furniturePieces', () => {
       d: 1.875,
       h: heightMetres(20),
       rotation: 0,
+    });
+    // The mantel is 1 m by 0.75 m and drawn at the mantel's height, so the model needs no scaling.
+    expect(fireplace).toMatchObject({
+      kind: 'fireplace',
+      x: metres(240),
+      y: metres(76),
+      w: 1,
+      d: 0.75,
+      h: MANTEL_HEIGHT,
     });
     expect(table).toMatchObject({ kind: 'coffee_table', w: 0.625, d: 1, h: heightMetres(8) });
     expect(chair).toMatchObject({ kind: 'armchair', w: 0.75, d: 0.75, h: heightMetres(20) });
@@ -98,6 +107,7 @@ describe('furniturePieces', () => {
   it("keeps the lounge's furniture solid in the plan, where the renderer collides with it", () => {
     const boxes = roomPlan3d(LOUNGE_ROOM).furniture.filter((b) => b.model !== undefined);
     expect(boxes.map((b) => [b.model, b.solid])).toEqual([
+      ['fireplace', true],
       ['sofa', true],
       ['coffee_table', true],
       ['armchair', true],
@@ -106,6 +116,7 @@ describe('furniturePieces', () => {
       ['potted_plant', true],
     ]);
     expect(boxes.map((b) => [b.x0, b.x1, b.y0, b.y1])).toEqual([
+      [7, 8, 2, 2.75],
       [3.5, 4.375, 3.0625, 4.9375],
       [4.5625, 5.1875, 3.5, 4.5],
       [8.625, 9.375, 3.5, 4.25],
@@ -190,9 +201,14 @@ describe('the furniture vertex budget', () => {
     expect(furnitureVertices(SHED_ROOM)).toBe(6480);
   });
 
-  it("counts the lounge's six pieces: 10,496 vertices, inside the budget", () => {
-    expect(furnitureVertices(LOUNGE_ROOM)).toBe(10496);
+  it("counts the lounge's seven pieces: 12,656 vertices, inside the budget", () => {
+    expect(furnitureVertices(LOUNGE_ROOM)).toBe(12656);
     expect(furnitureVertices(LOUNGE_ROOM)).toBeLessThanOrEqual(FURNITURE_VERTEX_BUDGET);
+  });
+
+  it('counts the fireplace: ten rounded boxes, under 2,500 vertices', () => {
+    expect(FURNITURE_MODELS.fireplace.parts).toHaveLength(10);
+    expect(modelVertices('fireplace')).toBe(2160);
   });
 
   it('counts a lamp and a plant from their round parts', () => {
@@ -200,6 +216,57 @@ describe('the furniture vertex budget', () => {
     expect(modelVertices('floor_lamp')).toBe(3 * 22 + 22);
     // The pot, rim, soil and stem are cylinders; four balls of foliage.
     expect(modelVertices('potted_plant')).toBe(4 * 22 + 4 * 42);
+  });
+});
+
+describe('the fireplace model', () => {
+  const { size, parts } = FURNITURE_MODELS.fireplace;
+  const shelf = parts.reduce((top, p) => (p.z1 > top.z1 ? p : top));
+  const firebox = parts.filter((p) => p.object === 'soot');
+
+  it('is the footprint and the drawn height of the lounge fireplace', () => {
+    expect(MODELLED_SHEETS.spr_fireplace).toBe('fireplace');
+    expect(size).toEqual({ w: 1, d: 0.75, h: MANTEL_HEIGHT });
+  });
+
+  it('ends in a mantel shelf of wood, wider than the surround and overhanging its front', () => {
+    expect(shelf.object).toBe('wood');
+    expect(shelf.z1).toBe(MANTEL_HEIGHT);
+    const surround = parts.filter((p) => p.object === 'stone' && p.z0 > 0);
+    for (const p of surround) {
+      expect(shelf.x1 - shelf.x0).toBeGreaterThan(p.x1 - p.x0 - 1e-9);
+      expect(shelf.y1).toBeGreaterThan(p.y1);
+      expect(shelf.y0).toBeCloseTo(p.y0, 9);
+    }
+  });
+
+  it('opens its dark firebox to the front (+y), the way the room faces', () => {
+    const [back, floor] = [...firebox].sort((a, b) => b.z1 - a.z1);
+    // The back is against the north edge; the floor runs out from it, and nothing but the hearth is in front.
+    expect(back?.y0).toBeCloseTo(-size.d / 2, 9);
+    const front = Math.max(...parts.filter((p) => p.z0 > 0.05).map((p) => p.y1));
+    expect(floor?.y1).toBeLessThan(front);
+    const jambs = parts.filter((p) => p.object === 'stone' && p.z0 > 0 && p.z1 < size.h - 0.1);
+    expect(jambs).toHaveLength(2);
+    expect(Math.max(...jambs.map((j) => j.x0))).toBeCloseTo(back?.x1 ?? 0, 9);
+    expect(Math.min(...jambs.map((j) => j.x1))).toBeCloseTo(back?.x0 ?? 0, 9);
+  });
+
+  it('steps a hearth out in front of the surround and lays logs in the firebox', () => {
+    const hearthTop = 0.06;
+    const hearth = parts[0];
+    expect(hearth).toMatchObject({ object: 'stone', z0: 0, y1: size.d / 2 });
+    const surroundFront = Math.max(...parts.filter((p) => p.z0 >= hearthTop).map((p) => p.y1));
+    expect(hearth?.y1).toBeGreaterThan(surroundFront);
+    expect(hearth?.z1).toBe(hearthTop);
+    const logs = parts.filter((p) => p.object === 'bark' || p.object === 'woodDark');
+    expect(logs).toHaveLength(3);
+  });
+
+  it('stands the mantel tree on the shelf top, at its drawn height', () => {
+    const state = createNewGameState();
+    state.trees = [{ ...createTree('juniper', 'cutting', 0), location: 'displayed:lounge_mantel' }];
+    expect(treeStands(state, LOUNGE_ROOM, 'spring')[0]?.z).toBe(shelf.z1);
   });
 });
 

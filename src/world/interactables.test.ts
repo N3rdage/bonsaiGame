@@ -46,7 +46,7 @@ describe('interactables', () => {
       'E: Go to the shop',
     ]);
     expect(LOUNGE_ROOM.props.map(promptFor).slice(0, 2)).toEqual([
-      'E: Use Pedestal',
+      'E: Use Mantel',
       'E: Use Pedestal',
     ]);
   });

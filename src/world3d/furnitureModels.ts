@@ -34,7 +34,8 @@ export type FurnitureKind =
   | 'coffee_table'
   | 'bookcase'
   | 'floor_lamp'
-  | 'potted_plant';
+  | 'potted_plant'
+  | 'fireplace';
 
 /** A box of a model: its corners relative to the middle of the footprint at the floor, and its wash. */
 export interface ModelPart {
@@ -87,6 +88,7 @@ export const MODELLED_SHEETS: Readonly<Record<string, FurnitureKind>> = {
   spr_bookcase: 'bookcase',
   spr_floor_lamp: 'floor_lamp',
   spr_potted_plant: 'potted_plant',
+  spr_fireplace: 'fireplace',
 };
 
 /** The most a furniture box's edges are rounded: a few cm on a big slab; a thin plank or pole rounds to a third of its thickness. */
@@ -295,6 +297,22 @@ const LAMP_SIZE = { w: 0.4375, d: 0.4375, h: 1.5 } as const;
 /** The potted plant: 0.625 m wide, 0.5 m deep and 1.125 m tall (20 x 16 px, 24 tall), a round terracotta pot, a stem and balls of foliage. */
 const PLANT_SIZE = { w: 0.625, d: 0.5, h: 1.125 } as const;
 
+/**
+ * The fireplace: 1 m wide, 0.75 m deep and `MANTEL_HEIGHT` tall (32 x 24 px; plan.ts draws it at
+ * the player's chest, not the sprite's 0.94 m), its back along the north edge (-y) and its firebox
+ * open to the south: a stone hearth slab stepping out in front, two jambs and a lintel round a
+ * dark firebox with three logs in it, and a wooden mantel shelf over the top, overhanging the
+ * surround at the front. The shelf's top is where the displayed tree stands.
+ */
+const FIREPLACE_SIZE = { w: 1, d: 0.75, h: 0.8 } as const;
+const HEARTH = 0.06;
+const SURROUND_DEPTH = 0.5;
+const SURROUND_WIDTH = 0.9;
+const JAMB = 0.2;
+const FIREBOX_HEIGHT = 0.57;
+const SHELF_DEPTH = 0.6;
+const SHELF_THICKNESS = 0.05;
+
 /** The books of the upper shelf `n`, standing on its plank from the west side with a hair between them, their spines 2 cm short of the open front. */
 function books(n: number): FurniturePart[] {
   const shelf = BOOKCASE_SHELVES[n + 1] ?? 0;
@@ -336,6 +354,11 @@ function legs(w: number, d: number, h: number): FurniturePart[] {
 const { w: PW, d: PD, h: PH } = PEDESTAL_SIZE;
 const { w: FW, d: FD, h: FH } = FLOOR_SHELF_SIZE;
 const { w: SW, d: SD, h: SH } = SHELF_SIZE;
+const { w: HW, d: HD, h: HH } = FIREPLACE_SIZE;
+/** The fireplace's surround: the middle of its depth, against the north edge, and where its firebox ends and its lintel begins. */
+const SURROUND_Y = -HD / 2 + SURROUND_DEPTH / 2;
+const SURROUND_TOP = HEARTH + FIREBOX_HEIGHT;
+const FIREBOX_WIDTH = SURROUND_WIDTH - 2 * JAMB;
 
 export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> = {
   pedestal: {
@@ -540,6 +563,34 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
       block('woodDark', [0.2, 0.1, 0.05], [BIKE_SEAT[0] - 0.03, 0, BIKE_SEAT[1]]),
       block('ink', [PLANK, PLANK, 0.12], [BIKE_HEAD[0], 0, BIKE_HEAD[1]]),
       block('ink', [PLANK, 0.24, PLANK], [BIKE_HEAD[0], 0, BICYCLE_SIZE.h - PLANK]),
+    ],
+  },
+  fireplace: {
+    size: FIREPLACE_SIZE,
+    parts: [
+      block('stone', [HW, HD, HEARTH]),
+      ...[-1, 1].map((side) =>
+        block(
+          'stone',
+          [JAMB, SURROUND_DEPTH, FIREBOX_HEIGHT],
+          [(side * (SURROUND_WIDTH - JAMB)) / 2, SURROUND_Y, HEARTH],
+        ),
+      ),
+      block(
+        'stone',
+        [SURROUND_WIDTH, SURROUND_DEPTH, HH - SHELF_THICKNESS - SURROUND_TOP],
+        [0, SURROUND_Y, SURROUND_TOP],
+      ),
+      block('soot', [FIREBOX_WIDTH, 0.06, FIREBOX_HEIGHT], [0, -HD / 2 + 0.03, HEARTH]),
+      block('soot', [FIREBOX_WIDTH, SURROUND_DEPTH - 0.06, 0.02], [0, SURROUND_Y + 0.03, HEARTH]),
+      block('bark', [0.34, 0.07, 0.07], [0, -0.24, HEARTH + 0.02]),
+      block('woodDark', [0.32, 0.07, 0.07], [0.01, -0.15, HEARTH + 0.02]),
+      block('bark', [0.3, 0.07, 0.07], [0, -0.2, HEARTH + 0.09]),
+      block(
+        'wood',
+        [HW, SHELF_DEPTH, SHELF_THICKNESS],
+        [0, -HD / 2 + SHELF_DEPTH / 2, HH - SHELF_THICKNESS],
+      ),
     ],
   },
 };
