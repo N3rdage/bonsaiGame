@@ -1176,6 +1176,32 @@ test.describe('the 3D world', () => {
   );
 
   test(
+    'draws the lounge mantel from the front and a step round',
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await continueWithDisplayed(page, ['lounge_mantel']);
+      await waitForBuilt(page, ['garden', 'lounge']);
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await waitForAhead(page);
+      // Below the fireplace (x 224..256, y 64..88), centred on it.
+      await walkToColumn(page, 240);
+      await walkToRow(page, 130);
+      await zoomIn(page, 2000, 6);
+      // One step of E turns the camera round from due south to look at the fireplace's front and side.
+      await page.keyboard.press('e');
+      await expect
+        .poll(async () => (await world3d(page)).camera.alpha, POLL)
+        .toBeGreaterThan(-Math.PI / 2 + 0.7);
+      await page.waitForTimeout(1500);
+      await waitForAhead(page);
+      await expect(page).toHaveScreenshot('world3d-lounge-mantel-front.png', { timeout: 30_000 });
+    },
+  );
+
+  test(
     "draws the study desk's tree beside the hallway door and the player",
     { tag: '@walk' },
     async ({ page }) => {
