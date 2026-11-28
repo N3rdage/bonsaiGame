@@ -61,9 +61,11 @@ describe('furniturePieces', () => {
   });
 
   it("stands the lounge's furniture over its 2D footprints, each as tall as its sprite stands", () => {
-    const [fireplace, sideTable, sofa, table, chair, bookcase, lamp, plant] =
+    const [fireplace, sideTable, sofa, table, chair, bookcase, lamp, plant, counter, counterV] =
       furniturePieces(LOUNGE_ROOM);
-    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(8);
+    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(10);
+    expect(counter).toMatchObject({ kind: 'counter', w: 3, d: 0.625, h: heightMetres(20) });
+    expect(counterV).toMatchObject({ kind: 'counter_v', w: 0.625, d: 1.875, h: heightMetres(20) });
     expect(sofa).toMatchObject({
       kind: 'sofa',
       x: metres(112 + 14),
@@ -125,6 +127,8 @@ describe('furniturePieces', () => {
       ['bookcase', true],
       ['floor_lamp', true],
       ['potted_plant', true],
+      ['counter', true],
+      ['counter_v', true],
     ]);
     expect(boxes.map((b) => [b.x0, b.x1, b.y0, b.y1])).toEqual([
       [7, 8, 2, 2.75],
@@ -135,6 +139,8 @@ describe('furniturePieces', () => {
       [8.0625, 8.9375, 2, 2.375],
       [8.78125, 9.21875, 4.375, 4.8125],
       [9.1875, 9.8125, 2, 2.5],
+      [10.5, 13.5, 5.875, 6.5],
+      [12.875, 13.5, 4, 5.875],
     ]);
   });
 
@@ -213,8 +219,8 @@ describe('the furniture vertex budget', () => {
     expect(furnitureVertices(SHED_ROOM)).toBe(6480);
   });
 
-  it("counts the lounge's eight pieces: 8,412 vertices, inside the budget", () => {
-    expect(furnitureVertices(LOUNGE_ROOM)).toBe(8412);
+  it("counts the lounge's ten pieces: 11,117 vertices, inside the budget", () => {
+    expect(furnitureVertices(LOUNGE_ROOM)).toBe(11117);
     expect(furnitureVertices(LOUNGE_ROOM)).toBeLessThanOrEqual(FURNITURE_VERTEX_BUDGET);
   });
 

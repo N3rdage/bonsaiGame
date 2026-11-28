@@ -82,7 +82,7 @@ async function waitForPacked(page: Page, kind: string): Promise<void> {
 
 /** Each room's pieces drawn from pack models: a screenshot of the room waits for each to replace its box. */
 const ROOM_PACK: Partial<Record<RoomKey, readonly string[]>> = {
-  lounge: ['side_table', 'sofa', 'armchair', 'coffee_table', 'floor_lamp'],
+  lounge: ['side_table', 'sofa', 'armchair', 'coffee_table', 'floor_lamp', 'counter', 'counter_v'],
   study: ['desk', 'low_bookcase'],
 };
 

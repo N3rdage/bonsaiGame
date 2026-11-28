@@ -1,37 +1,59 @@
 /* eslint-disable no-console -- an entry script (`npm run art:furniture`) that reports what it wrote. */
-// Packs the KayKit Furniture Bits models the 3D rooms use (src/world3d/packModels.ts) into
-// src/world3d/furniture/: each model's .gltf + .bin become one .glb holding only its geometry
+// Packs the KayKit models the 3D rooms use (src/world3d/packModels.ts) into the pack's folder
+// under src/world3d/: each model's .gltf + .bin become one .glb holding only its geometry
 // (positions, texture coordinates, normals, indices), the shared texture atlas and the
 // pack's licence are copied verbatim. The pack's material, image and sampler are left out:
 // the renderer dresses every piece in the one atlas with the look's lit shading.
 //
-// Run with `npm run art:furniture -- <the pack's Assets directory>` (the one that holds
-// `gltf/`, `texture/` and `LICENSE.txt`); the output is committed. It is deterministic: the
-// same pack gives the same bytes.
+// Run with `npm run art:furniture -- <furniture|restaurant> <the pack's Assets directory>`
+// (the one that holds `gltf/`, `texture/` and `LICENSE.txt`); the output is committed. It is
+// deterministic: the same pack gives the same bytes.
 
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const OUT = join(ROOT, 'src', 'world3d', 'furniture');
 
-/** The pack models the rooms draw: one mesh of one primitive each, so a piece is one draw call. */
-const MODELS = [
-  'table_small',
-  'table_medium_long',
-  'cabinet_medium',
-  'couch',
-  'armchair',
-  'table_low',
-  'lamp_standing',
-];
+/** Each pack: its folder under src/world3d/, its atlas and licence names and the models the rooms draw (one mesh of one primitive each, so a part is one draw call). */
+const PACKS = {
+  furniture: {
+    folder: 'furniture',
+    texture: 'furniturebits_texture.png',
+    licence: 'LICENSE-KayKit-Furniture.txt',
+    models: [
+      'table_small',
+      'table_medium_long',
+      'cabinet_medium',
+      'couch',
+      'armchair',
+      'table_low',
+      'lamp_standing',
+    ],
+  },
+  restaurant: {
+    folder: 'restaurant',
+    texture: 'restaurantbits_texture.png',
+    licence: 'LICENSE-KayKit-Restaurant.txt',
+    models: [
+      'kitchencounter_straight_A',
+      'kitchencounter_straight_B',
+      'kitchencounter_outercorner',
+      'kitchencounter_sink',
+      'stove_single_countertop',
+    ],
+  },
+};
 
-const source = process.argv[2];
-if (source === undefined) {
-  console.error('usage: node art/furnitureGlb.mjs <the pack Assets directory>');
+const pack = PACKS[process.argv[2] ?? ''];
+const source = process.argv[3];
+if (pack === undefined || source === undefined) {
+  console.error(
+    'usage: node art/furnitureGlb.mjs <furniture|restaurant> <the pack Assets directory>',
+  );
   process.exit(1);
 }
+const OUT = join(ROOT, 'src', 'world3d', pack.folder);
 
 /** Pads `bytes` to a multiple of four with `fill`, as a GLB chunk must be. */
 function padded(bytes, fill) {
@@ -81,14 +103,11 @@ function glbOf(name) {
 }
 
 mkdirSync(OUT, { recursive: true });
-for (const name of MODELS) {
+for (const name of pack.models) {
   const glb = glbOf(name);
   writeFileSync(join(OUT, `${name}.glb`), glb);
   console.log(`${name}.glb  ${String(glb.length)} bytes`);
 }
-copyFileSync(
-  join(source, 'gltf', 'furniturebits_texture.png'),
-  join(OUT, 'furniturebits_texture.png'),
-);
-copyFileSync(join(source, 'LICENSE.txt'), join(OUT, 'LICENSE-KayKit-Furniture.txt'));
-console.log('furniturebits_texture.png and LICENSE-KayKit-Furniture.txt copied');
+copyFileSync(join(source, 'gltf', pack.texture), join(OUT, pack.texture));
+copyFileSync(join(source, 'LICENSE.txt'), join(OUT, pack.licence));
+console.log(`${pack.texture} and ${pack.licence} copied`);

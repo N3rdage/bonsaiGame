@@ -54,7 +54,7 @@ import {
   type ModelPart,
 } from './furnitureModels';
 import { FURNITURE_FILES } from './furnitureFiles';
-import { PACK_MODELS, isPackKind, packGeometry, type PackKind } from './packModels';
+import { PACK_MODELS, isPackKind, packGeometry, type PackAtlas, type PackKind } from './packModels';
 import { PaintCache } from './paint/cache';
 import {
   RASTER_V_UP,
@@ -451,10 +451,10 @@ export class Renderer {
   private hotspotKey = '';
   /** Each furniture kind's one source mesh, made when a room first needs it and kept; hidden while the room shown has none. */
   private readonly models = new Map<FurnitureKind, Mesh>();
-  /** The pack kinds whose model has replaced their box, the pack atlas's one decoded image (once asked for) and its one material (once a model has arrived). */
+  /** The pack kinds whose model has replaced their box, each pack atlas's one decoded image (once asked for) and its one material (once a model has arrived). */
   private readonly packed = new Set<PackKind>();
-  private packAtlas: Promise<ImageData> | undefined;
-  private packMaterial: StandardMaterial | undefined;
+  private readonly packAtlases = new Map<PackAtlas, Promise<ImageData>>();
+  private readonly packMaterials = new Map<PackAtlas, StandardMaterial>();
   /** The furniture models in use in the room shown, by kind. */
   private readonly instanced = new Map<FurnitureKind, Instanced>();
   private cut: string[] = [];
@@ -1532,30 +1532,41 @@ export class Renderer {
   }
 
   /**
-   * Fetches a pack kind's model (`PACK_MODELS`) and swaps it for the box drawn meanwhile, on
-   * the instances the box stands at. It is one mesh on the pack's one atlas (the material is
-   * made on the first model to arrive), lit, cast as a shadow and inked as the code-made
-   * models are. The file is read as plain accessors (`packGeometry`), so no glTF loader is
-   * needed and the precached files serve it offline.
+   * Fetches a pack kind's model (`PACK_MODELS`), every file of it, and swaps it for the box
+   * drawn meanwhile, on the instances the box stands at. It is one mesh on its pack's one atlas
+   * (the material is made on the first model of the pack to arrive), lit, cast as a shadow and
+   * inked as the code-made models are. The files are read as plain accessors (`packGeometry`),
+   * so no glTF loader is needed and the precached files serve them offline.
    */
   private async loadPack(kind: PackKind): Promise<void> {
-    const url = FURNITURE_FILES.models[PACK_MODELS[kind].file];
-    if (url === undefined) throw new Error(`no file for ${kind}`);
-    this.packAtlas ??= readAtlas(FURNITURE_FILES.texture);
+    const model = PACK_MODELS[kind];
+    const atlasName = model.atlas;
+    const reading =
+      this.packAtlases.get(atlasName) ?? readAtlas(FURNITURE_FILES.textures[atlasName]);
+    this.packAtlases.set(atlasName, reading);
     // A failed atlas read is dropped, so a kind that loads after it reads the atlas again. A kind
     // whose own load failed keeps its box and is not asked for again until the page is reloaded.
-    this.packAtlas.catch(() => {
-      this.packAtlas = undefined;
+    reading.catch(() => {
+      this.packAtlases.delete(atlasName);
     });
-    const [geometry, atlas] = await Promise.all([
-      fetch(url).then(async (response) => {
-        if (!response.ok) throw new Error(`${url}: ${String(response.status)}`);
-        return packGeometry(readGlb(await response.arrayBuffer()), PACK_MODELS[kind]);
-      }),
-      this.packAtlas,
+    const files = [...new Set(model.parts.map((part) => part.file))];
+    const [glbs, atlas] = await Promise.all([
+      Promise.all(
+        files.map(async (file) => {
+          const url = FURNITURE_FILES.models[file];
+          if (url === undefined) throw new Error(`no file ${file} for ${kind}`);
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`${url}: ${String(response.status)}`);
+          return [file, readGlb(await response.arrayBuffer())] as const;
+        }),
+      ),
+      reading,
     ]);
+    const geometry = packGeometry(model, Object.fromEntries(glbs));
     if (this.disposed) return;
-    this.packMaterial ??= this.atlasMaterial('furniturePack', atlas);
+    const material =
+      this.packMaterials.get(atlasName) ?? this.atlasMaterial(`${atlasName}Pack`, atlas);
+    this.packMaterials.set(atlasName, material);
     const mesh = new Mesh(`model.${kind}.pack`, this.scene);
     const vertices = new VertexData();
     vertices.positions = geometry.positions;
@@ -1563,7 +1574,7 @@ export class Renderer {
     vertices.uvs = geometry.uvs;
     vertices.indices = geometry.indices;
     vertices.applyToMesh(mesh);
-    mesh.material = this.packMaterial;
+    mesh.material = material;
     mesh.isPickable = false;
     mesh.alwaysSelectAsActiveMesh = true;
     this.shadows.addShadowCaster(mesh);
