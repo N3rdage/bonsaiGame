@@ -156,7 +156,7 @@ Built collaboratively with **Claude** (Anthropic), who did a lot of the initial 
 
 The player's body in the 3D world is the Rogue from "KayKit: Adventurers Character Pack 2.0" and its clips come from "KayKit: Character Animations 1.1", both by Kay Lousberg (www.kaylousberg.com), released under CC0. The licence text is in [src/world3d/player/LICENSE-KayKit.txt](src/world3d/player/LICENSE-KayKit.txt).
 
-The lounge's side table, sofa, armchair, coffee table and floor lamp and the study's desk and low bookcase in the 3D world are models from "KayKit: Furniture Bits 1.0", also by Kay Lousberg, released under CC0. The licence text is in [src/world3d/furniture/LICENSE-KayKit-Furniture.txt](src/world3d/furniture/LICENSE-KayKit-Furniture.txt).
+The lounge's side table, sofa, armchair, coffee table and floor lamp and the study's desk and low bookcase, and the hallway's runner rug in the 3D world are models from "KayKit: Furniture Bits 1.0", also by Kay Lousberg, released under CC0. The licence text is in [src/world3d/furniture/LICENSE-KayKit-Furniture.txt](src/world3d/furniture/LICENSE-KayKit-Furniture.txt).
 
 The lounge's kitchen counters, with their sink, stove and corner, in the 3D world are models from "KayKit: Restaurant Bits 1.0", also by Kay Lousberg, released under CC0. The licence text is in [src/world3d/restaurant/LICENSE-KayKit-Restaurant.txt](src/world3d/restaurant/LICENSE-KayKit-Restaurant.txt).
 

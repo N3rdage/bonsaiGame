@@ -239,6 +239,8 @@ const SHADOW_CEILING = 4;
 const ANISOTROPY = 4;
 /** Polygon offset of the Inked art's materials, negative toward the camera. */
 const ART_DEPTH_OFFSET = -2;
+/** Polygon offset of a flat pack model's material (a rug): twice the art's, so it wins over the floor's Inked tiles it lies on. */
+const FLAT_PACK_DEPTH_OFFSET = 2 * ART_DEPTH_OFFSET;
 
 /** How long the player's feet must have stayed put before a room is built ahead, ms: a walk's frames are not all steps, so one frame at rest does not say the player stopped. */
 const STILL_BEFORE_AHEAD_MS = 200;
@@ -454,7 +456,7 @@ export class Renderer {
   /** The pack kinds whose model has replaced their box, each pack atlas's one decoded image (once asked for) and its one material (once a model has arrived). */
   private readonly packed = new Set<PackKind>();
   private readonly packAtlases = new Map<PackAtlas, Promise<ImageData>>();
-  private readonly packMaterials = new Map<PackAtlas, StandardMaterial>();
+  private readonly packMaterials = new Map<string, StandardMaterial>();
   /** The furniture models in use in the room shown, by kind. */
   private readonly instanced = new Map<FurnitureKind, Instanced>();
   private cut: string[] = [];
@@ -1564,9 +1566,16 @@ export class Renderer {
     ]);
     const geometry = packGeometry(model, Object.fromEntries(glbs));
     if (this.disposed) return;
-    const material =
-      this.packMaterials.get(atlasName) ?? this.atlasMaterial(`${atlasName}Pack`, atlas);
-    this.packMaterials.set(atlasName, material);
+    const materialName = model.flat === true ? `${atlasName}Flat` : atlasName;
+    let material = this.packMaterials.get(materialName);
+    if (!material) {
+      material = this.atlasMaterial(`${materialName}Pack`, atlas);
+      if (model.flat === true) {
+        material.zOffset = FLAT_PACK_DEPTH_OFFSET;
+        material.zOffsetUnits = FLAT_PACK_DEPTH_OFFSET;
+      }
+      this.packMaterials.set(materialName, material);
+    }
     const mesh = new Mesh(`model.${kind}.pack`, this.scene);
     const vertices = new VertexData();
     vertices.positions = geometry.positions;
