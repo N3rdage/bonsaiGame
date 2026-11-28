@@ -21,6 +21,7 @@ import {
   type FurnitureKind,
 } from './furnitureModels';
 import { OBJECTS } from './look';
+import { isPackKind } from './packModels';
 import { MANTEL_HEIGHT, heightMetres, metres, roomPlan3d } from './plan';
 import { meshSpecs } from './meshes';
 import { treeStands } from './trees';
@@ -60,8 +61,9 @@ describe('furniturePieces', () => {
   });
 
   it("stands the lounge's furniture over its 2D footprints, each as tall as its sprite stands", () => {
-    const [fireplace, sofa, table, chair, bookcase, lamp, plant] = furniturePieces(LOUNGE_ROOM);
-    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(7);
+    const [fireplace, sideTable, sofa, table, chair, bookcase, lamp, plant] =
+      furniturePieces(LOUNGE_ROOM);
+    expect(furniturePieces(LOUNGE_ROOM)).toHaveLength(8);
     expect(sofa).toMatchObject({
       kind: 'sofa',
       x: metres(112 + 14),
@@ -79,6 +81,14 @@ describe('furniturePieces', () => {
       w: 1,
       d: 0.75,
       h: MANTEL_HEIGHT,
+    });
+    expect(sideTable).toMatchObject({
+      kind: 'side_table',
+      x: metres(104),
+      y: metres(72),
+      w: 0.5,
+      d: 0.5,
+      h: heightMetres(8),
     });
     expect(table).toMatchObject({ kind: 'coffee_table', w: 0.625, d: 1, h: heightMetres(8) });
     expect(chair).toMatchObject({ kind: 'armchair', w: 0.75, d: 0.75, h: heightMetres(20) });
@@ -108,6 +118,7 @@ describe('furniturePieces', () => {
     const boxes = roomPlan3d(LOUNGE_ROOM).furniture.filter((b) => b.model !== undefined);
     expect(boxes.map((b) => [b.model, b.solid])).toEqual([
       ['fireplace', true],
+      ['side_table', true],
       ['sofa', true],
       ['coffee_table', true],
       ['armchair', true],
@@ -117,6 +128,7 @@ describe('furniturePieces', () => {
     ]);
     expect(boxes.map((b) => [b.x0, b.x1, b.y0, b.y1])).toEqual([
       [7, 8, 2, 2.75],
+      [3, 3.5, 2, 2.5],
       [3.5, 4.375, 3.0625, 4.9375],
       [4.5625, 5.1875, 3.5, 4.5],
       [8.625, 9.375, 3.5, 4.25],
@@ -201,8 +213,8 @@ describe('the furniture vertex budget', () => {
     expect(furnitureVertices(SHED_ROOM)).toBe(6480);
   });
 
-  it("counts the lounge's seven pieces: 12,656 vertices, inside the budget", () => {
-    expect(furnitureVertices(LOUNGE_ROOM)).toBe(12656);
+  it("counts the lounge's eight pieces: 12,916 vertices, inside the budget", () => {
+    expect(furnitureVertices(LOUNGE_ROOM)).toBe(12916);
     expect(furnitureVertices(LOUNGE_ROOM)).toBeLessThanOrEqual(FURNITURE_VERTEX_BUDGET);
   });
 
@@ -300,7 +312,10 @@ describe('furniture models', () => {
         expect(Math.max(part.x0, part.x1)).toBeLessThanOrEqual(size.w / 2 + eps);
         expect(part.y0).toBeGreaterThanOrEqual(-size.d / 2 - eps);
         expect(part.y1).toBeLessThanOrEqual(size.d / 2 + eps);
-        if (part.shape === undefined) {
+        if (isPackKind(kind)) {
+          // A pack kind's box is the sharp wood one the plan drew, over the model's extent.
+          expect(part.radius).toBeUndefined();
+        } else if (part.shape === undefined) {
           expect(part.radius).toBeGreaterThan(0);
           expect(part.radius).toBeLessThanOrEqual(
             Math.min(part.x1 - part.x0, part.y1 - part.y0, part.z1 - part.z0) / 2,

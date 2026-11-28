@@ -1,7 +1,8 @@
 /**
  * The shapes the 3D world gives furniture, as pure data: each kind of piece is
  * a handful of rounded boxes, cylinders, cones and balls in metres with an object-palette colour,
- * built in code. A model is
+ * built in code; the pack kinds (packModels.ts) are a plain box here, drawn until
+ * their file's model arrives. A model is
  * drawn once per kind and stood wherever that kind repeats (renderer.ts, thin
  * instances), scaled from its nominal `size` to the footprint and height the
  * room data gives the piece. Frame as plan.ts's: x east, y south, z up, the
@@ -9,6 +10,7 @@
  */
 
 import type { ObjectKey } from './look';
+import { PACK_MODELS, isPackKind, type PackKind } from './packModels';
 import type { WashKey } from './plan';
 import {
   ballVertexCount,
@@ -35,7 +37,8 @@ export type FurnitureKind =
   | 'bookcase'
   | 'floor_lamp'
   | 'potted_plant'
-  | 'fireplace';
+  | 'fireplace'
+  | PackKind;
 
 /** A box of a model: its corners relative to the middle of the footprint at the floor, and its wash. */
 export interface ModelPart {
@@ -89,6 +92,9 @@ export const MODELLED_SHEETS: Readonly<Record<string, FurnitureKind>> = {
   spr_floor_lamp: 'floor_lamp',
   spr_potted_plant: 'potted_plant',
   spr_fireplace: 'fireplace',
+  spr_side_table: 'side_table',
+  spr_desk: 'desk',
+  spr_bookshelf: 'low_bookcase',
 };
 
 /** The most a furniture box's edges are rounded: a few cm on a big slab; a thin plank or pole rounds to a third of its thickness. */
@@ -360,7 +366,22 @@ const SURROUND_Y = -HD / 2 + SURROUND_DEPTH / 2;
 const SURROUND_TOP = HEARTH + FIREBOX_HEIGHT;
 const FIREBOX_WIDTH = SURROUND_WIDTH - 2 * JAMB;
 
+/**
+ * What a pack kind draws while its file loads or if it does not: a plain wood box over
+ * the piece's own size, which the model is scaled to once it has loaded.
+ */
+function packFallback(kind: PackKind): FurnitureModel {
+  const { w, d, h } = PACK_MODELS[kind].size;
+  return {
+    size: { w, d, h },
+    parts: [{ object: 'wood', x0: -w / 2, x1: w / 2, y0: -d / 2, y1: d / 2, z0: 0, z1: h }],
+  };
+}
+
 export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> = {
+  side_table: packFallback('side_table'),
+  desk: packFallback('desk'),
+  low_bookcase: packFallback('low_bookcase'),
   pedestal: {
     size: PEDESTAL_SIZE,
     parts: [
@@ -598,8 +619,9 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
 /** The vertices of a sharp box, as `CreateBox` makes it: four to each face. */
 const SHARP_BOX_VERTICES = 24;
 
-/** The vertices one instance of `kind`'s model draws. */
+/** The vertices one instance of `kind`'s model draws: a pack kind's file's once it has loaded. */
 export function modelVertices(kind: FurnitureKind): number {
+  if (isPackKind(kind)) return PACK_MODELS[kind].vertices;
   return FURNITURE_MODELS[kind].parts.reduce((sum, part) => sum + partVertices(part), 0);
 }
 

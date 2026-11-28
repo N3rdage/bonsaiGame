@@ -53,6 +53,8 @@ import {
   type FurniturePart,
   type ModelPart,
 } from './furnitureModels';
+import { FURNITURE_FILES } from './furnitureFiles';
+import { PACK_MODELS, isPackKind, packGeometry, type PackKind } from './packModels';
 import { PaintCache } from './paint/cache';
 import {
   RASTER_V_UP,
@@ -156,6 +158,8 @@ export interface RendererSnapshot {
   readonly spotMats: number;
   /** The furniture standing in the room, as instances of each kind's one model. */
   readonly instances: Readonly<Record<string, number>>;
+  /** The pack furniture kinds whose model file has loaded, sorted. */
+  readonly packed: readonly string[];
   /** Where the camera is now, eased toward the rig. */
   readonly camera: { readonly alpha: number; readonly beta: number; readonly radius: number };
   /** The names of the pieces cut away to the skirting, sorted. */
@@ -321,9 +325,12 @@ interface RoomSet {
 
 /** A furniture kind's model, one mesh drawn once per piece standing: the pieces' keys it was last set for, and how many. */
 interface Instanced {
-  readonly mesh: Mesh;
+  /** The kind's source mesh: its plain box until a pack kind's model has loaded, then the model. */
+  mesh: Mesh;
   key: string;
   count: number;
+  /** The pieces' matrices as last set, so the model that replaces a box takes them over. */
+  matrices: Float32Array;
 }
 
 /** The Babylon colour of a 0xRRGGBB number. */
@@ -444,6 +451,10 @@ export class Renderer {
   private hotspotKey = '';
   /** Each furniture kind's one source mesh, made when a room first needs it and kept; hidden while the room shown has none. */
   private readonly models = new Map<FurnitureKind, Mesh>();
+  /** The pack kinds whose model has replaced their box, the pack atlas's one decoded image (once asked for) and its one material (once a model has arrived). */
+  private readonly packed = new Set<PackKind>();
+  private packAtlas: Promise<ImageData> | undefined;
+  private packMaterial: StandardMaterial | undefined;
   /** The furniture models in use in the room shown, by kind. */
   private readonly instanced = new Map<FurnitureKind, Instanced>();
   private cut: string[] = [];
@@ -564,21 +575,8 @@ export class Renderer {
     container.addAllToScene();
     root.parent = this.player;
     const rootScaling = root.scaling.clone();
-    const material = new StandardMaterial('player', this.scene);
-    // glTF's texture coordinates start at the image's top, so the atlas is not flipped.
     dressAtlas(atlas.data, atlas.width, atlas.height);
-    material.diffuseTexture = new RawTexture(
-      new Uint8Array(atlas.data.buffer),
-      atlas.width,
-      atlas.height,
-      Constants.TEXTUREFORMAT_RGBA,
-      this.scene,
-      true,
-      false,
-      Texture.TRILINEAR_SAMPLINGMODE,
-    );
-    material.specularColor = Color3.Black();
-    lookLit(material, this.toLight);
+    const material = this.atlasMaterial('player', atlas);
     const meshes = container.meshes.filter((mesh) => mesh.getTotalVertices() > 0);
     for (const mesh of meshes) {
       mesh.material = material;
@@ -680,6 +678,7 @@ export class Renderer {
       trees: this.trees.size,
       spotMats: this.mats.size,
       instances: Object.fromEntries([...this.instanced].map(([kind, { count }]) => [kind, count])),
+      packed: [...this.packed].sort(),
       camera: { alpha, beta, radius },
       cut: this.cut,
       facing: this.facing,
@@ -1493,21 +1492,30 @@ export class Renderer {
     }
     for (const [kind, pieces] of byKind) {
       const key = pieces.map((piece) => piece.key).join(';');
-      const known = this.instanced.get(kind) ?? { mesh: this.modelMesh(kind), key: '', count: 0 };
+      const known = this.instanced.get(kind) ?? {
+        mesh: this.modelMesh(kind),
+        key: '',
+        count: 0,
+        matrices: new Float32Array(0),
+      };
       known.mesh.setEnabled(true);
       this.instanced.set(kind, known);
       if (known.key === key) continue;
       known.key = key;
       known.count = pieces.length;
-      const matrices = new Float32Array(pieces.length * 16);
+      known.matrices = new Float32Array(pieces.length * 16);
       pieces.forEach((piece, n) => {
-        instanceMatrix(piece).copyToArray(matrices, n * 16);
+        instanceMatrix(piece).copyToArray(known.matrices, n * 16);
       });
-      known.mesh.thinInstanceSetBuffer('matrix', matrices, 16, true);
+      known.mesh.thinInstanceSetBuffer('matrix', known.matrices, 16, true);
     }
   }
 
-  /** The one source mesh of `kind`, made the first time a room needs it: its parts' boxes, vertex-coloured from the object palette, merged into one at the origin. */
+  /**
+   * The one source mesh of `kind`, made the first time a room needs it: its parts' boxes,
+   * vertex-coloured from the object palette, merged into one at the origin. A pack kind's
+   * model is fetched at the same time and takes the box's place when it arrives.
+   */
   private modelMesh(kind: FurnitureKind): Mesh {
     const known = this.models.get(kind);
     if (known) return known;
@@ -1515,7 +1523,79 @@ export class Renderer {
     this.shadows.addShadowCaster(mesh);
     this.ink(mesh);
     this.models.set(kind, mesh);
+    if (isPackKind(kind)) {
+      this.loadPack(kind).catch((error: unknown) => {
+        console.error(`The ${kind} model did not load`, error);
+      });
+    }
     return mesh;
+  }
+
+  /**
+   * Fetches a pack kind's model (`PACK_MODELS`) and swaps it for the box drawn meanwhile, on
+   * the instances the box stands at. It is one mesh on the pack's one atlas (the material is
+   * made on the first model to arrive), lit, cast as a shadow and inked as the code-made
+   * models are. The file is read as plain accessors (`packGeometry`), so no glTF loader is
+   * needed and the precached files serve it offline.
+   */
+  private async loadPack(kind: PackKind): Promise<void> {
+    const url = FURNITURE_FILES.models[PACK_MODELS[kind].file];
+    if (url === undefined) throw new Error(`no file for ${kind}`);
+    this.packAtlas ??= readAtlas(FURNITURE_FILES.texture);
+    // A failed fetch is not kept, so the next room entry asks again.
+    this.packAtlas.catch(() => {
+      this.packAtlas = undefined;
+    });
+    const [geometry, atlas] = await Promise.all([
+      fetch(url).then(async (response) => {
+        if (!response.ok) throw new Error(`${url}: ${String(response.status)}`);
+        return packGeometry(readGlb(await response.arrayBuffer()), PACK_MODELS[kind]);
+      }),
+      this.packAtlas,
+    ]);
+    if (this.disposed) return;
+    this.packMaterial ??= this.atlasMaterial('furniturePack', atlas);
+    const mesh = new Mesh(`model.${kind}.pack`, this.scene);
+    const vertices = new VertexData();
+    vertices.positions = geometry.positions;
+    vertices.normals = geometry.normals;
+    vertices.uvs = geometry.uvs;
+    vertices.indices = geometry.indices;
+    vertices.applyToMesh(mesh);
+    mesh.material = this.packMaterial;
+    mesh.isPickable = false;
+    mesh.alwaysSelectAsActiveMesh = true;
+    this.shadows.addShadowCaster(mesh);
+    this.ink(mesh);
+    const box = this.models.get(kind);
+    this.models.set(kind, mesh);
+    const standing = this.instanced.get(kind);
+    if (standing) {
+      mesh.thinInstanceSetBuffer('matrix', standing.matrices, 16, true);
+      standing.mesh = mesh;
+    } else {
+      mesh.setEnabled(false);
+    }
+    if (box) this.discard(box);
+    this.packed.add(kind);
+  }
+
+  /** A lit material that shows `atlas`, a decoded texture image, unflipped as glTF's coordinates are. */
+  private atlasMaterial(name: string, atlas: ImageData): StandardMaterial {
+    const material = new StandardMaterial(name, this.scene);
+    material.diffuseTexture = new RawTexture(
+      new Uint8Array(atlas.data.buffer),
+      atlas.width,
+      atlas.height,
+      Constants.TEXTUREFORMAT_RGBA,
+      this.scene,
+      true,
+      false,
+      Texture.TRILINEAR_SAMPLINGMODE,
+    );
+    material.specularColor = Color3.Black();
+    lookLit(material, this.toLight);
+    return material;
   }
 
   /**

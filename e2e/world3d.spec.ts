@@ -70,6 +70,16 @@ async function waitForAhead(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__bonsai?.world3d?.aheadPending === 0);
 }
 
+/** Waits for the pack model of furniture `kind` to load and stand in the room shown, in place of the box drawn meanwhile. */
+async function waitForPacked(page: Page, kind: string): Promise<void> {
+  await page.waitForFunction(
+    (k) =>
+      window.__bonsai?.world3d?.packed.includes(k) === true &&
+      (window.__bonsai.world3d.instances[k] ?? 0) > 0,
+    kind,
+  );
+}
+
 /** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid, and the player's body loaded. */
 async function waitForRoom(page: Page, room: RoomKey): Promise<void> {
   await page.waitForFunction(
@@ -1221,8 +1231,60 @@ test.describe('the 3D world', () => {
       // The player lands at the hallway door (x 152) below the desk (x 160..192, y 64..80).
       await zoomIn(page, 2000, 6);
       await waitForAhead(page);
+      await waitForPacked(page, 'desk');
       await page.waitForTimeout(3000);
       await expect(page).toHaveScreenshot('world3d-study-desk.png', { timeout: 30_000 });
+    },
+  );
+
+  test(
+    "draws the lounge side table's tree and the player beside it",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await continueWithDisplayed(page, ['lounge_side_table']);
+      await waitForBuilt(page, ['garden', 'lounge']);
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await waitForAhead(page);
+      // East of the side table (x 96..112, y 64..80), level with it, clear of the sofa below.
+      await walkToRow(page, 92);
+      await walkToColumn(page, 128);
+      await walkToRow(page, 72);
+      await zoomIn(page, 2000, 6);
+      await waitForAhead(page);
+      await waitForPacked(page, 'side_table');
+      await page.waitForTimeout(1000);
+      await expect(page).toHaveScreenshot('world3d-lounge-side-table.png', { timeout: 30_000 });
+    },
+  );
+
+  test(
+    "draws the study bookcase's tree and the player beside it",
+    { tag: '@walk' },
+    async ({ page }) => {
+      test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
+      test.setTimeout(120_000);
+      await continueWithDisplayed(page, ['study_bookshelf']);
+      await waitForBuilt(page, ['garden', 'lounge']);
+      await shedToLounge(page);
+      await waitForRoom(page, 'lounge');
+      await waitForAhead(page);
+      await loungeToHallway(page);
+      await waitForRoom(page, 'hallway');
+      await waitForAhead(page);
+      await hallwayToStudy(page);
+      await waitForRoom(page, 'study');
+      await waitForAhead(page);
+      // West of the bookcase (x 256..304, y 64..80), level with it.
+      await walkToColumn(page, 236);
+      await walkToRow(page, 72);
+      await zoomIn(page, 2000, 6);
+      await waitForAhead(page);
+      await waitForPacked(page, 'low_bookcase');
+      await page.waitForTimeout(3000);
+      await expect(page).toHaveScreenshot('world3d-study-bookcase.png', { timeout: 30_000 });
     },
   );
 
