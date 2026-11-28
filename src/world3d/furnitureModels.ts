@@ -368,7 +368,7 @@ const FIREBOX_WIDTH = SURROUND_WIDTH - 2 * JAMB;
 
 /**
  * What a pack kind draws while its file loads or if it does not: a plain wood box over
- * the model's own extent, which the instance matrix scales to the footprint and height.
+ * the piece's own size, which the model is scaled to once it has loaded.
  */
 function packFallback(kind: PackKind): FurnitureModel {
   const { w, d, h } = PACK_MODELS[kind].size;

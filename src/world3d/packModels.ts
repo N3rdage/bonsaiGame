@@ -2,12 +2,13 @@
  * The furniture the 3D world draws from a ready-made pack, as pure data: three
  * KayKit Furniture Bits models (CC0, Kay Lousberg, src/world3d/furniture/),
  * each a .glb of one mesh whose feet stand on y 0 and which is centred over
- * the footprint. A piece's kind (furnitureModels.ts) is drawn at the model's
- * own `size`, so the instance matrix that scales a kind's nominal size to its
- * footprint and height scales the model to them, and the model's top lands on
- * the piece's height, which is where a displayed tree stands (trees.ts).
- * Nothing here imports Babylon; `packGeometry` turns the file's accessors into
- * the arrays the renderer draws.
+ * the footprint. `packGeometry` scales the mesh to the piece's own `size` in
+ * metres (footprint and drawn height), so a kind's nominal size is the piece's
+ * and its instance scale is 1, as for the code-made kinds; the ink outline,
+ * which Babylon offsets in model space, is then as thick as theirs. The
+ * model's top lands on the piece's height, which is where a displayed tree
+ * stands (trees.ts). Nothing here imports Babylon; `packGeometry` turns the
+ * file's accessors into the arrays the renderer draws.
  */
 
 import { accessorFloats, accessorIndices, type Glb } from './glb';
@@ -15,11 +16,20 @@ import { accessorFloats, accessorIndices, type Glb } from './glb';
 /** The kinds of furniture drawn from a pack model. */
 export type PackKind = 'side_table' | 'desk' | 'low_bookcase';
 
-/** A pack model: its file in src/world3d/furniture/, the extent of its mesh in the file's metres and the vertices it draws. */
+/** A box's east-west, north-south and vertical size in metres. */
+export interface Extent {
+  readonly w: number;
+  readonly d: number;
+  readonly h: number;
+}
+
+/** A pack model: its file in src/world3d/furniture/, the extent of its mesh in the file's metres, the size the piece is drawn at and the vertices it draws. */
 export interface PackModel {
   readonly file: string;
-  /** East-west, north-south and vertical extent of the model's bounds, as in the file's POSITION accessor. */
-  readonly size: { readonly w: number; readonly d: number; readonly h: number };
+  /** Extent of the model's bounds, as in the file's POSITION accessor. */
+  readonly extent: Extent;
+  /** The piece's footprint and drawn height in metres, which `packGeometry` scales the mesh to. */
+  readonly size: Extent;
   readonly vertices: number;
 }
 
@@ -31,9 +41,24 @@ export interface PackModel {
  * floor piece of the pack with a flat top wide enough for it and doors for a front.
  */
 export const PACK_MODELS: Readonly<Record<PackKind, PackModel>> = {
-  side_table: { file: 'table_small.glb', size: { w: 1, d: 1, h: 1 }, vertices: 260 },
-  desk: { file: 'table_medium_long.glb', size: { w: 3, d: 2, h: 1 }, vertices: 260 },
-  low_bookcase: { file: 'cabinet_medium.glb', size: { w: 2, d: 1.0016, h: 1 }, vertices: 648 },
+  side_table: {
+    file: 'table_small.glb',
+    extent: { w: 1, d: 1, h: 1 },
+    size: { w: 0.5, d: 0.5, h: 0.375 },
+    vertices: 260,
+  },
+  desk: {
+    file: 'table_medium_long.glb',
+    extent: { w: 3, d: 2, h: 1 },
+    size: { w: 1, d: 0.5, h: 0.65 },
+    vertices: 260,
+  },
+  low_bookcase: {
+    file: 'cabinet_medium.glb',
+    extent: { w: 2, d: 1.00156, h: 1 },
+    size: { w: 1.5, d: 0.5, h: 0.5625 },
+    vertices: 648,
+  },
 };
 
 /** Whether `kind` is drawn from a pack model. */
@@ -54,9 +79,10 @@ export interface PackGeometry {
  * with the model's front on +z; negating z turns it into Babylon's, with the front on -z, toward
  * a camera in the south; the mirror turns glTF's counter-clockwise front faces into Babylon's
  * clockwise ones, so the indices are kept. Texture coordinates start at the image's top in
- * both, so they are kept.
+ * both, so they are kept. Positions are scaled from the file's extent to the model's `size`
+ * per axis, and normals by the inverse transpose of that scale, renormalised.
  */
-export function packGeometry(glb: Glb): PackGeometry {
+export function packGeometry(glb: Glb, model: PackModel): PackGeometry {
   const primitive = glb.json.meshes?.[0]?.primitives[0];
   if (primitive?.indices === undefined) throw new Error('the model has no mesh');
   const { POSITION, NORMAL, TEXCOORD_0 } = primitive.attributes;
@@ -65,9 +91,17 @@ export function packGeometry(glb: Glb): PackGeometry {
   }
   const positions = accessorFloats(glb, POSITION);
   const normals = accessorFloats(glb, NORMAL);
-  for (let i = 2; i < positions.length; i += 3) {
-    positions[i] = -(positions[i] ?? 0);
-    normals[i] = -(normals[i] ?? 0);
+  const { extent, size } = model;
+  // Per axis x, y, z: the scale of positions; normals take its inverse.
+  const scale = [size.w / extent.w, size.h / extent.h, size.d / extent.d];
+  for (let i = 0; i < positions.length; i += 3) {
+    const n = [0, 1, 2].map((k) => (normals[i + k] ?? 0) / (scale[k] ?? 1));
+    const length = Math.hypot(...n) || 1;
+    for (let k = 0; k < 3; k++) {
+      const flip = k === 2 ? -1 : 1;
+      positions[i + k] = (positions[i + k] ?? 0) * (scale[k] ?? 1) * flip;
+      normals[i + k] = (flip * (n[k] ?? 0)) / length;
+    }
   }
   return {
     positions,

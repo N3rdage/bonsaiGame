@@ -1542,10 +1542,14 @@ export class Renderer {
     const url = FURNITURE_FILES.models[PACK_MODELS[kind].file];
     if (url === undefined) throw new Error(`no file for ${kind}`);
     this.packAtlas ??= readAtlas(FURNITURE_FILES.texture);
+    // A failed fetch is not kept, so the next room entry asks again.
+    this.packAtlas.catch(() => {
+      this.packAtlas = undefined;
+    });
     const [geometry, atlas] = await Promise.all([
       fetch(url).then(async (response) => {
         if (!response.ok) throw new Error(`${url}: ${String(response.status)}`);
-        return packGeometry(readGlb(await response.arrayBuffer()));
+        return packGeometry(readGlb(await response.arrayBuffer()), PACK_MODELS[kind]);
       }),
       this.packAtlas,
     ]);

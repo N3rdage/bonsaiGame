@@ -8,7 +8,7 @@ import { STUDY_ROOM } from '../world/studyRoom';
 import { furniturePieces } from './furniture';
 import { FURNITURE_FILES } from './furnitureFiles';
 import { FURNITURE_MODELS, MODELLED_SHEETS } from './furnitureModels';
-import { readGlb, type Glb } from './glb';
+import { accessorFloats, readGlb, type Glb } from './glb';
 import { PACK_MODELS, packGeometry, type PackKind } from './packModels';
 import { heightMetres, roomPlan3d } from './plan';
 import { treeStands } from './trees';
@@ -54,16 +54,16 @@ describe.each(KINDS)('the %s pack model', (kind) => {
   });
 
   it("has the file's extent as its size, its feet on the floor and its middle over the origin", () => {
-    expect((max[0] ?? 0) - (min[0] ?? 0)).toBeCloseTo(model.size.w, 4);
-    expect((max[2] ?? 0) - (min[2] ?? 0)).toBeCloseTo(model.size.d, 4);
-    expect((max[1] ?? 0) - (min[1] ?? 0)).toBeCloseTo(model.size.h, 4);
+    expect((max[0] ?? 0) - (min[0] ?? 0)).toBeCloseTo(model.extent.w, 4);
+    expect((max[2] ?? 0) - (min[2] ?? 0)).toBeCloseTo(model.extent.d, 4);
+    expect((max[1] ?? 0) - (min[1] ?? 0)).toBeCloseTo(model.extent.h, 4);
     expect(min[1] ?? 1).toBeCloseTo(0, 6);
     expect(Math.abs(((max[0] ?? 0) + (min[0] ?? 0)) / 2)).toBeLessThan(0.001);
     expect(Math.abs(((max[2] ?? 0) + (min[2] ?? 0)) / 2)).toBeLessThan(0.001);
   });
 
   it("draws the file's vertices, with the box drawn meanwhile at the model's size", () => {
-    const geometry = packGeometry(glb);
+    const geometry = packGeometry(glb, model);
     expect(geometry.positions.length / 3).toBe(model.vertices);
     expect(geometry.normals).toHaveLength(geometry.positions.length);
     expect(geometry.uvs.length / 2).toBe(model.vertices);
@@ -84,9 +84,18 @@ describe.each(KINDS)('the %s pack model', (kind) => {
   });
 
   it("is turned into Babylon's frame: front toward the camera, every face wound as CreateBox does", () => {
-    const { positions, normals, indices } = packGeometry(glb);
-    // The file's front is +z; Babylon's south, toward the camera, is -z.
-    expect(Math.min(...positions.filter((_, i) => i % 3 === 2))).toBeCloseTo(-(max[2] ?? 0), 6);
+    const { positions, normals, indices } = packGeometry(glb, model);
+    // The file's front is +z; Babylon's south, toward the camera, is -z: every vertex's z is
+    // mirrored (and scaled), so the file's frontmost vertex is the model's southmost.
+    const raw = accessorFloats(glb, glb.json.meshes?.[0]?.primitives[0]?.attributes.POSITION ?? -1);
+    const zScale = model.size.d / model.extent.d;
+    let front = 0;
+    for (let i = 0; i < raw.length / 3; i++) {
+      expect(positions[i * 3 + 2]).toBeCloseTo(-(raw[i * 3 + 2] ?? 0) * zScale, 6);
+      if ((raw[i * 3 + 2] ?? 0) > (raw[front * 3 + 2] ?? 0)) front = i;
+    }
+    expect(positions[front * 3 + 2]).toBeCloseTo(-model.size.d / 2, 3);
+    expect(Math.min(...positions.filter((_, i) => i % 3 === 2))).toBeCloseTo(-model.size.d / 2, 3);
     for (let t = 0; t < indices.length; t += 3) {
       const [a = 0, b = 0, c = 0] = [indices[t], indices[t + 1], indices[t + 2]];
       const at = (i: number, k: number): number => positions[i * 3 + k] ?? 0;
@@ -105,37 +114,35 @@ describe.each(KINDS)('the %s pack model', (kind) => {
   });
 
   it('has a flat top at its full height that spans most of its footprint', () => {
-    const { positions, normals } = packGeometry(glb);
+    const { positions, normals } = packGeometry(glb, model);
     const top = [...Array.from({ length: positions.length / 3 }, (_, i) => i)].filter(
-      (i) => Math.abs((positions[i * 3 + 1] ?? 0) - (max[1] ?? 0)) < 1e-6,
+      (i) => Math.abs((positions[i * 3 + 1] ?? 0) - model.size.h) < 1e-6,
     );
     expect(top.length).toBeGreaterThanOrEqual(4);
     for (const i of top) expect(normals[i * 3 + 1]).toBeGreaterThan(0.5);
+    for (let i = 0; i < normals.length; i += 3) {
+      expect(Math.hypot(normals[i] ?? 0, normals[i + 1] ?? 0, normals[i + 2] ?? 0)).toBeCloseTo(
+        1,
+        5,
+      );
+    }
     const xs = top.map((i) => positions[i * 3] ?? 0);
     const zs = top.map((i) => positions[i * 3 + 2] ?? 0);
     expect((Math.max(...xs) - Math.min(...xs)) / model.size.w).toBeGreaterThan(0.9);
     expect((Math.max(...zs) - Math.min(...zs)) / model.size.d).toBeGreaterThan(0.9);
   });
 
-  it("is scaled to its piece's footprint and drawn height, which is the plan's box", () => {
+  it("is drawn at its piece's own size, so its instance scale is 1 and its ink is as thick as the code-made kinds'", () => {
     const piece = pieceOf(kind);
-    const sx = piece.w / model.size.w;
-    const sy = piece.h / model.size.h;
-    const sz = piece.d / model.size.d;
-    expect(model.size.w * sx).toBeCloseTo(piece.w, 9);
-    expect((max[1] ?? 0) * sy).toBeCloseTo(piece.h, 6);
-    expect(model.size.d * sz).toBeCloseTo(piece.d, 9);
-    // The scale, pinned: footprint over the model's extent, height over its own.
-    const pinned = {
-      side_table: [0.5, 0.375, 0.5],
-      desk: [1 / 3, 0.65, 0.25],
-      low_bookcase: [0.75, 0.5625, 0.5 / 1.0016],
-    }[kind];
-    expect([sx, sy, sz].map((s, i) => s - (pinned[i] ?? 0))).toEqual([
-      expect.closeTo(0, 6),
-      expect.closeTo(0, 6),
-      expect.closeTo(0, 6),
-    ]);
+    const { size } = FURNITURE_MODELS[kind];
+    expect([piece.w / size.w, piece.h / size.h, piece.d / size.d]).toEqual([1, 1, 1]);
+    expect(model.size).toEqual({ w: piece.w, d: piece.d, h: piece.h });
+    const { positions } = packGeometry(glb, model);
+    const axis = (k: number): Float32Array => positions.filter((_, i) => i % 3 === k);
+    expect(Math.max(...axis(0)) - Math.min(...axis(0))).toBeCloseTo(piece.w, 5);
+    expect(Math.max(...axis(1)) - Math.min(...axis(1))).toBeCloseTo(piece.h, 5);
+    expect(Math.max(...axis(2)) - Math.min(...axis(2))).toBeCloseTo(piece.d, 5);
+    expect(Math.min(...axis(1))).toBeCloseTo(0, 6);
   });
 
   it("stands the tree on the model's top, over its spot", () => {
@@ -144,7 +151,7 @@ describe.each(KINDS)('the %s pack model', (kind) => {
     const state = createNewGameState();
     state.trees = [{ ...createTree('juniper', 'cutting', 0), location: `displayed:${spot}` }];
     const [stand] = treeStands(state, room, 'spring');
-    expect(stand?.z).toBeCloseTo((max[1] ?? 0) * (piece.h / model.size.h), 9);
+    expect(stand?.z).toBeCloseTo(model.size.h, 9);
     expect(Math.abs((stand?.x ?? 0) - piece.x)).toBeLessThan(piece.w / 2);
     expect(Math.abs((stand?.y ?? 0) - piece.y)).toBeLessThan(piece.d / 2);
     expect(MODELLED_SHEETS[sheet]).toBe(kind);
