@@ -82,7 +82,7 @@ async function waitForPacked(page: Page, kind: string): Promise<void> {
 
 /** Each room's pieces drawn from pack models: a screenshot of the room waits for each to replace its box. */
 const ROOM_PACK: Partial<Record<RoomKey, readonly string[]>> = {
-  lounge: ['side_table', 'sofa', 'armchair', 'coffee_table', 'floor_lamp'],
+  lounge: ['side_table', 'sofa', 'armchair', 'coffee_table', 'floor_lamp', 'counter', 'counter_v'],
   study: ['desk', 'low_bookcase'],
 };
 
@@ -720,7 +720,7 @@ test.describe('the 3D world', () => {
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
     await zoomIn(page, 900, 7.5);
-    await expect(page).toHaveScreenshot('world3d-furniture.png');
+    await expect(page).toHaveScreenshot('world3d-furniture.png', { timeout: 30_000 });
   });
 
   test("papers the lounge's hallway block as a wall", { tag: '@walk' }, async ({ page }) => {
