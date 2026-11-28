@@ -1,6 +1,6 @@
 /**
- * A reader for the animation clips of a binary glTF (GLB) file: its JSON
- * chunk, and each animation's rotation and translation keys per node, by the
+ * A reader for a binary glTF (GLB) file: its JSON chunk, its float and index
+ * accessors, and each animation's rotation and translation keys per node, by the
  * node's name, as plain arrays. Pure, no Babylon, so the player's clips are
  * read from the committed file in tests exactly as the game reads them.
  * Scale keys are not read: the KayKit clips hold every bone's scale at 1.
@@ -22,6 +22,12 @@ export interface GltfJson {
     readonly byteOffset?: number;
     readonly byteLength: number;
     readonly byteStride?: number;
+  }[];
+  readonly meshes?: readonly {
+    readonly primitives: readonly {
+      readonly attributes: Readonly<Record<string, number>>;
+      readonly indices?: number;
+    }[];
   }[];
   readonly animations?: readonly {
     readonly name?: string;
@@ -47,6 +53,9 @@ const MAGIC = 0x46546c67;
 const JSON_CHUNK = 0x4e4f534a;
 const BIN_CHUNK = 0x004e4942;
 const FLOAT = 5126;
+const UNSIGNED_BYTE = 5121;
+const UNSIGNED_SHORT = 5123;
+const UNSIGNED_INT = 5125;
 const WIDTH: Readonly<Record<string, number>> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
 
 /** The JSON and binary chunks of a GLB file's bytes. */
@@ -79,6 +88,24 @@ export function accessorFloats(glb: Glb, index: number): Float32Array {
     for (let k = 0; k < width; k++) {
       out[i * width + k] = glb.bin.getFloat32(start + i * stride + k * 4, true);
     }
+  }
+  return out;
+}
+
+/** An index accessor's values (unsigned bytes, shorts or ints, tightly packed). */
+export function accessorIndices(glb: Glb, index: number): Uint32Array {
+  const accessor = glb.json.accessors?.[index];
+  const view = glb.json.bufferViews?.[accessor?.bufferView ?? -1];
+  if (!accessor || !view) throw new Error(`accessor ${String(index)} is not in a buffer view`);
+  const start = (view.byteOffset ?? 0) + (accessor.byteOffset ?? 0);
+  const out = new Uint32Array(accessor.count);
+  for (let i = 0; i < accessor.count; i++) {
+    if (accessor.componentType === UNSIGNED_BYTE) out[i] = glb.bin.getUint8(start + i);
+    else if (accessor.componentType === UNSIGNED_SHORT) {
+      out[i] = glb.bin.getUint16(start + i * 2, true);
+    } else if (accessor.componentType === UNSIGNED_INT) {
+      out[i] = glb.bin.getUint32(start + i * 4, true);
+    } else throw new Error(`accessor ${String(index)} is not an index array`);
   }
   return out;
 }

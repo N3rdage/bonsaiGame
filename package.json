@@ -36,7 +36,8 @@
     "art:hallway": "node art/inked/hallway.mjs",
     "art:study": "node art/inked/study.mjs",
     "art:greenhouse": "node art/inked/greenhouse.mjs",
-    "art:placeables": "node art/inked/placeables.mjs"
+    "art:placeables": "node art/inked/placeables.mjs",
+    "art:furniture": "node art/furnitureGlb.mjs"
   },
   "dependencies": {
     "@babylonjs/core": "9.37.1",

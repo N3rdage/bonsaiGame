@@ -175,6 +175,7 @@ export class World3d {
       trees: state?.trees ?? 0,
       spotMats: state?.spotMats ?? 0,
       instances: state ? { ...state.instances } : {},
+      packed: state ? [...state.packed] : [],
       camera: state?.camera ?? {
         alpha: cameraRig.alpha,
         beta: cameraRig.beta,
