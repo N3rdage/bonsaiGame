@@ -34,6 +34,7 @@ export type FurnitureKind =
   | 'bookcase'
   | 'potted_plant'
   | 'fireplace'
+  | 'hall_table'
   | PackKind;
 
 /** A box of a model: its corners relative to the middle of the footprint at the floor, and its wash. */
@@ -93,6 +94,8 @@ export const MODELLED_SHEETS: Readonly<Record<string, FurnitureKind>> = {
   spr_bookshelf: 'low_bookcase',
   spr_counter: 'counter',
   spr_counter_v: 'counter_v',
+  spr_runner: 'runner_rug',
+  spr_hall_table: 'hall_table',
 };
 
 /** The most a furniture box's edges are rounded: a few cm on a big slab; a thin plank or pole rounds to a third of its thickness. */
@@ -328,6 +331,33 @@ function legs(w: number, d: number, h: number): FurniturePart[] {
   ];
 }
 
+/**
+ * The hallway's console table: 0.5 m wide, 0.375 m deep and 0.75 m tall (16 x 12 px, the
+ * sprite's 16 px height): a wooden top on four thin legs, with a dark drawer front under the
+ * top and a brass knob on it, both on the south face, the way the room faces.
+ */
+const HALL_TABLE_SIZE = { w: 0.5, d: 0.375, h: 0.75 } as const;
+const HALL_TOP = 0.04;
+const HALL_LEG = 0.04;
+const HALL_DRAWER = 0.1;
+
+/** The console's four legs, its drawer front, its top and the drawer's knob. */
+function hallTableParts(): FurniturePart[] {
+  const { w, d, h } = HALL_TABLE_SIZE;
+  const [x, y] = [(w - HALL_LEG) / 2 - 0.01, (d - HALL_LEG) / 2 - 0.01];
+  const under = h - HALL_TOP;
+  const drawer = under - HALL_DRAWER;
+  return [
+    block('wood', [HALL_LEG, HALL_LEG, under], [-x, -y, 0]),
+    block('wood', [HALL_LEG, HALL_LEG, under], [x, -y, 0]),
+    block('wood', [HALL_LEG, HALL_LEG, under], [-x, y, 0]),
+    block('wood', [HALL_LEG, HALL_LEG, under], [x, y, 0]),
+    block('woodDark', [w - 2 * HALL_LEG, d - 0.04, HALL_DRAWER], [0, 0, drawer]),
+    block('wood', [w, d, HALL_TOP], [0, 0, under]),
+    block('brass', [0.04, 0.02, 0.03], [0, d / 2 - 0.03, drawer + 0.035]),
+  ];
+}
+
 const { w: PW, d: PD, h: PH } = PEDESTAL_SIZE;
 const { w: FW, d: FD, h: FH } = FLOOR_SHELF_SIZE;
 const { w: SW, d: SD, h: SH } = SHELF_SIZE;
@@ -359,6 +389,8 @@ export const FURNITURE_MODELS: Readonly<Record<FurnitureKind, FurnitureModel>> =
   floor_lamp: packFallback('floor_lamp'),
   counter: packFallback('counter'),
   counter_v: packFallback('counter_v'),
+  runner_rug: packFallback('runner_rug'),
+  hall_table: { size: HALL_TABLE_SIZE, parts: hallTableParts() },
   pedestal: {
     size: PEDESTAL_SIZE,
     parts: [

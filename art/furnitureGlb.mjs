@@ -29,6 +29,7 @@ const PACKS = {
       'armchair',
       'table_low',
       'lamp_standing',
+      'rug_rectangle_A',
     ],
   },
   restaurant: {

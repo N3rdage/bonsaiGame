@@ -465,11 +465,16 @@ export function furnitureBox(f: Furniture, index: number, room: RoomKey): Box {
   const rect = foot === undefined ? f : { ...f, y: f.y + f.h - foot, h: foot };
   const name = `furniture.${String(index)}.${f.sheet.key}`;
   const wash = isPapered(f) ? SURFACES[room].wall : (FURNITURE_WASHES[f.sheet.key] ?? 'wood');
-  if (f.flat === true) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
+  const model = MODELLED_SHEETS[f.sheet.key];
+  if (f.flat === true) {
+    return {
+      ...box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid),
+      ...(model === undefined ? {} : { model }),
+    };
+  }
   if (isFace) return box(name, wash, footprint(rect), 0, WALL_HEIGHT, f.solid);
   if (f.stands === undefined) return box(name, wash, footprint(rect), 0, FLAT_THICKNESS, f.solid);
   const height = standHeight(f);
-  const model = MODELLED_SHEETS[f.sheet.key];
   return {
     ...box(name, wash, footprint(rect), 0, height, f.solid),
     ...(model === undefined ? {} : { model }),

@@ -2,6 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { createNewGameState } from '../sim/state';
 import { createTree } from '../sim/tree';
+import { HALLWAY_ROOM, RUNNER } from '../world/hallwayRoom';
 import { LOUNGE_ROOM } from '../world/loungeRoom';
 import type { Room } from '../world/shedRoom';
 import { STUDY_ROOM } from '../world/studyRoom';
@@ -12,6 +13,7 @@ import { accessorFloats, readGlb, type Glb } from './glb';
 import {
   COUNTER_DEPTH,
   COUNTER_TOP,
+  RUG_THICKNESS,
   PACK_MODELS,
   packGeometry,
   packVertices,
@@ -22,13 +24,15 @@ import {
   type PackPart,
 } from './packModels';
 import { SEAT_HEIGHT } from './seats';
-import { heightMetres, roomPlan3d } from './plan';
+import { FLAT_THICKNESS, heightMetres, roomPlan3d } from './plan';
 import { treeStands } from './trees';
 
 const KINDS = Object.keys(PACK_MODELS) as PackKind[];
 
 /** Where each kind stands: its room, its sheet and, for the pieces that carry one, the display spot on it. */
-const HOMES: Readonly<Record<PackKind, { room: Room; spot?: string; sheet: string }>> = {
+const HOMES: Readonly<
+  Record<PackKind, { room: Room; spot?: string; sheet: string; solid?: boolean }>
+> = {
   side_table: { room: LOUNGE_ROOM, spot: 'lounge_side_table', sheet: 'spr_side_table' },
   desk: { room: STUDY_ROOM, spot: 'study_desk', sheet: 'spr_desk' },
   low_bookcase: { room: STUDY_ROOM, spot: 'study_bookshelf', sheet: 'spr_bookshelf' },
@@ -38,6 +42,7 @@ const HOMES: Readonly<Record<PackKind, { room: Room; spot?: string; sheet: strin
   floor_lamp: { room: LOUNGE_ROOM, sheet: 'spr_floor_lamp' },
   counter: { room: LOUNGE_ROOM, sheet: 'spr_counter' },
   counter_v: { room: LOUNGE_ROOM, sheet: 'spr_counter_v' },
+  runner_rug: { room: HALLWAY_ROOM, sheet: 'spr_runner', solid: false },
 };
 
 /** The kinds that carry a display spot: a tree stands on their top. */
@@ -217,19 +222,21 @@ describe.each(KINDS)('the %s pack model', (kind) => {
     else expect(top).toBeGreaterThanOrEqual(piece.h - 1e-6);
   });
 
-  it('is still a solid box in the plan, so the player collides as before', () => {
+  it('is still the box it was in the plan, solid or not, so the player collides as before', () => {
     const { room, sheet } = HOMES[kind];
     expect(MODELLED_SHEETS[sheet]).toBe(kind);
     const piece = pieceOf(kind);
     const [box] = roomPlan3d(room).furniture.filter((b) => b.model === kind);
-    expect(box?.solid).toBe(true);
+    expect(box?.solid).toBe(HOMES[kind].solid ?? true);
     expect([box?.x0, box?.x1, box?.y0, box?.y1]).toEqual([
       piece.x - piece.w / 2,
       piece.x + piece.w / 2,
       piece.y - piece.d / 2,
       piece.y + piece.d / 2,
     ]);
-    expect(room.furniture.find((f) => f.sheet.key === sheet)?.solid).toBe(true);
+    expect(room.furniture.find((f) => f.sheet.key === sheet)?.solid).toBe(
+      HOMES[kind].solid ?? true,
+    );
   });
 });
 
@@ -469,5 +476,33 @@ describe('the pack furniture', () => {
     const files = KINDS.flatMap((kind) => PACK_MODELS[kind].parts.map((part) => part.file));
     expect(Object.keys(FURNITURE_FILES.models).sort()).toEqual([...new Set(files)].sort());
     expect(Object.keys(FURNITURE_FILES.textures).sort()).toEqual(['furniture', 'restaurant']);
+  });
+});
+
+describe("the hallway's runner rug", () => {
+  const model = PACK_MODELS.runner_rug;
+  const [part] = model.parts;
+
+  it("is the pack's rug_rectangle_A: a 3 x 2 x 0.1 m file of 48 vertices", () => {
+    expect(model.atlas).toBe('furniture');
+    expect(model.parts).toHaveLength(1);
+    expect(part?.file).toBe('rug_rectangle_A.glb');
+    expect(part?.extent).toEqual({ w: 3, d: 2, h: 0.1 });
+    expect(packVertices(model)).toBe(48);
+    expect(FURNITURE_FILES.models['rug_rectangle_A.glb']).toBeDefined();
+  });
+
+  it("lies flat over the runner's footprint, as thick as every flat piece, and is not solid", () => {
+    const [box] = roomPlan3d(HALLWAY_ROOM).furniture.filter((b) => b.model === 'runner_rug');
+    expect(RUG_THICKNESS).toBe(FLAT_THICKNESS);
+    expect(model.size).toEqual({ w: 1.875, d: 0.75, h: FLAT_THICKNESS });
+    expect(box).toMatchObject({ z0: 0, z1: FLAT_THICKNESS, solid: false });
+    expect(box?.x0).toBeCloseTo(RUNNER.x / 32, 9);
+    expect((box?.x1 ?? 0) - (box?.x0 ?? 0)).toBeCloseTo(1.875, 9);
+    expect((box?.y1 ?? 0) - (box?.y0 ?? 0)).toBeCloseTo(0.75, 9);
+    const { positions } = packGeometry(model, glbsOf('runner_rug'));
+    const ys = axisOf(positions, 1);
+    expect(Math.min(...ys)).toBeCloseTo(0, 9);
+    expect(Math.max(...ys)).toBeCloseTo(FLAT_THICKNESS, 6);
   });
 });

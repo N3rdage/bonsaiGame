@@ -4,6 +4,7 @@ import { createTree } from '../sim/tree';
 import type { GameState } from '../sim/types';
 import { ROOMS } from '../world/gardenRoom';
 import { GREENHOUSE_ROOM } from '../world/greenhouseRoom';
+import { HALLWAY_ROOM, HALL_TABLE } from '../world/hallwayRoom';
 import { LOUNGE_ROOM } from '../world/loungeRoom';
 import {
   PLACEABLES,
@@ -340,4 +341,32 @@ describe('furniture models', () => {
       expect(Math.max(...parts.map((p) => p.z1))).toBeCloseTo(size.h, 9);
     },
   );
+});
+
+describe("the hallway's console table model", () => {
+  const { size, parts } = FURNITURE_MODELS.hall_table;
+
+  it('is the piece: 0.5 x 0.375 m and 0.75 m high, in the object palette', () => {
+    expect(MODELLED_SHEETS.spr_hall_table).toBe('hall_table');
+    expect(size).toEqual({ w: 0.5, d: 0.375, h: 0.75 });
+    const [piece] = furniturePieces(HALLWAY_ROOM).filter((p) => p.kind === 'hall_table');
+    expect([piece?.w, piece?.d, piece?.h]).toEqual([size.w, size.d, size.h]);
+    expect(HALL_TABLE.solid).toBe(false);
+  });
+
+  it('is a top on four legs with a drawer front and a knob: seven parts', () => {
+    expect(parts).toHaveLength(7);
+    expect(parts.filter((p) => p.z0 === 0)).toHaveLength(4);
+    const top = parts.reduce((best, p) => (p.z1 > best.z1 ? p : best));
+    expect(top).toMatchObject({ object: 'wood', z1: 0.75, x0: -0.25, x1: 0.25 });
+    expect(parts.map((p) => p.object).sort()).toEqual(
+      ['brass', 'wood', 'wood', 'wood', 'wood', 'wood', 'woodDark'].sort(),
+    );
+  });
+
+  it('draws a rug and a table in the hallway, well inside the budget', () => {
+    expect(modelVertices('runner_rug')).toBe(48);
+    expect(furnitureVertices(HALLWAY_ROOM)).toBe(48 + modelVertices('hall_table'));
+    expect(furnitureVertices(HALLWAY_ROOM)).toBeLessThanOrEqual(FURNITURE_VERTEX_BUDGET);
+  });
 });

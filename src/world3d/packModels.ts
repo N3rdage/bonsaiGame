@@ -1,5 +1,5 @@
 /**
- * The furniture the 3D world draws from ready-made packs, as pure data: seven KayKit Furniture
+ * The furniture the 3D world draws from ready-made packs, as pure data: eight KayKit Furniture
  * Bits models (src/world3d/furniture/) and the lounge's two kitchen counter runs, built from
  * KayKit Restaurant Bits (src/world3d/restaurant/); both CC0, Kay Lousberg. A model is one or
  * more .glb files of one mesh each, whose feet stand on y 0 unless a part says it rests on
@@ -24,7 +24,8 @@ export type PackKind =
   | 'coffee_table'
   | 'floor_lamp'
   | 'counter'
-  | 'counter_v';
+  | 'counter_v'
+  | 'runner_rug';
 
 /** The way a part's front faces in the plan: south, toward the camera, as the file has it, or turned to the north, the east or the west. */
 export type Facing = 'south' | 'north' | 'east' | 'west';
@@ -82,6 +83,9 @@ function whole(
     ...(seat === undefined ? {} : { seat }),
   };
 }
+
+/** How thick the runner rug is drawn, metres: plan.ts's `FLAT_THICKNESS`, which a unit test pins it to, so the rug lies where the slab it replaces did. */
+export const RUG_THICKNESS = 0.01;
 
 /** How high a kitchen counter's top stands, metres: the 20 px height of the lounge's counter sheets, which the pack's 1 m high cabinets are scaled to. */
 export const COUNTER_TOP = 0.9375;
@@ -193,6 +197,10 @@ function counterRun(faces: Facing, length: number, cells: readonly Cell[]): Pack
  * code-made: the pack's `shelf_*` models are 2 x 0.4 x 0.5 m wall planks that start below the
  * floor and have no body to stand on.
  *
+ * The hallway's runner (1.875 x 0.75 m, flat) is `rug_rectangle_A`, a 3 x 2 m rug 0.1 m thick,
+ * stretched to the runner's footprint and pressed to `RUG_THICKNESS`, so it lies on the floor
+ * and is walked over.
+ *
  * The kitchen counter is two runs of Restaurant Bits cells, each 0.625 m deep and 0.9375 m high, every
  * cell a 2 x 1 x 2 m file scaled to its place. The south run (3 x 0.625 m, fronts to the
  * north) is, from the west, a cabinet, the sink, a cabinet, a cabinet with the hob on it and
@@ -255,6 +263,13 @@ export const PACK_MODELS: Readonly<Record<PackKind, PackModel>> = {
   ),
   counter: counterRun('north', 3, ['A', 'sink', 'B', 'stove', 'corner']),
   counter_v: counterRun('west', 1.875, ['B', 'A', 'B']),
+  runner_rug: whole(
+    'rug_rectangle_A.glb',
+    { w: 3, d: 2, h: 0.1 },
+    'south',
+    { w: 1.875, d: 0.75, h: RUG_THICKNESS },
+    48,
+  ),
 };
 
 /** The vertices a model draws: its parts' files', each counted once. */

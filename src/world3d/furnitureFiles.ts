@@ -8,6 +8,7 @@ import couch from './furniture/couch.glb?url';
 import armchair from './furniture/armchair.glb?url';
 import tableLow from './furniture/table_low.glb?url';
 import lampStanding from './furniture/lamp_standing.glb?url';
+import rugRectangle from './furniture/rug_rectangle_A.glb?url';
 import furnitureTexture from './furniture/furniturebits_texture.png?url';
 import counterA from './restaurant/kitchencounter_straight_A.glb?url';
 import counterB from './restaurant/kitchencounter_straight_B.glb?url';
@@ -27,6 +28,7 @@ export const FURNITURE_FILES = {
     'armchair.glb': armchair,
     'table_low.glb': tableLow,
     'lamp_standing.glb': lampStanding,
+    'rug_rectangle_A.glb': rugRectangle,
     'kitchencounter_straight_A.glb': counterA,
     'kitchencounter_straight_B.glb': counterB,
     'kitchencounter_outercorner.glb': counterCorner,
