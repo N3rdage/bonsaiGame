@@ -22,14 +22,15 @@ The fix bakes each piece's size into the geometry when it is packed. Every pack 
 ## Turning and sitting
 
 The sofa faces east and the armchair faces west, so those two need a quarter turn. `packGeometry` centres each model over its footprint and gives it a quarter turn when the piece faces east or west.
+
 The seat height used to be 0.51 m, a number from the code-made sofa. The file says where the cushion really is: its top is 0.5 up a model 1.224 tall, and scaled to the piece that is 0.383 m. `seats.ts` now takes its seat height from the pack instead of a number I typed. The gardener sits on the cushion now, and the sitting shots were re-baselined.
 
 ## Shapes that do not fit
 
 Not every piece can be the pack's model as it comes.
 
-- The coffee table is drawn at three quarters of the file's height. At full height the pack's `table_low` is a chunky table with a drawer, and three quarters keeps it low in the room. That number is one line in `PACK_MODELS`.
-- The floor lamp is squashed to 60% of its height and still reads as a standing lamp.
+- The pack's models are big, one to three metres across, and each is fitted to the piece's footprint and height separately, so the proportions shift. The coffee table's `table_low` shrinks to about 0.42 of the file across but keeps three quarters of its height, so it comes out a chunkier table with a drawer. That height is one line in `PACK_MODELS`.
+- The floor lamp is drawn 1.5 m tall, 60% of the file's 2.52 m, while its base shrinks to under half the file's width. It is a little slimmer than the pack drew it, and it still reads as a standing lamp.
 - The tall bookcase stays code-made. The pack's `shelf_*` models are wall planks, two metres wide and 0.4 m deep, that start below the floor. They have no body to stand on, so a tree would have nowhere to sit.
 - The potted plant and the fireplace stay code-made too. No pack has them.
 
