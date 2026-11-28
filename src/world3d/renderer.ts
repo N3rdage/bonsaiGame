@@ -1542,7 +1542,8 @@ export class Renderer {
     const url = FURNITURE_FILES.models[PACK_MODELS[kind].file];
     if (url === undefined) throw new Error(`no file for ${kind}`);
     this.packAtlas ??= readAtlas(FURNITURE_FILES.texture);
-    // A failed fetch is not kept, so the next room entry asks again.
+    // A failed atlas read is dropped, so a kind that loads after it reads the atlas again. A kind
+    // whose own load failed keeps its box and is not asked for again until the page is reloaded.
     this.packAtlas.catch(() => {
       this.packAtlas = undefined;
     });

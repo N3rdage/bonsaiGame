@@ -80,15 +80,27 @@ async function waitForPacked(page: Page, kind: string): Promise<void> {
   );
 }
 
-/** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid, and the player's body loaded. */
+/** Each room's pieces drawn from pack models: a screenshot of the room waits for each to replace its box. */
+const ROOM_PACK: Partial<Record<RoomKey, readonly string[]>> = {
+  lounge: ['side_table', 'sofa', 'armchair', 'coffee_table', 'floor_lamp'],
+  study: ['desk', 'low_bookcase'],
+};
+
+/** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid, the player's body loaded and the room's pack furniture in place. */
 async function waitForRoom(page: Page, room: RoomKey): Promise<void> {
+  // One wait for the lot: each poll costs a frame, and the long walks run close to their timeouts.
   await page.waitForFunction(
-    ([r, sheets]) =>
-      window.__bonsai?.world3d?.room === r &&
-      window.__bonsai.world3d.floorSheet !== null &&
-      window.__bonsai.world3d.wallSheets.length === sheets &&
-      window.__bonsai.world3d.bodyLoaded,
-    [room, wallSheets(ROOMS[room]).length] as const,
+    ([r, sheets, packs]) => {
+      const w = window.__bonsai?.world3d;
+      return (
+        w?.room === r &&
+        w.floorSheet !== null &&
+        w.wallSheets.length === sheets &&
+        w.bodyLoaded &&
+        packs.every((k) => w.packed.includes(k) && (w.instances[k] ?? 0) > 0)
+      );
+    },
+    [room, wallSheets(ROOMS[room]).length, ROOM_PACK[room] ?? []] as const,
   );
 }
 

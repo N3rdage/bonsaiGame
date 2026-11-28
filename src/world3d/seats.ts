@@ -11,6 +11,7 @@
 
 import { ARMCHAIR, SOFA } from '../world/loungeRoom';
 import type { Furniture, Prop, RoomKey } from '../world/shedRoom';
+import { PACK_MODELS, seatHeight } from './packModels';
 import { metres } from './plan';
 
 export type SeatKey = 'sofa' | 'armchair';
@@ -29,8 +30,8 @@ export interface Seat {
 
 /** How far from the seat's front edge the hips rest, room px: a third of the way back on the sofa's 0.875 m, over half the armchair's cushion. */
 const SETBACK = 10;
-/** The cushions' top over the floor, metres: the foot (0.08), the seat base (0.3) and the cushion (0.13) of furnitureModels.ts, the same on both. */
-export const SEAT_HEIGHT = 0.51;
+/** The cushions' top over the floor, metres: the pack models' seat (packModels.ts), 0.5 of the file's 1.224 drawn at 0.9375 m, the same on both. */
+export const SEAT_HEIGHT = seatHeight(PACK_MODELS.sofa);
 /** How far the sit clips move the hips back from the body's origin, model units: `Sit_Chair_Down`'s last key of `hips` in z. */
 export const SIT_HIPS_BACK = 0.397;
 /** The height of the seat the sit clips were keyed for, model units: where the hips rest over the feet's floor. */

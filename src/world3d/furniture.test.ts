@@ -213,8 +213,8 @@ describe('the furniture vertex budget', () => {
     expect(furnitureVertices(SHED_ROOM)).toBe(6480);
   });
 
-  it("counts the lounge's eight pieces: 12,916 vertices, inside the budget", () => {
-    expect(furnitureVertices(LOUNGE_ROOM)).toBe(12916);
+  it("counts the lounge's eight pieces: 8,412 vertices, inside the budget", () => {
+    expect(furnitureVertices(LOUNGE_ROOM)).toBe(8412);
     expect(furnitureVertices(LOUNGE_ROOM)).toBeLessThanOrEqual(FURNITURE_VERTEX_BUDGET);
   });
 
@@ -223,9 +223,9 @@ describe('the furniture vertex budget', () => {
     expect(modelVertices('fireplace')).toBe(2160);
   });
 
-  it('counts a lamp and a plant from their round parts', () => {
-    // The base, pole and collar are cylinders and the shade a frustum.
-    expect(modelVertices('floor_lamp')).toBe(3 * 22 + 22);
+  it('counts a lamp from its file and a plant from its round parts', () => {
+    // The lamp is the pack's `lamp_standing`, 304 vertices.
+    expect(modelVertices('floor_lamp')).toBe(304);
     // The pot, rim, soil and stem are cylinders; four balls of foliage.
     expect(modelVertices('potted_plant')).toBe(4 * 22 + 4 * 42);
   });

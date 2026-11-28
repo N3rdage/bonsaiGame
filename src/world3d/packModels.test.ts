@@ -9,18 +9,26 @@ import { furniturePieces } from './furniture';
 import { FURNITURE_FILES } from './furnitureFiles';
 import { FURNITURE_MODELS, MODELLED_SHEETS } from './furnitureModels';
 import { accessorFloats, readGlb, type Glb } from './glb';
-import { PACK_MODELS, packGeometry, type PackKind } from './packModels';
+import { PACK_MODELS, packGeometry, seatHeight, type PackKind } from './packModels';
+import { SEAT_HEIGHT } from './seats';
 import { heightMetres, roomPlan3d } from './plan';
 import { treeStands } from './trees';
 
 const KINDS = Object.keys(PACK_MODELS) as PackKind[];
 
-/** Where each kind stands: its room, and the display spot on it. */
-const HOMES: Readonly<Record<PackKind, { room: Room; spot: string; sheet: string }>> = {
+/** Where each kind stands: its room, its sheet and, for the pieces that carry one, the display spot on it. */
+const HOMES: Readonly<Record<PackKind, { room: Room; spot?: string; sheet: string }>> = {
   side_table: { room: LOUNGE_ROOM, spot: 'lounge_side_table', sheet: 'spr_side_table' },
   desk: { room: STUDY_ROOM, spot: 'study_desk', sheet: 'spr_desk' },
   low_bookcase: { room: STUDY_ROOM, spot: 'study_bookshelf', sheet: 'spr_bookshelf' },
+  sofa: { room: LOUNGE_ROOM, sheet: 'spr_sofa' },
+  armchair: { room: LOUNGE_ROOM, sheet: 'spr_armchair' },
+  coffee_table: { room: LOUNGE_ROOM, sheet: 'spr_coffee_table' },
+  floor_lamp: { room: LOUNGE_ROOM, sheet: 'spr_floor_lamp' },
 };
+
+/** The kinds that carry a display spot: a tree stands on their top. */
+const DISPLAY_KINDS = KINDS.filter((kind) => HOMES[kind].spot !== undefined);
 
 const DIR = new URL('./furniture/', import.meta.url);
 
@@ -53,13 +61,11 @@ describe.each(KINDS)('the %s pack model', (kind) => {
     expect(glb.json.meshes?.[0]?.primitives).toHaveLength(1);
   });
 
-  it("has the file's extent as its size, its feet on the floor and its middle over the origin", () => {
+  it("has the file's extent as its size and its feet on the floor", () => {
     expect((max[0] ?? 0) - (min[0] ?? 0)).toBeCloseTo(model.extent.w, 4);
     expect((max[2] ?? 0) - (min[2] ?? 0)).toBeCloseTo(model.extent.d, 4);
     expect((max[1] ?? 0) - (min[1] ?? 0)).toBeCloseTo(model.extent.h, 4);
     expect(min[1] ?? 1).toBeCloseTo(0, 6);
-    expect(Math.abs(((max[0] ?? 0) + (min[0] ?? 0)) / 2)).toBeLessThan(0.001);
-    expect(Math.abs(((max[2] ?? 0) + (min[2] ?? 0)) / 2)).toBeLessThan(0.001);
   });
 
   it("draws the file's vertices, with the box drawn meanwhile at the model's size", () => {
@@ -83,19 +89,26 @@ describe.each(KINDS)('the %s pack model', (kind) => {
     ]);
   });
 
-  it("is turned into Babylon's frame: front toward the camera, every face wound as CreateBox does", () => {
+  it("is turned into Babylon's frame: front the way the piece faces, centred, every face wound as CreateBox does", () => {
     const { positions, normals, indices } = packGeometry(glb, model);
-    // The file's front is +z; Babylon's south, toward the camera, is -z: every vertex's z is
-    // mirrored (and scaled), so the file's frontmost vertex is the model's southmost.
+    // The file's front is +z. Babylon's south, toward the camera, is -z and its east +x: the
+    // file's frontmost vertex is the model's southmost, eastmost or westmost, by `faces`.
     const raw = accessorFloats(glb, glb.json.meshes?.[0]?.primitives[0]?.attributes.POSITION ?? -1);
-    const zScale = model.size.d / model.extent.d;
     let front = 0;
     for (let i = 0; i < raw.length / 3; i++) {
-      expect(positions[i * 3 + 2]).toBeCloseTo(-(raw[i * 3 + 2] ?? 0) * zScale, 6);
       if ((raw[i * 3 + 2] ?? 0) > (raw[front * 3 + 2] ?? 0)) front = i;
     }
-    expect(positions[front * 3 + 2]).toBeCloseTo(-model.size.d / 2, 3);
-    expect(Math.min(...positions.filter((_, i) => i % 3 === 2))).toBeCloseTo(-model.size.d / 2, 3);
+    const axis = (k: number): number[] => Array.from(positions).filter((_, i) => i % 3 === k);
+    const [xs, zs] = [axis(0), axis(2)];
+    const frontAt = {
+      south: [positions[front * 3 + 2], Math.min(...zs)],
+      east: [positions[front * 3], Math.max(...xs)],
+      west: [positions[front * 3], Math.min(...xs)],
+    }[model.faces];
+    expect(frontAt[0]).toBeCloseTo(frontAt[1] ?? 0, 3);
+    for (const values of [xs, zs]) {
+      expect(Math.abs((Math.max(...values) + Math.min(...values)) / 2)).toBeLessThan(1e-5);
+    }
     for (let t = 0; t < indices.length; t += 3) {
       const [a = 0, b = 0, c = 0] = [indices[t], indices[t + 1], indices[t + 2]];
       const at = (i: number, k: number): number => positions[i * 3 + k] ?? 0;
@@ -113,23 +126,14 @@ describe.each(KINDS)('the %s pack model', (kind) => {
     }
   });
 
-  it('has a flat top at its full height that spans most of its footprint', () => {
-    const { positions, normals } = packGeometry(glb, model);
-    const top = [...Array.from({ length: positions.length / 3 }, (_, i) => i)].filter(
-      (i) => Math.abs((positions[i * 3 + 1] ?? 0) - model.size.h) < 1e-6,
-    );
-    expect(top.length).toBeGreaterThanOrEqual(4);
-    for (const i of top) expect(normals[i * 3 + 1]).toBeGreaterThan(0.5);
+  it('has unit normals', () => {
+    const { normals } = packGeometry(glb, model);
     for (let i = 0; i < normals.length; i += 3) {
       expect(Math.hypot(normals[i] ?? 0, normals[i + 1] ?? 0, normals[i + 2] ?? 0)).toBeCloseTo(
         1,
         5,
       );
     }
-    const xs = top.map((i) => positions[i * 3] ?? 0);
-    const zs = top.map((i) => positions[i * 3 + 2] ?? 0);
-    expect((Math.max(...xs) - Math.min(...xs)) / model.size.w).toBeGreaterThan(0.9);
-    expect((Math.max(...zs) - Math.min(...zs)) / model.size.d).toBeGreaterThan(0.9);
   });
 
   it("is drawn at its piece's own size, so its instance scale is 1 and its ink is as thick as the code-made kinds'", () => {
@@ -145,20 +149,9 @@ describe.each(KINDS)('the %s pack model', (kind) => {
     expect(Math.min(...axis(1))).toBeCloseTo(0, 6);
   });
 
-  it("stands the tree on the model's top, over its spot", () => {
-    const { room, spot, sheet } = HOMES[kind];
-    const piece = pieceOf(kind);
-    const state = createNewGameState();
-    state.trees = [{ ...createTree('juniper', 'cutting', 0), location: `displayed:${spot}` }];
-    const [stand] = treeStands(state, room, 'spring');
-    expect(stand?.z).toBeCloseTo(model.size.h, 9);
-    expect(Math.abs((stand?.x ?? 0) - piece.x)).toBeLessThan(piece.w / 2);
-    expect(Math.abs((stand?.y ?? 0) - piece.y)).toBeLessThan(piece.d / 2);
-    expect(MODELLED_SHEETS[sheet]).toBe(kind);
-  });
-
   it('is still a solid box in the plan, so the player collides as before', () => {
     const { room, sheet } = HOMES[kind];
+    expect(MODELLED_SHEETS[sheet]).toBe(kind);
     const piece = pieceOf(kind);
     const [box] = roomPlan3d(room).furniture.filter((b) => b.model === kind);
     expect(box?.solid).toBe(true);
@@ -169,6 +162,71 @@ describe.each(KINDS)('the %s pack model', (kind) => {
       piece.y + piece.d / 2,
     ]);
     expect(room.furniture.find((f) => f.sheet.key === sheet)?.solid).toBe(true);
+  });
+});
+
+describe.each(DISPLAY_KINDS)('the %s, a display spot', (kind) => {
+  const model = PACK_MODELS[kind];
+
+  it('has a flat top at its full height that spans most of its footprint', () => {
+    const { positions, normals } = packGeometry(load(kind), model);
+    const top = [...Array.from({ length: positions.length / 3 }, (_, i) => i)].filter(
+      (i) => Math.abs((positions[i * 3 + 1] ?? 0) - model.size.h) < 1e-6,
+    );
+    expect(top.length).toBeGreaterThanOrEqual(4);
+    for (const i of top) expect(normals[i * 3 + 1]).toBeGreaterThan(0.5);
+    const xs = top.map((i) => positions[i * 3] ?? 0);
+    const zs = top.map((i) => positions[i * 3 + 2] ?? 0);
+    expect((Math.max(...xs) - Math.min(...xs)) / model.size.w).toBeGreaterThan(0.9);
+    expect((Math.max(...zs) - Math.min(...zs)) / model.size.d).toBeGreaterThan(0.9);
+  });
+
+  it("stands the tree on the model's top, over its spot", () => {
+    const { room, spot = 'none' } = HOMES[kind];
+    const piece = pieceOf(kind);
+    const state = createNewGameState();
+    state.trees = [{ ...createTree('juniper', 'cutting', 0), location: `displayed:${spot}` }];
+    const [stand] = treeStands(state, room, 'spring');
+    expect(stand?.z).toBeCloseTo(model.size.h, 9);
+    expect(Math.abs((stand?.x ?? 0) - piece.x)).toBeLessThan(piece.w / 2);
+    expect(Math.abs((stand?.y ?? 0) - piece.y)).toBeLessThan(piece.d / 2);
+  });
+});
+
+describe('the seats', () => {
+  const SEATS = ['sofa', 'armchair'] as const;
+
+  it.each(SEATS)(
+    "has the %s's cushion at its measured height, as the sitter's hips rest on it",
+    (kind) => {
+      const model = PACK_MODELS[kind];
+      const glb = load(kind);
+      const { positions, normals } = packGeometry(glb, model);
+      // The cushion's flat top is up-facing vertices at the seat height that span most of the
+      // piece's width (north-south) and, front to back, over half its depth.
+      const height = seatHeight(model);
+      const flat = Array.from({ length: positions.length / 3 }, (_, i) => i).filter(
+        (i) =>
+          Math.abs((positions[i * 3 + 1] ?? 0) - height) < 0.002 && (normals[i * 3 + 1] ?? 0) > 0.9,
+      );
+      expect(flat.length).toBeGreaterThanOrEqual(4);
+      const across = flat.map((i) => positions[i * 3 + 2] ?? 0);
+      const deep = flat.map((i) => positions[i * 3] ?? 0);
+      expect((Math.max(...across) - Math.min(...across)) / model.size.d).toBeGreaterThan(0.5);
+      expect((Math.max(...deep) - Math.min(...deep)) / model.size.w).toBeGreaterThan(0.5);
+      expect(height).toBeCloseTo(((model.seat ?? 0) / model.extent.h) * model.size.h, 9);
+    },
+  );
+
+  it('is the same on both seats, which seats.ts uses, and well under the drawn height', () => {
+    expect(seatHeight(PACK_MODELS.sofa)).toBeCloseTo(seatHeight(PACK_MODELS.armchair), 9);
+    expect(SEAT_HEIGHT).toBe(seatHeight(PACK_MODELS.sofa));
+    expect(SEAT_HEIGHT).toBeCloseTo(0.3829, 4);
+    expect(SEAT_HEIGHT).toBeLessThan(PACK_MODELS.sofa.size.h / 2);
+  });
+
+  it('is not defined for a piece that is not a seat', () => {
+    expect(() => seatHeight(PACK_MODELS.desk)).toThrow();
   });
 });
 
