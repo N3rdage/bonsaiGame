@@ -70,6 +70,16 @@ async function waitForAhead(page: Page): Promise<void> {
   await page.waitForFunction(() => window.__bonsai?.world3d?.aheadPending === 0);
 }
 
+/** Waits for the pack model of furniture `kind` to load and stand in the room shown, in place of the box drawn meanwhile. */
+async function waitForPacked(page: Page, kind: string): Promise<void> {
+  await page.waitForFunction(
+    (k) =>
+      window.__bonsai?.world3d?.packed.includes(k) === true &&
+      (window.__bonsai.world3d.instances[k] ?? 0) > 0,
+    kind,
+  );
+}
+
 /** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid, and the player's body loaded. */
 async function waitForRoom(page: Page, room: RoomKey): Promise<void> {
   await page.waitForFunction(
@@ -1221,6 +1231,7 @@ test.describe('the 3D world', () => {
       // The player lands at the hallway door (x 152) below the desk (x 160..192, y 64..80).
       await zoomIn(page, 2000, 6);
       await waitForAhead(page);
+      await waitForPacked(page, 'desk');
       await page.waitForTimeout(3000);
       await expect(page).toHaveScreenshot('world3d-study-desk.png', { timeout: 30_000 });
     },
@@ -1243,6 +1254,8 @@ test.describe('the 3D world', () => {
       await walkToRow(page, 72);
       await zoomIn(page, 2000, 6);
       await waitForAhead(page);
+      await waitForPacked(page, 'side_table');
+      await page.waitForTimeout(1000);
       await expect(page).toHaveScreenshot('world3d-lounge-side-table.png', { timeout: 30_000 });
     },
   );
@@ -1269,6 +1282,7 @@ test.describe('the 3D world', () => {
       await walkToRow(page, 72);
       await zoomIn(page, 2000, 6);
       await waitForAhead(page);
+      await waitForPacked(page, 'low_bookcase');
       await page.waitForTimeout(3000);
       await expect(page).toHaveScreenshot('world3d-study-bookcase.png', { timeout: 30_000 });
     },
