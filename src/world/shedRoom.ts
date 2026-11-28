@@ -161,7 +161,7 @@ export function furnitureWalls(furniture: readonly Furniture[]): Rect[] {
 }
 
 /**
- * A display spot (`Use Pedestal`, as obj_pedestal) on a piece of furniture:
+ * A display spot (`Use Pedestal`, as obj_pedestal, unless `name` says what the piece is) on a piece of furniture:
  * its rect runs across `x`..`x + w` (the whole piece by default) from `top`,
  * where the displayed tree's pot stands, down to the piece's front edge. So
  * the tree stands on the rect's top edge as it stood on a pedestal's, the
@@ -175,12 +175,13 @@ export function displaySpot(
   top: number,
   x = on.x,
   w = on.w,
+  name = 'Pedestal',
 ): Prop {
   const h = on.y + on.h - top;
   return {
     key,
-    label: 'Pedestal',
-    prompt: 'Use Pedestal',
+    label: name,
+    prompt: `Use ${name}`,
     x: x + w / 2,
     y: top + h / 2,
     w,
