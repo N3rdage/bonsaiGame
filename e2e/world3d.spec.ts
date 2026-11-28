@@ -80,7 +80,10 @@ async function waitForPacked(page: Page, kind: string): Promise<void> {
   );
 }
 
-/** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid, and the player's body loaded. */
+/** The lounge's pieces drawn from pack models: a screenshot of the room waits for each to replace its box. */
+const LOUNGE_PACK = ['side_table', 'sofa', 'armchair', 'coffee_table', 'floor_lamp'] as const;
+
+/** Waits for the renderer to be up and drawing `room`, its floor tiles and every one of its own wall sheets laid, and the player's body loaded; in the lounge, also its pack furniture. */
 async function waitForRoom(page: Page, room: RoomKey): Promise<void> {
   await page.waitForFunction(
     ([r, sheets]) =>
@@ -90,6 +93,9 @@ async function waitForRoom(page: Page, room: RoomKey): Promise<void> {
       window.__bonsai.world3d.bodyLoaded,
     [room, wallSheets(ROOMS[room]).length] as const,
   );
+  if (room === 'lounge') {
+    for (const kind of LOUNGE_PACK) await waitForPacked(page, kind);
+  }
 }
 
 test.describe('the 3D world', () => {
