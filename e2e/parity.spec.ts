@@ -39,8 +39,6 @@ import {
 
 test.describe('parity', () => {
   test('plays the loop from a new game through save, reload and Continue', async ({ page }) => {
-    // A single flow through every room and panel: longer than one step's spec.
-    test.setTimeout(150_000);
     const errors = collectErrors(page);
     await bootWorld(page);
 

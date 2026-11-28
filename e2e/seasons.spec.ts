@@ -106,9 +106,7 @@ test.describe('seasons', () => {
     expect(ids(h)).not.toContain('tip-dismiss');
 
     // Through spring, summer and autumn into the next winter: it does not come back.
-    await page.waitForFunction((day) => (window.__bonsai?.day ?? 0) > day, NEXT_WINTER, {
-      timeout: 20_000,
-    });
+    await page.waitForFunction((day) => (window.__bonsai?.day ?? 0) > day, NEXT_WINTER);
     h = await hook(page);
     expect([h.season, h.seasonTip, h.tutorialLabel]).toEqual(['winter', '', '']);
     expect(errors).toEqual([]);

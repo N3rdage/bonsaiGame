@@ -60,7 +60,6 @@ test.describe('Q closes what Escape closes', () => {
   test('the inspector, its sub-panel, the notebook, the inventory and the menu', async ({
     page,
   }) => {
-    test.setTimeout(120_000);
     const errors = collectErrors(page);
     await bootWorld(page);
     await inspectStarter(page);
@@ -119,7 +118,6 @@ test.describe('Q closes what Escape closes', () => {
   });
 
   test('a typed q in the rename box is text and closes nothing', async ({ page }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await inspectStarter(page);
     await inspectorAction(page, 'rename');
@@ -148,7 +146,6 @@ test.describe('close labels follow the fullscreen state', () => {
     tapRoute,
   }) => {
     test.skip(tapRoute, 'a touch device names no key (the next test)');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await inspectStarter(page);
     expect((await hook(page)).closeLabel).toBe('[ESC] Close');
@@ -184,7 +181,6 @@ test.describe('close labels follow the fullscreen state', () => {
 
   test('a touch device names no key, windowed or in fullscreen', async ({ page, tapRoute }) => {
     test.skip(!tapRoute, 'a keyboard names its close key (the tests around this one)');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await inspectStarter(page);
     expect((await hook(page)).closeLabel).toBe('Close');
@@ -217,7 +213,6 @@ test.describe('close labels follow the fullscreen state', () => {
   });
 
   test('the rename panel never names Q, which is a letter there', async ({ page }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await fakeFullscreen(page, true, 'absent');
     await inspectStarter(page);

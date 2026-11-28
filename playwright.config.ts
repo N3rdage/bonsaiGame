@@ -33,19 +33,21 @@ const ORIENTATION = /orientation\.spec\.ts$/;
 export default defineConfig<RouteOptions>({
   testDir: './e2e',
   fullyParallel: true,
-  // Walks are frame-paced (src/world/player.ts), so a starved runner stretches
-  // a long test past Playwright's 30 s default. Since N3rdage/agentic-gaming#81
-  // walkTo (e2e/drive.ts) releases its key in the page, so a slow runner can
-  // no longer carry the player out of reach, and a walk that cannot arrive
-  // fails fast with where the player stopped; the 60 s budget stays for slow
-  // runners.
-  timeout: 60_000,
+  // Time limits here are hang guards, not performance budgets: the tests assert
+  // state and pixels, and a tighter limit only makes them flakier. Each is set
+  // several times above the slowest honest CI run (walks are frame-paced, so a
+  // starved runner stretches a long test), and no spec sets its own. A walk that
+  // cannot arrive does not wait for this limit: walkTo (e2e/drive.ts) fails
+  // fast, by its own stall detection, with where the player stopped.
+  timeout: 600_000,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   // Baselines are generated on Linux (as CI runs); no OS suffix keeps the path stable.
   snapshotPathTemplate: '{testDir}/__screenshots__/{testFileName}/{arg}-{projectName}{ext}',
   expect: {
+    // A hang guard for expect, expect.poll and toHaveScreenshot (see `timeout`).
+    timeout: 60_000,
     toHaveScreenshot: {
       // A pixel count, not a ratio: a ratio scales with the viewport, and 0.005
       // of 1280x720 (4,608 px) let a young tree's whole foliage vanish unseen.

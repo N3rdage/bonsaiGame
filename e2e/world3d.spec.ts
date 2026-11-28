@@ -38,8 +38,8 @@ import {
   shedToLounge,
 } from './rooms';
 
-/** Tests run two workers on software GL: a walk, a camera ease or an instance count can take longer than the default 5 s poll. */
-const POLL = { timeout: 30_000 };
+/** A repeat room change slower than this has become plainly slow; it is not a frame budget. */
+const PLAINLY_SLOW_ROOM_CHANGE_MS = 1000;
 
 // The 3D world (preview) setting: Babylon draws the room under the Phaser canvas
 // (src/world3d/), which keeps the movement, the doors and the HUD. The setting is
@@ -118,7 +118,6 @@ test.describe('the 3D world', () => {
     'draws the shed, follows the player and changes room through a door',
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       const errors = collectErrors(page);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
@@ -168,7 +167,7 @@ test.describe('the 3D world', () => {
             return (
               p && [p.x - h.player.x / 32, p.y - h.player.y / 32].every((d) => Math.abs(d) < 0.01)
             );
-          }, POLL)
+          })
           .toBe(true);
       };
       await near();
@@ -208,7 +207,6 @@ test.describe('the 3D world', () => {
     'shows a room it already built again without building it',
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
@@ -234,10 +232,11 @@ test.describe('the 3D world', () => {
       expect(roomChanges[0]?.dressedMs).toBeGreaterThan(0);
       for (const change of roomChanges.slice(1)) expect(change.dressedMs).toBeUndefined();
       // Software GL draws a repeat visit in a few ms to a few tens (the shed, with its trees and
-      // thin instances, is the dearest); building it again took longer. The bound is generous
-      // for two workers under load; the `first` flags above are what pin that nothing is rebuilt.
+      // thin instances, is the dearest). The bound only catches a room change that has become
+      // plainly slow, not a frame budget: the `first` flags above are what pin that nothing is
+      // rebuilt, and fine-grained performance is judged from the Benchmark numbers in PR bodies.
       for (const change of roomChanges.filter(({ first }) => !first)) {
-        expect(change.ms).toBeLessThan(150);
+        expect(change.ms).toBeLessThan(PLAINLY_SLOW_ROOM_CHANGE_MS);
       }
     },
   );
@@ -246,7 +245,6 @@ test.describe('the 3D world', () => {
     'paints its surfaces once at start, and a room seen first or again paints nothing',
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
@@ -273,7 +271,6 @@ test.describe('the 3D world', () => {
   );
 
   test('builds the rooms behind the shed doors ahead, hidden', async ({ page }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await waitForBuilt(page, ['garden', 'lounge', 'shed']);
@@ -284,7 +281,6 @@ test.describe('the 3D world', () => {
   });
 
   test('builds no room ahead while the player walks, and does once they stop', async ({ page }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -296,11 +292,11 @@ test.describe('the 3D world', () => {
     // Through the lounge door and on up the lounge, a walk of over a second that never lets go
     // of the key, so the player does not stand still in the room that queues the hallway.
     await page.keyboard.down('ArrowUp');
-    await page.waitForFunction(() => window.__bonsai?.room === 'lounge', undefined, POLL);
+    await page.waitForFunction(() => window.__bonsai?.room === 'lounge');
     const walking = await hook(page);
     expect(walking.world3d?.built).not.toContain('hallway');
     const from = walking.player.y;
-    await page.waitForFunction((y) => (window.__bonsai?.player.y ?? y) < y - 20, from, POLL);
+    await page.waitForFunction((y) => (window.__bonsai?.player.y ?? y) < y - 20, from);
     const now = await hook(page);
     expect(now.player.y).toBeLessThan(from);
     expect(now.world3d?.aheadBuilds).toEqual(walking.world3d?.aheadBuilds);
@@ -314,7 +310,6 @@ test.describe('the 3D world', () => {
   });
 
   test('walks through a doorway into the next room without Interact', async ({ page }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -324,7 +319,7 @@ test.describe('the 3D world', () => {
     // The shed's start is in line with the lounge door in its top wall: straight up, no E.
     expect((await hook(page)).room).toBe('shed');
     await page.keyboard.down('ArrowUp');
-    await page.waitForFunction(() => window.__bonsai?.room === 'lounge', undefined, POLL);
+    await page.waitForFunction(() => window.__bonsai?.room === 'lounge');
     await page.keyboard.up('ArrowUp');
     const lounge = await hook(page);
     expect(lounge.arrivedBeside).toBe('door');
@@ -340,7 +335,6 @@ test.describe('the 3D world', () => {
   });
 
   test('does not take a doorway walked past along its wall', async ({ page }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -359,7 +353,6 @@ test.describe('the 3D world', () => {
   test('turns in steps on Q and E, zooms on the wheel and drags round on the mouse', async ({
     page,
   }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -371,7 +364,7 @@ test.describe('the 3D world', () => {
 
     await page.keyboard.press('q');
     await expect
-      .poll(async () => (await world3d(page)).camera.alpha, POLL)
+      .poll(async () => (await world3d(page)).camera.alpha)
       .toBeLessThan(-Math.PI / 2 - 0.7);
     const turned = await world3d(page);
     expect(turned.cut).not.toEqual(start.cut);
@@ -380,20 +373,18 @@ test.describe('the 3D world', () => {
     await page.keyboard.press('e');
     await page.keyboard.press('e');
     await expect
-      .poll(async () => (await world3d(page)).camera.alpha, POLL)
+      .poll(async () => (await world3d(page)).camera.alpha)
       .toBeGreaterThan(-Math.PI / 2 + 0.7);
 
     const radius = (await world3d(page)).camera.radius;
     await page.mouse.move(400, 100);
     await page.mouse.wheel(0, 300);
-    await expect
-      .poll(async () => (await world3d(page)).camera.radius, POLL)
-      .toBeGreaterThan(radius + 1);
+    await expect.poll(async () => (await world3d(page)).camera.radius).toBeGreaterThan(radius + 1);
 
     const before = (await world3d(page)).camera.alpha;
     await dragLogical(page, 100, 60, 60);
     await expect
-      .poll(async () => Math.abs((await world3d(page)).camera.alpha - before), POLL)
+      .poll(async () => Math.abs((await world3d(page)).camera.alpha - before))
       .toBeGreaterThan(0.2);
   });
 
@@ -401,7 +392,6 @@ test.describe('the 3D world', () => {
     'up walks away from the camera, whatever its heading',
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
@@ -419,20 +409,18 @@ test.describe('the 3D world', () => {
       const north = await walkUp();
       expect(north.dy).toBeLessThan(-0.1);
       expect(Math.abs(north.dy)).toBeGreaterThan(Math.abs(north.dx));
-      await expect
-        .poll(async () => (await world3d(page)).facing, POLL)
-        .toBeCloseTo(-Math.PI / 2, 1);
+      await expect.poll(async () => (await world3d(page)).facing).toBeCloseTo(-Math.PI / 2, 1);
 
       // Two Q presses (45 degrees each) turn the camera a quarter to look east.
       await page.keyboard.press('q');
       await page.keyboard.press('q');
       await expect
-        .poll(async () => (await world3d(page)).camera.alpha, POLL)
+        .poll(async () => (await world3d(page)).camera.alpha)
         .toBeLessThan(-Math.PI + 0.05);
       const east = await walkUp();
       expect(east.dx).toBeGreaterThan(0.1);
       expect(Math.abs(east.dx)).toBeGreaterThan(Math.abs(east.dy));
-      await expect.poll(async () => (await world3d(page)).facing, POLL).toBeCloseTo(0, 1);
+      await expect.poll(async () => (await world3d(page)).facing).toBeCloseTo(0, 1);
     },
   );
 
@@ -440,26 +428,24 @@ test.describe('the 3D world', () => {
     'the player is a character that idles at rest, runs at full speed and idles again',
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
 
       expect((await world3d(page)).playerModel).toBe('character');
-      await expect.poll(async () => (await world3d(page)).clips.idle, POLL).toBeGreaterThan(0.99);
+      await expect.poll(async () => (await world3d(page)).clips.idle).toBeGreaterThan(0.99);
       expect((await world3d(page)).carry).toBe(0);
 
       await page.keyboard.down('ArrowRight');
-      await expect.poll(async () => (await world3d(page)).clips.run, POLL).toBeGreaterThan(0.99);
+      await expect.poll(async () => (await world3d(page)).clips.run).toBeGreaterThan(0.99);
       const walking = (await world3d(page)).clips;
       expect(walking.idle + walking.walk + walking.run).toBeCloseTo(1, 5);
       await page.keyboard.up('ArrowRight');
-      await expect.poll(async () => (await world3d(page)).clips.idle, POLL).toBeGreaterThan(0.99);
+      await expect.poll(async () => (await world3d(page)).clips.idle).toBeGreaterThan(0.99);
     },
   );
 
   test('the Q that closes the tree viewer does not also turn the camera', async ({ page }) => {
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -475,7 +461,7 @@ test.describe('the 3D world', () => {
     // The next Q is a plain press again.
     await page.keyboard.press('q');
     await expect
-      .poll(async () => (await world3d(page)).camera.alpha, POLL)
+      .poll(async () => (await world3d(page)).camera.alpha)
       .toBeLessThan(-Math.PI / 2 - 0.7);
   });
 
@@ -483,7 +469,6 @@ test.describe('the 3D world', () => {
     'a tap on a prop walks to it and uses it, a tap on the floor walks there, a drag does neither',
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       const errors = collectErrors(page);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
@@ -510,13 +495,12 @@ test.describe('the 3D world', () => {
         .poll(async () => {
           const p = (await world3d(page)).player;
           return Math.hypot((p?.x ?? 0) - (start?.x ?? 0), (p?.y ?? 0) - (start?.y ?? 0));
-        }, POLL)
+        })
         .toBeGreaterThan(0.5);
       expect((await world3d(page)).picked).toBeNull();
 
       // A tap on the lounge door picks its hotspot id, walks there and goes through it.
       // The walk has ended and the camera has settled once the hotspots stop moving on screen.
-      // On software GL beside another 3D test that can take longer than the default 5 s.
       let before = '';
       await expect
         .poll(async () => {
@@ -527,12 +511,12 @@ test.describe('the 3D world', () => {
           before = now;
           await page.waitForTimeout(250);
           return still;
-        }, POLL)
+        })
         .toBe(true);
       const door = (await world3d(page)).hotspots.find((h) => h.id === 'door_lounge');
       if (!door) throw new Error('no lounge door hotspot');
       await clickLogical(page, door.x, door.y);
-      await expect.poll(async () => (await world3d(page)).picked, POLL).toBe('door_lounge');
+      await expect.poll(async () => (await world3d(page)).picked).toBe('door_lounge');
       await waitForRoom(page, 'lounge');
       expect(errors).toEqual([]);
     },
@@ -545,7 +529,6 @@ test.describe('the 3D world', () => {
       test.info().project.name !== 's22-landscape',
       'the touch target is measured on the S22',
     );
-    test.setTimeout(120_000);
     const errors = collectErrors(page);
     // A pedestal set down in the shed with a tree on it: its hotspot id is the display spot's key.
     const state = createNewGameState();
@@ -583,7 +566,7 @@ test.describe('the 3D world', () => {
           before = now;
           await page.waitForTimeout(250);
           return still;
-        }, POLL)
+        })
         .toBe(true);
     };
     await settle();
@@ -600,7 +583,7 @@ test.describe('the 3D world', () => {
       .poll(async () => {
         const p = (await world3d(page)).player;
         return Math.hypot((p?.x ?? 0) - (start?.x ?? 0), (p?.y ?? 0) - (start?.y ?? 0));
-      }, POLL)
+      })
       .toBeGreaterThan(0.5);
     expect((await world3d(page)).picked).toBeNull();
 
@@ -639,7 +622,7 @@ test.describe('the 3D world', () => {
     );
     if (!aim) throw new Error('no clear floor beside the tree pedestal');
     await tapAt(aim.x, aim.y);
-    await expect.poll(async () => (await hook(page)).panel, POLL).toMatch(/^tree:/);
+    await expect.poll(async () => (await hook(page)).panel).toMatch(/^tree:/);
     expect((await world3d(page)).picked).toBe('placed_0');
     expect(errors).toEqual([]);
   });
@@ -648,7 +631,6 @@ test.describe('the 3D world', () => {
     "stands the room's trees on their spots, built from the tree viewer's meshes",
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       const errors = collectErrors(page);
       // The prototype's two trees, both set down on the shed floor.
       const save = readFileSync(
@@ -662,7 +644,7 @@ test.describe('the 3D world', () => {
       await toTitle(page);
       await continueGame(page);
       await waitForRoom(page, 'shed');
-      await expect.poll(async () => (await world3d(page)).trees, POLL).toBe(2);
+      await expect.poll(async () => (await world3d(page)).trees).toBe(2);
       const shed = await world3d(page);
       expect(shed.meshes).toBeGreaterThan(shed.trees);
 
@@ -673,7 +655,7 @@ test.describe('the 3D world', () => {
           await page.mouse.wheel(0, -900);
           await page.waitForTimeout(100);
         }
-        await expect.poll(async () => (await world3d(page)).camera.radius, POLL).toBeLessThan(5);
+        await expect.poll(async () => (await world3d(page)).camera.radius).toBeLessThan(5);
         await waitForAhead(page);
         await page.waitForTimeout(500);
         await expect(page).toHaveScreenshot('world3d-trees.png');
@@ -683,23 +665,20 @@ test.describe('the 3D world', () => {
       await waitForAhead(page);
       await shedToLounge(page);
       await waitForRoom(page, 'lounge');
-      await expect.poll(async () => (await world3d(page)).trees, POLL).toBe(0);
+      await expect.poll(async () => (await world3d(page)).trees).toBe(0);
       expect(errors).toEqual([]);
     },
   );
 
   test('draws the shed again from a turned heading', async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
     await page.keyboard.press('q');
     await page.keyboard.press('q');
-    await expect
-      .poll(async () => (await world3d(page)).camera.alpha, POLL)
-      .toBeLessThan(-Math.PI + 0.01);
+    await expect.poll(async () => (await world3d(page)).camera.alpha).toBeLessThan(-Math.PI + 0.01);
     await page.waitForTimeout(500);
     await expect(page).toHaveScreenshot('world3d-shed-turned.png');
   });
@@ -708,24 +687,22 @@ test.describe('the 3D world', () => {
     const errors = collectErrors(page);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
-    await expect.poll(async () => (await world3d(page)).inked, POLL).toBe(true);
+    await expect.poll(async () => (await world3d(page)).inked).toBe(true);
     expect(errors).toEqual([]);
   });
 
   test("draws the shed's furniture as models", async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
     await page.waitForFunction(() => window.__bonsai?.tutorialStep === -1);
     await zoomIn(page, 900, 7.5);
-    await expect(page).toHaveScreenshot('world3d-furniture.png', { timeout: 30_000 });
+    await expect(page).toHaveScreenshot('world3d-furniture.png');
   });
 
   test("papers the lounge's hallway block as a wall", { tag: '@walk' }, async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -740,7 +717,6 @@ test.describe('the 3D world', () => {
 
   test("draws the study's furniture", { tag: '@walk' }, async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -764,15 +740,12 @@ test.describe('the 3D world', () => {
     "lays each room's floor: painted indoors, its own Inked tiles outdoors",
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
-      await expect.poll(async () => (await world3d(page)).floorSheet, POLL).toBe('paint.wood');
+      await expect.poll(async () => (await world3d(page)).floorSheet).toBe('paint.wood');
       await shedToGarden(page);
       await waitForRoom(page, 'garden');
-      await expect
-        .poll(async () => (await world3d(page)).floorSheet, POLL)
-        .toBe('spr_floor_garden');
+      await expect.poll(async () => (await world3d(page)).floorSheet).toBe('spr_floor_garden');
     },
   );
 
@@ -780,7 +753,6 @@ test.describe('the 3D world', () => {
     "dresses each room's walls and caps: wallpaper indoors, its own Inked sheets for caps and fences",
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       expect((await world3d(page)).wallSheets).toEqual([
@@ -802,7 +774,6 @@ test.describe('the 3D world', () => {
     "models each room's doors, windows and plantings from its room data",
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       expect((await world3d(page)).details).toEqual({ door: 2, window: 1 });
@@ -817,7 +788,6 @@ test.describe('the 3D world', () => {
     { tag: '@walk' },
     async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
@@ -825,7 +795,7 @@ test.describe('the 3D world', () => {
       await waitForAhead(page);
       await shedToGarden(page);
       await waitForRoom(page, 'garden');
-      await expect.poll(async () => (await world3d(page)).shadows, POLL).toBe(true);
+      await expect.poll(async () => (await world3d(page)).shadows).toBe(true);
       await waitForAhead(page);
       await zoomIn(page, 900, 8);
       await expect(page).toHaveScreenshot('world3d-garden-shadows.png');
@@ -834,7 +804,6 @@ test.describe('the 3D world', () => {
 
   test('draws the gardener close up in the shed', { tag: '@walk' }, async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -843,18 +812,17 @@ test.describe('the 3D world', () => {
     // face, fringe, apron and trowel three-quarters on. The player stays put, so the shot is still.
     for (let i = 0; i < 3; i++) await page.keyboard.press('q');
     await expect
-      .poll(async () => (await world3d(page)).camera.alpha, POLL)
+      .poll(async () => (await world3d(page)).camera.alpha)
       .toBeCloseTo(-Math.PI / 2 - (3 * Math.PI) / 4, 1);
     // The wheel zooms to the camera's nearest, which frames the player from head to boots.
     await zoomIn(page, 3000, 4.5);
-    await expect(page).toHaveScreenshot('world3d-gardener.png', { timeout: 30_000 });
+    await expect(page).toHaveScreenshot('world3d-gardener.png');
   });
 
   test(
     'carries a tree in the upper body, and keeps running with it',
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       const state = createNewGameState();
       const [starter] = state.trees;
       if (!starter) throw new Error('no starter');
@@ -871,27 +839,26 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
       expect((await hook(page)).carrying).toBe("Granny's");
-      await expect.poll(async () => (await world3d(page)).carry, POLL).toBe(1);
+      await expect.poll(async () => (await world3d(page)).carry).toBe(1);
       expect((await world3d(page)).shot).toBeNull();
 
       if (test.info().project.name === 's22-landscape') {
         for (let i = 0; i < 3; i++) await page.keyboard.press('q');
         await expect
-          .poll(async () => (await world3d(page)).camera.alpha, POLL)
+          .poll(async () => (await world3d(page)).camera.alpha)
           .toBeCloseTo(-Math.PI / 2 - (3 * Math.PI) / 4, 1);
         await zoomIn(page, 3000, 4.5);
-        await expect(page).toHaveScreenshot('world3d-carrying.png', { timeout: 30_000 });
+        await expect(page).toHaveScreenshot('world3d-carrying.png');
       }
 
       await page.keyboard.down('ArrowRight');
-      await expect.poll(async () => (await world3d(page)).clips.run, POLL).toBeGreaterThan(0.99);
+      await expect.poll(async () => (await world3d(page)).clips.run).toBeGreaterThan(0.99);
       expect((await world3d(page)).carry).toBe(1);
       await page.keyboard.up('ArrowRight');
     },
   );
 
   test('lies down for a sleep, lies still, and stands up', { tag: '@walk' }, async ({ page }) => {
-    test.setTimeout(240_000);
     // Lie_Idle is held for ten minutes of game time, so the pose can be captured at rest.
     await bootWorld(page, '/?lieSeconds=600');
     await waitForRoom(page, 'shed');
@@ -903,36 +870,30 @@ test.describe('the 3D world', () => {
     }
 
     await sleepOneNight(page);
-    await expect.poll(async () => (await world3d(page)).shot, POLL).toBe('lieIdle');
+    await expect.poll(async () => (await world3d(page)).shot).toBe('lieIdle');
     await expect.poll(async () => (await hook(page)).toast, { timeout: 100_000 }).toBe('');
     expect((await world3d(page)).clips.idle).toBeGreaterThan(0.99);
     if (test.info().project.name === 's22-landscape') {
-      await expect(page).toHaveScreenshot('world3d-lying.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-lying.png');
     }
     expect((await world3d(page)).shot).toBe('lieIdle');
   });
 
   test('stands up from a short sleep and is free again', { tag: '@walk' }, async ({ page }) => {
-    test.setTimeout(240_000);
     await bootWorld(page, '/?lieSeconds=0.5');
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
     await sleepOneNight(page);
-    await page.waitForFunction(
-      () => window.__bonsai?.world3d?.shot === 'lieStandUp',
-      undefined,
-      POLL,
-    );
-    await expect.poll(async () => (await world3d(page)).shot, POLL).toBeNull();
+    await page.waitForFunction(() => window.__bonsai?.world3d?.shot === 'lieStandUp');
+    await expect.poll(async () => (await world3d(page)).shot).toBeNull();
   });
 
   test('sits on the lounge sofa and armchair, and stands up on a move or Interact', async ({
     page,
   }) => {
-    test.setTimeout(240_000);
     const shot = async (): Promise<string | null> => (await world3d(page)).shot;
     const clip = (name: string) =>
-      page.waitForFunction((n) => window.__bonsai?.world3d?.shot === n, name, POLL);
+      page.waitForFunction((n) => window.__bonsai?.world3d?.shot === n, name);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -953,16 +914,16 @@ test.describe('the 3D world', () => {
     expect((await hook(page)).prompt).toBe('E: Stand');
     if (test.info().project.name === 's22-landscape') {
       await zoomIn(page, 3000, 4.5);
-      await expect(page).toHaveScreenshot('world3d-sitting-sofa.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-sitting-sofa.png');
     }
 
     // A move key gets the player up and, once up, away; it does not slide off the seat.
     await page.keyboard.down('ArrowDown');
     await clip('sitStandUp');
-    await expect.poll(async () => (await hook(page)).prompt, POLL).toBe('');
+    await expect.poll(async () => (await hook(page)).prompt).toBe('');
     expect((await hook(page)).player).toEqual(beside);
-    await page.waitForFunction(() => window.__bonsai?.world3d?.seated === null, undefined, POLL);
-    await page.waitForFunction((y) => (window.__bonsai?.player.y ?? 0) > y + 4, beside.y, POLL);
+    await page.waitForFunction(() => window.__bonsai?.world3d?.seated === null);
+    await page.waitForFunction((y) => (window.__bonsai?.player.y ?? 0) > y + 4, beside.y);
     await page.keyboard.up('ArrowDown');
 
     // Below the armchair's front: along the row under the table and up its west face.
@@ -978,24 +939,23 @@ test.describe('the 3D world', () => {
       // The floor lamp stands between the default camera and the chair: swing round to see the sitter.
       for (let i = 0; i < 2; i++) await page.keyboard.press('q');
       await expect
-        .poll(async () => (await world3d(page)).camera.alpha, POLL)
+        .poll(async () => (await world3d(page)).camera.alpha)
         .toBeCloseTo(-Math.PI / 2 - Math.PI / 2, 1);
       await page.waitForTimeout(500);
-      await expect(page).toHaveScreenshot('world3d-sitting-armchair.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-sitting-armchair.png');
     }
 
     // Interact gets up too.
     await interact(page);
     await clip('sitStandUp');
-    await expect.poll(async () => (await hook(page)).prompt, POLL).toBe('');
-    await expect.poll(shot, POLL).toBeNull();
+    await expect.poll(async () => (await hook(page)).prompt).toBe('');
+    await expect.poll(shot).toBeNull();
     expect((await world3d(page)).seated).toBeNull();
     expect((await hook(page)).player).toEqual(armchair);
   });
 
   test("draws the garden's glazed doors", { tag: '@walk' }, async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -1010,8 +970,7 @@ test.describe('the 3D world', () => {
     await walkToColumn(page, 300);
     await walkToRow(page, 175);
     await page.waitForTimeout(2000);
-    // The garden's capture takes software GL longer than the default 5 s to settle.
-    await expect(page).toHaveScreenshot('world3d-garden-doors.png', { timeout: 30_000 });
+    await expect(page).toHaveScreenshot('world3d-garden-doors.png');
   });
 
   test(
@@ -1019,7 +978,6 @@ test.describe('the 3D world', () => {
     { tag: '@walk' },
     async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
@@ -1038,7 +996,7 @@ test.describe('the 3D world', () => {
       expect((await hook(page)).player).toMatchObject({ x: 336, y: 190 });
       await waitForBuilt(page, ['garden']);
       await expect
-        .poll(async () => (await world3d(page)).cut.some((n) => n.endsWith('_face')), POLL)
+        .poll(async () => (await world3d(page)).cut.some((n) => n.endsWith('_face')))
         .toBe(true);
       await page.waitForTimeout(500);
       await expect(page).toHaveScreenshot('world3d-front-garden.png');
@@ -1049,7 +1007,6 @@ test.describe('the 3D world', () => {
     "draws the season's weather outdoors only, from the 2D world's field",
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(120_000);
       const errors = collectErrors(page);
       await page.addInitScript(() => {
         localStorage.setItem(
@@ -1068,10 +1025,10 @@ test.describe('the 3D world', () => {
       await waitForRoom(page, 'garden');
       // The garden's field is built a frame or two after the room is; wait for it.
       await expect
-        .poll(async () => (await hook(page)).weather?.kind, POLL)
+        .poll(async () => (await hook(page)).weather?.kind)
         .toMatch(/^(petals|fireflies|leaves|snow)$/);
       const kind = (await hook(page)).weather?.kind;
-      await expect.poll(async () => (await world3d(page)).weather, POLL).toBe(kind);
+      await expect.poll(async () => (await world3d(page)).weather).toBe(kind);
       await page.waitForTimeout(300);
       expect(errors).toEqual([]);
 
@@ -1079,7 +1036,7 @@ test.describe('the 3D world', () => {
       await waitForAhead(page);
       await gardenToGreenhouse(page);
       await waitForRoom(page, 'greenhouse');
-      await expect.poll(async () => (await world3d(page)).weather, POLL).toBeNull();
+      await expect.poll(async () => (await world3d(page)).weather).toBeNull();
     },
   );
 
@@ -1087,7 +1044,6 @@ test.describe('the 3D world', () => {
     'placed items stand in the greenhouse under their trees, and placing another adds an instance',
     { tag: '@walk' },
     async ({ page }) => {
-      test.setTimeout(180_000);
       const errors = collectErrors(page);
       // A pedestal in the inventory; a pedestal and a floor shelf already down in the greenhouse, three trees on their spots.
       const state = createNewGameState();
@@ -1122,19 +1078,19 @@ test.describe('the 3D world', () => {
 
       // The two items are drawn, one instance each, with a hotspot for each of their spots and a tree on each.
       await expect
-        .poll(async () => (await world3d(page)).instances, POLL)
+        .poll(async () => (await world3d(page)).instances)
         .toEqual({ pedestal: 1, floor_shelf: 1 });
       expect((await world3d(page)).hotspots.map((h) => h.id)).toEqual(
         expect.arrayContaining(['placed_0', 'placed_1', 'placed_1_2']),
       );
-      await expect.poll(async () => (await world3d(page)).trees, POLL).toBe(3);
+      await expect.poll(async () => (await world3d(page)).trees).toBe(3);
 
       if (test.info().project.name === 's22-landscape') {
         // A quarter turn puts the pedestal and the shelf beside the player, not behind the capsule.
         await page.keyboard.press('q');
         await page.keyboard.press('q');
         await expect
-          .poll(async () => (await world3d(page)).camera.alpha, POLL)
+          .poll(async () => (await world3d(page)).camera.alpha)
           .toBeLessThan(-Math.PI + 0.05);
         await zoomIn(page, 1500, 6);
         await waitForAhead(page);
@@ -1145,7 +1101,7 @@ test.describe('the 3D world', () => {
       const room = await world3d(page);
       await startPlacing(page);
       await interact(page);
-      await expect.poll(async () => (await world3d(page)).instances.pedestal, POLL).toBe(2);
+      await expect.poll(async () => (await world3d(page)).instances.pedestal).toBe(2);
       const placed = await world3d(page);
       expect(placed.instances.floor_shelf).toBe(1);
       expect(placed.hotspots.map((h) => h.id)).toContain('placed_2');
@@ -1161,7 +1117,6 @@ test.describe('the 3D world', () => {
     { tag: '@walk' },
     async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-      test.setTimeout(120_000);
       await bootWorld(page);
       await waitForRoom(page, 'shed');
       await skipTutorial(page, true);
@@ -1173,7 +1128,7 @@ test.describe('the 3D world', () => {
       await zoomIn(page, 2000, 6);
       await waitForAhead(page);
       await page.waitForTimeout(500);
-      await expect(page).toHaveScreenshot('world3d-shed-tables.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-shed-tables.png');
     },
   );
 
@@ -1182,7 +1137,6 @@ test.describe('the 3D world', () => {
     { tag: '@walk' },
     async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-      test.setTimeout(120_000);
       await continueWithDisplayed(page, ['lounge_mantel']);
       await waitForBuilt(page, ['garden', 'lounge']);
       await shedToLounge(page);
@@ -1193,7 +1147,7 @@ test.describe('the 3D world', () => {
       await walkToRow(page, 100);
       await zoomIn(page, 2000, 6);
       await waitForAhead(page);
-      await expect(page).toHaveScreenshot('world3d-lounge-mantel.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-lounge-mantel.png');
     },
   );
 
@@ -1202,7 +1156,6 @@ test.describe('the 3D world', () => {
     { tag: '@walk' },
     async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-      test.setTimeout(120_000);
       await continueWithDisplayed(page, ['lounge_mantel']);
       await waitForBuilt(page, ['garden', 'lounge']);
       await shedToLounge(page);
@@ -1215,11 +1168,11 @@ test.describe('the 3D world', () => {
       // One step of E turns the camera round from due south to look at the fireplace's front and side.
       await page.keyboard.press('e');
       await expect
-        .poll(async () => (await world3d(page)).camera.alpha, POLL)
+        .poll(async () => (await world3d(page)).camera.alpha)
         .toBeGreaterThan(-Math.PI / 2 + 0.7);
       await page.waitForTimeout(1500);
       await waitForAhead(page);
-      await expect(page).toHaveScreenshot('world3d-lounge-mantel-front.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-lounge-mantel-front.png');
     },
   );
 
@@ -1228,7 +1181,6 @@ test.describe('the 3D world', () => {
     { tag: '@walk' },
     async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-      test.setTimeout(120_000);
       await continueWithDisplayed(page, ['study_desk']);
       await waitForBuilt(page, ['garden', 'lounge']);
       await shedToLounge(page);
@@ -1245,7 +1197,7 @@ test.describe('the 3D world', () => {
       await waitForAhead(page);
       await waitForPacked(page, 'desk');
       await page.waitForTimeout(3000);
-      await expect(page).toHaveScreenshot('world3d-study-desk.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-study-desk.png');
     },
   );
 
@@ -1254,7 +1206,6 @@ test.describe('the 3D world', () => {
     { tag: '@walk' },
     async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-      test.setTimeout(120_000);
       await continueWithDisplayed(page, ['lounge_side_table']);
       await waitForBuilt(page, ['garden', 'lounge']);
       await shedToLounge(page);
@@ -1268,7 +1219,7 @@ test.describe('the 3D world', () => {
       await waitForAhead(page);
       await waitForPacked(page, 'side_table');
       await page.waitForTimeout(1000);
-      await expect(page).toHaveScreenshot('world3d-lounge-side-table.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-lounge-side-table.png');
     },
   );
 
@@ -1277,7 +1228,6 @@ test.describe('the 3D world', () => {
     { tag: '@walk' },
     async ({ page }) => {
       test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-      test.setTimeout(120_000);
       await continueWithDisplayed(page, ['study_bookshelf']);
       await waitForBuilt(page, ['garden', 'lounge']);
       await shedToLounge(page);
@@ -1296,13 +1246,12 @@ test.describe('the 3D world', () => {
       await waitForAhead(page);
       await waitForPacked(page, 'low_bookcase');
       await page.waitForTimeout(3000);
-      await expect(page).toHaveScreenshot('world3d-study-bookcase.png', { timeout: 30_000 });
+      await expect(page).toHaveScreenshot('world3d-study-bookcase.png');
     },
   );
 
   test('draws the shop bicycle beside the player', { tag: '@walk' }, async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'one screenshot project');
-    test.setTimeout(120_000);
     await bootWorld(page);
     await waitForRoom(page, 'shed');
     await skipTutorial(page, true);
@@ -1319,19 +1268,16 @@ test.describe('the 3D world', () => {
     await zoomIn(page, 2000, 6);
     await waitForAhead(page);
     await page.waitForTimeout(500);
-    await expect(page).toHaveScreenshot('world3d-front-bicycle.png', { timeout: 30_000 });
+    await expect(page).toHaveScreenshot('world3d-front-bicycle.png');
   });
 
   test('loads offline once the service worker has precached the build', async ({
     page,
     context,
   }) => {
-    test.setTimeout(120_000);
     const errors = collectErrors(page);
     await page.goto('/');
-    await page.waitForFunction(() => navigator.serviceWorker.controller !== null, undefined, {
-      timeout: 15_000,
-    });
+    await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
     // Installing the worker precaches the build, so it is complete once the worker controls the page.
     await context.setOffline(true);
     await bootWorld(page);
@@ -1366,6 +1312,6 @@ async function continueWithDisplayed(page: Page, spots: readonly string[]): Prom
 async function zoomIn(page: Page, wheel: number, radius: number): Promise<void> {
   await page.mouse.move(240, 135);
   await page.mouse.wheel(0, -wheel);
-  await expect.poll(async () => (await world3d(page)).camera.radius, POLL).toBeLessThan(radius);
+  await expect.poll(async () => (await world3d(page)).camera.radius).toBeLessThan(radius);
   await page.waitForTimeout(500);
 }

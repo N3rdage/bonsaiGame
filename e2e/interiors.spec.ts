@@ -29,8 +29,6 @@ async function expectEntry(page: Page, room: string, x: number, y: number): Prom
 test.describe('house interiors screenshot', () => {
   test('the lounge, the hallway and the study at their entry points', async ({ page }) => {
     test.skip(test.info().project.name !== 's22-landscape', 'S22 landscape baselines only');
-    // Three rooms' walks and captures in one test take about a minute on software GL, the default budget.
-    test.setTimeout(120_000);
     await bootWorld(page);
     await openSettingsFromMenu(page);
     await tapControl(page, 'panel-weather');

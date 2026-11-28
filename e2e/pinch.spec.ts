@@ -118,7 +118,6 @@ test.describe('pinch zoom in the 3D world', () => {
 
   for (const c of cases) {
     test(`${c.name}: zooms and nothing else happens`, async ({ page }) => {
-      test.setTimeout(120_000);
       const errors = collectErrors(page);
       const { at } = await bootShed(page);
 
@@ -131,7 +130,7 @@ test.describe('pinch zoom in the 3D world', () => {
       await touches.up(c.lift[1] ?? 2);
 
       await expect
-        .poll(async () => (await world3d(page)).camera.radius, { timeout: 30_000 })
+        .poll(async () => (await world3d(page)).camera.radius)
         .toBeLessThan(before.camera.radius - 1);
       // Long enough for a stick or a tap's walk to have moved the player.
       await page.waitForTimeout(800);
@@ -153,7 +152,6 @@ test.describe('pinch zoom in the 3D world', () => {
 
   for (const c of buttonCases) {
     test(`${c.name}: zooms and presses nothing`, async ({ page }) => {
-      test.setTimeout(120_000);
       const errors = collectErrors(page);
       const { at, menu } = await bootShed(page);
       const before = await world3d(page);
@@ -167,7 +165,7 @@ test.describe('pinch zoom in the 3D world', () => {
       await touches.up(onMenu.id);
 
       await expect
-        .poll(async () => (await world3d(page)).camera.radius, { timeout: 30_000 })
+        .poll(async () => (await world3d(page)).camera.radius)
         .not.toBe(before.camera.radius);
       await page.waitForTimeout(800);
       const after = await world3d(page);
